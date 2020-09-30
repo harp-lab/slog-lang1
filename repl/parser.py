@@ -46,10 +46,11 @@ s = None
 
 def p_statement(t):
     'statement : ID STRING'
+    str = t[2][1:-1]
     if t[1] == "load":
-        t[0] = LoadCommand(t[2])
+        t[0] = LoadCommand(str)
     elif t[1] == "connect":
-        t[0] = ConnectCommand(t[2])
+        t[0] = ConnectCommand(str)
 
 def p_error(t):
     print("Syntax error at '%s'" % t.value)

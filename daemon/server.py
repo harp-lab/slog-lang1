@@ -19,8 +19,10 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
         self._db = conn
         
     def LoadProgram(self,request,context):
-        response = slog.Promise()
-        response.success = true
+        print("here")
+        print(request)
+        response = slog_pb2.Promise()
+        response.success = True
         response.promise_id = 24
         return response
 

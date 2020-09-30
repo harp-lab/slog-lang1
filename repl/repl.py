@@ -13,7 +13,8 @@ class Repl:
     def __init__(self):
         self._channel = None
         self._parser = CommandParser()
-        
+        self.reconnect("localhost")
+
     def add_time(self,uuid):
         pass
 
@@ -28,6 +29,14 @@ class Repl:
         self.num_local_times = 0
         self.time_prev = {}
         self.time_uuids = {}
+
+    def load(self,path):
+        with open(path,'r') as f:
+            content = f.read()
+            req = slog_pb2.LoadProgramReq()
+            req.session_key = "empty"
+            req.source_program = content
+            response = self._stub.LoadProgram(req)
 
     def get_front(self):
         if (not self.connected()):

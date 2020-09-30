@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package protobufs;
+//package protobufs;
 
 // A session response contains a boolean indicating success / failure
 // and a string containing either an error or a successfully-created

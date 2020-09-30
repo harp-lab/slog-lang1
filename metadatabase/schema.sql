@@ -33,9 +33,8 @@ CREATE TABLE sessions (
        creation_time TEXT NOT NULL
 );
 
-CREATE TABLE source_trees (
+CREATE TABLE job_metadata (
        job_id INTEGER NOT NULL PRIMARY KEY,
        root_directory TEXT
 );
-
 
