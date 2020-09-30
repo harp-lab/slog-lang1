@@ -1,30 +1,30 @@
 import grpc
 from concurrent import futures
 import time
+from prompt_toolkit import prompt
+from prompt_toolkit.completion import WordCompleter
+from prompt_toolkit.formatted_text import HTML
+from sexpdata import loads, dumps
 
 import protobufs.slog_pb2 as slog_pb2
 import protobufs.slog_pb2_grpc as slog_pb2_grpc
 
-PORT = 5106
+class Repl:
+    def __init__(self):
+        self._channel = grpc.insecure_channel('localhost:5106')
+        self._stub = slog_pb2_grpc.CommandServiceStub(self._channel)
 
-class CompileService(slog_pb2_grpc.LoadProgramService):
-    def LoadProgram(self,request,context):
-        response = slog.Promise()
-        response.success = true
-        response.promise_id = 24
-        return response
+    def loop(self):
+        text = prompt('σλoγ >', bottom_toolbar=self.bottom_toolbar())
+        sexp = loads(text)
 
-server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    def bottom_toolbar(self):
+        return HTML('server: <b><style bg="ansired">??</style></b> ?? jobs in queue. Last cmd took ?? seconds.')
 
-slog_pb2_grpc.add_LoadProgramServiceServicer_to_server(CompileService(),server)
-
-print('Slog server starting. Listening on port {}'.format(PORT))
-server.add_insecure_port('[::]:{}'.format(PORT))
-server.start()
+repl = Repl()
 
 try:
     while True:
-        time.sleep(86400)
+        repl.loop()
 except KeyboardInterrupt:
-    server.stop(0)
-    print('Server is exiting.')
+    print('Goodbye.')

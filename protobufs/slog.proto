@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package slog;
+package protobufs;
 
 // A session response contains a boolean indicating success / failure
 // and a string containing either an error or a successfully-created
@@ -10,7 +10,7 @@ message CreateSessionResponse {
   string err_or_session_id = 2;
 }
 
-service LoadProgramService {
+service CommandService {
   rpc LoadProgram(LoadProgramReq) returns (Promise);
 }
 

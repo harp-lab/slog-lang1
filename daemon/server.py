@@ -7,7 +7,7 @@ import protobufs.slog_pb2_grpc as slog_pb2_grpc
 
 PORT = 5106
 
-class CompileService(slog_pb2_grpc.LoadProgramService):
+class CommandService(slog_pb2_grpc.CommandServiceServicer):
     def LoadProgram(self,request,context):
         response = slog.Promise()
         response.success = true
@@ -16,7 +16,7 @@ class CompileService(slog_pb2_grpc.LoadProgramService):
 
 server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
 
-slog_pb2_grpc.add_LoadProgramServiceServicer_to_server(CompileService(),server)
+slog_pb2_grpc.add_CommandServiceServicer_to_server(CommandService(),server)
 
 print('Slog server starting. Listening on port {}'.format(PORT))
 server.add_insecure_port('[::]:{}'.format(PORT))
