@@ -7,10 +7,12 @@ import protobufs.slog_pb2 as slog_pb2
 import protobufs.slog_pb2_grpc as slog_pb2_grpc
 import os
 import sys
+import tempfile
 from daemon.compile_task import *
 
 PORT = 5106
 DB_PATH = os.path.join(os.path.dirname(__file__),"../metadatabase/database.sqlite3")
+DATA_PATH = os.path.join(os.path.dirname(__file__),"../data")
 conn = sqlite3.connect(DB_PATH)
 log = sys.stderr
 
@@ -18,9 +20,20 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
     def __init__(self):
         self._db = conn
         
+    def gen_data_directory(self):
+        return tempfile.mkdtemp(prefix=DATA_PATH+"/")
+
     def LoadProgram(self,request,context):
         print("here")
         print(request)
+        data_directory = self.gen_data_directory()
+        src_directory = os.path.join(data_directory,"src")
+        os.mkdir(src_directory,mode=0o700)
+        src_file = os.path.join(src_directory,"program.slog")
+        print(src_file)
+        with open(src_file,"w") as fh:
+            fh.write(request.source_program)
+        print("Wrote {}\n".format(src_file))
         response = slog_pb2.Promise()
         response.success = True
         response.promise_id = 24
