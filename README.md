@@ -10,3 +10,6 @@ data-parallel deductive programming.
 - `parallel-ra/` -- MPI-based parallel relational algebra plan (RA) runtime
 - `daemon/`      -- Server for managing, queuing, and storing Slog jobs
 - `repl/`        -- Interactive CLI for Slog
+
+## Building and Executing
+

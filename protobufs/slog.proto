@@ -2,15 +2,6 @@ syntax = "proto3";
 
 package slog;
 
-service CreateSessionService {
-  rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
-}
-
-message CreateSessionRequest {
-  string username = 1;
-  string password = 2;
-}
-
 // A session response contains a boolean indicating success / failure
 // and a string containing either an error or a successfully-created
 // session ID
@@ -19,72 +10,17 @@ message CreateSessionResponse {
   string err_or_session_id = 2;
 }
 
-// Create timestamps
-
-service CreateTimestampService {
-  rpc CreateTimestamp(CreateTimestampRequest) returns (CreateTimestampResponse);
+service LoadProgramService {
+  rpc LoadProgram(LoadProgramReq) returns (Promise);
 }
 
-message CreateTimestampRequest {
-  string session_id = 1;
-  SourceProgram source = 2;
-  RelationContents data = 3;
+message LoadProgramReq {
+  string session_key = 1;
+  string source_program = 2;
 }
 
-message CreateTimestampResponse {
+message Promise {
   bool success = 1;
   uint64 promise_id = 2;
 }
 
-// Query promises
-
-service QueryPromiseService {
-  rpc QueryPromise(QueryPromiseRequest) returns (PromiseResponse);
-}
-
-message QueryPromiseRequest {
-  string session_id = 1;
-  uint64 promise = 2;
-}
-
-message PromiseResponse {
-  bool resolved = 1;
-  optional uint64 timestamp_id = 2;
-}
-
-// Source programs
-message SourceProgram {
-  string filename = 1;
-  string file_contents = 2;
-}
-
-// Get relation metadata
-service GetRelationMetadataService {
-  rpc GetRelationMetadata(GetRelationMetadataRequest) returns (GetRelationMetadataResponse);
-}
-
-message GetRelationMetadataRequest {
-  uint64 timestamp = 1;
-}
-
-message GetRelationMetadataResponse {
-  map<string, uint32> relation_ids = 1;
-}
-
-message GetRelationSizesResponse {
-  map<string, uint32> relation_sizes = 1;
-}
-
-service GetRelationSizesService {
-  rpc GetRelationSizes(GetRelationMetadataRequest) returns (GetRelationSizesResponse);
-}
-
-message RelationContents {
-  string relation_name = 1;
-  uint32 num_tuples = 2;
-  repeated Tuple tuples = 3;
-}
-
-message Tuple {
-  repeated uint64 data = 1;
-}
