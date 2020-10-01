@@ -66,8 +66,15 @@ class CompileTask():
     def log(self,msg):
         print("[ CompileTask {} ] {}".format(time.time(),msg))
 
-    def compile_to_cpp(self,root_directory):
-        result = subprocess.
+    def compile_to_cpp(self,root_directory,job_nodes):
+        self.log("Beginning compilation to C++ for {} nodes (dir: {})".format(job_nodes,root_directory))
+        program = os.path.join(root_directory,"src/program.slog")
+        # Execute the Racket process to perform compilation
+        result = subprocess.run(["racket", SLOG_COMPILER, "-b", str(job_nodes), "-c", "--data", root_directory,program])
+        if result.returncode == 0:
+            self.log("Slog->C++ compilation successful. Compiling to MPI")
+        else:
+            self.log("Slog->C++ compilation failed!")
 
     def loop(self):
         self._db = sqlite3.connect(DB_PATH)
@@ -82,7 +89,7 @@ class CompileTask():
                 status = row[2]
                 root_directory = row[3]
                 creation_time = row[4]
-                compile_to_cpp(root_directory)
+                self.compile_to_cpp(root_directory,4)
 
 def start_compile_task():
     CompileTask(conn,log).loop()
