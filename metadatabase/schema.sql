@@ -17,7 +17,7 @@ CREATE TABLE relations (
 CREATE TABLE string_pools (
        job_id INTEGER NOT NULL,
        pool_type INTEGER NOT NULL,
-       pool_file TEXT NOT NULL
+       pool_file TEXT NOT NULL,
        PRIMARY KEY(job_id,pool_type)
 );
 
@@ -29,12 +29,16 @@ CREATE TABLE users (
 
 CREATE TABLE sessions (
        session_id INTEGER NOT NULL PRIMARY KEY,
-       user_id INTEGER NOT NULL PRIMARY KEY,
+       user_id INTEGER NOT NULL,
        creation_time TEXT NOT NULL
 );
 
-CREATE TABLE job_metadata (
+CREATE TABLE compile_jobs (
        job_id INTEGER NOT NULL PRIMARY KEY,
-       root_directory TEXT
+       promise INTEGER NOT NULL,
+       status INTEGER NOT NULL,
+       root_directory TEXT,
+       creation_time TEXT NOT NULL,
+       completion_time TEXT       
 );
 

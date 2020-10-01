@@ -7,23 +7,30 @@ import protobufs.slog_pb2 as slog_pb2
 import protobufs.slog_pb2_grpc as slog_pb2_grpc
 import os
 import sys
+import subprocess
 import tempfile
 from daemon.compile_task import *
 
 PORT = 5106
 DB_PATH = os.path.join(os.path.dirname(__file__),"../metadatabase/database.sqlite3")
 DATA_PATH = os.path.join(os.path.dirname(__file__),"../data")
+SLOG_COMPILER = os.path.join(os.path.dirname(__file__),"../compiler/slog.rkt")
 conn = sqlite3.connect(DB_PATH)
 log = sys.stderr
 
+STATUS_PENDING  = 0
+STATUS_ERROR    = 1
+STATUS_RESOLVED = 2
+
 class CommandService(slog_pb2_grpc.CommandServiceServicer):
     def __init__(self):
-        self._db = conn
-        
+        self._db = sqlite3.connect(DB_PATH)
+
     def gen_data_directory(self):
         return tempfile.mkdtemp(prefix=DATA_PATH+"/")
 
     def LoadProgram(self,request,context):
+        self._db = sqlite3.connect(DB_PATH)
         print("here")
         print(request)
         data_directory = self.gen_data_directory()
@@ -33,15 +40,49 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
         print(src_file)
         with open(src_file,"w") as fh:
             fh.write(request.source_program)
+        c = self._db.cursor()
+        c.execute('INSERT INTO promises (status,comment,creation_time) VALUES (?,?,time(\'now\'))',
+                  (STATUS_PENDING, "Compiling to PRAM IR"))
+        promise_id = c.lastrowid
+        print(promise_id)
+        c.execute('INSERT INTO compile_jobs (promise, status, root_directory, creation_time) VALUES (?,?,?,time(\'now\'))',(promise_id,STATUS_PENDING,data_directory))
+        compile_job_id = c.lastrowid
+        self._db.commit()
+        print(compile_job_id)
         print("Wrote {}\n".format(src_file))
         response = slog_pb2.Promise()
         response.success = True
-        response.promise_id = 24
+        response.promise_id = promise_id
         return response
 
 server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
 
 slog_pb2_grpc.add_CommandServiceServicer_to_server(CommandService(),server)
+
+class CompileTask():
+    def __init__(self,conn,log):
+        self._log = log
+        
+    def log(self,msg):
+        print("[ CompileTask {} ] {}".format(time.time(),msg))
+
+    def compile_to_cpp(self,root_directory):
+        result = subprocess.
+
+    def loop(self):
+        self._db = sqlite3.connect(DB_PATH)
+        self.log("Starting compile task.")
+        while True:
+            c = self._db.cursor()
+            c.execute('SELECT * FROM compile_jobs where STATUS=0')
+            rows = c.fetchall()
+            for row in rows:
+                id = row[0]
+                promise = row[1]
+                status = row[2]
+                root_directory = row[3]
+                creation_time = row[4]
+                compile_to_cpp(root_directory)
 
 def start_compile_task():
     CompileTask(conn,log).loop()
