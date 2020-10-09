@@ -33,6 +33,15 @@ CREATE TABLE sessions (
        creation_time TEXT NOT NULL
 );
 
+CREATE TABLE mpi_jobs (
+       job_id INTEGER NOT NULL PRIMARY KEY,
+       promise INTEGER NOT NULL,
+       status INTEGER NOT NULL,
+       root_directory TEXT,
+       creation_time TEXT NOT NULL,
+       completion_time TXT
+);
+
 CREATE TABLE compile_jobs (
        job_id INTEGER NOT NULL PRIMARY KEY,
        promise INTEGER NOT NULL,

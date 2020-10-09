@@ -10,11 +10,12 @@ import sys
 import subprocess
 import tempfile
 from daemon.compile_task import *
+from sexpdata import loads
 
 PORT = 5106
 DB_PATH = os.path.join(os.path.dirname(__file__),"../metadatabase/database.sqlite3")
 DATA_PATH = os.path.join(os.path.dirname(__file__),"../data")
-SLOG_COMPILER = os.path.join(os.path.dirname(__file__),"../compiler/slog.rkt")
+SLOG_COMPILER_PROCESS = os.path.join(os.path.dirname(__file__),"../compiler/slog-process.rkt")
 conn = sqlite3.connect(DB_PATH)
 log = sys.stderr
 
@@ -59,10 +60,42 @@ server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
 
 slog_pb2_grpc.add_CommandServiceServicer_to_server(CommandService(),server)
 
+class MalformedManifest(Exception):
+    pass
+
+# Parsing manifest files
+class Manifest():
+    def __init__(self,filename):
+        self.relations = {}
+        with open(filename,'r') as f:
+            sexpr = loads(f.read())
+            if (sexpr[0] != Symbol('manifest')):
+                raise MalformedManifest()
+            directores = sexpr[1]
+            if (directories[0] != Symbol('directories')):
+                raise MalformedManifest()
+            per_rel = directories[1]
+            for rel in per_rel:
+                if (rel[0] != Symbol('rel-select-file')):
+                    raise MalformedManifest()
+                canonical = rel[1]
+                name = rel[2]
+                arity = rel[3]
+                select = rel[4]
+                data = rel[5]
+                size = rel[6]
+                self.relations[[name,arity,select]] = [canonical,data,size]
+            string_pool = directories[2][1]
+            for entry in string_pool:
+                self.strings[entry[0]] = entry[1]
+
+# Compiling Slog->C++
 class CompileTask():
     def __init__(self,conn,log):
         self._log = log
-        
+        self.log("Loading compiler...")
+        self._proc = subprocess.Popen(["racket", SLOG_COMPILER_PROCESS])
+
     def log(self,msg):
         print("[ CompileTask {} ] {}".format(time.time(),msg))
 
@@ -70,7 +103,7 @@ class CompileTask():
         self.log("Beginning compilation to C++ for {} nodes (dir: {})".format(job_nodes,root_directory))
         program = os.path.join(root_directory,"src/program.slog")
         # Execute the Racket process to perform compilation
-        result = subprocess.run(["racket", SLOG_COMPILER, "-b", str(job_nodes), "-c", "--data", root_directory,program])
+        root_directory,program])
         if result.returncode == 0:
             self.log("Slog->C++ compilation successful. Compiling to MPI")
         else:
@@ -96,6 +129,8 @@ def start_compile_task():
 
 print('Slog server starting. Listening on port {}'.format(PORT))
 server.add_insecure_port('[::]:{}'.format(PORT))
+
+m = Manifest("/Users/kmicinski/projects/data/tc/manifest")
 
 # Start the compile task
 compile_task = threading.Thread(target=start_compile_task, daemon=True)
