@@ -1,5 +1,6 @@
 ## Command objects execute REPL commands
 import os, os.path
+from repl.elaborator import *
 
 class Command():
     def __init__(self):
@@ -14,7 +15,9 @@ class LoadCommand(Command):
     
     def execute(self,repl):
         path = os.path.join(os.getcwd(),self.filename)
-        repl.load(path)
+        elaborator = Elaborator()
+        elaborator.elaborate(path)
+        repl.add_files(elaborator)
 
 class DefCommand(Command):
     def __init__(self,filename):

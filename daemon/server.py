@@ -9,11 +9,13 @@ import os
 import sys
 import subprocess
 import tempfile
+import hashlib
 from daemon.compile_task import *
 
 PORT = 5106
 DB_PATH = os.path.join(os.path.dirname(__file__),"../metadatabase/database.sqlite3")
 DATA_PATH = os.path.join(os.path.dirname(__file__),"../data")
+SOURCES_PATH = os.path.join(os.path.dirname(__file__),"../data/sources")
 SLOG_COMPILER = os.path.join(os.path.dirname(__file__),"../compiler/slog.rkt")
 conn = sqlite3.connect(DB_PATH)
 log = sys.stderr
@@ -26,11 +28,40 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
     def __init__(self):
         self._db = sqlite3.connect(DB_PATH)
 
+    def log(self,msg):
+        print("[ CommandService {} ] {}".format(time.time(),msg))
+
     def gen_data_directory(self):
         return tempfile.mkdtemp(prefix=DATA_PATH+"/")
 
-    def LoadProgram(self,request,context):
+    def ExchangeHashes(self,request,context):
         self._db = sqlite3.connect(DB_PATH)
+        c = self._db.cursor()
+        l = request.hashes
+        res = slog_pb2.Hashes()
+        for h in request.hashes:
+            print(h)
+            r = c.execute('SELECT hash FROM hashes where hash=?',(h,))
+            if (r.fetchone() == None):
+                res.hashes.extend([h])
+        return res
+
+    def PutHashes(self,request,context):
+        self._db = sqlite3.connect(DB_PATH)
+        c = self._db.cursor()
+        bodies = request.bodies
+        for body in bodies:
+            h = hashlib.sha256()
+            h.update(body.encode('utf-8'))
+            hsh = h.hexdigest()
+            fname = os.path.join(SOURCES_PATH, hsh)
+            with open(fname, "w") as f:
+                f.write(body)
+                self.log("Writing file for {}".format(hsh))
+                c.execute('INSERT INTO hashes (hash,filename) VALUES (?,?)', (hsh,fname))
+                self._db.commit()
+
+    def LoadProgram(self,request,context):
         print("here")
         print(request)
         data_directory = self.gen_data_directory()

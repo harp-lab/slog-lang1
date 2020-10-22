@@ -21,6 +21,11 @@ CREATE TABLE string_pools (
        PRIMARY KEY(job_id,pool_type)
 );
 
+CREATE TABLE hashes (
+       hash TEXT NOT NULL PRIMARY KEY,
+       filename TEXT NOT NULL
+);
+
 CREATE TABLE users (
        user_id INTEGER NOT NULL PRIMARY KEY,
        username TEXT NOT NULL,

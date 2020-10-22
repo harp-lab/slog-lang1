@@ -30,13 +30,19 @@ class Repl:
         self.time_prev = {}
         self.time_uuids = {}
 
-    def load(self,path):
-        with open(path,'r') as f:
-            content = f.read()
-            req = slog_pb2.LoadProgramReq()
-            req.session_key = "empty"
-            req.source_program = content
-            response = self._stub.LoadProgram(req)
+    def add_files(self,elaborator):
+        req = slog_pb2.HashesRequest()
+        req.session_key = "empty"
+        req.hashes.extend(elaborator.hashes.keys())
+        response = self._stub.ExchangeHashes(req)
+        req = slog_pb2.PutHashesRequest()
+        req.session_key = "empty"
+        for hsh in response.hashes:
+            req.bodies.extend([elaborator.hashes[hsh]])
+        print(req)
+        response = self._stub.PutHashes(req)
+        print("here3")
+        print(response)
 
     def get_front(self):
         if (not self.connected()):
@@ -52,7 +58,10 @@ class Repl:
                 front = self.get_front()
                 text = prompt('σλoγ [{}] » '.format(front), bottom_toolbar=self.bottom_toolbar())
                 cmd = self._parser.parse(text)
-                cmd.execute(self)
+                if cmd:
+                    cmd.execute(self)
+                else:
+                    pass
             except EOFError:
                 self.exit()
             except AssertionError:

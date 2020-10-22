@@ -11,12 +11,26 @@ message CreateSessionResponse {
 }
 
 service CommandService {
-  rpc LoadProgram(LoadProgramReq) returns (Promise);
+  rpc ExchangeHashes(HashesRequest) returns (Hashes);
+  rpc PutHashes(PutHashesRequest) returns (PutHashesResponse);
 }
 
-message LoadProgramReq {
+message HashesRequest {
   string session_key = 1;
-  string source_program = 2;
+  repeated string hashes = 2;
+}
+
+message Hashes {
+  repeated string hashes = 1;
+}
+
+message PutHashesRequest {
+  string session_key = 1;
+  repeated string bodies = 2;
+}
+
+message PutHashesResponse {
+  bool success = 1;
 }
 
 message Promise {
