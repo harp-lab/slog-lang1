@@ -46,6 +46,3 @@ class Elaborator():
 
     def elaborate(self,path):
         self.traverse_dependencies(path)
-        print("Hashes:\n")
-        for x in self.path_to_hash:
-            print("{}\t{}".format(self.path_to_hash[x], x))

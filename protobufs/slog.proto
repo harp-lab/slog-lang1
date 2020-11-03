@@ -12,7 +12,17 @@ message CreateSessionResponse {
 
 service CommandService {
   rpc ExchangeHashes(HashesRequest) returns (Hashes);
-  rpc PutHashes(PutHashesRequest) returns (PutHashesResponse);
+  rpc PutHashes(PutHashesRequest) returns (ErrorResponse);
+  rpc Ping(PingRequest) returns (Pong);
+  rpc RunHashes(RunHashesRequest) returns (Promise);
+}
+
+message PingRequest {
+  bool data = 1;
+}
+
+message Pong {
+  bool data = 1;
 }
 
 message HashesRequest {
@@ -29,8 +39,9 @@ message PutHashesRequest {
   repeated string bodies = 2;
 }
 
-message PutHashesResponse {
+message ErrorResponse {
   bool success = 1;
+  optional string error_msg = 2;
 }
 
 message Promise {
@@ -38,3 +49,7 @@ message Promise {
   uint64 promise_id = 2;
 }
 
+message RunHashesRequest {
+  string session_key = 1;
+  repeated string hashes = 2;
+}

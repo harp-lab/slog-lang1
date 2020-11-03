@@ -9,22 +9,12 @@ class Command():
     def execute(self,repl):
         pass
 
-class LoadCommand(Command):
+class RunCommand(Command):
     def __init__(self,filename):
         self.filename = filename
     
     def execute(self,repl):
-        path = os.path.join(os.getcwd(),self.filename)
-        elaborator = Elaborator()
-        elaborator.elaborate(path)
-        repl.add_files(elaborator)
-
-class DefCommand(Command):
-    def __init__(self,filename):
-        self.filename = filename
-    
-    def execute(self,repl):
-        pass
+        repl.run(self.filename)
 
 class ConnectCommand(Command):
     def __init__(self,server):

@@ -14,6 +14,7 @@ class Repl:
         self._channel = None
         self._parser = CommandParser()
         self.reconnect("localhost")
+        self.lasterr = None
 
     def add_time(self,uuid):
         pass
@@ -30,7 +31,16 @@ class Repl:
         self.time_prev = {}
         self.time_uuids = {}
 
-    def add_files(self,elaborator):
+    def run(self,filename):
+        path = os.path.join(os.getcwd(),filename)
+        elaborator = Elaborator()
+        try:
+            elaborator.elaborate(path)
+        except FileNotFoundError as e:
+            print("Error processing preambles:")
+            print(e)
+            return
+        # Exchange hashes
         req = slog_pb2.HashesRequest()
         req.session_key = "empty"
         req.hashes.extend(elaborator.hashes.keys())
@@ -39,9 +49,16 @@ class Repl:
         req.session_key = "empty"
         for hsh in response.hashes:
             req.bodies.extend([elaborator.hashes[hsh]])
-        print(req)
         response = self._stub.PutHashes(req)
-        print("here3")
+        if (response.success):
+            self.lasterr = None
+        else:
+            print("Error:\n{}".format(response.error))
+            self.lasterr = True
+        # Generate a run request
+        req = slog_pb2.RunHashesRequest()
+        req.hashes.extend(elaborator.hashes.keys())
+        response = self._stub.RunHashes(req)
         print(response)
 
     def get_front(self):

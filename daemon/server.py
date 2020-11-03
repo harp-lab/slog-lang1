@@ -41,7 +41,6 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
         l = request.hashes
         res = slog_pb2.Hashes()
         for h in request.hashes:
-            print(h)
             r = c.execute('SELECT hash FROM hashes where hash=?',(h,))
             if (r.fetchone() == None):
                 res.hashes.extend([h])
@@ -51,37 +50,47 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
         self._db = sqlite3.connect(DB_PATH)
         c = self._db.cursor()
         bodies = request.bodies
+        ret = slog_pb2.ErrorResponse()
+        ret.success = True
         for body in bodies:
             h = hashlib.sha256()
             h.update(body.encode('utf-8'))
             hsh = h.hexdigest()
             fname = os.path.join(SOURCES_PATH, hsh)
-            with open(fname, "w") as f:
-                f.write(body)
-                self.log("Writing file for {}".format(hsh))
-                c.execute('INSERT INTO hashes (hash,filename) VALUES (?,?)', (hsh,fname))
-                self._db.commit()
+            # Check to see if hash exists before adding..
+            r = c.execute('SELECT hash FROM hashes where hash=?',(hsh,))
+            if (r.fetchone() == None):
+                with open(fname, "w") as f:
+                    f.write(body)
+                    self.log("Writing file for {}".format(hsh))
+                    c.execute('INSERT INTO hashes (hash,filename) VALUES (?,?)', (hsh,fname))
+                    self._db.commit()
+        return ret
 
-    def LoadProgram(self,request,context):
-        print("here")
-        print(request)
-        data_directory = self.gen_data_directory()
-        src_directory = os.path.join(data_directory,"src")
-        os.mkdir(src_directory,mode=0o700)
-        src_file = os.path.join(src_directory,"program.slog")
-        print(src_file)
-        with open(src_file,"w") as fh:
-            fh.write(request.source_program)
+    def RunHashes(self,request,context):
+        self._db = sqlite3.connect(DB_PATH)
         c = self._db.cursor()
+        ret = slog_pb2.Promise()
+        # Check that all hashes are present
+        for hsh in request.hashes:
+            r = c.execute('SELECT hash FROM hashes where hash=?',(hsh,))
+            if (r.fetchone() == None):
+                ret.success = False
+                return ret
+        hashes = set()
+        for hsh in request.hashes:
+            print(hsh)
+            hashes.add(hsh)
+        hashes = list(hashes)
+        hashes.sort()
+        hashes = (",").join(hashes)
         c.execute('INSERT INTO promises (status,comment,creation_time) VALUES (?,?,time(\'now\'))',
                   (STATUS_PENDING, "Compiling to PRAM IR"))
         promise_id = c.lastrowid
-        print(promise_id)
-        c.execute('INSERT INTO compile_jobs (promise, status, root_directory, creation_time) VALUES (?,?,?,time(\'now\'))',(promise_id,STATUS_PENDING,data_directory))
+        c.execute('INSERT INTO compile_jobs (promise, status, hashes, creation_time) VALUES (?,?,?,time(\'now\'))',(promise_id,STATUS_PENDING,hashes))
         compile_job_id = c.lastrowid
         self._db.commit()
-        print(compile_job_id)
-        print("Wrote {}\n".format(src_file))
+        print("Made promise {} for new compile job on hashes {}\n".format(promise_id,hashes))
         response = slog_pb2.Promise()
         response.success = True
         response.promise_id = promise_id
@@ -130,11 +139,10 @@ class CompileTask():
     def log(self,msg):
         print("[ CompileTask {} ] {}".format(time.time(),msg))
 
-    def compile_to_cpp(self,root_directory,job_nodes):
+    def compile_to_cpp(self,out_hash,hashes,job_nodes):
         self.log("Beginning compilation to C++ for {} nodes (dir: {})".format(job_nodes,root_directory))
-        program = os.path.join(root_directory,"src/program.slog")
+        output_cpp = os.path.join(SOURCES_PATH,"")
         # Execute the Racket process to perform compilation
-        root_directory,program])
         if result.returncode == 0:
             self.log("Slog->C++ compilation successful. Compiling to MPI")
         else:
@@ -151,17 +159,19 @@ class CompileTask():
                 id = row[0]
                 promise = row[1]
                 status = row[2]
-                root_directory = row[3]
+                hashes = row[3]
                 creation_time = row[4]
-                self.compile_to_cpp(root_directory,4)
+                h = hashlib.sha256()
+                h.update(hashes) # hashes.encode('utf-8')?
+                out_hash = h.hexdigest()
+                hashes = hashes.split(",")
+                self.compile_to_cpp(out_hash,hashes,4)
 
 def start_compile_task():
     CompileTask(conn,log).loop()
 
 print('Slog server starting. Listening on port {}'.format(PORT))
 server.add_insecure_port('[::]:{}'.format(PORT))
-
-m = Manifest("/Users/kmicinski/projects/data/tc/manifest")
 
 # Start the compile task
 compile_task = threading.Thread(target=start_compile_task, daemon=True)

@@ -51,7 +51,7 @@ CREATE TABLE compile_jobs (
        job_id INTEGER NOT NULL PRIMARY KEY,
        promise INTEGER NOT NULL,
        status INTEGER NOT NULL,
-       root_directory TEXT,
+       hashes TEXT,
        creation_time TEXT NOT NULL,
        completion_time TEXT       
 );

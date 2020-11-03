@@ -47,13 +47,16 @@ s = None
 def p_statement(t):
     'statement : ID STRING'
     str = t[2][1:-1]
-    if t[1] == "load":
-        t[0] = LoadCommand(str)
+    if t[1] == "run":
+        t[0] = RunCommand(str)
     elif t[1] == "connect":
         t[0] = ConnectCommand(str)
 
 def p_error(t):
-    print("Syntax error at '%s'" % t.value)
+    if t:
+        print("Unrecognized command at '%s'" % t.value)
+    else:
+        print("Unrecognized command syntax")
 
 import ply.yacc as yacc
 parser = yacc.yacc(debug=True,write_tables=True)
