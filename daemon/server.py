@@ -1,3 +1,4 @@
+# Slog Backend Daemon
 import grpc
 from concurrent import futures
 import time
@@ -8,22 +9,30 @@ import protobufs.slog_pb2_grpc as slog_pb2_grpc
 import os
 import sys
 import subprocess
+from subprocess import PIPE
 import tempfile
 import hashlib
 from daemon.compile_task import *
-from sexpdata import loads
+import sexpdata
+from sexpdata import Symbol
 
 PORT = 5106
 DB_PATH = os.path.join(os.path.dirname(__file__),"../metadatabase/database.sqlite3")
 DATA_PATH = os.path.join(os.path.dirname(__file__),"../data")
+DATABASE_PATH = os.path.join(os.path.dirname(__file__),"../data/databases")
 SOURCES_PATH = os.path.join(os.path.dirname(__file__),"../data/sources")
 SLOG_COMPILER_PROCESS = os.path.join(os.path.dirname(__file__),"../compiler/slog-process.rkt")
+SLOG_COMPILER_ROOT = os.path.join(os.path.dirname(__file__),"../compiler")
 conn = sqlite3.connect(DB_PATH)
 log = sys.stderr
 
 STATUS_PENDING  = 0
-STATUS_ERROR    = 1
+STATUS_FAILED   = 1
 STATUS_RESOLVED = 2
+STATUS_NOSUCHPROMISE = -1
+
+# compilation timeout in seconds
+COMPILATION_TIMEOUT = 20
 
 class CommandService(slog_pb2_grpc.CommandServiceServicer):
     def __init__(self):
@@ -46,12 +55,31 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
                 res.hashes.extend([h])
         return res
 
+    def Ping(self,request,context):
+        p = slog_pb2.Pong()
+        return p
+
+    def QueryPromise(self,request,context):
+        self._db = sqlite3.connect(DB_PATH)
+        c = self._db.cursor()
+        r = c.execute('SELECT status,comment FROM promises WHERE id = ?',(request.promise_id,))
+        res = slog_pb2.PromiseStatus()
+        rows = c.fetchall()
+        if (len(rows) == 0):
+            res.status = STATUS_NOSUCHPROMISE
+            return res
+        else:
+            status = rows[0][0]
+            comment = rows[0][1]
+            res.status = status
+            res.err_or_db = comment
+            return res
+
     def PutHashes(self,request,context):
         self._db = sqlite3.connect(DB_PATH)
         c = self._db.cursor()
         bodies = request.bodies
         ret = slog_pb2.ErrorResponse()
-        ret.success = True
         for body in bodies:
             h = hashlib.sha256()
             h.update(body.encode('utf-8'))
@@ -75,7 +103,7 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
         for hsh in request.hashes:
             r = c.execute('SELECT hash FROM hashes where hash=?',(hsh,))
             if (r.fetchone() == None):
-                ret.success = False
+                ret.promise_id = -1
                 return ret
         hashes = set()
         for hsh in request.hashes:
@@ -92,7 +120,6 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
         self._db.commit()
         print("Made promise {} for new compile job on hashes {}\n".format(promise_id,hashes))
         response = slog_pb2.Promise()
-        response.success = True
         response.promise_id = promise_id
         return response
 
@@ -108,7 +135,7 @@ class Manifest():
     def __init__(self,filename):
         self.relations = {}
         with open(filename,'r') as f:
-            sexpr = loads(f.read())
+            sexpr = sexpdata.loads(f.read())
             if (sexpr[0] != Symbol('manifest')):
                 raise MalformedManifest()
             directores = sexpr[1]
@@ -129,31 +156,96 @@ class Manifest():
             for entry in string_pool:
                 self.strings[entry[0]] = entry[1]
 
+class CompilerTaskException(Exception):
+    def __init__(self,txt):
+        super().__init__(txt)
+
 # Compiling Slog->C++
 class CompileTask():
     def __init__(self,conn,log):
         self._log = log
-        self.log("Loading compiler...")
-        self._proc = subprocess.Popen(["racket", SLOG_COMPILER_PROCESS])
+        self.log("Starting compiler subprocess...")
+        self._proc = subprocess.Popen(["racket", SLOG_COMPILER_PROCESS],stdin=PIPE, stdout=PIPE)
+        line = self._proc.stdout.readline()
+        response = sexpdata.loads(line.decode('utf-8'))
+        if (response == [Symbol('ready')]):
+            self.log("Compiler initialized: ready to compile")
+        else:
+            self.log("error: compiler not initialized. Instead of (ready) got back {}".format(line.decode('utf-8')))
+            raise CompilerTaskException("compiler not initialized")
 
     def log(self,msg):
         print("[ CompileTask {} ] {}".format(time.time(),msg))
 
-    def compile_to_cpp(self,out_hash,hashes,job_nodes):
-        self.log("Beginning compilation to C++ for {} nodes (dir: {})".format(job_nodes,root_directory))
+
+    # compile a .cpp file (using parallel-RA) to a binary
+    def compile_cpp(self,file,binary):
+        self.log("Compiling {} to MPI binary {}".format(file,binary))
+        
+        return
+
+    # compile hashes to an out_hash using job_nodes and refering promise_id
+    def compile_to_mpi(self,out_hash,hashes,job_nodes,promise_id):
+        hashes.sort()
         output_cpp = os.path.join(SOURCES_PATH,"")
-        # Execute the Racket process to perform compilation
-        if result.returncode == 0:
-            self.log("Slog->C++ compilation successful. Compiling to MPI")
-        else:
+        cathashes = "|".join(hashes).encode('utf-8')
+        h = hashlib.sha256()
+        h.update(cathashes)
+        stored_hash = h.hexdigest()
+        files = " ".join(map(lambda hsh: ("\"" + os.path.join(SOURCES_PATH, hsh) + "\""), hashes))
+
+        self.log("Beginning compilation to C++ for hashes {}, generating program w/ hash {}".format(",".join(hashes), stored_hash))
+        
+        # Number of processes
+        nprocesses = 4
+        
+        # C++ file
+        outfile = os.path.join(SOURCES_PATH, stored_hash + "-compiled.cpp")
+
+        # Output binary
+        outbin = os.path.join(SOURCES_PATH, stored_hash + "-compiled")
+
+        # Databases on the filesystem that will be written
+        indata_directory = os.path.join(DATABASE_PATH,stored_hash)
+        outdata_directory  = os.path.join(DATABASE_PATH,stored_hash + "-output")
+
+        # Create output data directory
+        os.makedirs(indata_directory, exist_ok=True)
+        os.makedirs(outdata_directory, exist_ok=True)
+
+        # Assemble sexpr to send to the running compiler process
+        sexpr = "(compile-hashes \"{}\" (files {}) {} \"{}\" \"{}\" \"{}\")".format(SLOG_COMPILER_ROOT,files,nprocesses,outfile,indata_directory,outdata_directory)
+
+        print(sexpr)
+        print(self._proc)
+
+        # Run the compilation command
+        self._proc.stdin.write((sexpr + "\n").encode('utf-8'))
+        self._proc.stdin.flush()
+        line = self._proc.stdout.readline().decode('utf-8')
+        output = sexpdata.loads(line)
+        print(output)
+
+        # If compilation failed...
+        if (output[0] == Symbol('failure')):
+            # Log failure 
             self.log("Slog->C++ compilation failed!")
+            c = self._db.cursor()
+            c.execute('UPDATE compile_jobs SET status = ?, error = ? WHERE promise = ?',(STATUS_FAILED,output[1],promise_id))
+            c.execute('UPDATE promises SET status = ?, comment = ? WHERE id = ?',(STATUS_FAILED,output[1],promise_id))
+            self._db.commit()
+            return
+        elif (output[0] == Symbol('success')):
+            self.log("Slog->C++ compilation successful. Compiling to MPI")
+            c = self._db.cursor()
+            c.execute('UPDATE compile_jobs SET status = ? WHERE promise = ?',(STATUS_RESOLVED,promise_id))
+            return self.compile_cpp(outfile,outbin)
 
     def loop(self):
         self._db = sqlite3.connect(DB_PATH)
-        self.log("Starting compile task.")
         while True:
             c = self._db.cursor()
-            c.execute('SELECT * FROM compile_jobs where STATUS=0')
+            c.execute('SELECT * FROM compile_jobs where STATUS = ?',(STATUS_PENDING,))
             rows = c.fetchall()
             for row in rows:
                 id = row[0]
@@ -162,10 +254,10 @@ class CompileTask():
                 hashes = row[3]
                 creation_time = row[4]
                 h = hashlib.sha256()
-                h.update(hashes) # hashes.encode('utf-8')?
+                h.update(hashes.encode('utf-8'))
                 out_hash = h.hexdigest()
                 hashes = hashes.split(",")
-                self.compile_to_cpp(out_hash,hashes,4)
+                self.compile_to_mpi(out_hash,hashes,4,promise)
 
 def start_compile_task():
     CompileTask(conn,log).loop()

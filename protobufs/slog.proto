@@ -15,6 +15,7 @@ service CommandService {
   rpc PutHashes(PutHashesRequest) returns (ErrorResponse);
   rpc Ping(PingRequest) returns (Pong);
   rpc RunHashes(RunHashesRequest) returns (Promise);
+  rpc QueryPromise(Promise) returns (PromiseStatus);
 }
 
 message PingRequest {
@@ -45,8 +46,12 @@ message ErrorResponse {
 }
 
 message Promise {
-  bool success = 1;
   uint64 promise_id = 2;
+}
+
+message PromiseStatus {
+  uint32 status = 1;
+  string err_or_db = 2;
 }
 
 message RunHashesRequest {

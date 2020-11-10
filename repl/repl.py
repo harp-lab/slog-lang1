@@ -1,13 +1,26 @@
-import grpc
 from concurrent import futures
-import time
+import grpc
 from prompt_toolkit import prompt
 from prompt_toolkit.formatted_text import HTML
+from random import randint
 from sexpdata import loads, dumps
+import time
+import timeit
+from yaspin import yaspin
 from repl.parser import *
 
+# Generated protobufs stuff
 import protobufs.slog_pb2 as slog_pb2
 import protobufs.slog_pb2_grpc as slog_pb2_grpc
+
+# How often to wait between pinging the server
+PING_INTERVAL = .1
+
+# Constants (see server.py)
+STATUS_PENDING  = 0
+STATUS_FAILED   = 1
+STATUS_RESOLVED = 2
+STATUS_NOSUCHPROMISE = -1
 
 class Repl:
     def __init__(self):
@@ -15,9 +28,7 @@ class Repl:
         self._parser = CommandParser()
         self.reconnect("localhost")
         self.lasterr = None
-
-    def add_time(self,uuid):
-        pass
+        self.i = 0
 
     def connected(self):
         return self._channel != None
@@ -50,16 +61,30 @@ class Repl:
         for hsh in response.hashes:
             req.bodies.extend([elaborator.hashes[hsh]])
         response = self._stub.PutHashes(req)
-        if (response.success):
-            self.lasterr = None
-        else:
-            print("Error:\n{}".format(response.error))
-            self.lasterr = True
+
         # Generate a run request
         req = slog_pb2.RunHashesRequest()
         req.hashes.extend(elaborator.hashes.keys())
         response = self._stub.RunHashes(req)
-        print(response)
+        
+        # Wait to resolve the promise in the terminal...
+        with yaspin(text="Running...") as spinner:
+            # Break when promise is resolved
+            while True:
+                time.sleep(PING_INTERVAL)
+                p = slog_pb2.Promise()
+                p.promise_id = response.promise_id
+                res = self._stub.QueryPromise(p)
+                if (res.status == STATUS_PENDING):
+                    continue
+                elif (res.status == STATUS_FAILED):
+                    spinner.fail("💥")
+                    print("Execution failed!")
+                    print(res.err_or_db)
+                    return
+                elif (res.status == STATUS_RESOLVED):
+                    spinner.ok("✅ ")
+                    return
 
     def get_front(self):
         if (not self.connected()):
@@ -88,11 +113,20 @@ class Repl:
         print('Goodbye.')
         exit(0)
 
+    def calc_ping(self):
+        req = slog_pb2.PingRequest()
+        start_time = timeit.default_timer()
+        res = self._stub.Ping(req)
+        end_time = timeit.default_timer()
+        elapsed = end_time - start_time
+        return elapsed * 1000
+
     def bottom_toolbar(self):
+        ping = self.calc_ping()
         if self.connected():
-            return HTML('<style color="lightgreen">[host: <b>{}</b>]  [?? jobs in queue]</style>'.format(self._server))
+            return HTML('<style color="lightgreen">[host: <b>{}</b> ping: {:.2f} ms]  [?? jobs in queue]</style>'.format(self._server,self.calc_ping(),self.i))
         else:
-            return HTML('Disconnected. Use `connect host`')
+            return HTML('Disconnected. Use `connect <host>`')
 
 repl = Repl()
 

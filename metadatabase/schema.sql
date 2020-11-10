@@ -53,6 +53,7 @@ CREATE TABLE compile_jobs (
        status INTEGER NOT NULL,
        hashes TEXT,
        creation_time TEXT NOT NULL,
-       completion_time TEXT       
+       completion_time TEXT,
+       error TEXT
 );
 
