@@ -162,8 +162,17 @@ class CompilerTaskException(Exception):
     def __init__(self,txt):
         super().__init__(txt)
 
+class Task:
+    def __init__(self):
+        pass
+    
+    def set_promise_comment(self,promise,comment):
+        c = self._db.cursor()
+        c.execute('UPDATE promises SET comment = ? WHERE id = ?',(comment,promise))
+        self._db.commit()
+
 # Compiling Slog->C++
-class CompileTask():
+class CompileTask(Task):
     def __init__(self,conn,log):
         self._log = log
         self.log("Starting compiler subprocess...")
@@ -178,7 +187,6 @@ class CompileTask():
 
     def log(self,msg):
         print("[ CompileTask {} ] {}".format(time.time(),msg))
-
 
     # compile hashes to an out_hash using job_nodes and refering promise_id
     def compile_to_mpi(self,out_hash,hashes,job_nodes,promise_id):
@@ -229,12 +237,12 @@ class CompileTask():
             self._db.commit()
             return
         elif (output[0] == Symbol('success')):
+            self.set_promise_comment(promise_id,"Slog -> C++ compilation successful. Now compiling C++...")
             self.log("Slog->C++ compilation successful. Compiling to MPI")
             c = self._db.cursor()
-            c.execute('UPDATE compile_jobs SET status = ? WHERE promise = ?',(STATUS_RESOLVED,promise_id))
-            return self.compile_cpp(stored_hash,outfile)
+            return self.compile_cpp(stored_hash,outfile,promise_id)
 
-    def compile_cpp(self,hsh,cppfile):
+    def compile_cpp(self,hsh,cppfile,promise_id):
         # Create a directory for the build
         build_dir = os.path.join(BINS_PATH,hsh)
         try:
@@ -249,6 +257,38 @@ class CompileTask():
         # Copy the CMakeList.txt to the build directory
         shutil.copy2(CMAKE_FILE,build_dir)
         
+        # Now run cmake
+        try:
+            cmake = ["cmake", "."]
+            result = subprocess.run(cmake, cwd=build_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+        except:
+            c = self._db.cursor()
+            err = "Error: cmake failed for {}".format(build_dir)
+            c.execute('UPDATE compile_jobs SET status = ?, error = ? WHERE promise = ?',(STATUS_FAILED,err,promise_id))
+            c.execute('UPDATE promises SET status = ?, comment = ? WHERE id = ?',(STATUS_FAILED,err,promise_id))
+            self._db.commit()
+            self.log(err)
+            return
+
+        self.log("cmake completed successfully")
+        
+        try:
+            make = ["make"]
+            result = subprocess.run(make, cwd=build_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+        except:
+            c = self._db.cursor()
+            err = "Error: make failed for {}:\n{}".format(build_dir,result.stderr)
+            c.execute('UPDATE compile_jobs SET status = ?, error = ? WHERE promise = ?',(STATUS_FAILED,err,promise_id))
+            c.execute('UPDATE promises SET status = ?, comment = ? WHERE id = ?',(STATUS_FAILED,err,promise_id))
+            self._db.commit()
+            self.log(err)
+            return
+
+        c = self._db.cursor()
+        c.execute('UPDATE compile_jobs SET status = ? WHERE promise = ?',(STATUS_RESOLVED,promise_id))
+        self._db.commit()
+        self.set_promise_comment(promise_id,"C++ -> binary compilation successful. Queuing to run")
+        self.log("make completed successfully. Queuing binary to run.")
         return
 
     def loop(self):

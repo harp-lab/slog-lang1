@@ -4,6 +4,22 @@ project (target)
 
 add_compile_options(--std=c++17 -Wno-strict-aliasing)
 
+if(APPLE)
+    set(CMAKE_C_COMPILER clang)
+    set(CMAKE_CXX_COMPILER clang++)
+    if(CMAKE_C_COMPILER_ID MATCHES "Clang\$")
+        set(OpenMP_C_FLAGS "-Xpreprocessor -fopenmp")
+        set(OpenMP_C_LIB_NAMES "omp")
+        set(OpenMP_omp_LIBRARY omp)
+    endif()
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang\$")
+        set(OpenMP_CXX_FLAGS "-Xpreprocessor -fopenmp")
+        set(OpenMP_CXX_LIB_NAMES "omp")
+        set(OpenMP_omp_LIBRARY omp)
+    endif()
+endif()
+
+
 find_package(MPI REQUIRED)
 find_package(OpenMP)
 if (OPENMP_FOUND)
@@ -14,13 +30,12 @@ endif()
 
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++17")
 set (source_dir "${PROJECT_SOURCE_DIR}")
-set (ra_source_dir "../../parallel-RA/src")
-
-ADD_LIBRARY(parallel_RA "../../parallel-RA/build")
+set (ra_source_dir "../../../parallel-RA/src")
 
 file (GLOB source_files "*.cpp")
 
 add_executable(target ${source_files})
 INCLUDE_DIRECTORIES(${MPI_INCLUDE_PATH})
-INCLUDE_DIRECTORIES("/Users/krismicinski/projects/parallel-RA/src")
+TARGET_INCLUDE_DIRECTORIES(target PUBLIC "../../../parallel-RA/src")
+TARGET_LINK_DIRECTORIES(target PUBLIC "../../../parallel-RA/build")
 TARGET_LINK_LIBRARIES(target ${MPI_LIBRARIES} parallel_RA)

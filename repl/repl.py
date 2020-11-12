@@ -66,6 +66,7 @@ class Repl:
         req = slog_pb2.RunHashesRequest()
         req.hashes.extend(elaborator.hashes.keys())
         response = self._stub.RunHashes(req)
+        cmmt = None
         
         # Wait to resolve the promise in the terminal...
         with yaspin(text="Running...") as spinner:
@@ -75,6 +76,12 @@ class Repl:
                 p = slog_pb2.Promise()
                 p.promise_id = response.promise_id
                 res = self._stub.QueryPromise(p)
+                if (cmmt == None and res.err_or_db != ""):
+                    cmmt = res.err_or_db
+                    spinner.write("✔ {}".format(cmmt))
+                elif (cmmt != res.err_or_db):
+                    cmmt = res.err_or_db
+                    spinner.write("✔ {}".format(cmmt))
                 if (res.status == STATUS_PENDING):
                     continue
                 elif (res.status == STATUS_FAILED):
