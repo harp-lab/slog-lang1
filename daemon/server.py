@@ -7,9 +7,10 @@ import sqlite3
 import protobufs.slog_pb2 as slog_pb2
 import protobufs.slog_pb2_grpc as slog_pb2_grpc
 import os
-import sys
+import shutil
 import subprocess
 from subprocess import PIPE
+import sys
 import tempfile
 import hashlib
 from daemon.compile_task import *
@@ -20,6 +21,8 @@ PORT = 5106
 DB_PATH = os.path.join(os.path.dirname(__file__),"../metadatabase/database.sqlite3")
 DATA_PATH = os.path.join(os.path.dirname(__file__),"../data")
 DATABASE_PATH = os.path.join(os.path.dirname(__file__),"../data/databases")
+BINS_PATH = os.path.join(os.path.dirname(__file__),"../data/binaries")
+CMAKE_FILE = os.path.join(os.path.dirname(__file__),"../data/binaries/CMakeLists.txt")
 SOURCES_PATH = os.path.join(os.path.dirname(__file__),"../data/sources")
 SLOG_COMPILER_PROCESS = os.path.join(os.path.dirname(__file__),"../compiler/slog-process.rkt")
 SLOG_COMPILER_ROOT = os.path.join(os.path.dirname(__file__),"../compiler")
@@ -178,12 +181,6 @@ class CompileTask():
         print("[ CompileTask {} ] {}".format(time.time(),msg))
 
 
-    # compile a .cpp file (using parallel-RA) to a binary
-    def compile_cpp(self,file,binary):
-        self.log("Compiling {} to MPI binary {}".format(file,binary))
-        
-        return
-
     # compile hashes to an out_hash using job_nodes and refering promise_id
     def compile_to_mpi(self,out_hash,hashes,job_nodes,promise_id):
         hashes.sort()
@@ -201,9 +198,6 @@ class CompileTask():
         
         # C++ file
         outfile = os.path.join(SOURCES_PATH, stored_hash + "-compiled.cpp")
-
-        # Output binary
-        outbin = os.path.join(SOURCES_PATH, stored_hash + "-compiled")
 
         # Databases on the filesystem that will be written
         indata_directory = os.path.join(DATABASE_PATH,stored_hash)
@@ -239,7 +233,24 @@ class CompileTask():
             self.log("Slog->C++ compilation successful. Compiling to MPI")
             c = self._db.cursor()
             c.execute('UPDATE compile_jobs SET status = ? WHERE promise = ?',(STATUS_RESOLVED,promise_id))
-            return self.compile_cpp(outfile,outbin)
+            return self.compile_cpp(stored_hash,outfile)
+
+    def compile_cpp(self,hsh,cppfile):
+        # Create a directory for the build
+        build_dir = os.path.join(BINS_PATH,hsh)
+        try:
+            os.mkdir(build_dir)
+        except FileExistsError:
+            # File already exists. Ignore for now and overwrite
+            self.log("Warning: in compiling C++, build directory {} already exists. Overwriting".format(build_dir))
+        
+        # Copy the C++ source to the build directory
+        shutil.copy2(cppfile,build_dir)
+        
+        # Copy the CMakeList.txt to the build directory
+        shutil.copy2(CMAKE_FILE,build_dir)
+        
+        return
 
     def loop(self):
         self._db = sqlite3.connect(DB_PATH)
