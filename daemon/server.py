@@ -13,7 +13,6 @@ from subprocess import PIPE
 import sys
 import tempfile
 import hashlib
-from daemon.compile_task import *
 import sexpdata
 from sexpdata import Symbol
 
