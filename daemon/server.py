@@ -166,6 +166,9 @@ class Task:
     def __init__(self):
         pass
     
+    def log(self,msg):
+        print("[ {} {} ] {}".format(self._name,time.time(),msg))
+
     def set_promise_comment(self,promise,comment):
         c = self._db.cursor()
         c.execute('UPDATE promises SET comment = ? WHERE id = ?',(comment,promise))
@@ -174,6 +177,7 @@ class Task:
 # Compiling Slog->C++
 class CompileTask(Task):
     def __init__(self,conn,log):
+        self._name = "CompileTask"
         self._log = log
         self.log("Starting compiler subprocess...")
         self._proc = subprocess.Popen(["racket", SLOG_COMPILER_PROCESS],stdin=PIPE, stdout=PIPE)
@@ -184,9 +188,6 @@ class CompileTask(Task):
         else:
             self.log("error: compiler not initialized. Instead of (ready) got back {}".format(line.decode('utf-8')))
             raise CompilerTaskException("compiler not initialized")
-
-    def log(self,msg):
-        print("[ CompileTask {} ] {}".format(time.time(),msg))
 
     # compile hashes to an out_hash using job_nodes and refering promise_id
     def compile_to_mpi(self,out_hash,hashes,job_nodes,promise_id):
@@ -286,6 +287,7 @@ class CompileTask(Task):
 
         c = self._db.cursor()
         c.execute('UPDATE compile_jobs SET status = ? WHERE promise = ?',(STATUS_RESOLVED,promise_id))
+        c.execute('INSERT INTO mpi_jobs (promise, status, hash, creation_time) VALUES (?,?,?,time(\'now\'))',(promise_id,STATUS_PENDING,hsh))
         self._db.commit()
         self.set_promise_comment(promise_id,"C++ -> binary compilation successful. Queuing to run")
         self.log("make completed successfully. Queuing binary to run.")
@@ -309,8 +311,59 @@ class CompileTask(Task):
                 hashes = hashes.split(",")
                 self.compile_to_mpi(out_hash,hashes,4,promise)
 
+# Running tasks via MPI
+class RunTask(Task):
+    def __init__(self,conn,log):
+        self._name = "RunTask"
+        self.log("MPI runner initialized.")
+
+    def run_mpi(self,promise,hsh):
+        build_dir = os.path.join(BINS_PATH,hsh)
+
+        self.log("Starting mpirun for hash {}".format(hsh))
+        self.set_promise_comment(promise,"Now beginning MPI run.")
+        # Hack for OSX
+        env = os.environ.copy()
+        env["TMPDIR"] = "/tmp"
+        self._proc = subprocess.Popen(["mpirun","-n","2","target"],stdin=PIPE, stdout=PIPE,cwd=build_dir,env=env)
+        while True:
+            line = self._proc.stdout.readline()
+            # EOF
+            if not line:
+                break
+            print(line)
+        # Done executing mpirun
+        self._proc.terminate()
+        try:
+            self._proc.wait(timeout=0.2)
+        except subprocess.TimeoutExpired:
+            self.log('subprocess did not terminate in time')
+
+        c = self._db.cursor()
+        c.execute('UPDATE mpi_jobs SET status = ? WHERE promise = ?',(STATUS_RESOLVED,promise))
+        c.execute('UPDATE promises SET status = ? where id = ?',(STATUS_RESOLVED,promise))
+        self._db.commit()
+        
+    def loop(self):
+        self._db = sqlite3.connect(DB_PATH)
+        while True:
+            c = self._db.cursor()
+            c.execute('SELECT * FROM mpi_jobs where STATUS = ?',(STATUS_PENDING,))
+            rows = c.fetchall()
+            for row in rows:
+                id = row[0]
+                promise = row[1]
+                status = row[2]
+                hsh = row[3]
+                creation_time = row[4]
+                self.run_mpi(promise,hsh)
+    
+
 def start_compile_task():
     CompileTask(conn,log).loop()
+
+def start_mpirun_task():
+    RunTask(conn,log).loop()
 
 print('Slog server starting. Listening on port {}'.format(PORT))
 server.add_insecure_port('[::]:{}'.format(PORT))
@@ -318,6 +371,11 @@ server.add_insecure_port('[::]:{}'.format(PORT))
 # Start the compile task
 compile_task = threading.Thread(target=start_compile_task, daemon=True)
 compile_task.start()
+
+# Start the MPI run task
+mpirun_task = threading.Thread(target=start_mpirun_task, daemon=True)
+mpirun_task.start()
+
 
 # Start the server
 server.start()

@@ -42,16 +42,16 @@ CREATE TABLE mpi_jobs (
        job_id INTEGER NOT NULL PRIMARY KEY,
        promise INTEGER NOT NULL,
        status INTEGER NOT NULL,
-       root_directory TEXT,
+       hash TEXT NOT NULL,
        creation_time TEXT NOT NULL,
-       completion_time TXT
+       completion_time TEXT
 );
-
+ 
 CREATE TABLE compile_jobs (
        job_id INTEGER NOT NULL PRIMARY KEY,
        promise INTEGER NOT NULL,
        status INTEGER NOT NULL,
-       hashes TEXT,
+       hashes TEXT NOT NULL,
        creation_time TEXT NOT NULL,
        completion_time TEXT,
        error TEXT
