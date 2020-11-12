@@ -28,7 +28,6 @@ class Repl:
         self._parser = CommandParser()
         self.reconnect("localhost")
         self.lasterr = None
-        self.i = 0
 
     def connected(self):
         return self._channel != None
@@ -37,10 +36,9 @@ class Repl:
         self._server = server
         self._channel = grpc.insecure_channel('{}:5106'.format(server))
         self._stub = slog_pb2_grpc.CommandServiceStub(self._channel)
-        self._cur_time = 0
-        self.num_local_times = 0
-        self.time_prev = {}
-        self.time_uuids = {}
+        self._cur_time = -1
+        # Hash from timestamps to database hashes
+        self._times    = {}
 
     def run(self,filename):
         path = os.path.join(os.getcwd(),filename)
@@ -91,15 +89,30 @@ class Repl:
                     return
                 elif (res.status == STATUS_RESOLVED):
                     spinner.ok("✅ ")
+                    self.switchto_db(res.err_or_db)
                     return
+
+    def switchto_db(self,db_id):
+        self._cur_time += 1
+        new_ts = self._cur_time
+        self._times[new_ts] = db_id
+        self.load_relations(db_id)
+
+    def load_relations(self,db_id):
+        req = slog_pb2.DatabaseRequest()
+        req.database_id = db_id
+        res = self._stub.GetRelations(req)
+        self.relations = []
+        for relation in res.relations:
+            self.relations.append([relation.name,relation.arity,relation.tag])
 
     def get_front(self):
         if (not self.connected()):
             return "Disconnected"
-        elif (self._cur_time == 0):
+        elif (self._cur_time == -1):
             return "⊥"
         else:
-            return self.time
+            return "t{}".format(self._cur_time)
 
     def loop(self):
         while True:
@@ -131,7 +144,7 @@ class Repl:
     def bottom_toolbar(self):
         ping = self.calc_ping()
         if self.connected():
-            return HTML('<style color="lightgreen">[host: <b>{}</b> ping: {:.2f} ms]  [?? jobs in queue]</style>'.format(self._server,self.calc_ping(),self.i))
+            return HTML('<style color="lightgreen">[host: <b>{}</b> ping: {:.2f} ms]  [?? jobs in queue]</style>'.format(self._server,self.calc_ping()))
         else:
             return HTML('Disconnected. Use `connect <host>`')
 

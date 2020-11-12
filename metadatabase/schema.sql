@@ -5,15 +5,28 @@ CREATE TABLE promises (
        creation_time TEXT NOT NULL
 );
 
-CREATE TABLE relations (
-       job_id INTEGER NOT NULL,
-       relation_id INTEGER NOT NULL,
-       relation_arity INTEGER NOT NULL,
-       num_tuples INTEGER NOT NULL,
-       data_file TEXT NOT NULL,
-       PRIMARY KEY(job_id,relation_id,relation_arity)
+/* Associates promises with their eventual (if we don't crash) databases. */
+CREATE TABLE promises_for_databases (
+       promise_id INTEGER NOT NULL PRIMARY KEY,
+       /* a hash */
+       database_id TEXT NOT NULL
 );
 
+CREATE TABLE canonical_relations (
+       /* hash of the database ID */
+       database_id TEXT NOT NULL,
+       /* relation name */
+       name TEXT NOT NULL,
+       /* relation arity */
+       arity INTEGER NOT NULL,
+       /* selection in comma-separated format, e.g., `3,0,5` */
+       selection TEXT NOT NULL,
+       /* 16-bit tag specific to rel-arity and identifying this database */
+       tag INTEGER NOT NULL,
+       /* Note: file on disc holding the contents of this relation is assumed by convention */
+       PRIMARY KEY(database_id,name,arity)
+);
+       
 CREATE TABLE string_pools (
        job_id INTEGER NOT NULL,
        pool_type INTEGER NOT NULL,
@@ -21,7 +34,7 @@ CREATE TABLE string_pools (
        PRIMARY KEY(job_id,pool_type)
 );
 
-CREATE TABLE hashes (
+CREATE TABLE slog_source_files (
        hash TEXT NOT NULL PRIMARY KEY,
        filename TEXT NOT NULL
 );

@@ -15,7 +15,8 @@ service CommandService {
   rpc PutHashes(PutHashesRequest) returns (ErrorResponse);
   rpc Ping(PingRequest) returns (Pong);
   rpc RunHashes(RunHashesRequest) returns (Promise);
-  rpc QueryPromise(Promise) returns (PromiseStatus);
+  rpc QueryPromise(PromiseRequest) returns (PromiseStatus);
+  rpc GetRelations(DatabaseRequest) returns (RelationDescriptionsResponse);
 }
 
 message PingRequest {
@@ -43,6 +44,27 @@ message PutHashesRequest {
 message ErrorResponse {
   bool success = 1;
   optional string error_msg = 2;
+}
+
+message DatabaseRequest {
+  string session_key = 1;
+  string database_id = 2;
+}
+
+message RelationDescription {
+  string name = 1;
+  uint32 arity = 2;
+  uint32 tag = 3;
+}
+
+message RelationDescriptionsResponse {
+  bool success = 1;
+  repeated RelationDescription relations = 2;
+}
+
+message PromiseRequest {
+  string session_key = 1;
+  uint64 promise_id = 2;
 }
 
 message Promise {

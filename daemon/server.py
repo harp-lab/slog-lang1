@@ -52,7 +52,7 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
         l = request.hashes
         res = slog_pb2.Hashes()
         for h in request.hashes:
-            r = c.execute('SELECT hash FROM hashes where hash=?',(h,))
+            r = c.execute('SELECT hash FROM slog_source_files where hash=?',(h,))
             if (r.fetchone() == None):
                 res.hashes.extend([h])
         return res
@@ -75,6 +75,11 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
             comment = rows[0][1]
             res.status = status
             res.err_or_db = comment
+            if (status == STATUS_RESOLVED):
+                r = c.execute('SELECT database_id FROM promises_for_databases WHERE promise_id = ?',(request.promise_id,))
+                rows = c.fetchall()
+                db_id = rows[0][0]
+                res.err_or_db = db_id
             return res
 
     def PutHashes(self,request,context):
@@ -88,12 +93,12 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
             hsh = h.hexdigest()
             fname = os.path.join(SOURCES_PATH, hsh)
             # Check to see if hash exists before adding..
-            r = c.execute('SELECT hash FROM hashes where hash=?',(hsh,))
+            r = c.execute('SELECT hash FROM slog_source_files where hash=?',(hsh,))
             if (r.fetchone() == None):
                 with open(fname, "w") as f:
                     f.write(body)
                     self.log("Writing file for {}".format(hsh))
-                    c.execute('INSERT INTO hashes (hash,filename) VALUES (?,?)', (hsh,fname))
+                    c.execute('INSERT INTO slog_source_files (hash,filename) VALUES (?,?)', (hsh,fname))
                     self._db.commit()
         return ret
 
@@ -103,13 +108,12 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
         ret = slog_pb2.Promise()
         # Check that all hashes are present
         for hsh in request.hashes:
-            r = c.execute('SELECT hash FROM hashes where hash=?',(hsh,))
+            r = c.execute('SELECT hash FROM slog_source_files where hash=?',(hsh,))
             if (r.fetchone() == None):
                 ret.promise_id = -1
                 return ret
         hashes = set()
         for hsh in request.hashes:
-            print(hsh)
             hashes.add(hsh)
         hashes = list(hashes)
         hashes.sort()
@@ -120,10 +124,25 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
         c.execute('INSERT INTO compile_jobs (promise, status, hashes, creation_time) VALUES (?,?,?,time(\'now\'))',(promise_id,STATUS_PENDING,hashes))
         compile_job_id = c.lastrowid
         self._db.commit()
-        print("Made promise {} for new compile job on hashes {}\n".format(promise_id,hashes))
+        self.log("Made promise {} for new compile job on hashes {}\n".format(promise_id,hashes))
         response = slog_pb2.Promise()
         response.promise_id = promise_id
         return response
+
+    def GetRelations(self,request,context):
+        self._db = sqlite3.connect(DB_PATH)
+        c = self._db.cursor()
+        r = c.execute('SELECT name,arity,tag FROM canonical_relations WHERE database_id = ?',(request.database_id,))
+        rows = c.fetchall()
+        res = slog_pb2.RelationDescriptionsResponse()
+        res.success = True
+        for row in rows:
+            d = slog_pb2.RelationDescription()
+            d.name = row[0]
+            d.arity = row[1]
+            d.tag = row[2]
+            res.relations.extend([d])
+        return res
 
 server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
 
@@ -135,26 +154,27 @@ class MalformedManifest(Exception):
 # Parsing manifest files
 class Manifest():
     def __init__(self,filename):
-        self.relations = {}
+        self.relations = []
         with open(filename,'r') as f:
             sexpr = sexpdata.loads(f.read())
             if (sexpr[0] != Symbol('manifest')):
                 raise MalformedManifest()
-            directores = sexpr[1]
+            directories = sexpr[1]
             if (directories[0] != Symbol('directories')):
                 raise MalformedManifest()
             per_rel = directories[1]
             for rel in per_rel:
                 if (rel[0] != Symbol('rel-select-file')):
                     raise MalformedManifest()
-                canonical = rel[1]
+                canonical = (rel[1] == Symbol('canonical'))
                 name = rel[2]
                 arity = rel[3]
                 select = rel[4]
                 data = rel[5]
-                size = rel[6]
-                self.relations[[name,arity,select]] = [canonical,data,size]
-            string_pool = directories[2][1]
+                size_file = rel[6]
+                tag  = rel[7]
+                self.relations.append([name,arity,select,canonical,data,size_file,tag])
+            string_pool = sexpr[2][1]
             for entry in string_pool:
                 self.strings[entry[0]] = entry[1]
 
@@ -218,15 +238,11 @@ class CompileTask(Task):
         # Assemble sexpr to send to the running compiler process
         sexpr = "(compile-hashes \"{}\" (files {}) {} \"{}\" \"{}\" \"{}\")".format(SLOG_COMPILER_ROOT,files,nprocesses,outfile,indata_directory,outdata_directory)
 
-        print(sexpr)
-        print(self._proc)
-
         # Run the compilation command
         self._proc.stdin.write((sexpr + "\n").encode('utf-8'))
         self._proc.stdin.flush()
         line = self._proc.stdout.readline().decode('utf-8')
         output = sexpdata.loads(line)
-        print(output)
 
         # If compilation failed...
         if (output[0] == Symbol('failure')):
@@ -241,7 +257,27 @@ class CompileTask(Task):
             self.set_promise_comment(promise_id,"Slog -> C++ compilation successful. Now compiling C++...")
             self.log("Slog->C++ compilation successful. Compiling to MPI")
             c = self._db.cursor()
+            # Add the promise for the database association
+            c.execute('INSERT INTO promises_for_databases (promise_id, database_id) VALUES (?,?)',(promise_id,stored_hash))
+            manifest_file = os.path.join(indata_directory,"manifest")
+            self.load_manifest(stored_hash,manifest_file)
             return self.compile_cpp(stored_hash,outfile,promise_id)
+
+    # Populates the canonical_relations table
+    def load_manifest(self,db_id,manifest_file):
+        c = self._db.cursor()
+        #try:
+        #except:
+        #self.log("Could not successfully parse manifest {}".format(manifest_file))
+        m = Manifest(manifest_file)
+        for relation in m.relations:
+            # Ignore non-canonical relations, we don't need to record data for those
+            is_canonical = relation[3]
+            if is_canonical:
+                sel = map(str,relation[2])
+                c.execute('INSERT INTO canonical_relations (database_id,name,arity,selection,tag) VALUES (?,?,?,?,?)',
+                          (db_id,str(relation[0]),relation[1],",".join(sel),str(relation[6])))
+        self._db.commit()
 
     def compile_cpp(self,hsh,cppfile,promise_id):
         # Create a directory for the build
