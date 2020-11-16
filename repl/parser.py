@@ -44,13 +44,20 @@ from repl.commands import *
 
 s = None
 
-def p_statement(t):
+def p_statement_id(t):
+    'statement : ID'
+    str = t[1]
+    IdCommand(str)
+
+def p_statement_cmd(t):
     'statement : ID STRING'
     str = t[2][1:-1]
     if t[1] == "run":
         t[0] = RunCommand(str)
     elif t[1] == "connect":
         t[0] = ConnectCommand(str)
+
+
 
 def p_error(t):
     if t:

@@ -1,6 +1,7 @@
 from concurrent import futures
 import grpc
 from prompt_toolkit import prompt
+from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.formatted_text import HTML
 from random import randint
 from sexpdata import loads, dumps
@@ -28,6 +29,8 @@ class Repl:
         self._parser = CommandParser()
         self.reconnect("localhost")
         self.lasterr = None
+        self.relations = []
+        self.unroll_depth = 3
 
     def connected(self):
         return self._channel != None
@@ -89,14 +92,17 @@ class Repl:
                     return
                 elif (res.status == STATUS_RESOLVED):
                     spinner.ok("✅ ")
+                    # Update to the new database
                     self.switchto_db(res.err_or_db)
                     return
 
     def switchto_db(self,db_id):
         self._cur_time += 1
+        self._cur_db = db_id
         new_ts = self._cur_time
         self._times[new_ts] = db_id
         self.load_relations(db_id)
+        self.tuples = {}
 
     def load_relations(self,db_id):
         req = slog_pb2.DatabaseRequest()
@@ -105,6 +111,49 @@ class Repl:
         self.relations = []
         for relation in res.relations:
             self.relations.append([relation.name,relation.arity,relation.tag])
+
+    def lookup_rels(self,name):
+        data = []
+        for r in self.relations:
+            if r[0] == name:
+                data.append([r[1],r[2]])
+        return data
+
+    def fetch_tuples(self,name):
+        if (self.relations.has_key(name)):
+            return self.relations[name]
+        else:
+            req = slog_pb2.RelationRequest()
+            req.database_id = self._cur_db
+            arity   = self.lookup_rels(name)[0][0]
+            req.tag = self.lookup_rels(name)[0][1]
+            res = self._stub.GetTuples(req)
+            n = 0
+            x = 0
+            tuples = []
+            buf = [None] * arity
+            for response in res:
+                for u64 in res.data:
+                    if (x >= arity):
+                        tuples.append(buf)
+                        x = 0
+                    buf[x] = u64
+                    x += 1
+                    n += 1
+            self.relations[name] = tuples
+
+    def recursive_dump_tuples(self,name):
+        for tuple in self.fetch_tuples(name):
+            print("\t".join(map(lambda x: str(x), tuple)))
+
+    def pretty_dump_relation(self,name):
+        if (len(self.lookup_rels(name)) == 0):
+            print("No relation named {} in the current database".format(name))
+            return
+        elif (len(self.lookup_rels(name)) > 1):
+            print("More than one arity for {}, not currently supporting printing for multi-arity relations".format(name))
+            return
+        self.recursive_dump_tuples(name)
 
     def get_front(self):
         if (not self.connected()):
@@ -118,7 +167,9 @@ class Repl:
         while True:
             try:
                 front = self.get_front()
-                text = prompt('σλoγ [{}] » '.format(front), bottom_toolbar=self.bottom_toolbar())
+                relation_names = map(lambda x: x[0], self.relations)
+                completer = WordCompleter(relation_names)
+                text = prompt('σλoγ [{}] » '.format(front), bottom_toolbar=self.bottom_toolbar(), completer=completer)
                 cmd = self._parser.parse(text)
                 if cmd:
                     cmd.execute(self)

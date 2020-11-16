@@ -23,7 +23,10 @@ CREATE TABLE canonical_relations (
        selection TEXT NOT NULL,
        /* 16-bit tag specific to rel-arity and identifying this database */
        tag INTEGER NOT NULL,
-       /* Note: file on disc holding the contents of this relation is assumed by convention */
+       /* number of tuples in the database */
+       num_tuples INTEGER NOT NULL,
+       /* file on disc */
+       data_file TEXT,
        PRIMARY KEY(database_id,name,arity)
 );
        
@@ -57,7 +60,8 @@ CREATE TABLE mpi_jobs (
        status INTEGER NOT NULL,
        hash TEXT NOT NULL,
        creation_time TEXT NOT NULL,
-       completion_time TEXT
+       completion_time TEXT,
+       error TEXT
 );
  
 CREATE TABLE compile_jobs (

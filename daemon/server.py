@@ -1,23 +1,35 @@
 # Slog Backend Daemon
-import grpc
+from daemon.manifest import *
+
 from concurrent import futures
-import time
-import threading
-import sqlite3
+from sexpdata import Symbol
+from subprocess import PIPE
+import array
+import datetime
+import glob
+import grpc
+import hashlib
+import math
+import numpy
+import os
 import protobufs.slog_pb2 as slog_pb2
 import protobufs.slog_pb2_grpc as slog_pb2_grpc
-import os
+import sexpdata
 import shutil
+import sqlite3
 import subprocess
-from subprocess import PIPE
 import sys
 import tempfile
-import hashlib
-import sexpdata
-from sexpdata import Symbol
+import threading
+import time
 
+# Network
 PORT = 5106
+
+# Database
 DB_PATH = os.path.join(os.path.dirname(__file__),"../metadatabase/database.sqlite3")
+
+# Static databse
 DATA_PATH = os.path.join(os.path.dirname(__file__),"../data")
 DATABASE_PATH = os.path.join(os.path.dirname(__file__),"../data/databases")
 BINS_PATH = os.path.join(os.path.dirname(__file__),"../data/binaries")
@@ -25,23 +37,33 @@ CMAKE_FILE = os.path.join(os.path.dirname(__file__),"../data/binaries/CMakeLists
 SOURCES_PATH = os.path.join(os.path.dirname(__file__),"../data/sources")
 SLOG_COMPILER_PROCESS = os.path.join(os.path.dirname(__file__),"../compiler/slog-process.rkt")
 SLOG_COMPILER_ROOT = os.path.join(os.path.dirname(__file__),"../compiler")
-conn = sqlite3.connect(DB_PATH)
-log = sys.stderr
 
+# Logs
+CMDSVC_LOG = open(os.path.join(DATA_PATH,"cmdsvc.log"),'a')
+COMPILESVC_LOG = open(os.path.join(DATA_PATH,"compilesvc.log"),'a')
+RUNSVC_LOG = open(os.path.join(DATA_PATH,"runsvc.log"),'a')
+
+# Statuses
 STATUS_PENDING  = 0
 STATUS_FAILED   = 1
 STATUS_RESOLVED = 2
 STATUS_NOSUCHPROMISE = -1
 
-# compilation timeout in seconds
+# Compilation timeout in seconds
 COMPILATION_TIMEOUT = 20
 
+# Maximum number of bytes allowed per chunk
+MAX_CHUNK_DATA = 2097152
+
+# RPC service that responds to commands from the REPL/etc. See protobufs/slog.proto
 class CommandService(slog_pb2_grpc.CommandServiceServicer):
     def __init__(self):
-        self._db = sqlite3.connect(DB_PATH)
+        pass
 
     def log(self,msg):
-        print("[ CommandService {} ] {}".format(time.time(),msg))
+        out = "[ CommandService {} ] {}".format(datetime.datetime.now().strftime("(%H:%M:%S %d/%m/%Y)"),msg)
+        print(out)
+        CMDSVC_LOG.write(out + "\n")
 
     def gen_data_directory(self):
         return tempfile.mkdtemp(prefix=DATA_PATH+"/")
@@ -129,6 +151,60 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
         response.promise_id = promise_id
         return response
 
+    def GetTuples(self,request,context):
+        self._db = sqlite3.connect(DB_PATH)
+        c = self._db.cursor()
+        r = c.execute('SELECT name,arity,tag,selection,data_file FROM canonical_relations WHERE database_id = ?',(request.database_id,))
+        self.relations.append([row[0],row[1],row[2],list(map(lambda x: int(x), row[3].split(",")))])
+        try:
+            row = c.fetchone()
+            name = row[0]
+            arity = row[1]
+            tag = row[2]
+            selection = map(lambda x: int(x), row[3].split(","))
+            data_file = row[4]
+            f = open(data_file,'r')
+            file_size = os.stat(data_file).st_size
+            num_u64s = file_size / 8
+            num_tuples = num_u64s / arity
+            max_tuples_per_chunk = math.floor(MAX_CHUNK_DATA / (8 * arity))
+            num_tuples_left = num_tuples
+            while (num_tuples_left > 0):
+                buffer = array.array('Q')
+                num_tuples = min(num_tuples_left,num_tuples_per_chunk)
+                r = Tuples()
+                r.status = STATUS_RESOLVED
+                r.num_tuples = num_tuples
+                buffer.fromfile(f, arity * num_tuples * 8)
+                result = buffer.copy()
+                remaining = list(range(arity))
+                for itm in selection:
+                    seq.remove(itm)
+                m = seq + remaining
+                # Shuffle tuples according
+                for n in range(num_tuples):
+                    for i in range(arity):
+                        copy[n * a + m[i]] = buffer[n*a + i]
+                num_tuples_left -=  num_tuples
+                r.extend(copy)
+                yield r
+        except:
+            # XXX
+            pass
+        
+        rows = c.fetchall()
+        
+        res = slog_pb2.RelationDescriptionsResponse()
+        res.success = True
+        for row in rows:
+            d = slog_pb2.RelationDescription()
+            d.name = row[0]
+            d.arity = row[1]
+            d.tag = row[2]
+            res.relations.extend([d])
+        return res
+        
+
     def GetRelations(self,request,context):
         self._db = sqlite3.connect(DB_PATH)
         c = self._db.cursor()
@@ -144,61 +220,37 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
             res.relations.extend([d])
         return res
 
-server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-
-slog_pb2_grpc.add_CommandServiceServicer_to_server(CommandService(),server)
-
-class MalformedManifest(Exception):
-    pass
-
-# Parsing manifest files
-class Manifest():
-    def __init__(self,filename):
-        self.relations = []
-        with open(filename,'r') as f:
-            sexpr = sexpdata.loads(f.read())
-            if (sexpr[0] != Symbol('manifest')):
-                raise MalformedManifest()
-            directories = sexpr[1]
-            if (directories[0] != Symbol('directories')):
-                raise MalformedManifest()
-            per_rel = directories[1]
-            for rel in per_rel:
-                if (rel[0] != Symbol('rel-select-file')):
-                    raise MalformedManifest()
-                canonical = (rel[1] == Symbol('canonical'))
-                name = rel[2]
-                arity = rel[3]
-                select = rel[4]
-                data = rel[5]
-                size_file = rel[6]
-                tag  = rel[7]
-                self.relations.append([name,arity,select,canonical,data,size_file,tag])
-            string_pool = sexpr[2][1]
-            for entry in string_pool:
-                self.strings[entry[0]] = entry[1]
-
-class CompilerTaskException(Exception):
-    def __init__(self,txt):
-        super().__init__(txt)
+# 
+# Tasks
+#
 
 class Task:
     def __init__(self):
         pass
     
     def log(self,msg):
-        print("[ {} {} ] {}".format(self._name,time.time(),msg))
+        curtime = datetime.datetime.now().strftime("(%H:%M:%S %d/%m/%Y)")
+        out = "[ {} {} ] {}".format(self._name,curtime,msg)
+        print(out)
+        self._logfile.write(out + "\n")
+        return curtime
 
     def set_promise_comment(self,promise,comment):
         c = self._db.cursor()
         c.execute('UPDATE promises SET comment = ? WHERE id = ?',(comment,promise))
         self._db.commit()
 
+# 
 # Compiling Slog->C++
+# 
+class CompilerTaskException(Exception):
+    def __init__(self,txt):
+        super().__init__(txt)
+
 class CompileTask(Task):
-    def __init__(self,conn,log):
+    def __init__(self):
+        self._logfile = COMPILESVC_LOG
         self._name = "CompileTask"
-        self._log = log
         self.log("Starting compiler subprocess...")
         self._proc = subprocess.Popen(["racket", SLOG_COMPILER_PROCESS],stdin=PIPE, stdout=PIPE)
         line = self._proc.stdout.readline()
@@ -274,9 +326,11 @@ class CompileTask(Task):
             # Ignore non-canonical relations, we don't need to record data for those
             is_canonical = relation[3]
             if is_canonical:
-                sel = map(str,relation[2])
-                c.execute('INSERT INTO canonical_relations (database_id,name,arity,selection,tag) VALUES (?,?,?,?,?)',
-                          (db_id,str(relation[0]),relation[1],",".join(sel),str(relation[6])))
+                pcs = list(map(str,relation[2]))
+                name = relation[0].value()
+                arity = relation[1]
+                c.execute('INSERT INTO canonical_relations (database_id,name,arity,selection,tag,num_tuples) VALUES (?,?,?,?,?,0)',
+                          (db_id,name,relation[1],",".join(pcs),str(relation[6])))
         self._db.commit()
 
     def compile_cpp(self,hsh,cppfile,promise_id):
@@ -345,38 +399,110 @@ class CompileTask(Task):
                 h.update(hashes.encode('utf-8'))
                 out_hash = h.hexdigest()
                 hashes = hashes.split(",")
-                self.compile_to_mpi(out_hash,hashes,4,promise)
+                try:
+                    self.compile_to_mpi(out_hash,hashes,4,promise)
+                except Exception as err:
+                    r = self.log("Exception for processing compile job {}: {}".format(id,err))
+                    s = "Server threw unexpected exception during compilation. Please report this using reference time {}".format(r)
+                    c.execute('UPDATE compile_jobs SET status = ?, error = ? WHERE promise = ?',(STATUS_FAILED,str(err),promise))
+                    c.execute('UPDATE promises SET status = ?, comment = ? WHERE id = ?',(STATUS_FAILED,s,promise))
+                    self._db.commit()
 
-# Running tasks via MPI
+#
+# Run task
+#
+
 class RunTask(Task):
-    def __init__(self,conn,log):
+    def __init__(self,):
+        self._logfile = RUNSVC_LOG
         self._name = "RunTask"
         self.log("MPI runner initialized.")
 
-    def run_mpi(self,promise,hsh):
-        build_dir = os.path.join(BINS_PATH,hsh)
+    def reset_lines(self,database_id):
+       c = self._db.cursor()
+       r = c.execute('SELECT name,arity,tag,selection FROM canonical_relations WHERE database_id = ?',(database_id,))
+       rows = c.fetchall()
+       self.relations = []
+       for row in rows:
+           self.relations.append([row[0],row[1],row[2],list(map(lambda x: int(x), row[3].split(",")))])
 
+    def process_line(self,line):
+        pass
+
+    # Check the output DB for consistency and index final outputs
+    def finalize_run(self,hsh,db_id):
+        dirs = glob.glob(os.path.join(DATABASE_PATH,"{}-output".format(hsh),"checkpoint-*"))
+        dir = dirs[0]
+        print("Found {}".format(dir))
+        c = self._db.cursor()
+        for relation in self.relations:
+            # XXX
+            data_file = os.path.join(dir,"rel_{}_{}_{}_full".format(relation[0],relation[1],"_".join(map(lambda x: str(x), relation[3]))))
+            size_file = "{}.size".format(data_file)
+            if ((not os.path.exists(data_file)) or (not os.path.exists(size_file))):
+                self.log("Output files {} or {} do not exists as expected.".format(data_file,size_file))
+                return False
+            try:
+                s = open(size_file,'r')
+                lines = s.readlines()
+                rows = int(lines[0])
+                columns = int(lines[1])
+                s.close()
+                c.execute('UPDATE canonical_relations SET num_tuples = ?, data_file = ? WHERE database_id = ? AND name = ? AND arity = ?'
+                          ,(rows,data_file,db_id,relation[0],relation[1]))
+                self._db.commit()
+                self.log("Found {} rows for relation {}.".format(rows,relation[0]))
+            except:
+                self.log("Size file {} was corrupted.".format(size_file))
+        return True
+
+    def run_mpi(self,promise,hsh,db_id):
+        build_dir = os.path.join(BINS_PATH,hsh)
         self.log("Starting mpirun for hash {}".format(hsh))
-        self.set_promise_comment(promise,"Now beginning MPI run.")
-        # Hack for OSX
+        t = time.time()
+        stdoutfile = "stdout-{}".format(t)
+        stderrfile = "stderr-{}".format(t)
+        stdoutpath = os.path.join(build_dir,stdoutfile)
+        stderrpath = os.path.join(build_dir,stderrfile)
+        self.set_promise_comment(promise,"Now beginning MPI run. stdout->{} stderr->{}".format(stdoutfile,stderrfile))
+
+        # Hack for MPI on OSX
         env = os.environ.copy()
         env["TMPDIR"] = "/tmp"
-        self._proc = subprocess.Popen(["mpirun","-n","2","target"],stdin=PIPE, stdout=PIPE,cwd=build_dir,env=env)
+
+        failed = False
+
+        self._proc = subprocess.Popen(["mpirun","-n","2","target"],stdin=PIPE, stdout=PIPE, stderr=open(stderrpath,'w'), cwd=build_dir,env=env)
+        o = open(stdoutpath,'w')
+        self.reset_lines(db_id)
+
+        # Process each line of the MPI tasks's output
         while True:
             line = self._proc.stdout.readline()
             # EOF
             if not line:
                 break
-            print(line)
+            o.write(str(line))
+            self.process_line(line)
+
         # Done executing mpirun
         self._proc.terminate()
+
         try:
             self._proc.wait(timeout=0.2)
         except subprocess.TimeoutExpired:
+            failed = True
             self.log('subprocess did not terminate in time')
 
+        # Check 
+        failed = failed or self._proc.returncode != 0
         c = self._db.cursor()
         c.execute('UPDATE mpi_jobs SET status = ? WHERE promise = ?',(STATUS_RESOLVED,promise))
+
+        # Index output db
+        failed = failed or (not self.finalize_run(hsh,db_id))
+
+        # Success!
         c.execute('UPDATE promises SET status = ? where id = ?',(STATUS_RESOLVED,promise))
         self._db.commit()
         
@@ -392,17 +518,30 @@ class RunTask(Task):
                 status = row[2]
                 hsh = row[3]
                 creation_time = row[4]
-                self.run_mpi(promise,hsh)
-    
+                try:
+                    c.execute('SELECT database_id FROM promises_for_databases WHERE promise_id = ?', (promise,))
+                    db_id = c.fetchone()[0]
+                    self.run_mpi(promise,hsh,db_id)
+                except Exception as err:
+                    r = self.log("Exception during MPI job {}: {}".format(id,err))
+                    s = "Exception during MPI execution. Try again or contact administrator for error log."
+                    c.execute('UPDATE mpi_jobs SET status = ?, error = ? WHERE promise = ?',(STATUS_FAILED,str(err),promise))
+                    c.execute('UPDATE promises SET status = ?, comment = ? WHERE id = ?',(STATUS_FAILED,s,promise))
+                    self._db.commit()
+
 
 def start_compile_task():
-    CompileTask(conn,log).loop()
+    CompileTask().loop()
 
 def start_mpirun_task():
-    RunTask(conn,log).loop()
+    RunTask().loop()
 
+# Start the server
+server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+slog_pb2_grpc.add_CommandServiceServicer_to_server(CommandService(),server)
 print('Slog server starting. Listening on port {}'.format(PORT))
 server.add_insecure_port('[::]:{}'.format(PORT))
+server.start()
 
 # Start the compile task
 compile_task = threading.Thread(target=start_compile_task, daemon=True)
@@ -411,10 +550,6 @@ compile_task.start()
 # Start the MPI run task
 mpirun_task = threading.Thread(target=start_mpirun_task, daemon=True)
 mpirun_task.start()
-
-
-# Start the server
-server.start()
 
 try:
     while True:
