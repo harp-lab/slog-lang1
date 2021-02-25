@@ -235,6 +235,9 @@ class Task:
         self._logfile.write(out + "\n")
         return curtime
 
+    def wait(self):
+        time.sleep(.1)
+
     def set_promise_comment(self,promise,comment):
         c = self._db.cursor()
         c.execute('UPDATE promises SET comment = ? WHERE id = ?',(comment,promise))
@@ -252,13 +255,14 @@ class CompileTask(Task):
         self._logfile = COMPILESVC_LOG
         self._name = "CompileTask"
         self.log("Starting compiler subprocess...")
-        self._proc = subprocess.Popen(["racket", SLOG_COMPILER_PROCESS],stdin=PIPE, stdout=PIPE)
+        self._proc = subprocess.Popen(["racket", SLOG_COMPILER_PROCESS], stdin=PIPE, stdout=PIPE)
         line = self._proc.stdout.readline()
         response = sexpdata.loads(line.decode('utf-8'))
+        self.log("here")
         if (response == [Symbol('ready')]):
-            self.log("Compiler initialized: ready to compile")
+            self.log("Compiler initialized: ready to compile\n")
         else:
-            self.log("error: compiler not initialized. Instead of (ready) got back {}".format(line.decode('utf-8')))
+            self.log("error: compiler not initialized. Instead of (ready) got back {}\n".format(line.decode('utf-8')))
             raise CompilerTaskException("compiler not initialized")
 
     # compile hashes to an out_hash using job_nodes and refering promise_id
@@ -386,6 +390,7 @@ class CompileTask(Task):
     def loop(self):
         self._db = sqlite3.connect(DB_PATH)
         while True:
+            self.wait()
             c = self._db.cursor()
             c.execute('SELECT * FROM compile_jobs where STATUS = ?',(STATUS_PENDING,))
             rows = c.fetchall()
@@ -509,6 +514,7 @@ class RunTask(Task):
     def loop(self):
         self._db = sqlite3.connect(DB_PATH)
         while True:
+            self.wait()
             c = self._db.cursor()
             c.execute('SELECT * FROM mpi_jobs where STATUS = ?',(STATUS_PENDING,))
             rows = c.fetchall()
