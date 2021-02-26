@@ -2,7 +2,7 @@ cmake_minimum_required (VERSION 2.6)
 
 project (target)
 
-add_compile_options(--std=c++17 -Wno-strict-aliasing)
+add_compile_options(--std=c++17 -Wno-strict-aliasing -fpermissive)
 
 if(APPLE)
     set(CMAKE_C_COMPILER clang)
