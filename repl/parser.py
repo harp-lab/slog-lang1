@@ -47,7 +47,7 @@ s = None
 def p_statement_id(t):
     'statement : ID'
     str = t[1]
-    IdCommand(str)
+    t[0] = IdCommand(str)
 
 def p_statement_cmd(t):
     'statement : ID STRING'
@@ -56,8 +56,6 @@ def p_statement_cmd(t):
         t[0] = RunCommand(str)
     elif t[1] == "connect":
         t[0] = ConnectCommand(str)
-
-
 
 def p_error(t):
     if t:

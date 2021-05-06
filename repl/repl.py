@@ -37,7 +37,7 @@ class Repl:
     
     def reconnect(self,server):
         self._server = server
-        self._channel = grpc.insecure_channel('{}:5106'.format(server))
+        self._channel = grpc.insecure_channel('{}:5108'.format(server))
         self._stub = slog_pb2_grpc.CommandServiceStub(self._channel)
         self._cur_time = -1
         # Hash from timestamps to database hashes
@@ -120,27 +120,24 @@ class Repl:
         return data
 
     def fetch_tuples(self,name):
-        if (self.relations.has_key(name)):
-            return self.relations[name]
-        else:
-            req = slog_pb2.RelationRequest()
-            req.database_id = self._cur_db
-            arity   = self.lookup_rels(name)[0][0]
-            req.tag = self.lookup_rels(name)[0][1]
-            res = self._stub.GetTuples(req)
-            n = 0
-            x = 0
-            tuples = []
-            buf = [None] * arity
-            for response in res:
-                for u64 in res.data:
-                    if (x >= arity):
-                        tuples.append(buf)
-                        x = 0
-                    buf[x] = u64
-                    x += 1
-                    n += 1
-            self.relations[name] = tuples
+        req = slog_pb2.RelationRequest()
+        req.database_id = self._cur_db
+        arity   = self.lookup_rels(name)[0][0]
+        req.tag = self.lookup_rels(name)[0][1]
+        res = self._stub.GetTuples(req)
+        n = 0
+        x = 0
+        tuples = []
+        buf = [None] * arity
+        for response in res:
+            for u64 in res.data:
+                if (x >= arity):
+                    tuples.append(buf)
+                    x = 0
+                buf[x] = u64
+                x += 1
+                n += 1
+        self.tuples[name] = tuples
 
     def recursive_dump_tuples(self,name):
         for tuple in self.fetch_tuples(name):
@@ -174,6 +171,7 @@ class Repl:
                 if cmd:
                     cmd.execute(self)
                 else:
+                    print("unrecognized command (try `help` once someone implements it)")
                     pass
             except EOFError:
                 self.exit()

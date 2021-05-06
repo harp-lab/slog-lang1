@@ -18,7 +18,7 @@ class IdCommand(Command):
     def __init__(self,id):
         self.id = id
     def execute(self,repl):
-        repl.pretty_dump_relation(id)
+        repl.pretty_dump_relation(self.id)
 
 class ConnectCommand(Command):
     def __init__(self,server):

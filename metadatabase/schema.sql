@@ -1,14 +1,9 @@
-CREATE TABLE promises (
-       id INTEGER NOT NULL PRIMARY KEY,
-       status INTEGER NOT NULL,
-       comment TEXT,
-       creation_time TEXT NOT NULL
-);
-
 /* Associates promises with their eventual (if we don't crash) databases. */
 CREATE TABLE promises_for_databases (
        promise_id INTEGER NOT NULL PRIMARY KEY,
-       /* a hash */
+       status INTEGER NOT NULL,
+       comment TEXT,
+       creation_time TEXT NOT NULL,
        database_id TEXT NOT NULL
 );
 
@@ -65,11 +60,11 @@ CREATE TABLE mpi_jobs (
 );
  
 CREATE TABLE compile_jobs (
-       job_id INTEGER NOT NULL PRIMARY KEY,
-       promise INTEGER NOT NULL,
+       promise INTEGER NOT NULL PRIMARY KEY,
        status INTEGER NOT NULL,
        hashes TEXT NOT NULL,
        creation_time TEXT NOT NULL,
+       for_database_id TEXT NOT NULL,
        completion_time TEXT,
        error TEXT
 );
