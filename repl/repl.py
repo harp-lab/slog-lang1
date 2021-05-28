@@ -1,4 +1,5 @@
 from concurrent import futures
+import copy
 import grpc
 from prompt_toolkit import prompt
 from prompt_toolkit.completion import WordCompleter
@@ -120,7 +121,9 @@ class Repl:
         return data
 
     def fetch_tuples(self,name):
+        print(name)
         req = slog_pb2.RelationRequest()
+        print(req)
         req.database_id = self._cur_db
         arity   = self.lookup_rels(name)[0][0]
         req.tag = self.lookup_rels(name)[0][1]
@@ -128,16 +131,19 @@ class Repl:
         n = 0
         x = 0
         tuples = []
-        buf = [None] * arity
+        buf = [None] * (arity+1)
         for response in res:
-            for u64 in res.data:
-                if (x >= arity):
-                    tuples.append(buf)
-                    x = 0
+            if (response.num_tuples == 0): continue
+            for u64 in response.data:
                 buf[x] = u64
                 x += 1
-                n += 1
+                if (x == arity+1):
+                    tuples.append(copy.copy(buf))
+                    x = 0
+                    n += 1
+            assert (n == response.num_tuples)
         self.tuples[name] = tuples
+        return tuples
 
     def recursive_dump_tuples(self,name):
         for tuple in self.fetch_tuples(name):

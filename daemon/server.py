@@ -5,6 +5,7 @@ from concurrent import futures
 from sexpdata import Symbol
 from subprocess import PIPE
 import array
+import copy
 import datetime
 import glob
 import grpc
@@ -22,6 +23,7 @@ import sys
 import tempfile
 import threading
 import time
+import traceback
 
 # Network
 PORT = 5108
@@ -181,18 +183,25 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
     def GetTuples(self,request,context):
         self._db = sqlite3.connect(DB_PATH)
         c = self._db.cursor()
-        r = c.execute('SELECT name,arity,tag,selection,data_file FROM canonical_relations WHERE database_id = ?',(request.database_id,))
+        r = c.execute('SELECT name,arity,tag,selection,data_file FROM canonical_relations WHERE database_id = ? AND tag = ?',(request.database_id,request.tag))
         try:
             row = c.fetchone()
             name = row[0]
             arity = int(row[1])
             tag = row[2]
-            selection = map(lambda x: int(x), row[3].split(","))
+            selection = list(map(lambda x: int(x), row[3].split(",")))
             data_file = row[4]
-            f = open(data_file,'r')
+            print(data_file)
+            tuplen = arity+1 # Tuples also include ID column
+            mapping = list(range(0,tuplen))
+            for x in selection: mapping.remove(x)
+            mapping = selection + mapping
+            print(selection)
+            print(mapping)
+            f = open(data_file,'rb')
             file_size = os.stat(data_file).st_size
             num_u64s = int(file_size) / 8
-            num_tuples = int(num_u64s) / (arity+1)
+            num_tuples = int(num_u64s) / tuplen
             max_tuples_per_chunk = int(math.floor(MAX_CHUNK_DATA / (8 * arity)))
             num_tuples_left = num_tuples
             while (num_tuples_left > 0):
@@ -201,21 +210,24 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
                 r = slog_pb2.Tuples()
                 r.status = STATUS_RESOLVED
                 r.num_tuples = num_tuples
-                buffer.fromfile(f, arity * num_tuples * 8)
-                result = buffer.copy()
-                remaining = list(range(arity))
-                print('3')
-                for itm in selection:
-                    seq.remove(itm)
-                m = seq + remaining
+                buffer.fromfile(f, tuplen * num_tuples)
+                print(buffer)
+                buffer.byteswap() # Swap endianness
+                print(buffer)
+                cpy = copy.copy(buffer)
+                print('selar\n')
+                print(arity)
                 # Shuffle tuples according
                 for n in range(num_tuples):
-                    for i in range(arity):
-                        copy[n * a + m[i]] = buffer[n*a + i]
+                    for i in range(arity+1):
+                        cpy[n*tuplen + mapping[i]] = buffer[n*tuplen + i]
                 num_tuples_left -=  num_tuples
-                r.extend(copy)
+                print(cpy)
+                r.num_tuples = num_tuples
+                r.data.extend(cpy)
                 yield r
         except Exception as err:
+            traceback.print_exc()
             self.log("Err {}".format(err))
             pass
         
@@ -326,7 +338,7 @@ class CompileTask(Task):
             self.log("Slog->C++ compilation failed!")
             c = self._db.cursor()
             c.execute('UPDATE compile_jobs SET status = ?, error = ? WHERE promise = ?',(STATUS_FAILED,output[1],promise_id))
-            c.execute('UPDATE promises_for_databases SET status = ?, comment = ? WHERE id = ?',(STATUS_FAILED,output[1],promise_id))
+            c.execute('UPDATE promises_for_databases SET status = ?, comment = ? WHERE promise_id = ?',(STATUS_FAILED,output[1],promise_id))
             self._db.commit()
             return
         elif (output[0] == Symbol('success')):
@@ -369,6 +381,8 @@ class CompileTask(Task):
         
         # Copy the CMakeList.txt to the build directory
         shutil.copy2(CMAKE_FILE,build_dir)
+
+        print("running cmake now.")
         
         # Now run cmake
         try:
@@ -378,7 +392,7 @@ class CompileTask(Task):
             c = self._db.cursor()
             err = "Error: cmake failed for {}".format(build_dir)
             c.execute('UPDATE compile_jobs SET status = ?, error = ? WHERE promise = ?',(STATUS_FAILED,err,promise_id))
-            c.execute('UPDATE promises_for_databases SET status = ?, comment = ? WHERE id = ?',(STATUS_FAILED,err,promise_id))
+            c.execute('UPDATE promises_for_databases SET status = ?, comment = ? WHERE promise_id = ?',(STATUS_FAILED,err,promise_id))
             self._db.commit()
             self.log(err)
             return
@@ -392,7 +406,7 @@ class CompileTask(Task):
             c = self._db.cursor()
             err = "Error: make failed for {}:\n{}".format(build_dir,result.stderr)
             c.execute('UPDATE compile_jobs SET status = ?, error = ? WHERE promise = ?',(STATUS_FAILED,err,promise_id))
-            c.execute('UPDATE promises_for_databases SET status = ?, comment = ? WHERE id = ?',(STATUS_FAILED,err,promise_id))
+            c.execute('UPDATE promises_for_databases SET status = ?, comment = ? WHERE promise_id = ?',(STATUS_FAILED,err,promise_id))
             self._db.commit()
             self.log(err)
             return
@@ -421,10 +435,10 @@ class CompileTask(Task):
                 try:
                     self.compile_to_mpi(for_database_id,split_hashes(hashes),4,promise)
                 except Exception as err:
-                    r = self.log("Exception for processing compile job {}: {}".format(id,err))
+                    r = self.log("Exception for processing compile job {}: {}".format(for_database_id,err))
                     s = "Server threw unexpected exception during compilation. Please report this using reference time {}".format(r)
                     c.execute('UPDATE compile_jobs SET status = ?, error = ? WHERE promise = ?',(STATUS_FAILED,str(err),promise))
-                    c.execute('UPDATE promises_for_databases SET status = ?, comment = ? WHERE id = ?',(STATUS_FAILED,s,promise))
+                    c.execute('UPDATE promises_for_databases SET status = ?, comment = ? WHERE promise_id = ?',(STATUS_FAILED,s,promise))
                     self._db.commit()
 
 #
@@ -458,6 +472,7 @@ class RunTask(Task):
             # XXX
             data_file = os.path.join(dir,"rel_{}_{}_{}_full".format(relation[0],relation[1],"_".join(map(lambda x: str(x), relation[3]))))
             size_file = "{}.size".format(data_file)
+            print(data_file)
             if ((not os.path.exists(data_file)) or (not os.path.exists(size_file))):
                 self.log("Output files {} or {} do not exists as expected.".format(data_file,size_file))
                 return False

@@ -30,6 +30,7 @@ class Manifest():
                 tag  = rel[7]
                 self.relations.append([name,arity,select,canonical,data,size_file,tag])
             string_pool = sexpr[2][1]
+            self.strings = {}
             for entry in string_pool:
                 self.strings[entry[0]] = entry[1]
 
