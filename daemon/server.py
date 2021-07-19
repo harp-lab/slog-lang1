@@ -57,9 +57,15 @@ COMPILATION_TIMEOUT = 20
 # Maximum number of bytes allowed per chunk
 MAX_CHUNK_DATA = 2097152
 
+MIN_BUCKETS = 1
+MAX_BUCKETS = 50000
+
 # calculate an output database hash from a combined hash of a list of
-# hashes of input files
-def generate_db_hash(hashes):
+# hashes of input files and previous db
+# using_db == "" if not using any other DB
+def generate_db_hash(hashes,using_db=None):
+    if (using_db != "" and using_db != None): 
+        hashes = [using_db] + hashes
     hashes.sort()
     cathashes = "|".join(hashes).encode('utf-8')
     h = hashlib.sha256()
@@ -110,9 +116,7 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
             res.err_or_db = rows[0][1]
             res.status = rows[0][0]
             if (res.status == STATUS_RESOLVED):
-                print("here")
                 res.err_or_db = rows[0][2]
-                print(res.err_or_db)
             return res
 
     def PutHashes(self,request,context):
@@ -135,7 +139,7 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
                     self._db.commit()
         return ret
 
-    def RunHashes(self,request,context):
+    def CompileHashes(self,request,context):
         self._db = sqlite3.connect(DB_PATH)
         c = self._db.cursor()
         ret = slog_pb2.Promise()
@@ -145,28 +149,44 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
             if (r.fetchone() == None):
                 ret.promise_id = -1
                 return ret
+        using_db = request.using_database
         hashes = set()
         for hsh in request.hashes:
             hashes.add(hsh)
-        # Generate the database
-        db_id = generate_db_hash(list(hashes))
+        # In / out DB hashes must be calculated now
+        in_db = using_db
+        out_db = ""
+        # If not using a previous database, we generate an initial DB
+        # output is hash of that DB hash + hashes.
+        if in_db == "":
+            in_db = generate_db_hash(list(hashes))
+            out_db = generate_db_hash(list(hashes),in_db)
+        # Otherwise output DB is hash of that DB + hashes of others
+        else:
+            in_db = using_db
+            out_db = generate_db_hash(list(hashes),in_db)
         joined_hashes = join_hashes(list(hashes))
-        r = c.execute('SELECT promise_id FROM promises_for_databases WHERE database_id=?',(db_id,))
+        r = c.execute('SELECT promise_id FROM promises_for_databases WHERE database_id=?',(out_db,))
         row = r.fetchone()
         response = slog_pb2.Promise()
         # Already started a compile job for this
         if (row != None):
-            print("already returned...")
             response.promise_id = row[0]
             return response
         try:
             # Else, start a compile job
             c.execute('INSERT INTO promises_for_databases (status,comment,database_id,creation_time) VALUES (?,?,?,time(\'now\'))',
-                      (STATUS_PENDING, "Compiling to PRAM IR",db_id))
+                      (STATUS_PENDING, "Compiling to PRAM IR",out_db))
             self._db.commit()
             promise_id = c.lastrowid
             response.promise_id = promise_id
-            c.execute('INSERT INTO compile_jobs (promise, status, hashes, for_database_id, creation_time) VALUES (?,?,?,?,time(\'now\'))',(promise_id,STATUS_PENDING,joined_hashes,db_id))
+            buckets = request.buckets
+            if (buckets < MIN_BUCKETS or buckets > MAX_BUCKETS):
+                self.log("Got request for compilation with {} buckets, which is invalid.\n".format(buckets))
+                response.promise_id = -1
+                return response
+            # otherwise, insert, will be handled by CompileTask
+            c.execute('INSERT INTO compile_jobs (promise, status, hashes, in_database_id, out_database_id, buckets, creation_time) VALUES (?,?,?,?,?,?,time(\'now\'))',(promise_id,STATUS_PENDING,joined_hashes,in_db,out_db,buckets))
             compile_job_id = c.lastrowid
             self._db.commit()
         except Exception as e:
@@ -304,27 +324,22 @@ class CompileTask(Task):
             self.log("error: compiler not initialized. Instead of (ready) got back {}\n".format(line.decode('utf-8')))
             raise CompilerTaskException("compiler not initialized")
 
-    # compile hashes to an out_hash using job_nodes and refering promise_id
-    def compile_to_mpi(self,db_hash,hashes,job_nodes,promise_id):
+    def compile_to_mpi(self,in_db,out_db,hashes,buckets,promise_id):
         files = " ".join(map(lambda hsh: ("\"" + os.path.join(SOURCES_PATH, hsh) + "\""), hashes))
-        self.log("Beginning compilation to C++ for hashes {}, generating program for db hash {}".format(",".join(hashes), db_hash))
-        
-        # Number of processes
-        nprocesses = 4
+        self.log("Beginning compilation to C++ for hashes {}, generating program for db hash {}".format(",".join(hashes), in_db))
         
         # C++ file
-        outfile = os.path.join(SOURCES_PATH, db_hash + "-compiled.cpp")
+        outfile = os.path.join(SOURCES_PATH, out_db + "-compiled.cpp")
 
-        # Databases on the filesystem that will be written
-        indata_directory = os.path.join(DATABASE_PATH,db_hash)
-        outdata_directory  = os.path.join(DATABASE_PATH,db_hash + "-output")
+        indata_directory = os.path.join(DATABASE_PATH,in_db)
+        outdata_directory  = os.path.join(DATABASE_PATH,out_db)
 
         # Create output data directory
         os.makedirs(indata_directory, exist_ok=True)
         os.makedirs(outdata_directory, exist_ok=True)
 
         # Assemble sexpr to send to the running compiler process
-        sexpr = "(compile-hashes \"{}\" (files {}) {} \"{}\" \"{}\" \"{}\")".format(SLOG_COMPILER_ROOT,files,nprocesses,outfile,indata_directory,outdata_directory)
+        sexpr = "(compile-hashes \"{}\" (files {}) {} \"{}\" \"{}\" \"{}\")".format(SLOG_COMPILER_ROOT,files,buckets,outfile,indata_directory,outdata_directory)
 
         # Run the compilation command
         self._proc.stdin.write((sexpr + "\n").encode('utf-8'))
@@ -346,8 +361,8 @@ class CompileTask(Task):
             self.log("Slog->C++ compilation successful. Compiling to MPI")
             # Add the promise for the database association
             manifest_file = os.path.join(indata_directory,"manifest")
-            self.load_manifest(db_hash,manifest_file)
-            return self.compile_cpp(db_hash,outfile,promise_id)
+            self.load_manifest(in_db,manifest_file)
+            return self.compile_cpp(in_db,outfile,promise_id)
 
     # Populates the canonical_relations table
     def load_manifest(self,db_id,manifest_file):
@@ -430,16 +445,17 @@ class CompileTask(Task):
                 promise = row[0]
                 status = row[1]
                 hashes = row[2]
-                creation_time = row[3]
-                for_database_id = row[4]
-                try:
-                    self.compile_to_mpi(for_database_id,split_hashes(hashes),4,promise)
-                except Exception as err:
-                    r = self.log("Exception for processing compile job {}: {}".format(for_database_id,err))
-                    s = "Server threw unexpected exception during compilation. Please report this using reference time {}".format(r)
-                    c.execute('UPDATE compile_jobs SET status = ?, error = ? WHERE promise = ?',(STATUS_FAILED,str(err),promise))
-                    c.execute('UPDATE promises_for_databases SET status = ?, comment = ? WHERE promise_id = ?',(STATUS_FAILED,s,promise))
-                    self._db.commit()
+                in_database_id = row[3]
+                out_database_id = row[4]
+                buckets = int(row[5])
+                self.compile_to_mpi(in_database_id,out_database_id,split_hashes(hashes),buckets,promise)
+                #try:
+                # except Exception as err:
+                #     r = self.log("Exception for processing compile job {}: {}".format(in_database_id,err))
+                #     s = "Server threw unexpected exception during compilation. Please report this using reference time {}".format(r)
+                #     c.execute('UPDATE compile_jobs SET status = ?, error = ? WHERE promise = ?',(STATUS_FAILED,str(err),promise))
+                #     c.execute('UPDATE promises_for_databases SET status = ?, comment = ? WHERE promise_id = ?',(STATUS_FAILED,s,promise))
+                #     self._db.commit()
 
 #
 # Run task

@@ -63,8 +63,10 @@ CREATE TABLE compile_jobs (
        promise INTEGER NOT NULL PRIMARY KEY,
        status INTEGER NOT NULL,
        hashes TEXT NOT NULL,
+       in_database_id TEXT NOT NULL,
+       out_database_id TEXT NOT NULL,
+       buckets INTEGER NOT NULL,
        creation_time TEXT NOT NULL,
-       for_database_id TEXT NOT NULL,
        completion_time TEXT,
        error TEXT
 );

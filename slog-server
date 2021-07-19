@@ -1,1 +1,3 @@
+rm metadatabase/database.sqlite3;
+sqlite3 metadatabase/database.sqlite3 <metadatabase/schema.sql;
 python3 -m daemon.server

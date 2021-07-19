@@ -11,11 +11,17 @@ message CreateSessionResponse {
 }
 
 service CommandService {
+  // Client sends hashes, server returns unstored hashes
   rpc ExchangeHashes(HashesRequest) returns (Hashes);
-  rpc PutHashes(PutHashesRequest) returns (ErrorResponse);
+  // Put hashes
+  rpc PutHashes(PutHashesRequest) returns (Promise);
+  // Compile hashes, promise for initial DB (immediately resolved if previously compiled)
+  rpc CompileHashes(CompileHashesRequest) returns (Promise);
   rpc Ping(PingRequest) returns (Pong);
-  rpc RunHashes(RunHashesRequest) returns (Promise);
+  // Run a set of hashes with an initial database
+  rpc RunHashes(RunProgramRequest) returns (Promise);
   rpc QueryPromise(PromiseRequest) returns (PromiseStatus);
+  // Get a description of relations for a database
   rpc GetRelations(DatabaseRequest) returns (RelationDescriptionsResponse);
   rpc GetTuples(RelationRequest) returns (stream Tuples);
 }
@@ -34,12 +40,28 @@ message HashesRequest {
 }
 
 message Hashes {
-  repeated string hashes = 1;
+  repeated string hashes = 2;
 }
 
 message PutHashesRequest {
   string session_key = 1;
-  repeated string bodies = 2;
+  repeated string bodies = 4;
+}
+
+message CompileHashesRequest {
+  string session_key = 1;
+  uint32 buckets = 2;
+  // if empty, don't use another DB, create new one
+  string using_database = 3;
+  repeated string hashes = 4;
+}
+
+message RunProgramRequest {
+  string session_key = 1;
+  // Must be the initial database or a database for which this program
+  // was compiled.
+  string using_database = 2;
+  repeated string hashes = 3;
 }
 
 message ErrorResponse {
@@ -50,6 +72,11 @@ message ErrorResponse {
 message DatabaseRequest {
   string session_key = 1;
   string database_id = 2;
+}
+
+message GetCanonicalDatabaseRequest {
+  string session_key = 1;
+  repeated string hashes = 2;
 }
 
 message RelationRequest {
@@ -87,9 +114,4 @@ message Tuples {
   uint32 status = 1;
   uint32 num_tuples = 2;
   repeated uint64 data = 3;
-}
-
-message RunHashesRequest {
-  string session_key = 1;
-  repeated string hashes = 2;
 }

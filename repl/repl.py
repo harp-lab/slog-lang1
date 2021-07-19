@@ -64,10 +64,12 @@ class Repl:
             req.bodies.extend([elaborator.hashes[hsh]])
         response = self._stub.PutHashes(req)
 
-        # Generate a run request
-        req = slog_pb2.RunHashesRequest()
+        # Generate a compile request
+        req = slog_pb2.CompileHashesRequest()
+        req.buckets = 4096
+        req.using_database = ""
         req.hashes.extend(elaborator.hashes.keys())
-        response = self._stub.RunHashes(req)
+        response = self._stub.CompileHashes(req)
         cmmt = None
         
         # Wait to resolve the promise in the terminal...

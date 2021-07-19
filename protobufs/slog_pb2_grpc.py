@@ -22,7 +22,12 @@ class CommandServiceStub(object):
         self.PutHashes = channel.unary_unary(
                 '/CommandService/PutHashes',
                 request_serializer=slog__pb2.PutHashesRequest.SerializeToString,
-                response_deserializer=slog__pb2.ErrorResponse.FromString,
+                response_deserializer=slog__pb2.Promise.FromString,
+                )
+        self.CompileHashes = channel.unary_unary(
+                '/CommandService/CompileHashes',
+                request_serializer=slog__pb2.CompileHashesRequest.SerializeToString,
+                response_deserializer=slog__pb2.Promise.FromString,
                 )
         self.Ping = channel.unary_unary(
                 '/CommandService/Ping',
@@ -31,7 +36,7 @@ class CommandServiceStub(object):
                 )
         self.RunHashes = channel.unary_unary(
                 '/CommandService/RunHashes',
-                request_serializer=slog__pb2.RunHashesRequest.SerializeToString,
+                request_serializer=slog__pb2.RunProgramRequest.SerializeToString,
                 response_deserializer=slog__pb2.Promise.FromString,
                 )
         self.QueryPromise = channel.unary_unary(
@@ -44,19 +49,33 @@ class CommandServiceStub(object):
                 request_serializer=slog__pb2.DatabaseRequest.SerializeToString,
                 response_deserializer=slog__pb2.RelationDescriptionsResponse.FromString,
                 )
+        self.GetTuples = channel.unary_stream(
+                '/CommandService/GetTuples',
+                request_serializer=slog__pb2.RelationRequest.SerializeToString,
+                response_deserializer=slog__pb2.Tuples.FromString,
+                )
 
 
 class CommandServiceServicer(object):
     """Missing associated documentation comment in .proto file."""
 
     def ExchangeHashes(self, request, context):
-        """Missing associated documentation comment in .proto file."""
+        """Client sends hashes, server returns unstored hashes
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
     def PutHashes(self, request, context):
-        """Missing associated documentation comment in .proto file."""
+        """Put hashes
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def CompileHashes(self, request, context):
+        """Compile hashes, promise for initial DB (immediately resolved if previously compiled)
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -68,7 +87,8 @@ class CommandServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def RunHashes(self, request, context):
-        """Missing associated documentation comment in .proto file."""
+        """Run a set of hashes with an initial database
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -80,6 +100,13 @@ class CommandServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def GetRelations(self, request, context):
+        """Get a description of relations for a database
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetTuples(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -96,7 +123,12 @@ def add_CommandServiceServicer_to_server(servicer, server):
             'PutHashes': grpc.unary_unary_rpc_method_handler(
                     servicer.PutHashes,
                     request_deserializer=slog__pb2.PutHashesRequest.FromString,
-                    response_serializer=slog__pb2.ErrorResponse.SerializeToString,
+                    response_serializer=slog__pb2.Promise.SerializeToString,
+            ),
+            'CompileHashes': grpc.unary_unary_rpc_method_handler(
+                    servicer.CompileHashes,
+                    request_deserializer=slog__pb2.CompileHashesRequest.FromString,
+                    response_serializer=slog__pb2.Promise.SerializeToString,
             ),
             'Ping': grpc.unary_unary_rpc_method_handler(
                     servicer.Ping,
@@ -105,7 +137,7 @@ def add_CommandServiceServicer_to_server(servicer, server):
             ),
             'RunHashes': grpc.unary_unary_rpc_method_handler(
                     servicer.RunHashes,
-                    request_deserializer=slog__pb2.RunHashesRequest.FromString,
+                    request_deserializer=slog__pb2.RunProgramRequest.FromString,
                     response_serializer=slog__pb2.Promise.SerializeToString,
             ),
             'QueryPromise': grpc.unary_unary_rpc_method_handler(
@@ -117,6 +149,11 @@ def add_CommandServiceServicer_to_server(servicer, server):
                     servicer.GetRelations,
                     request_deserializer=slog__pb2.DatabaseRequest.FromString,
                     response_serializer=slog__pb2.RelationDescriptionsResponse.SerializeToString,
+            ),
+            'GetTuples': grpc.unary_stream_rpc_method_handler(
+                    servicer.GetTuples,
+                    request_deserializer=slog__pb2.RelationRequest.FromString,
+                    response_serializer=slog__pb2.Tuples.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -158,7 +195,24 @@ class CommandService(object):
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/CommandService/PutHashes',
             slog__pb2.PutHashesRequest.SerializeToString,
-            slog__pb2.ErrorResponse.FromString,
+            slog__pb2.Promise.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def CompileHashes(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/CommandService/CompileHashes',
+            slog__pb2.CompileHashesRequest.SerializeToString,
+            slog__pb2.Promise.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -191,7 +245,7 @@ class CommandService(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/CommandService/RunHashes',
-            slog__pb2.RunHashesRequest.SerializeToString,
+            slog__pb2.RunProgramRequest.SerializeToString,
             slog__pb2.Promise.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
@@ -227,5 +281,22 @@ class CommandService(object):
         return grpc.experimental.unary_unary(request, target, '/CommandService/GetRelations',
             slog__pb2.DatabaseRequest.SerializeToString,
             slog__pb2.RelationDescriptionsResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetTuples(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(request, target, '/CommandService/GetTuples',
+            slog__pb2.RelationRequest.SerializeToString,
+            slog__pb2.Tuples.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
