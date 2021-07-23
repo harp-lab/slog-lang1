@@ -71,9 +71,10 @@ class Repl:
         req.hashes.extend(elaborator.hashes.keys())
         response = self._stub.CompileHashes(req)
         cmmt = None
-        
+        initial_db = ""
+
         # Wait to resolve the promise in the terminal...
-        with yaspin(text="Running...") as spinner:
+        with yaspin(text="Compiling...") as spinner:
             # Break when promise is resolved
             while True:
                 time.sleep(PING_INTERVAL)
@@ -86,7 +87,7 @@ class Repl:
                 elif (cmmt != res.err_or_db):
                     cmmt = res.err_or_db
                     spinner.write("✔ {}".format(cmmt))
-                if (res.status == STATUS_PENDING):
+                elif (res.status == STATUS_PENDING):
                     continue
                 elif (res.status == STATUS_FAILED):
                     spinner.fail("💥")
@@ -95,7 +96,36 @@ class Repl:
                     return
                 elif (res.status == STATUS_RESOLVED):
                     spinner.ok("✅ ")
-                    # Update to the new database
+                    initial_db = res.err_or_db
+                    break
+        
+        req = slog_pb2.RunProgramRequest()
+        req.using_database = initial_db
+        req.hashes.extend(elaborator.hashes.keys())
+
+        # Get a promise for the running response
+        response = self._stub.RunHashes(req)
+        
+        with yaspin(text="Running...") as spinner:
+            while True:
+                time.sleep(PING_INTERVAL)
+                p = slog_pb2.Promise()
+                p.promise_id = response.promise_id
+                res = self._stub.QueryPromise(p)
+                if (cmmt == None and res.err_or_db != ""):
+                    cmmt = res.err_or_db
+                    spinner.write("✔ {}".format(cmmt))
+                elif (cmmt != res.err_or_db):
+                    cmmt = res.err_or_db
+                    spinner.write("✔ {}".format(cmmt))
+                elif (res.status == STATUS_PENDING):
+                    continue
+                elif (res.status == STATUS_FAILED):
+                    spinner.fail("💥")
+                    print("Execution failed!")
+                    return
+                elif (res.status == STATUS_RESOLVED):
+                    spinner.ok("✅ ")
                     self.switchto_db(res.err_or_db)
                     return
 

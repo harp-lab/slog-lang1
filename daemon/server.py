@@ -163,7 +163,7 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
             out_db = generate_db_hash(list(hashes),in_db)
         # Otherwise output DB is hash of that DB + hashes of others
         else:
-            in_db = using_db
+            in_db = generate_db_hash(list(hashes),using_db)
             out_db = generate_db_hash(list(hashes),in_db)
         joined_hashes = join_hashes(list(hashes))
         r = c.execute('SELECT promise_id FROM promises_for_databases WHERE database_id=?',(out_db,))
@@ -174,9 +174,9 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
             response.promise_id = row[0]
             return response
         try:
-            # Else, start a compile job
+            # Else, start a compile job and promise the new input DB
             c.execute('INSERT INTO promises_for_databases (status,comment,database_id,creation_time) VALUES (?,?,?,time(\'now\'))',
-                      (STATUS_PENDING, "Compiling to PRAM IR",out_db))
+                      (STATUS_PENDING, "Compiling to PRAM IR",in_db))
             self._db.commit()
             promise_id = c.lastrowid
             response.promise_id = promise_id
@@ -191,13 +191,53 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
             self._db.commit()
         except Exception as e:
             print(e)
+        self.log("Made promise {} for new compile job on hashes {}\n".format(promise_id,hashes))
+        return response
+
+    def RunHashes(self,request,context):
+        self._db = sqlite3.connect(DB_PATH)
+        c = self._db.cursor()
+        ret = slog_pb2.Promise()
+        # Check that all hashes are present
+        for hsh in request.hashes:
+            r = c.execute('SELECT hash FROM slog_source_files where hash=?',(hsh,))
+            if (r.fetchone() == None):
+                ret.promise_id = -1
+                return ret
+        in_db = request.using_database
+        hashes = set()
+        # Check that this program was previously successfully compiled
+        # using this database
+        c.execute('SELECT out_database_id FROM compile_jobs WHERE status=? AND in_database_id=?',
+                  (STATUS_RESOLVED,request.using_database))
+        out_db = r.fetchone()[0]
+        if (out_db == None):
+            ret.promise_id = -1
+            return ret
+        r = c.execute('SELECT promise_id FROM promises_for_databases WHERE database_id=?',(out_db,))
+        row = r.fetchone()
+        response = slog_pb2.Promise()
+        # Already started an MPI job for this
+        if (row != None):
+            response.promise_id = row[0]
+            return response
+        try:
+            # Else, start an MPI job
+            c.execute('INSERT INTO promises_for_databases (status,comment,database_id,creation_time) VALUES (?,?,?,time(\'now\'))',
+                      (STATUS_PENDING, "Executing compiled PRAM IR via MPI",out_db))
+            promise_id = c.lastrowid
+            c.execute('INSERT INTO mpi_jobs (promise, status, hash, creation_time) VALUES (?,?,?,time(\'now\'))',(promise_id,STATUS_PENDING,in_db))
+            response.promise_id = promise_id
+            self._db.commit()
+        except Exception as e:
+            print(e)
         # except:
         #     # Will only happen if we have already tried to compile this
         #     self.log("Cannot add new compile job for promise {} for new compile job on hashes {}\n".format(promise_id,hashes))
         #     # Return a bad promise
         #     response.promise_id = -1
         #     return response
-        self.log("Made promise {} for new compile job on hashes {}\n".format(promise_id,hashes))
+        self.log("Made promise {} for new MPI job on hashes {}\n".format(promise_id,hashes))
         return response
 
     def GetTuples(self,request,context):
@@ -235,8 +275,6 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
                 buffer.byteswap() # Swap endianness
                 print(buffer)
                 cpy = copy.copy(buffer)
-                print('selar\n')
-                print(arity)
                 # Shuffle tuples according
                 for n in range(num_tuples):
                     for i in range(arity+1):
@@ -428,11 +466,14 @@ class CompileTask(Task):
 
         c = self._db.cursor()
         c.execute('UPDATE compile_jobs SET status = ? WHERE promise = ?',(STATUS_RESOLVED,promise_id))
-        c.execute('INSERT INTO mpi_jobs (promise, status, hash, creation_time) VALUES (?,?,?,time(\'now\'))',(promise_id,STATUS_PENDING,hsh))
+        self.set_promise_comment(promise_id,"C++ -> binary compilation successful. Returning this initial database.")
+        c.execute('UPDATE promises_for_databases SET status = ? where promise_id = ?',(STATUS_RESOLVED,promise_id))
+        self.log("Compilation -> MPI successful, now finishing promise for subsequent run.")
         self._db.commit()
-        self.set_promise_comment(promise_id,"C++ -> binary compilation successful. Queuing to run")
-        self.log("make completed successfully. Queuing binary to run.")
         return
+
+        #self.log("make completed successfully. Queuing binary to run.")
+        #c.execute('INSERT INTO mpi_jobs (promise, status, hash, creation_time) VALUES (?,?,?,time(\'now\'))',(promise_id,STATUS_PENDING,hsh))
 
     def loop(self):
         self._db = sqlite3.connect(DB_PATH)
