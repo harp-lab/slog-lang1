@@ -91,7 +91,7 @@ class Repl:
                     continue
                 elif (res.status == STATUS_FAILED):
                     spinner.fail("💥")
-                    print("Execution failed!")
+                    print("Compilation failed!")
                     print(res.err_or_db)
                     return
                 elif (res.status == STATUS_RESOLVED):
@@ -118,7 +118,7 @@ class Repl:
                 elif (cmmt != res.err_or_db):
                     cmmt = res.err_or_db
                     spinner.write("✔ {}".format(cmmt))
-                elif (res.status == STATUS_PENDING):
+                if (res.status == STATUS_PENDING):
                     continue
                 elif (res.status == STATUS_FAILED):
                     spinner.fail("💥")
