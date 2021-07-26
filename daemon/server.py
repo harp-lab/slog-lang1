@@ -206,10 +206,12 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
                 return ret
         in_db = request.using_database
         hashes = set()
+        for hsh in request.hashes:
+            hashes.add(hsh)
         # Check that this program was previously successfully compiled
         # using this database
-        c.execute('SELECT out_database_id FROM compile_jobs WHERE status=? AND in_database_id=?',
-                  (STATUS_RESOLVED,request.using_database))
+        c.execute('SELECT out_database_id FROM compile_jobs WHERE status=? AND in_database_id=? AND hashes=?',
+                  (STATUS_RESOLVED,request.using_database,join_hashes(list(hashes))))
         out_db = r.fetchone()[0]
         if (out_db == None):
             ret.promise_id = -1
@@ -379,6 +381,8 @@ class CompileTask(Task):
         # Assemble sexpr to send to the running compiler process
         sexpr = "(compile-hashes \"{}\" (files {}) {} \"{}\" \"{}\" \"{}\")".format(SLOG_COMPILER_ROOT,files,buckets,outfile,indata_directory,outdata_directory)
 
+        print(sexpr)
+
         # Run the compilation command
         self._proc.stdin.write((sexpr + "\n").encode('utf-8'))
         self._proc.stdin.flush()
@@ -399,7 +403,11 @@ class CompileTask(Task):
             self.log("Slog->C++ compilation successful. Compiling to MPI")
             # Add the promise for the database association
             manifest_file = os.path.join(indata_directory,"manifest")
+            # Copy the manifest from in to out
+            shutil.copy2(manifest_file,os.path.join(outdata_directory,"manifest"))
+            # In/out db use same manifest, index them now
             self.load_manifest(in_db,manifest_file)
+            self.load_manifest(out_db,os.path.join(outdata_directory,"manifest"))
             return self.compile_cpp(in_db,outfile,promise_id)
 
     # Populates the canonical_relations table
@@ -520,14 +528,18 @@ class RunTask(Task):
         pass
 
     # Check the output DB for consistency and index final outputs
-    def finalize_run(self,hsh,db_id):
-        dirs = glob.glob(os.path.join(DATABASE_PATH,"{}-output".format(hsh),"checkpoint-*"))
+    # Return true/false if succeed/fail
+    def finalize_run(self,db_id):
+        dirs = glob.glob(os.path.join(DATABASE_PATH,db_id,"checkpoint-*"))
+        if len(dirs) < 1:
+            self.log("Could not find any output at {}".format(glob.glob(os.path.join(DATABASE_PATH,db_id,"checkpoint-*"))))
+            return False
         dir = dirs[0]
-        print("Found {}".format(dir))
+        self.log("Indexing directory {}".format(dir))
         c = self._db.cursor()
         for relation in self.relations:
             # XXX
-            data_file = os.path.join(dir,"rel_{}_{}_{}_full".format(relation[0],relation[1],"_".join(map(lambda x: str(x), relation[3]))))
+            data_file = os.path.join(dir,"rel__{}__{}__{}_full".format(relation[0],relation[1],"__".join(map(lambda x: str(x), relation[3]))))
             size_file = "{}.size".format(data_file)
             print(data_file)
             if ((not os.path.exists(data_file)) or (not os.path.exists(size_file))):
@@ -556,6 +568,7 @@ class RunTask(Task):
         stdoutpath = os.path.join(build_dir,stdoutfile)
         stderrpath = os.path.join(build_dir,stderrfile)
         self.set_promise_comment(promise,"Now beginning MPI run. stdout->{} stderr->{}".format(stdoutfile,stderrfile))
+        failed_comment = "MPI process failed."
 
         # Hack for MPI on OSX
         env = os.environ.copy()
@@ -583,18 +596,24 @@ class RunTask(Task):
             self._proc.wait(timeout=0.2)
         except subprocess.TimeoutExpired:
             failed = True
-            self.log('subprocess did not terminate in time')
+            failed_comment = 'subprocess did not terminate in time'
+            self.log(failed_comment)
 
         # Check 
         failed = failed or self._proc.returncode != 0
         c = self._db.cursor()
         c.execute('UPDATE mpi_jobs SET status = ? WHERE promise = ?',(STATUS_RESOLVED,promise))
 
-        # Index output db
-        failed = failed or (not self.finalize_run(hsh,db_id))
+        # Index output db if we haven't failed yet
+        if ((not failed) and (not self.finalize_run(db_id))):
+            failed = True
+            failed_comment = 'Could not finalize run for database from hash {} and DB ID {}'.format(hsh,db_id)
 
-        # Success!
-        c.execute('UPDATE promises_for_databases SET status = ? where promise_id = ?',(STATUS_RESOLVED,promise))
+        # Update the promise
+        if failed:
+            c.execute('UPDATE promises_for_databases SET status = ?, comment = ? WHERE promise_id = ?',(STATUS_FAILED,failed_comment,promise))
+        else:
+            c.execute('UPDATE promises_for_databases SET status = ? WHERE promise_id = ?',(STATUS_RESOLVED,promise))
         self._db.commit()
         
     def loop(self):
@@ -618,7 +637,7 @@ class RunTask(Task):
                     r = self.log("Exception during MPI job {}: {}".format(id,err))
                     s = "Exception during MPI execution. Try again or contact administrator for error log."
                     c.execute('UPDATE mpi_jobs SET status = ?, error = ? WHERE promise = ?',(STATUS_FAILED,str(err),promise))
-                    c.execute('UPDATE promises SET status = ?, comment = ? WHERE id = ?',(STATUS_FAILED,s,promise))
+                    c.execute('UPDATE promises_for_databases SET status = ?, comment = ? WHERE id = ?',(STATUS_FAILED,s,promise))
                     self._db.commit()
 
 
