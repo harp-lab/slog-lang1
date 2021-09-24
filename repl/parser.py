@@ -1,3 +1,11 @@
+'''
+A command parser written using ply
+
+Kris Micinski
+
+'''
+
+
 tokens = (
     'ID','NUMBER', 'LPAREN','RPAREN','STRING'
     )
@@ -44,18 +52,37 @@ from repl.commands import *
 
 s = None
 
-def p_statement_id(t):
-    'statement : ID'
-    str = t[1]
-    t[0] = IdCommand(str)
+CMD = ['help', 'run', 'connect', 'query', 'dbs', 'csv']
 
-def p_statement_cmd(t):
+def p_statement_unary(t):
+    'statement : ID'
+    unary_cmd = t[1]
+    if unary_cmd == 'help':
+        t[0] = HelpCommand()
+    if unary_cmd == 'dbs':
+        t[0] = NotImplCommand(unary_cmd)
+    else:
+        print("Unrecognized command syntax, please type `help`!")
+
+def p_statement_id_cmd(t):
+    'statement : ID ID'
+    id_cmd = t[1]
+    if id_cmd == "dump":
+        t[0] = IdCommand(t[2])
+    else:
+        print("Unrecognized command syntax, please type `help`!")
+
+def p_statement_str_cmd(t):
     'statement : ID STRING'
     str = t[2][1:-1]
     if t[1] == "run":
         t[0] = RunCommand(str)
     elif t[1] == "connect":
         t[0] = ConnectCommand(str)
+    elif t[1] == "csv":
+        t[0] == CsvCommand(str)
+    else:
+        print("Unrecognized command syntax, please type `help`!")
 
 def p_error(t):
     if t:

@@ -15,6 +15,8 @@ service CommandService {
   rpc ExchangeHashes(HashesRequest) returns (Hashes);
   // Put hashes
   rpc PutHashes(PutHashesRequest) returns (Promise);
+  // upload a CSV file into slog fact database
+  rpc PutCSVFacts(PutCSVFactsRequest) returns (Promise);
   // Compile hashes, promise for initial DB (immediately resolved if previously compiled)
   rpc CompileHashes(CompileHashesRequest) returns (Promise);
   rpc Ping(PingRequest) returns (Pong);
@@ -46,6 +48,15 @@ message Hashes {
 message PutHashesRequest {
   string session_key = 1;
   repeated string bodies = 4;
+}
+
+message PutCSVFactsRequest {
+  string session_key = 1;
+  string relation_name = 2;
+  string deliminater = 3;
+  // usually it is current database in session, just in case
+  string using_databases = 4;
+  repeated string bodies = 5;
 }
 
 message CompileHashesRequest {

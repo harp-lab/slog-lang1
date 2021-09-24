@@ -24,6 +24,11 @@ class CommandServiceStub(object):
                 request_serializer=slog__pb2.PutHashesRequest.SerializeToString,
                 response_deserializer=slog__pb2.Promise.FromString,
                 )
+        self.PutCSVFacts = channel.unary_unary(
+                '/CommandService/PutCSVFacts',
+                request_serializer=slog__pb2.PutCSVFactsRequest.SerializeToString,
+                response_deserializer=slog__pb2.Promise.FromString,
+                )
         self.CompileHashes = channel.unary_unary(
                 '/CommandService/CompileHashes',
                 request_serializer=slog__pb2.CompileHashesRequest.SerializeToString,
@@ -68,6 +73,13 @@ class CommandServiceServicer(object):
 
     def PutHashes(self, request, context):
         """Put hashes
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def PutCSVFacts(self, request, context):
+        """upload a CSV file into slog fact database
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -123,6 +135,11 @@ def add_CommandServiceServicer_to_server(servicer, server):
             'PutHashes': grpc.unary_unary_rpc_method_handler(
                     servicer.PutHashes,
                     request_deserializer=slog__pb2.PutHashesRequest.FromString,
+                    response_serializer=slog__pb2.Promise.SerializeToString,
+            ),
+            'PutCSVFacts': grpc.unary_unary_rpc_method_handler(
+                    servicer.PutCSVFacts,
+                    request_deserializer=slog__pb2.PutCSVFactsRequest.FromString,
                     response_serializer=slog__pb2.Promise.SerializeToString,
             ),
             'CompileHashes': grpc.unary_unary_rpc_method_handler(
@@ -195,6 +212,23 @@ class CommandService(object):
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/CommandService/PutHashes',
             slog__pb2.PutHashesRequest.SerializeToString,
+            slog__pb2.Promise.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def PutCSVFacts(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/CommandService/PutCSVFacts',
+            slog__pb2.PutCSVFactsRequest.SerializeToString,
             slog__pb2.Promise.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

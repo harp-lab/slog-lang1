@@ -1,0 +1,6 @@
+ply
+sexpdata
+grpcio
+grpcio-tools
+prompt_toolkit
+yaspin

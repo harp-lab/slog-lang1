@@ -11,15 +11,14 @@ import glob
 import grpc
 import hashlib
 import math
-import numpy
 import os
 import protobufs.slog_pb2 as slog_pb2
 import protobufs.slog_pb2_grpc as slog_pb2_grpc
+import re
 import sexpdata
 import shutil
 import sqlite3
 import subprocess
-import sys
 import tempfile
 import threading
 import time
@@ -60,10 +59,12 @@ MAX_CHUNK_DATA = 2097152
 MIN_BUCKETS = 1
 MAX_BUCKETS = 50000
 
-# calculate an output database hash from a combined hash of a list of
-# hashes of input files and previous db
-# using_db == "" if not using any other DB
 def generate_db_hash(hashes,using_db=None):
+    """
+    calculate an output database hash from a combined hash of a list of
+    hashes of input files and previous db
+    using_db == "" if not using any other DB
+    """
     if (using_db != "" and using_db != None): 
         hashes = [using_db] + hashes
     hashes.sort()
@@ -75,8 +76,20 @@ def generate_db_hash(hashes,using_db=None):
 def join_hashes(hashes): return ",".join(hashes)
 def split_hashes(hashes): return hashes.split(",")
 
-# RPC service that responds to commands from the REPL/etc. See protobufs/slog.proto
+def is_canonical_rel(rel):
+    """ check if relation is canonical, a canonical one looks like (1 ... arity) """
+    try:
+        arity = rel[1]
+        canonical = list(range(1, arity + 1))
+        index_selection = rel[2]
+        if index_selection == canonical:
+            return True
+    except IndexError:
+        print(f"not a valid relation {rel}")
+    return False
+
 class CommandService(slog_pb2_grpc.CommandServiceServicer):
+    """ RPC service that responds to commands from the REPL/etc. See protobufs/slog.proto """
     def __init__(self):
         pass
 
@@ -343,14 +356,13 @@ class Task:
         c.execute('UPDATE promises_for_databases SET comment = ? WHERE promise_id = ?',(comment,promise))
         self._db.commit()
 
-# 
-# Compiling Slog->C++
-# 
+
 class CompilerTaskException(Exception):
     def __init__(self,txt):
         super().__init__(txt)
 
 class CompileTask(Task):
+    """ Compiling Slog->C++ Task """
     def __init__(self):
         self._logfile = COMPILESVC_LOG
         self._name = "CompileTask"
@@ -419,8 +431,7 @@ class CompileTask(Task):
         m = Manifest(manifest_file)
         for relation in m.relations:
             # Ignore non-canonical relations, we don't need to record data for those
-            is_canonical = relation[3]
-            if is_canonical:
+            if is_canonical_rel(relation):
                 pcs = list(map(str,relation[2]))
                 name = relation[0].value()
                 arity = relation[1]
@@ -511,6 +522,7 @@ class CompileTask(Task):
 #
 
 class RunTask(Task):
+    """ running slog program task """
     def __init__(self,):
         self._logfile = RUNSVC_LOG
         self._name = "RunTask"
@@ -527,14 +539,24 @@ class RunTask(Task):
     def process_line(self,line):
         pass
 
-    # Check the output DB for consistency and index final outputs
-    # Return true/false if succeed/fail
     def finalize_run(self,db_id):
+        """
+        Check the output DB for consistency and index final outputs
+        Return true/false if succeed/fail
+        if no final ouptful, check latest check point (by file update time)
+        """
+        def checkpoint_ord(check_dir):
+            check_stamp = re.findall(r'checkpoint-(\d)-(\d)', check_dir)
+            if len(check_stamp) == 0:
+                return [0, 0]
+            else:
+                return [check_stamp[0][1], check_stamp[0][0]]
         dirs = glob.glob(os.path.join(DATABASE_PATH,db_id,"checkpoint-*"))
         if len(dirs) < 1:
             self.log("Could not find any output at {}".format(glob.glob(os.path.join(DATABASE_PATH,db_id,"checkpoint-*"))))
+            self.log("try latest checkpoint ...")
             return False
-        dir = dirs[0]
+        dir = sorted(dirs, key=checkpoint_ord, reverse=True)[0]
         self.log("Indexing directory {}".format(dir))
         c = self._db.cursor()
         for relation in self.relations:

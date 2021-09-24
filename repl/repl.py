@@ -1,11 +1,17 @@
-from concurrent import futures
+'''
+slog REPL entrance
+
+Kris Micinski
+Yihao Sun
+'''
+
 import copy
 import grpc
 from prompt_toolkit import prompt
-from prompt_toolkit.completion import WordCompleter
+from prompt_toolkit.completion import WordCompleter, NestedCompleter, PathCompleter
+from prompt_toolkit.completion.base import Completer
+from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import HTML
-from random import randint
-from sexpdata import loads, dumps
 import time
 import timeit
 from yaspin import yaspin
@@ -24,8 +30,47 @@ STATUS_FAILED   = 1
 STATUS_RESOLVED = 2
 STATUS_NOSUCHPROMISE = -1
 
+BANNER = '''
+                   _____  __           
+                  / ___/ / /___  ____ _
+                  \__ \ / / __ \/ __ `/
+                 ___/ / / /_/  / /_/ / 
+                /____/_/\____/ \__, /  
+                              /____/   
+    A Parallel Datalog Engine!    
+    Type `help` to see help information. 
+
+'''
+
+class StringPathCompeleter(Completer):
+     def get_completions(self, document, complete_event):
+        text = document.text_before_cursor
+        # stripped_len = len(document.text_before_cursor) - len(text)
+        if "\"" in text:
+            remain_document = Document(
+                text[1:],
+                cursor_position=document.cursor_position - 1
+            )
+            for c in PathCompleter().get_completions(remain_document, complete_event):
+                yield c
+
+def get_arity_souffle_facts(souffle_fpath):
+    ''' get arity of a souffle facts file'''
+    with open(souffle_fpath, 'r') as souffle_f:
+        fst_line = souffle_f.readline()
+    if fst_line.strip() == '':
+        return -1
+    else:
+        return len(fst_line.strip().split('\t'))
+
+
+def get_rel_name_souffle_fact(souffle_fpath):
+    ''' get relation name from a souffle facts file '''
+    return souffle_fpath.split('/')[-1][:-6]
+
 class Repl:
     def __init__(self):
+        print(BANNER)
         self._channel = None
         self._parser = CommandParser()
         self.reconnect("localhost")
@@ -43,6 +88,28 @@ class Repl:
         self._cur_time = -1
         # Hash from timestamps to database hashes
         self._times    = {}
+    
+    def upload_csv(self, csv_dir):
+        ''' upload csv using tsv_bin tool '''
+        csv_file_paths = []
+        if os.path.isdir(csv_dir):
+            for fname in os.listdir(csv_dir):
+                if not fname.endswith('.facts'):
+                    continue
+                csv_file_paths.append(f'{csv_dir}/{fname}')
+        elif csv_dir.strip().endswith('.facts'):
+            csv_file_paths.append(csv_dir)
+        if csv_file_paths == []:
+            print("no valid facts file found! NOTICE: all csv facts file must has extension `.facts`")
+            return
+        for csv_fname in csv_file_paths:
+            rel_name = get_rel_name_souffle_fact(csv_fname)
+            with yaspin(text='uploading csv facts ...'):
+                req = slog_pb2.PutCSVFactsRequest()
+                req.relation_name = rel_name
+                with open(csv_fname, 'r') as csv_f:
+                    req.bodies.extend(csv_f.read())
+
 
     def run(self,filename):
         path = os.path.join(os.getcwd(),filename)
@@ -203,7 +270,12 @@ class Repl:
             try:
                 front = self.get_front()
                 relation_names = map(lambda x: x[0], self.relations)
-                completer = WordCompleter(relation_names)
+                # completer = WordCompleter(relation_names)
+                completer_map = {cmd: None for cmd in CMD}
+                completer_map['dump'] = WordCompleter(relation_names)
+                completer_map['run'] = StringPathCompeleter()
+                completer_map['csv'] = StringPathCompeleter()
+                completer = NestedCompleter(completer_map)
                 text = prompt('σλoγ [{}] » '.format(front), bottom_toolbar=self.bottom_toolbar(), completer=completer)
                 cmd = self._parser.parse(text)
                 if cmd:
