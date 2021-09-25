@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n\nslog.proto\"I\n\x15\x43reateSessionResponse\x12\x15\n\rauthenticated\x18\x01 \x01(\x08\x12\x19\n\x11\x65rr_or_session_id\x18\x02 \x01(\t\"\x1b\n\x0bPingRequest\x12\x0c\n\x04\x64\x61ta\x18\x01 \x01(\x08\"\x14\n\x04Pong\x12\x0c\n\x04\x64\x61ta\x18\x01 \x01(\x08\"4\n\rHashesRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x0e\n\x06hashes\x18\x02 \x03(\t\"\x18\n\x06Hashes\x12\x0e\n\x06hashes\x18\x02 \x03(\t\"7\n\x10PutHashesRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x0e\n\x06\x62odies\x18\x04 \x03(\t\"~\n\x12PutCSVFactsRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x15\n\rrelation_name\x18\x02 \x01(\t\x12\x13\n\x0b\x64\x65liminater\x18\x03 \x01(\t\x12\x17\n\x0fusing_databases\x18\x04 \x01(\t\x12\x0e\n\x06\x62odies\x18\x05 \x03(\t\"d\n\x14\x43ompileHashesRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x0f\n\x07\x62uckets\x18\x02 \x01(\r\x12\x16\n\x0eusing_database\x18\x03 \x01(\t\x12\x0e\n\x06hashes\x18\x04 \x03(\t\"P\n\x11RunProgramRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x16\n\x0eusing_database\x18\x02 \x01(\t\x12\x0e\n\x06hashes\x18\x03 \x03(\t\"F\n\rErrorResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x16\n\terror_msg\x18\x02 \x01(\tH\x00\x88\x01\x01\x42\x0c\n\n_error_msg\";\n\x0f\x44\x61tabaseRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x13\n\x0b\x64\x61tabase_id\x18\x02 \x01(\t\"B\n\x1bGetCanonicalDatabaseRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x0e\n\x06hashes\x18\x02 \x03(\t\"H\n\x0fRelationRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x13\n\x0b\x64\x61tabase_id\x18\x02 \x01(\t\x12\x0b\n\x03tag\x18\x03 \x01(\r\"?\n\x13RelationDescription\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\r\n\x05\x61rity\x18\x02 \x01(\r\x12\x0b\n\x03tag\x18\x03 \x01(\r\"X\n\x1cRelationDescriptionsResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\'\n\trelations\x18\x02 \x03(\x0b\x32\x14.RelationDescription\"9\n\x0ePromiseRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x12\n\npromise_id\x18\x02 \x01(\x04\"\x1d\n\x07Promise\x12\x12\n\npromise_id\x18\x02 \x01(\x04\"2\n\rPromiseStatus\x12\x0e\n\x06status\x18\x01 \x01(\r\x12\x11\n\terr_or_db\x18\x02 \x01(\t\":\n\x06Tuples\x12\x0e\n\x06status\x18\x01 \x01(\r\x12\x12\n\nnum_tuples\x18\x02 \x01(\r\x12\x0c\n\x04\x64\x61ta\x18\x03 \x03(\x04\x32\xa9\x03\n\x0e\x43ommandService\x12)\n\x0e\x45xchangeHashes\x12\x0e.HashesRequest\x1a\x07.Hashes\x12(\n\tPutHashes\x12\x11.PutHashesRequest\x1a\x08.Promise\x12,\n\x0bPutCSVFacts\x12\x13.PutCSVFactsRequest\x1a\x08.Promise\x12\x30\n\rCompileHashes\x12\x15.CompileHashesRequest\x1a\x08.Promise\x12\x1b\n\x04Ping\x12\x0c.PingRequest\x1a\x05.Pong\x12)\n\tRunHashes\x12\x12.RunProgramRequest\x1a\x08.Promise\x12/\n\x0cQueryPromise\x12\x0f.PromiseRequest\x1a\x0e.PromiseStatus\x12?\n\x0cGetRelations\x12\x10.DatabaseRequest\x1a\x1d.RelationDescriptionsResponse\x12(\n\tGetTuples\x12\x10.RelationRequest\x1a\x07.Tuples0\x01\x62\x06proto3'
+  serialized_pb=b'\n\nslog.proto\"I\n\x15\x43reateSessionResponse\x12\x15\n\rauthenticated\x18\x01 \x01(\x08\x12\x19\n\x11\x65rr_or_session_id\x18\x02 \x01(\t\"\x1b\n\x0bPingRequest\x12\x0c\n\x04\x64\x61ta\x18\x01 \x01(\x08\"\x14\n\x04Pong\x12\x0c\n\x04\x64\x61ta\x18\x01 \x01(\x08\"4\n\rHashesRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x0e\n\x06hashes\x18\x02 \x03(\t\"\x18\n\x06Hashes\x12\x0e\n\x06hashes\x18\x02 \x03(\t\"7\n\x10PutHashesRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x0e\n\x06\x62odies\x18\x04 \x03(\t\"\x8e\x01\n\x12PutCSVFactsRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x15\n\rrelation_name\x18\x02 \x01(\t\x12\x13\n\x0b\x64\x65liminater\x18\x03 \x01(\t\x12\x0f\n\x07\x62uckets\x18\x04 \x01(\r\x12\x16\n\x0eusing_database\x18\x05 \x01(\t\x12\x0e\n\x06\x62odies\x18\x06 \x03(\t\"d\n\x14\x43ompileHashesRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x0f\n\x07\x62uckets\x18\x02 \x01(\r\x12\x16\n\x0eusing_database\x18\x03 \x01(\t\x12\x0e\n\x06hashes\x18\x04 \x03(\t\"P\n\x11RunProgramRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x16\n\x0eusing_database\x18\x02 \x01(\t\x12\x0e\n\x06hashes\x18\x03 \x03(\t\"F\n\rErrorResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x16\n\terror_msg\x18\x02 \x01(\tH\x00\x88\x01\x01\x42\x0c\n\n_error_msg\";\n\x0f\x44\x61tabaseRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x13\n\x0b\x64\x61tabase_id\x18\x02 \x01(\t\"B\n\x1bGetCanonicalDatabaseRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x0e\n\x06hashes\x18\x02 \x03(\t\"H\n\x0fRelationRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x13\n\x0b\x64\x61tabase_id\x18\x02 \x01(\t\x12\x0b\n\x03tag\x18\x03 \x01(\r\"?\n\x13RelationDescription\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\r\n\x05\x61rity\x18\x02 \x01(\r\x12\x0b\n\x03tag\x18\x03 \x01(\r\"X\n\x1cRelationDescriptionsResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\'\n\trelations\x18\x02 \x03(\x0b\x32\x14.RelationDescription\"9\n\x0ePromiseRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x12\n\npromise_id\x18\x02 \x01(\x04\"\x1d\n\x07Promise\x12\x12\n\npromise_id\x18\x02 \x01(\x04\"2\n\rPromiseStatus\x12\x0e\n\x06status\x18\x01 \x01(\r\x12\x11\n\terr_or_db\x18\x02 \x01(\t\":\n\x06Tuples\x12\x0e\n\x06status\x18\x01 \x01(\r\x12\x12\n\nnum_tuples\x18\x02 \x01(\r\x12\x0c\n\x04\x64\x61ta\x18\x03 \x03(\x04\x32\xaf\x03\n\x0e\x43ommandService\x12)\n\x0e\x45xchangeHashes\x12\x0e.HashesRequest\x1a\x07.Hashes\x12(\n\tPutHashes\x12\x11.PutHashesRequest\x1a\x08.Promise\x12\x32\n\x0bPutCSVFacts\x12\x13.PutCSVFactsRequest\x1a\x0e.ErrorResponse\x12\x30\n\rCompileHashes\x12\x15.CompileHashesRequest\x1a\x08.Promise\x12\x1b\n\x04Ping\x12\x0c.PingRequest\x1a\x05.Pong\x12)\n\tRunHashes\x12\x12.RunProgramRequest\x1a\x08.Promise\x12/\n\x0cQueryPromise\x12\x0f.PromiseRequest\x1a\x0e.PromiseStatus\x12?\n\x0cGetRelations\x12\x10.DatabaseRequest\x1a\x1d.RelationDescriptionsResponse\x12(\n\tGetTuples\x12\x10.RelationRequest\x1a\x07.Tuples0\x01\x62\x06proto3'
 )
 
 
@@ -268,15 +268,22 @@ _PUTCSVFACTSREQUEST = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='using_databases', full_name='PutCSVFactsRequest.using_databases', index=3,
-      number=4, type=9, cpp_type=9, label=1,
+      name='buckets', full_name='PutCSVFactsRequest.buckets', index=3,
+      number=4, type=13, cpp_type=3, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='using_database', full_name='PutCSVFactsRequest.using_database', index=4,
+      number=5, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='bodies', full_name='PutCSVFactsRequest.bodies', index=4,
-      number=5, type=9, cpp_type=9, label=3,
+      name='bodies', full_name='PutCSVFactsRequest.bodies', index=5,
+      number=6, type=9, cpp_type=9, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -293,8 +300,8 @@ _PUTCSVFACTSREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=277,
-  serialized_end=403,
+  serialized_start=278,
+  serialized_end=420,
 )
 
 
@@ -346,8 +353,8 @@ _COMPILEHASHESREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=405,
-  serialized_end=505,
+  serialized_start=422,
+  serialized_end=522,
 )
 
 
@@ -392,8 +399,8 @@ _RUNPROGRAMREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=507,
-  serialized_end=587,
+  serialized_start=524,
+  serialized_end=604,
 )
 
 
@@ -436,8 +443,8 @@ _ERRORRESPONSE = _descriptor.Descriptor(
       create_key=_descriptor._internal_create_key,
     fields=[]),
   ],
-  serialized_start=589,
-  serialized_end=659,
+  serialized_start=606,
+  serialized_end=676,
 )
 
 
@@ -475,8 +482,8 @@ _DATABASEREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=661,
-  serialized_end=720,
+  serialized_start=678,
+  serialized_end=737,
 )
 
 
@@ -514,8 +521,8 @@ _GETCANONICALDATABASEREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=722,
-  serialized_end=788,
+  serialized_start=739,
+  serialized_end=805,
 )
 
 
@@ -560,8 +567,8 @@ _RELATIONREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=790,
-  serialized_end=862,
+  serialized_start=807,
+  serialized_end=879,
 )
 
 
@@ -606,8 +613,8 @@ _RELATIONDESCRIPTION = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=864,
-  serialized_end=927,
+  serialized_start=881,
+  serialized_end=944,
 )
 
 
@@ -645,8 +652,8 @@ _RELATIONDESCRIPTIONSRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=929,
-  serialized_end=1017,
+  serialized_start=946,
+  serialized_end=1034,
 )
 
 
@@ -684,8 +691,8 @@ _PROMISEREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1019,
-  serialized_end=1076,
+  serialized_start=1036,
+  serialized_end=1093,
 )
 
 
@@ -716,8 +723,8 @@ _PROMISE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1078,
-  serialized_end=1107,
+  serialized_start=1095,
+  serialized_end=1124,
 )
 
 
@@ -755,8 +762,8 @@ _PROMISESTATUS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1109,
-  serialized_end=1159,
+  serialized_start=1126,
+  serialized_end=1176,
 )
 
 
@@ -801,8 +808,8 @@ _TUPLES = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1161,
-  serialized_end=1219,
+  serialized_start=1178,
+  serialized_end=1236,
 )
 
 _ERRORRESPONSE.oneofs_by_name['_error_msg'].fields.append(
@@ -972,8 +979,8 @@ _COMMANDSERVICE = _descriptor.ServiceDescriptor(
   index=0,
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_start=1222,
-  serialized_end=1647,
+  serialized_start=1239,
+  serialized_end=1670,
   methods=[
   _descriptor.MethodDescriptor(
     name='ExchangeHashes',
@@ -1001,7 +1008,7 @@ _COMMANDSERVICE = _descriptor.ServiceDescriptor(
     index=2,
     containing_service=None,
     input_type=_PUTCSVFACTSREQUEST,
-    output_type=_PROMISE,
+    output_type=_ERRORRESPONSE,
     serialized_options=None,
     create_key=_descriptor._internal_create_key,
   ),

@@ -4,3 +4,4 @@ grpcio
 grpcio-tools
 prompt_toolkit
 yaspin
+pyfiglet

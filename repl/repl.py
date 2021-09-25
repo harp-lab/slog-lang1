@@ -7,14 +7,17 @@ Yihao Sun
 
 import copy
 import grpc
-from prompt_toolkit import prompt
+from prompt_toolkit import PromptSession
+from prompt_toolkit.history import FileHistory
 from prompt_toolkit.completion import WordCompleter, NestedCompleter, PathCompleter
 from prompt_toolkit.completion.base import Completer
 from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import HTML
+from pyfiglet import Figlet
 import time
 import timeit
 from yaspin import yaspin
+
 from repl.parser import *
 
 # Generated protobufs stuff
@@ -30,17 +33,15 @@ STATUS_FAILED   = 1
 STATUS_RESOLVED = 2
 STATUS_NOSUCHPROMISE = -1
 
+BANNER_LOGO = Figlet(font="slant").renderText("   Slog") # thanks to Daniel found this great lib
 BANNER = '''
-                   _____  __           
-                  / ___/ / /___  ____ _
-                  \__ \ / / __ \/ __ `/
-                 ___/ / / /_/  / /_/ / 
-                /____/_/\____/ \__, /  
-                              /____/   
     A Parallel Datalog Engine!    
     Type `help` to see help information. 
 
 '''
+
+# prompt session
+prompt_session = PromptSession(history=FileHistory("./.slog-history"))
 
 class StringPathCompeleter(Completer):
      def get_completions(self, document, complete_event):
@@ -68,15 +69,47 @@ def get_rel_name_souffle_fact(souffle_fpath):
     ''' get relation name from a souffle facts file '''
     return souffle_fpath.split('/')[-1][:-6]
 
+def run_until_promised(stub, promise_id, spinner=None):
+    ''' 
+    run promise query until promised value returned, if spinner is provide
+    intermidiate message will be printed
+    '''
+    cmmt = ""
+    while True:
+        time.sleep(PING_INTERVAL)
+        p = slog_pb2.PromiseRequest()
+        p.promise_id = promise_id
+        res = stub.QueryPromise(p)
+        if (cmmt == None and res.err_or_db != ""):
+            cmmt = res.err_or_db
+            if spinner: spinner.write("✔ {}".format(cmmt))
+        elif (cmmt != res.err_or_db):
+            cmmt = res.err_or_db
+            spinner.write("✔ {}".format(cmmt))
+        elif (res.status == STATUS_PENDING):
+            continue
+        elif (res.status == STATUS_FAILED):
+            if spinner : spinner.fail("💥")
+            print(res.err_or_db)
+            return False
+        elif (res.status == STATUS_RESOLVED):
+            if spinner : spinner.ok("✅ ")
+            return res.err_or_db
+
+
 class Repl:
     def __init__(self):
+        print(BANNER_LOGO)
         print(BANNER)
         self._channel = None
         self._parser = CommandParser()
         self.reconnect("localhost")
         self.lasterr = None
         self.relations = []
-        self.unroll_depth = 3
+        self.unroll_depth = 3  
+        self._cur_edb = None
+        self._cur_idb = None
+        self._cur_program_hashes = None
 
     def connected(self):
         return self._channel != None
@@ -90,7 +123,10 @@ class Repl:
         self._times    = {}
     
     def upload_csv(self, csv_dir):
-        ''' upload csv using tsv_bin tool '''
+        ''' upload csv to current EDB using tsv_bin tool '''
+        if not self._cur_edb:
+            print("No edb selected, please run a file to get EDB.")
+            return
         csv_file_paths = []
         if os.path.isdir(csv_dir):
             for fname in os.listdir(csv_dir):
@@ -104,14 +140,49 @@ class Repl:
             return
         for csv_fname in csv_file_paths:
             rel_name = get_rel_name_souffle_fact(csv_fname)
-            with yaspin(text='uploading csv facts ...'):
+            with yaspin(text='uploading csv facts ...') as spinner:
                 req = slog_pb2.PutCSVFactsRequest()
-                req.relation_name = rel_name
+                req.using_database = self._cur_edb
+                req.relation_name = rel_name.encode('utf-8')
+                req.buckets = 16
                 with open(csv_fname, 'r') as csv_f:
-                    req.bodies.extend(csv_f.read())
+                    csv_text = csv_f.read().encode('utf-8')
+                    req.bodies.extend([csv_text])
+                    response = self._stub.PutCSVFacts(req)
+                    if not response.success:
+                        spinner.fail("💥")
+                        print(f" {csv_fname} fail to upload!")
+                    else:
+                        spinner.ok("✅ ")
+                        print(f" {csv_fname} uploaded.")
 
+    def fresh(self):
+        '''
+        run current program using current EDB and reset current IDB
+        NOTE: this will silently switch current database to IDB
+        '''
+        if (not self._cur_edb) or (not self._cur_program_hashes):
+            print("Please run(compile) a slog program before fresh database")
+            return
+        idb = self._run(self._cur_program_hashes, self._cur_edb)
+        self._cur_idb = idb
+        self.switchto_db(idb)
 
-    def run(self,filename):
+    def _run(self, program_hashes, edb):
+        ''' run a program list (hashes) with given EDB hash and return updated idb'''
+        req = slog_pb2.RunProgramRequest()
+        req.using_database = edb
+        req.hashes.extend(program_hashes)
+        # Get a promise for the running response
+        response = self._stub.RunHashes(req)
+        with yaspin(text="Running...") as spinner:
+            idb = run_until_promised(self._stub, response.promise_id, spinner)
+            if not idb:
+                print("Execution failed!")
+            return idb
+
+    def load_slog_file(self, filename):
+        ''' load a slog file, and set current file as that one '''
         path = os.path.join(os.getcwd(),filename)
         elaborator = Elaborator()
         try:
@@ -120,81 +191,58 @@ class Repl:
             print("Error processing preambles:")
             print(e)
             return
+        self._load(elaborator) 
+        self._cur_program_hashes = elaborator.hashes.keys()
+
+    def _load(self, eloborated_file: Elaborator):
+        ''' load a eloborated slog file into backend '''
         # Exchange hashes
         req = slog_pb2.HashesRequest()
         req.session_key = "empty"
-        req.hashes.extend(elaborator.hashes.keys())
+        req.hashes.extend(eloborated_file.hashes.keys())
         response = self._stub.ExchangeHashes(req)
         req = slog_pb2.PutHashesRequest()
         req.session_key = "empty"
         for hsh in response.hashes:
-            req.bodies.extend([elaborator.hashes[hsh]])
-        response = self._stub.PutHashes(req)
+            req.bodies.extend([eloborated_file.hashes[hsh]])
+        self._stub.PutHashes(req)
 
-        # Generate a compile request
+    def _compile(self, program_hashes):
+        ''' compile a slog program list (hashes) and return corresponded EDB '''
         req = slog_pb2.CompileHashesRequest()
-        req.buckets = 4096
+        req.buckets = 16
         req.using_database = ""
-        req.hashes.extend(elaborator.hashes.keys())
+        req.hashes.extend(program_hashes)
         response = self._stub.CompileHashes(req)
-        cmmt = None
-        initial_db = ""
-
         # Wait to resolve the promise in the terminal...
         with yaspin(text="Compiling...") as spinner:
             # Break when promise is resolved
-            while True:
-                time.sleep(PING_INTERVAL)
-                p = slog_pb2.Promise()
-                p.promise_id = response.promise_id
-                res = self._stub.QueryPromise(p)
-                if (cmmt == None and res.err_or_db != ""):
-                    cmmt = res.err_or_db
-                    spinner.write("✔ {}".format(cmmt))
-                elif (cmmt != res.err_or_db):
-                    cmmt = res.err_or_db
-                    spinner.write("✔ {}".format(cmmt))
-                elif (res.status == STATUS_PENDING):
-                    continue
-                elif (res.status == STATUS_FAILED):
-                    spinner.fail("💥")
-                    print("Compilation failed!")
-                    print(res.err_or_db)
-                    return
-                elif (res.status == STATUS_RESOLVED):
-                    spinner.ok("✅ ")
-                    initial_db = res.err_or_db
-                    break
-        
-        req = slog_pb2.RunProgramRequest()
-        req.using_database = initial_db
-        req.hashes.extend(elaborator.hashes.keys())
+            edb = run_until_promised(self._stub, response.promise_id, spinner)
+            if not edb:
+                print("Compilation failed!")
+            return edb   
 
-        # Get a promise for the running response
-        response = self._stub.RunHashes(req)
-        
-        with yaspin(text="Running...") as spinner:
-            while True:
-                time.sleep(PING_INTERVAL)
-                p = slog_pb2.Promise()
-                p.promise_id = response.promise_id
-                res = self._stub.QueryPromise(p)
-                if (cmmt == None and res.err_or_db != ""):
-                    cmmt = res.err_or_db
-                    spinner.write("✔ {}".format(cmmt))
-                elif (cmmt != res.err_or_db):
-                    cmmt = res.err_or_db
-                    spinner.write("✔ {}".format(cmmt))
-                if (res.status == STATUS_PENDING):
-                    continue
-                elif (res.status == STATUS_FAILED):
-                    spinner.fail("💥")
-                    print("Execution failed!")
-                    return
-                elif (res.status == STATUS_RESOLVED):
-                    spinner.ok("✅ ")
-                    self.switchto_db(res.err_or_db)
-                    return
+    def compile_and_run(self,filename):
+        ''' compile a slog program and run it, also reset current program and EDB/IDB '''
+        path = os.path.join(os.getcwd(),filename)
+        elaborator = Elaborator()
+        try:
+            elaborator.elaborate(path)
+        except FileNotFoundError as e:
+            print("Error processing preambles:")
+            print(e)
+            return
+        self._load(elaborator)
+        self._cur_program_hashes = elaborator.hashes.keys()
+        # Generate a compile request
+        edb = self._compile(elaborator.hashes.keys())
+        if not edb:
+            return
+        self._cur_edb = edb
+        idb = self._run(elaborator.hashes.keys(), edb)
+        if idb:
+            self._cur_idb = idb
+            self.switchto_db(idb)
 
     def switchto_db(self,db_id):
         self._cur_time += 1
@@ -203,6 +251,18 @@ class Repl:
         self._times[new_ts] = db_id
         self.load_relations(db_id)
         self.tuples = {}
+
+    def switchto_edb(self):
+        if self._cur_edb is None:
+            print("No slog file and database is loaded!")
+            return
+        self.switchto_db(self._cur_edb)
+    
+    def switchto_idb(self):
+        if self._cur_idb is None:
+            print("No ouput database, please run slog file first!")
+            return
+        self.switchto_db(self._cur_idb)
 
     def load_relations(self,db_id):
         req = slog_pb2.DatabaseRequest()
@@ -275,14 +335,17 @@ class Repl:
                 completer_map['dump'] = WordCompleter(relation_names)
                 completer_map['run'] = StringPathCompeleter()
                 completer_map['csv'] = StringPathCompeleter()
+                completer_map['load'] = StringPathCompeleter()
                 completer = NestedCompleter(completer_map)
-                text = prompt('σλoγ [{}] » '.format(front), bottom_toolbar=self.bottom_toolbar(), completer=completer)
+                text = prompt_session.prompt(
+                    'σλoγ [{}] » '.format(front),
+                    bottom_toolbar=self.bottom_toolbar(),
+                    completer=completer)
+                if text.strip() == '':
+                    continue
                 cmd = self._parser.parse(text)
                 if cmd:
                     cmd.execute(self)
-                else:
-                    print("unrecognized command (try `help` once someone implements it)")
-                    pass
             except EOFError:
                 self.exit()
             except AssertionError:

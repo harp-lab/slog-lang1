@@ -1,4 +1,5 @@
 # Slog Backend Daemon
+from sys import stderr, stdin, stdout
 from daemon.manifest import *
 
 from concurrent import futures
@@ -38,6 +39,7 @@ CMAKE_FILE = os.path.join(os.path.dirname(__file__),"../data/binaries/CMakeLists
 SOURCES_PATH = os.path.join(os.path.dirname(__file__),"../data/sources")
 SLOG_COMPILER_PROCESS = os.path.join(os.path.dirname(__file__),"../compiler/slog-process.rkt")
 SLOG_COMPILER_ROOT = os.path.join(os.path.dirname(__file__),"../compiler")
+TSV2BIN_PATH = os.path.join(os.path.dirname(__file__), "../parallel-RA/build/tsv_to_bin")
 
 # Logs
 CMDSVC_LOG = open(os.path.join(DATA_PATH,"cmdsvc.log"),'a')
@@ -102,14 +104,14 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
         return tempfile.mkdtemp(prefix=DATA_PATH+"/")
 
     def ExchangeHashes(self,request,context):
-        self._db = sqlite3.connect(DB_PATH)
-        c = self._db.cursor()
-        l = request.hashes
+        _db = sqlite3.Connection(DB_PATH)
+        c = _db.cursor()
         res = slog_pb2.Hashes()
         for h in request.hashes:
             r = c.execute('SELECT hash FROM slog_source_files where hash=?',(h,))
             if (r.fetchone() == None):
                 res.hashes.extend([h])
+        _db.close()
         return res
 
     def Ping(self,request,context):
@@ -117,24 +119,25 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
         return p
 
     def QueryPromise(self,request,context):
-        self._db = sqlite3.connect(DB_PATH)
-        c = self._db.cursor()
+        _db = sqlite3.Connection(DB_PATH)
+        c = _db.cursor()
         res = slog_pb2.PromiseStatus()
-        r = c.execute('SELECT status,comment,database_id FROM promises_for_databases WHERE promise_id = ?',(request.promise_id,))
+        c.execute('SELECT status,comment,database_id FROM promises_for_databases WHERE promise_id = ?',
+                  (request.promise_id,))
         rows = c.fetchall()
         if (len(rows) == 0):
             res.status = STATUS_NOSUCHPROMISE
-            return res
         else:
             res.err_or_db = rows[0][1]
             res.status = rows[0][0]
             if (res.status == STATUS_RESOLVED):
                 res.err_or_db = rows[0][2]
-            return res
+        _db.close()
+        return res
 
     def PutHashes(self,request,context):
-        self._db = sqlite3.connect(DB_PATH)
-        c = self._db.cursor()
+        _db = sqlite3.Connection(DB_PATH)
+        c = _db.cursor()
         bodies = request.bodies
         ret = slog_pb2.ErrorResponse()
         for body in bodies:
@@ -149,12 +152,48 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
                     f.write(body)
                     self.log("Writing file for {}".format(hsh))
                     c.execute('INSERT INTO slog_source_files (hash,filename) VALUES (?,?)', (hsh,fname))
-                    self._db.commit()
+                    _db.commit()
+        _db.close()
+        return ret
+
+    def PutCSVFacts(self, request, context):
+        # write csv to tmp
+        _db = sqlite3.Connection(DB_PATH)
+        c = _db.cursor()
+        body = request.bodies[0].encode('utf-8')
+        buckets = request.buckets
+        rel_name = request.relation_name
+        in_db = request.using_database
+        ret = slog_pb2.ErrorResponse()
+        with tempfile.NamedTemporaryFile() as tmp_csv:
+            tmp_csv.write(body)
+            tmp_csv.seek(0)
+            fst_line = tmp_csv.readline().decode('utf-8')
+            arity = len(fst_line.strip().split('\t'))
+            out_path = os.path.join(DATABASE_PATH,in_db, f'{rel_name}_{arity}')
+            index = ",".join([str(i) for i in range(1, arity+1)])
+            with subprocess.Popen([TSV2BIN_PATH, tmp_csv.name, str(arity), out_path, index, str(buckets), out_path], 
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE) as proc:
+                _, err = proc.communicate()
+                if err:
+                    ret.success = False
+                    print(err)
+                else:
+                    ret.success = True
+                    # delete promise for current IDB if exists
+                    c.execute('DELETE FROM promises_for_databases '
+                              'WHERE database_id IN ( '
+                              'SELECT database_id FROM promises_for_databases '
+                              'JOIN compile_jobs ON '
+                              'promises_for_databases.database_id=compile_jobs.out_database_id '
+                              'WHERE compile_jobs.in_database_id=? '
+                              ')',(in_db,))
+                    _db.commit()
         return ret
 
     def CompileHashes(self,request,context):
-        self._db = sqlite3.connect(DB_PATH)
-        c = self._db.cursor()
+        _db = sqlite3.Connection(DB_PATH)
+        c = _db.cursor()
         ret = slog_pb2.Promise()
         # Check that all hashes are present
         for hsh in request.hashes:
@@ -190,7 +229,7 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
             # Else, start a compile job and promise the new input DB
             c.execute('INSERT INTO promises_for_databases (status,comment,database_id,creation_time) VALUES (?,?,?,time(\'now\'))',
                       (STATUS_PENDING, "Compiling to PRAM IR",in_db))
-            self._db.commit()
+            _db.commit()
             promise_id = c.lastrowid
             response.promise_id = promise_id
             buckets = request.buckets
@@ -201,15 +240,16 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
             # otherwise, insert, will be handled by CompileTask
             c.execute('INSERT INTO compile_jobs (promise, status, hashes, in_database_id, out_database_id, buckets, creation_time) VALUES (?,?,?,?,?,?,time(\'now\'))',(promise_id,STATUS_PENDING,joined_hashes,in_db,out_db,buckets))
             compile_job_id = c.lastrowid
-            self._db.commit()
+            _db.commit()
         except Exception as e:
             print(e)
         self.log("Made promise {} for new compile job on hashes {}\n".format(promise_id,hashes))
+        _db.close()
         return response
 
     def RunHashes(self,request,context):
-        self._db = sqlite3.connect(DB_PATH)
-        c = self._db.cursor()
+        _db = sqlite3.connect(DB_PATH)
+        c = _db.cursor()
         ret = slog_pb2.Promise()
         # Check that all hashes are present
         for hsh in request.hashes:
@@ -223,10 +263,14 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
             hashes.add(hsh)
         # Check that this program was previously successfully compiled
         # using this database
-        c.execute('SELECT out_database_id FROM compile_jobs WHERE status=? AND in_database_id=? AND hashes=?',
+        r = c.execute('SELECT out_database_id FROM compile_jobs WHERE status=? AND in_database_id=? AND hashes=?',
                   (STATUS_RESOLVED,request.using_database,join_hashes(list(hashes))))
-        out_db = r.fetchone()[0]
-        if (out_db == None):
+        res_row = r.fetchone()
+        if res_row is None:
+            ret.promise_id = -1
+            return ret
+        out_db = res_row[0]
+        if out_db is None:
             ret.promise_id = -1
             return ret
         r = c.execute('SELECT promise_id FROM promises_for_databases WHERE database_id=?',(out_db,))
@@ -243,7 +287,7 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
             promise_id = c.lastrowid
             c.execute('INSERT INTO mpi_jobs (promise, status, hash, creation_time) VALUES (?,?,?,time(\'now\'))',(promise_id,STATUS_PENDING,in_db))
             response.promise_id = promise_id
-            self._db.commit()
+            _db.commit()
         except Exception as e:
             print(e)
         # except:
@@ -253,11 +297,12 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
         #     response.promise_id = -1
         #     return response
         self.log("Made promise {} for new MPI job on hashes {}\n".format(promise_id,hashes))
+        _db.close()
         return response
 
     def GetTuples(self,request,context):
-        self._db = sqlite3.connect(DB_PATH)
-        c = self._db.cursor()
+        _db = sqlite3.connect(DB_PATH)
+        c = _db.cursor()
         r = c.execute('SELECT name,arity,tag,selection,data_file FROM canonical_relations WHERE database_id = ? AND tag = ?',(request.database_id,request.tag))
         try:
             row = c.fetchone()
@@ -314,12 +359,13 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
             d.arity = row[1]
             d.tag = row[2]
             res.relations.extend([d])
+        _db.close()
         return res
         
 
     def GetRelations(self,request,context):
-        self._db = sqlite3.connect(DB_PATH)
-        c = self._db.cursor()
+        _db = sqlite3.connect(DB_PATH)
+        c = _db.cursor()
         print(request.database_id)
         r = c.execute('SELECT name,arity,tag FROM canonical_relations WHERE database_id = ?',(request.database_id,))
         rows = c.fetchall()
@@ -331,6 +377,7 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
             d.arity = row[1]
             d.tag = row[2]
             res.relations.extend([d])
+        _db.close()
         return res
 
 # 
@@ -436,7 +483,7 @@ class CompileTask(Task):
                 name = relation[0].value()
                 arity = relation[1]
                 c.execute('INSERT INTO canonical_relations (database_id,name,arity,selection,tag,num_tuples) VALUES (?,?,?,?,?,0)',
-                          (db_id,name,relation[1],",".join(pcs),str(relation[6])))
+                          (db_id,name,arity,",".join(pcs),str(relation[6])))
         self._db.commit()
 
     def compile_cpp(self,hsh,cppfile,promise_id):

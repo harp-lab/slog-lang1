@@ -27,7 +27,7 @@ class CommandServiceStub(object):
         self.PutCSVFacts = channel.unary_unary(
                 '/CommandService/PutCSVFacts',
                 request_serializer=slog__pb2.PutCSVFactsRequest.SerializeToString,
-                response_deserializer=slog__pb2.Promise.FromString,
+                response_deserializer=slog__pb2.ErrorResponse.FromString,
                 )
         self.CompileHashes = channel.unary_unary(
                 '/CommandService/CompileHashes',
@@ -140,7 +140,7 @@ def add_CommandServiceServicer_to_server(servicer, server):
             'PutCSVFacts': grpc.unary_unary_rpc_method_handler(
                     servicer.PutCSVFacts,
                     request_deserializer=slog__pb2.PutCSVFactsRequest.FromString,
-                    response_serializer=slog__pb2.Promise.SerializeToString,
+                    response_serializer=slog__pb2.ErrorResponse.SerializeToString,
             ),
             'CompileHashes': grpc.unary_unary_rpc_method_handler(
                     servicer.CompileHashes,
@@ -229,7 +229,7 @@ class CommandService(object):
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/CommandService/PutCSVFacts',
             slog__pb2.PutCSVFactsRequest.SerializeToString,
-            slog__pb2.Promise.FromString,
+            slog__pb2.ErrorResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

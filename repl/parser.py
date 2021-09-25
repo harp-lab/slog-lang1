@@ -2,7 +2,7 @@
 A command parser written using ply
 
 Kris Micinski
-
+Yihao Sun
 '''
 
 
@@ -52,17 +52,25 @@ from repl.commands import *
 
 s = None
 
-CMD = ['help', 'run', 'connect', 'query', 'dbs', 'csv']
+CMD = ['help', 'run', 'connect', 'query', 'showdb', 'csv', 'edb', 'idb', 'load', 'commit', 'refresh']
 
 def p_statement_unary(t):
     'statement : ID'
-    unary_cmd = t[1]
+    unary_cmd = t[1].strip()
     if unary_cmd == 'help':
         t[0] = HelpCommand()
-    if unary_cmd == 'dbs':
+    elif unary_cmd == 'edb':
+        t[0] = EdbCommand()
+    elif unary_cmd == 'edb':
+        t[0] = IdbCommand()
+    elif unary_cmd == 'showdb':
+        t[0] = NotImplCommand(unary_cmd)
+    elif unary_cmd == 'refresh':
+        t[0] = RefreshCommand()
+    elif unary_cmd == 'commit':
         t[0] = NotImplCommand(unary_cmd)
     else:
-        print("Unrecognized command syntax, please type `help`!")
+        print(f"Unrecognized unary command {unary_cmd} syntax, please type `help`!")
 
 def p_statement_id_cmd(t):
     'statement : ID ID'
@@ -70,7 +78,7 @@ def p_statement_id_cmd(t):
     if id_cmd == "dump":
         t[0] = IdCommand(t[2])
     else:
-        print("Unrecognized command syntax, please type `help`!")
+        print("Unrecognized ID, please type `help`!")
 
 def p_statement_str_cmd(t):
     'statement : ID STRING'
@@ -80,9 +88,11 @@ def p_statement_str_cmd(t):
     elif t[1] == "connect":
         t[0] = ConnectCommand(str)
     elif t[1] == "csv":
-        t[0] == CsvCommand(str)
+        t[0] = CsvCommand(str)
+    elif t[1] == "load":
+        t[0] = LoadCommand(str)
     else:
-        print("Unrecognized command syntax, please type `help`!")
+        print("Unrecognized str command syntax, please type `help`!")
 
 def p_error(t):
     if t:
