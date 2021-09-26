@@ -13,3 +13,4 @@ data-parallel deductive programming.
 
 ## Building and Executing
 
+![cli](./cli.gif)

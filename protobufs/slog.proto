@@ -26,6 +26,7 @@ service CommandService {
   // Get a description of relations for a database
   rpc GetRelations(DatabaseRequest) returns (RelationDescriptionsResponse);
   rpc GetTuples(RelationRequest) returns (stream Tuples);
+  rpc GetStrings(StringRequest) returns (stream Strings);
 }
 
 message PingRequest {
@@ -106,6 +107,15 @@ message RelationDescription {
 message RelationDescriptionsResponse {
   bool success = 1;
   repeated RelationDescription relations = 2;
+}
+
+message StringRequest {
+  string database_id = 1;
+}
+
+message Strings {
+  uint32 id = 1;
+  string text = 2;
 }
 
 message PromiseRequest {

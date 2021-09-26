@@ -52,7 +52,7 @@ from repl.commands import *
 
 s = None
 
-CMD = ['help', 'run', 'connect', 'query', 'showdb', 'csv', 'edb', 'idb', 'load', 'commit', 'refresh']
+CMD = ['help', 'run', 'connect', 'dump', 'showdb', 'csv', 'edb', 'idb', 'load', 'commit', 'refresh']
 
 def p_statement_unary(t):
     'statement : ID'

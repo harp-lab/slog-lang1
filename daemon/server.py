@@ -1,12 +1,9 @@
 # Slog Backend Daemon
-from sys import stderr, stdin, stdout
 from daemon.manifest import *
 
 from concurrent import futures
 from sexpdata import Symbol
 from subprocess import PIPE
-import array
-import copy
 import datetime
 import glob
 import grpc
@@ -90,6 +87,32 @@ def is_canonical_rel(rel):
         print(f"not a valid relation {rel}")
     return False
 
+def is_inter_rel(rel):
+    """ check if a relation is intermediate relation """
+    return rel[0].value().startswith('$')
+
+def rel_name_covert(rel_name: str):
+    """ convert a relation name in code into name in output """
+    return rel_name.replace('_', '__').replace('.', '_dot')
+
+# rel__arch_dotcall_operation__1__1_ful
+# rel__arch_dotcall__operation__1__1_full
+
+def read_intern_file(fpath):
+    ''' read intern file into a python dict '''
+    intern_dict = {}
+    with open(fpath, 'r') as intern_file:
+        for line in intern_file.readlines():
+            if line.strip() != '':
+                splited = line.strip().split('\t')
+                v_id = splited[0]
+                if len(splited) == 1:
+                    v = ''
+                else:
+                    v = splited[1]
+                intern_dict[int(v_id)] = v
+    return intern_dict
+
 class CommandService(slog_pb2_grpc.CommandServiceServicer):
     """ RPC service that responds to commands from the REPL/etc. See protobufs/slog.proto """
     def __init__(self):
@@ -171,8 +194,10 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
             fst_line = tmp_csv.readline().decode('utf-8')
             arity = len(fst_line.strip().split('\t'))
             out_path = os.path.join(DATABASE_PATH,in_db, f'{rel_name}_{arity}')
+            intern_path = os.path.join(DATABASE_PATH,in_db)
             index = ",".join([str(i) for i in range(1, arity+1)])
-            with subprocess.Popen([TSV2BIN_PATH, tmp_csv.name, str(arity), out_path, index, str(buckets), out_path], 
+            with subprocess.Popen([TSV2BIN_PATH, tmp_csv.name, str(arity), out_path, index,
+                                   str(buckets), intern_path], 
                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE) as proc:
                 _, err = proc.communicate()
                 if err:
@@ -306,44 +331,41 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
         r = c.execute('SELECT name,arity,tag,selection,data_file FROM canonical_relations WHERE database_id = ? AND tag = ?',(request.database_id,request.tag))
         try:
             row = c.fetchone()
-            name = row[0]
             arity = int(row[1])
-            tag = row[2]
             selection = list(map(lambda x: int(x), row[3].split(",")))
             data_file = row[4]
-            print(data_file)
+            print(row)
+            if data_file.strip() == "":
+                r = slog_pb2.Tuples()
+                r.status = STATUS_RESOLVED
+                r.num_tuples = 0
+                r.data.extend([])
+                return r
             tuplen = arity+1 # Tuples also include ID column
             mapping = list(range(0,tuplen))
             for x in selection: mapping.remove(x)
             mapping = selection + mapping
-            print(selection)
-            print(mapping)
-            f = open(data_file,'rb')
-            file_size = os.stat(data_file).st_size
-            num_u64s = int(file_size) / 8
-            num_tuples = int(num_u64s) / tuplen
-            max_tuples_per_chunk = int(math.floor(MAX_CHUNK_DATA / (8 * arity)))
-            num_tuples_left = num_tuples
-            while (num_tuples_left > 0):
-                buffer = array.array('Q')
-                num_tuples = int(min(num_tuples_left,max_tuples_per_chunk))
-                r = slog_pb2.Tuples()
-                r.status = STATUS_RESOLVED
-                r.num_tuples = num_tuples
-                buffer.fromfile(f, tuplen * num_tuples)
-                print(buffer)
-                buffer.byteswap() # Swap endianness
-                print(buffer)
-                cpy = copy.copy(buffer)
-                # Shuffle tuples according
-                for n in range(num_tuples):
-                    for i in range(arity+1):
-                        cpy[n*tuplen + mapping[i]] = buffer[n*tuplen + i]
-                num_tuples_left -=  num_tuples
-                print(cpy)
-                r.num_tuples = num_tuples
-                r.data.extend(cpy)
-                yield r
+            with open(data_file,'rb') as f:
+                file_size = os.stat(data_file).st_size
+                num_u64s = int(file_size) / 8
+                num_tuples = int(num_u64s) / tuplen
+                max_tuples_per_chunk = int(math.floor(MAX_CHUNK_DATA / (8 * arity)))
+                num_tuples_left = num_tuples
+                while (num_tuples_left > 0):
+                    num_tuples = int(min(num_tuples_left,max_tuples_per_chunk))
+                    buffer = f.read(num_tuples*tuplen*8)
+                    r = slog_pb2.Tuples()
+                    r.status = STATUS_RESOLVED
+                    r.num_tuples = num_tuples
+                    cpy = [-1 for _ in range(tuplen*num_tuples)]
+                    # Shuffle tuples according
+                    for n in range(num_tuples):
+                        for i in range(arity+1):
+                            cpy[n*tuplen + mapping[i]] = int.from_bytes(buffer[n*tuplen*8 + i*8:n*tuplen*8 + (i+1)*8], 'little', signed=False)
+                    num_tuples_left -=  num_tuples
+                    r.num_tuples = num_tuples
+                    r.data.extend(cpy)
+                    yield r
         except Exception as err:
             traceback.print_exc()
             self.log("Err {}".format(err))
@@ -379,6 +401,16 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
             res.relations.extend([d])
         _db.close()
         return res
+
+    def GetStrings(self, request, _context):        
+        string_csv_path = os.path.join(DATABASE_PATH, request.database_id, '$strings.csv')
+        if os.path.exists(string_csv_path):
+            str_dict = read_intern_file(string_csv_path)
+            for k,v in str_dict.items():
+                gs = slog_pb2.Strings(id=k, text=v)
+                yield gs
+        else:
+            print(f'string file {string_csv_path} not exists!')
 
 # 
 # Tasks
@@ -478,7 +510,7 @@ class CompileTask(Task):
         m = Manifest(manifest_file)
         for relation in m.relations:
             # Ignore non-canonical relations, we don't need to record data for those
-            if is_canonical_rel(relation):
+            if is_canonical_rel(relation) and (not is_inter_rel(relation)):
                 pcs = list(map(str,relation[2]))
                 name = relation[0].value()
                 arity = relation[1]
@@ -505,7 +537,7 @@ class CompileTask(Task):
         
         # Now run cmake
         try:
-            cmake = ["cmake", "."]
+            cmake = ["cmake", "-Bbuild", "."]
             result = subprocess.run(cmake, cwd=build_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
         except:
             c = self._db.cursor()
@@ -520,7 +552,7 @@ class CompileTask(Task):
         
         try:
             make = ["make"]
-            result = subprocess.run(make, cwd=build_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+            result = subprocess.run(make, cwd=f"{build_dir}/build", stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
         except:
             c = self._db.cursor()
             err = "Error: make failed for {}:\n{}".format(build_dir,result.stderr)
@@ -593,11 +625,11 @@ class RunTask(Task):
         if no final ouptful, check latest check point (by file update time)
         """
         def checkpoint_ord(check_dir):
-            check_stamp = re.findall(r'checkpoint-(\d)-(\d)', check_dir)
+            check_stamp = re.findall(r'checkpoint-(\d+)-(\d+)', check_dir)
             if len(check_stamp) == 0:
                 return [0, 0]
             else:
-                return [check_stamp[0][1], check_stamp[0][0]]
+                return [int(check_stamp[0][1]), int(check_stamp[0][0])]
         dirs = glob.glob(os.path.join(DATABASE_PATH,db_id,"checkpoint-*"))
         if len(dirs) < 1:
             self.log("Could not find any output at {}".format(glob.glob(os.path.join(DATABASE_PATH,db_id,"checkpoint-*"))))
@@ -607,13 +639,21 @@ class RunTask(Task):
         self.log("Indexing directory {}".format(dir))
         c = self._db.cursor()
         for relation in self.relations:
-            # XXX
-            data_file = os.path.join(dir,"rel__{}__{}__{}_full".format(relation[0],relation[1],"__".join(map(lambda x: str(x), relation[3]))))
+            # if relation[0].startswith('$inter'):
+            #     # bypass intermediate relation
+            #     continue
+            data_file = os.path.join(dir,"rel__{}__{}__{}_full".format(
+                rel_name_covert(relation[0]),
+                relation[1],"__".join(map(lambda x: str(x), relation[3]))))
             size_file = "{}.size".format(data_file)
             print(data_file)
             if ((not os.path.exists(data_file)) or (not os.path.exists(size_file))):
-                self.log("Output files {} or {} do not exists as expected.".format(data_file,size_file))
-                return False
+                self.log("Output files {} or {} do not exists as expected, maybe the output relation has no tuple?".format(data_file,size_file))
+                # rule maybe empty
+                c.execute('UPDATE canonical_relations SET num_tuples = ?, data_file = ? WHERE database_id = ? AND name = ? AND arity = ?'
+                          ,(0,data_file,db_id,relation[0],relation[1]))
+                self._db.commit()
+                continue
             try:
                 s = open(size_file,'r')
                 lines = s.readlines()
@@ -645,10 +685,9 @@ class RunTask(Task):
 
         failed = False
 
-        self._proc = subprocess.Popen(["mpirun","-n","2","target"],stdin=PIPE, stdout=PIPE, stderr=open(stderrpath,'w'), cwd=build_dir,env=env)
+        self._proc = subprocess.Popen(["mpirun","-n","2","target"],stdin=PIPE, stdout=PIPE, stderr=open(stderrpath,'w'), cwd=f"{build_dir}/build",env=env)
         o = open(stdoutpath,'w')
         self.reset_lines(db_id)
-
         # Process each line of the MPI tasks's output
         while True:
             line = self._proc.stdout.readline()
@@ -677,7 +716,6 @@ class RunTask(Task):
         if ((not failed) and (not self.finalize_run(db_id))):
             failed = True
             failed_comment = 'Could not finalize run for database from hash {} and DB ID {}'.format(hsh,db_id)
-
         # Update the promise
         if failed:
             c.execute('UPDATE promises_for_databases SET status = ?, comment = ? WHERE promise_id = ?',(STATUS_FAILED,failed_comment,promise))
@@ -706,7 +744,7 @@ class RunTask(Task):
                     r = self.log("Exception during MPI job {}: {}".format(id,err))
                     s = "Exception during MPI execution. Try again or contact administrator for error log."
                     c.execute('UPDATE mpi_jobs SET status = ?, error = ? WHERE promise = ?',(STATUS_FAILED,str(err),promise))
-                    c.execute('UPDATE promises_for_databases SET status = ?, comment = ? WHERE id = ?',(STATUS_FAILED,s,promise))
+                    c.execute('UPDATE promises_for_databases SET status = ?, comment = ? WHERE promise_id = ?',(STATUS_FAILED,s,promise))
                     self._db.commit()
 
 

@@ -9,7 +9,7 @@ import copy
 import grpc
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
-from prompt_toolkit.completion import WordCompleter, NestedCompleter, PathCompleter
+from prompt_toolkit.completion import WordCompleter, NestedCompleter, PathCompleter, FuzzyWordCompleter
 from prompt_toolkit.completion.base import Completer
 from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import HTML
@@ -39,6 +39,14 @@ BANNER = '''
     Type `help` to see help information. 
 
 '''
+
+TAG_MASK = 0xFFFFC00000000000
+BUCKET_MASK = 0x00003FFFF0000000
+TUPLE_ID_MASK = 0xFFFFFFFFF0000000
+VAL_MASK = ~ TAG_MASK
+INT_TAG = 0
+STRING_TAG = 2
+SYMBOL_TAG = 3
 
 # prompt session
 prompt_session = PromptSession(history=FileHistory("./.slog-history"))
@@ -110,6 +118,7 @@ class Repl:
         self._cur_edb = None
         self._cur_idb = None
         self._cur_program_hashes = None
+        self.intern_string_dict = {}
 
     def connected(self):
         return self._channel != None
@@ -121,6 +130,15 @@ class Repl:
         self._cur_time = -1
         # Hash from timestamps to database hashes
         self._times    = {}
+
+    def _update_intern_strings(self):
+        if not self._cur_edb:
+            print("nothing is loaded, can't fectch interned strings")
+            return
+        req = slog_pb2.StringRequest()
+        req.database_id = self._cur_edb
+        for sres in self._stub.GetStrings(req):
+            self.intern_string_dict[sres.id] = sres.text
     
     def upload_csv(self, csv_dir):
         ''' upload csv to current EDB using tsv_bin tool '''
@@ -250,6 +268,7 @@ class Repl:
         new_ts = self._cur_time
         self._times[new_ts] = db_id
         self.load_relations(db_id)
+        self._update_intern_strings()
         self.tuples = {}
 
     def switchto_edb(self):
@@ -276,27 +295,47 @@ class Repl:
         data = []
         for r in self.relations:
             if r[0] == name:
-                data.append([r[1],r[2]])
+                data.append(r)
         return data
+
+    def lookup_rel_by_tag(self, tag):
+        for r in self.relations:
+            if r[2] == tag:
+                return r
 
     def fetch_tuples(self,name):
         print(name)
         req = slog_pb2.RelationRequest()
-        print(req)
         req.database_id = self._cur_db
-        arity   = self.lookup_rels(name)[0][0]
-        req.tag = self.lookup_rels(name)[0][1]
-        res = self._stub.GetTuples(req)
+        arity   = self.lookup_rels(name)[0][1]
+        req.tag = self.lookup_rels(name)[0][2]
         n = 0
         x = 0
         tuples = []
-        buf = [None] * (arity+1)
-        for response in res:
+        buf = [-1 for i in range(0, arity+1)]
+        for response in self._stub.GetTuples(req):
             if (response.num_tuples == 0): continue
             for u64 in response.data:
-                buf[x] = u64
+                if (x == 0):
+                    # index col
+                    rel_tag = u64 >> 46
+                    bucket_hash = (u64 & BUCKET_MASK) >> 28
+                    tuple_id = u64 & TUPLE_ID_MASK
+                    buf[0] = (rel_tag, bucket_hash, tuple_id)
+                    x += 1
+                    continue
+                val_tag = u64 >> 46
+                if val_tag == INT_TAG:
+                    attr_val = u64 & VAL_MASK
+                elif val_tag == STRING_TAG:
+                    attr_val = self.intern_string_dict[u64 & VAL_MASK]
+                else:
+                    # relation
+                    rel_name = self.lookup_rel_by_tag(val_tag)
+                    attr_val = f'rel_{rel_name}_{u64 & VAL_MASK}'
+                buf[x] = attr_val
                 x += 1
-                if (x == arity+1):
+                if (x == arity + 1):
                     tuples.append(copy.copy(buf))
                     x = 0
                     n += 1
@@ -304,8 +343,8 @@ class Repl:
         self.tuples[name] = tuples
         return tuples
 
-    def recursive_dump_tuples(self,name):
-        for tuple in self.fetch_tuples(name):
+    def recursive_dump_tuples(self,rel):
+        for tuple in self.fetch_tuples(rel[0]):
             print("\t".join(map(lambda x: str(x), tuple)))
 
     def pretty_dump_relation(self,name):
@@ -315,7 +354,7 @@ class Repl:
         elif (len(self.lookup_rels(name)) > 1):
             print("More than one arity for {}, not currently supporting printing for multi-arity relations".format(name))
             return
-        self.recursive_dump_tuples(name)
+        self.recursive_dump_tuples(self.lookup_rels(name)[0])
 
     def get_front(self):
         if (not self.connected()):
@@ -332,7 +371,7 @@ class Repl:
                 relation_names = map(lambda x: x[0], self.relations)
                 # completer = WordCompleter(relation_names)
                 completer_map = {cmd: None for cmd in CMD}
-                completer_map['dump'] = WordCompleter(relation_names)
+                completer_map['dump'] = FuzzyWordCompleter(list(relation_names))
                 completer_map['run'] = StringPathCompeleter()
                 completer_map['csv'] = StringPathCompeleter()
                 completer_map['load'] = StringPathCompeleter()
@@ -340,6 +379,7 @@ class Repl:
                 text = prompt_session.prompt(
                     'σλoγ [{}] » '.format(front),
                     bottom_toolbar=self.bottom_toolbar(),
+                    complete_while_typing=True,
                     completer=completer)
                 if text.strip() == '':
                     continue

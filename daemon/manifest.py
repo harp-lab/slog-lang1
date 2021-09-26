@@ -31,7 +31,7 @@ class Manifest():
                 select = rel[5]
                 data = rel[6]
                 size_file = rel[7]
-                tag  = rel[4]
+                tag  = rel[3]
                 self.relations.append([name,arity,select,"",data,size_file,tag])
             # string_pool = sexpr[2][1]
             self.string_file = sexpr[2]

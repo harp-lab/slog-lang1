@@ -22,7 +22,7 @@ class CommandServiceStub(object):
         self.PutHashes = channel.unary_unary(
                 '/CommandService/PutHashes',
                 request_serializer=slog__pb2.PutHashesRequest.SerializeToString,
-                response_deserializer=slog__pb2.Promise.FromString,
+                response_deserializer=slog__pb2.ErrorResponse.FromString,
                 )
         self.PutCSVFacts = channel.unary_unary(
                 '/CommandService/PutCSVFacts',
@@ -58,6 +58,11 @@ class CommandServiceStub(object):
                 '/CommandService/GetTuples',
                 request_serializer=slog__pb2.RelationRequest.SerializeToString,
                 response_deserializer=slog__pb2.Tuples.FromString,
+                )
+        self.GetStrings = channel.unary_stream(
+                '/CommandService/GetStrings',
+                request_serializer=slog__pb2.StringRequest.SerializeToString,
+                response_deserializer=slog__pb2.Strings.FromString,
                 )
 
 
@@ -124,6 +129,12 @@ class CommandServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetStrings(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_CommandServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -135,7 +146,7 @@ def add_CommandServiceServicer_to_server(servicer, server):
             'PutHashes': grpc.unary_unary_rpc_method_handler(
                     servicer.PutHashes,
                     request_deserializer=slog__pb2.PutHashesRequest.FromString,
-                    response_serializer=slog__pb2.Promise.SerializeToString,
+                    response_serializer=slog__pb2.ErrorResponse.SerializeToString,
             ),
             'PutCSVFacts': grpc.unary_unary_rpc_method_handler(
                     servicer.PutCSVFacts,
@@ -171,6 +182,11 @@ def add_CommandServiceServicer_to_server(servicer, server):
                     servicer.GetTuples,
                     request_deserializer=slog__pb2.RelationRequest.FromString,
                     response_serializer=slog__pb2.Tuples.SerializeToString,
+            ),
+            'GetStrings': grpc.unary_stream_rpc_method_handler(
+                    servicer.GetStrings,
+                    request_deserializer=slog__pb2.StringRequest.FromString,
+                    response_serializer=slog__pb2.Strings.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -212,7 +228,7 @@ class CommandService(object):
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/CommandService/PutHashes',
             slog__pb2.PutHashesRequest.SerializeToString,
-            slog__pb2.Promise.FromString,
+            slog__pb2.ErrorResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -332,5 +348,22 @@ class CommandService(object):
         return grpc.experimental.unary_stream(request, target, '/CommandService/GetTuples',
             slog__pb2.RelationRequest.SerializeToString,
             slog__pb2.Tuples.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetStrings(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(request, target, '/CommandService/GetStrings',
+            slog__pb2.StringRequest.SerializeToString,
+            slog__pb2.Strings.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
