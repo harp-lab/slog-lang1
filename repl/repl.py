@@ -9,7 +9,7 @@ import copy
 import grpc
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
-from prompt_toolkit.completion import WordCompleter, NestedCompleter, PathCompleter, FuzzyWordCompleter
+from prompt_toolkit.completion import NestedCompleter, PathCompleter, FuzzyWordCompleter
 from prompt_toolkit.completion.base import Completer
 from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import HTML
@@ -269,7 +269,7 @@ class Repl:
         self._times[new_ts] = db_id
         self.load_relations(db_id)
         self._update_intern_strings()
-        self.tuples = {}
+        self.updated_tuples = {}
 
     def switchto_edb(self):
         if self._cur_edb is None:
@@ -304,7 +304,7 @@ class Repl:
                 return r
 
     def fetch_tuples(self,name):
-        print(name)
+        # print(name)
         req = slog_pb2.RelationRequest()
         req.database_id = self._cur_db
         arity   = self.lookup_rels(name)[0][1]
@@ -318,10 +318,11 @@ class Repl:
             for u64 in response.data:
                 if (x == 0):
                     # index col
-                    rel_tag = u64 >> 46
-                    bucket_hash = (u64 & BUCKET_MASK) >> 28
-                    tuple_id = u64 & TUPLE_ID_MASK
-                    buf[0] = (rel_tag, bucket_hash, tuple_id)
+                    # rel_tag = u64 >> 46
+                    # bucket_hash = (u64 & BUCKET_MASK) >> 28
+                    tuple_id = u64 & (~TUPLE_ID_MASK)
+                    # buf[0] = (rel_tag, bucket_hash, tuple_id)
+                    buf[0] = tuple_id
                     x += 1
                     continue
                 val_tag = u64 >> 46
@@ -331,21 +332,58 @@ class Repl:
                     attr_val = self.intern_string_dict[u64 & VAL_MASK]
                 else:
                     # relation
-                    rel_name = self.lookup_rel_by_tag(val_tag)
-                    attr_val = f'rel_{rel_name}_{u64 & VAL_MASK}'
+                    rel_name = self.lookup_rel_by_tag(val_tag)[0]
+                    # attr_val = f'rel_{rel_name}_{u64 & (~TUPLE_ID_MASK)}'
+                    if name != rel_name and rel_name not in self.updated_tuples.keys():
+                        self.fetch_tuples(rel_name)
+                    attr_val = ['UNRESOLVED', rel_name, u64 & (~TUPLE_ID_MASK)]
                 buf[x] = attr_val
                 x += 1
                 if (x == arity + 1):
-                    tuples.append(copy.copy(buf))
+                    # don't print id col
+                    # rel name at last
+                    tuples.append(copy.copy(buf)+[name])
                     x = 0
                     n += 1
             assert (n == response.num_tuples)
-        self.tuples[name] = tuples
+        self.updated_tuples[name] = tuples
         return tuples
 
     def recursive_dump_tuples(self,rel):
-        for tuple in self.fetch_tuples(rel[0]):
-            print("\t".join(map(lambda x: str(x), tuple)))
+        # reset all tuples to non-updated
+        def find_val_by_id(name, id):
+            for row in self.updated_tuples[name]:
+                if row[0] == id:
+                    return row
+        resolved_relname = []
+        def _resolve(rname):
+            if rname in resolved_relname:
+                return
+            for i, row in enumerate(self.updated_tuples[rname]):
+                for j, col in enumerate(row[:-1]):
+                    if type(col) != list:
+                        continue
+                    if col[0] == 'UNRESOLVED':
+                        nested_name = col[1]
+                        nested_id = col[2]
+                        v = find_val_by_id(nested_name, nested_id)
+                        if v is None:
+                            v = f'"{nested_name} has no fact with id {nested_id} !"'
+                        _resolve(nested_name)
+                        self.updated_tuples[rname][i][j] = v
+            resolved_relname.append(rname)
+        def rel_to_str(rel):
+            res = []
+            for col in rel[:-1]:
+                if type(col) == list:
+                   res.append(rel_to_str(col))
+                else:
+                    res.append(str(col))
+            return f"({rel[-1]} {' '.join(res)})"
+        self.fetch_tuples(rel[0])
+        _resolve(rel[0])
+        for tuple in self.updated_tuples[rel[0]]:
+            print(f"#{tuple[0]}:  {rel_to_str(tuple)}")
 
     def pretty_dump_relation(self,name):
         if (len(self.lookup_rels(name)) == 0):
