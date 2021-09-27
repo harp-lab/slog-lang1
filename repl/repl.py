@@ -173,6 +173,7 @@ class Repl:
                     else:
                         spinner.ok("✅ ")
                         print(f" {csv_fname} uploaded.")
+        self.fresh()
 
     def fresh(self):
         '''

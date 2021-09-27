@@ -23,15 +23,19 @@ RUN git clone https://github.com/grpc/grpc /var/local/git/grpc --recurse-submodu
     make -j8 && make install
 
 RUN apt-get update
-RUN apt-get install -y python3-pip
+RUN apt-get install -y python3-pip sqlite3
+
+ENV OMPI_ALLOW_RUN_AS_ROOT=1
+ENV OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
+
 COPY . /slog
 
 # build backend
 RUN rm -rf /slog/parallel-RA/build
-RUN cd /slog/parallel-RA && CC=clang CXX=clang++ cmake -Bbuild .
-RUN cd /slog/parallel-RA/build && CC=clang CXX=clang++ make -j8
+RUN cd /slog/parallel-RA && cmake -Bbuild .
+RUN cd /slog/parallel-RA/build && make -j8
 
 WORKDIR /slog
 RUN pip3 install -r requirements.txt
-
-ENTRYPOINT [ "./slog-server" ]
+EXPOSE 5108
+# ENTRYPOINT [ "./slog-server" ]
