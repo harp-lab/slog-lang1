@@ -337,7 +337,7 @@ class Repl:
                     # attr_val = f'rel_{rel_name}_{u64 & (~TUPLE_ID_MASK)}'
                     if name != rel_name and rel_name not in self.updated_tuples.keys():
                         self.fetch_tuples(rel_name)
-                    attr_val = ['UNRESOLVED', rel_name, u64 & (~TUPLE_ID_MASK)]
+                    attr_val = ['NESTED', rel_name, u64 & (~TUPLE_ID_MASK)]
                 buf[x] = attr_val
                 x += 1
                 if (x == arity + 1):
@@ -364,7 +364,7 @@ class Repl:
                 for j, col in enumerate(row[:-1]):
                     if type(col) != list:
                         continue
-                    if col[0] == 'UNRESOLVED':
+                    if col[0] == 'NESTED':
                         nested_name = col[1]
                         nested_id = col[2]
                         v = find_val_by_id(nested_name, nested_id)
@@ -377,14 +377,18 @@ class Repl:
             res = []
             for col in rel[:-1]:
                 if type(col) == list:
-                   res.append(rel_to_str(col))
+                    if col[0] == 'NESTED':
+                        res.append(f"({' '.join([str(v) for v in col])})")
+                    else: 
+                        res.append(rel_to_str(col))
                 else:
                     res.append(str(col))
             return f"({rel[-1]} {' '.join(res)})"
         self.fetch_tuples(rel[0])
-        _resolve(rel[0])
+        # print(self.updated_tuples)
+        # _resolve(rel[0])
         for tuple in self.updated_tuples[rel[0]]:
-            print(f"#{tuple[0]}:  {rel_to_str(tuple)}")
+            print(f"#{tuple[0]}:  {rel_to_str(tuple[1:])}")
 
     def pretty_dump_relation(self,name):
         if (len(self.lookup_rels(name)) == 0):
