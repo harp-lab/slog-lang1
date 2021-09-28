@@ -1,0 +1,66 @@
+ 
+name: CI
+
+# Controls when the action will run. Triggers the workflow on push or pull request
+# events but only for the master branch
+on:
+  push:
+    branches: [ master, github-actions-test, cpp-builtins, comp-rels, aggregators]
+  pull_request:
+    branches: [ master ]
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  test:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+    - uses: actions/checkout@v2
+
+    - name: Setup Racket environment
+      uses: Bogdanp/setup-racket@v0.8
+      with:
+        # The target architecture (x86, x64) of the Racket interpreter.
+        architecture: 'x64'
+        # The target distribution (minimal, full) of Racket.
+        # distribution: # optional, default is full
+        # The target variant (regular, CS) of Racket.
+        # variant: # optional, default is regular
+        # Version range or exact version of a Racket version to use.
+        # version: # optional, default is 7.7
+        # A comma-separated list of package catalogs to use when installing packages.
+        # catalogs: # optional, default is 
+        # A comma-separated list of packages to install from the Package Catalog.
+        packages: 'z3, graph, readline-gpl, binaryio'
+
+    - name: install z3
+      run: sudo apt install z3
+      
+    - name: run tests
+      working-directory: .
+      run: racket ./unit-tests/tests.rkt -c --run-slow-tests
+
+    - name: run tests with --merge-builtins
+      working-directory: .
+      run: racket ./unit-tests/tests.rkt -c --merge-builtins --run-slow-tests
+
+    - name: run c++ compilation tests
+      working-directory: ./unit-tests
+      run : ./cpp_compilation_tests.sh
+      
+    - name: benchmark-worstcase-4-terms-2-m
+      working-directory: .
+      run: |
+        START=$(date +%s)
+        echo quit | racket slog.rkt -i ./ci-benchmarks/worstcase-4-terms-2-m.slog
+        END=$(date +%s)
+        DIFF=$(echo "$END - $START" | bc)
+        echo "took $DIFF seconds."
+        if [ $DIFF -gt  300 ]
+        then 
+          echo took too long
+          exit 1
+        fi

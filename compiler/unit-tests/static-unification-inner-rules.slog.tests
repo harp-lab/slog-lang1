@@ -1,0 +1,42 @@
+(a-inner-head _)
+{(a-inner-head 1)
+ (a-inner-head 2)}
+
+(a-outer-head _)
+{(a-outer-head 2)}
+
+
+(b-inner-head _)
+{(b-inner-head 1)
+ (b-inner-head 2)}
+
+(b-outer-head _)
+{(b-outer-head 2)}
+
+(c-brass _)
+{(c-brass (c-sas 2))}
+
+
+(c-sas _)
+{(c-sas 1)
+ (c-sas 2)}
+
+
+(d-hirbirh _ _)
+{(d-hirbirh 1 1)
+ (d-hirbirh 1 2)}
+
+(d-hirh _ _)
+{(d-hirh 1 2)}
+
+(d-hirbirh0 _ _)
+{(d-hirbirh0 1 100)
+ (d-hirbirh0 1 101)
+ (d-hirbirh0 10 100)
+ (d-hirbirh0 10 101)}
+
+(e-head _)
+{}
+
+(f-bar _)
+{(f-bar 3)}

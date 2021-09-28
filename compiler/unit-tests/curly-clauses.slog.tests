@@ -1,0 +1,42 @@
+(fac _ _)
+{(fac 1 1)
+ (fac 2 2)
+ (fac 3 6)
+ (fac 4 24)}
+
+(a-foo _)
+{(a-foo 3)
+ (a-foo 10)
+ (a-foo 11)}
+
+(b-1-to-4 _)
+{(b-1-to-4 ($lst 1 ($lst 2 ($lst 3 ($lst 4 ($nil))))))}
+
+(b-sum1-10 _)
+{(b-sum1-10 55)}
+
+(c-bar _ _)
+{(c-bar 16 3)}
+
+(d-real-sol _ _ _)
+{(d-real-sol 4 6 2)}
+
+(e-baz _ _)
+{(e-baz 1 3)
+ (e-baz 1 4)}
+
+(f-baz _)
+{(f-baz (f-bar 2 0))
+ (f-baz (f-bar 2 4))
+ (f-baz (f-bar 1 3))}
+
+(g-pi-is _)
+{(g-pi-is "3.14159265")}
+
+(h-bar _)
+{(h-bar 3)
+ (h-bar 4)
+ (h-bar 5)}
+
+(i-bar _)
+{(i-bar 1)}

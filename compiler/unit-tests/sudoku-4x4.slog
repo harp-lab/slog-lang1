@@ -1,0 +1,89 @@
+
+; Input problem
+(problem
+ 2 1 0 0 
+ 0 3 2 0 
+ 0 0 0 4 
+ 1 0 0 0) 
+
+[(problem-row x11 x12 x13 x14)
+ (problem-row x21 x22 x23 x24)
+ (problem-row x31 x32 x33 x34)
+ (problem-row x41 x42 x43 x44)
+ <--
+ 
+ (problem
+  x11 x12 x13 x14 
+  x21 x22 x23 x24 
+  x31 x32 x33 x34 
+  x41 x42 x43 x44)] 
+
+;; populate unique with all permutations of 1..4
+
+;; without comp-rels:
+; (unique 1 2 3 4)
+; [(unique x2 x1 x3 x4) <-- (unique x1 x2 x3 x4)]
+; [(unique x1 x3 x2 x4) <-- (unique x1 x2 x3 x4)]
+; [(unique x1 x2 x4 x3) <-- (unique x1 x2 x3 x4)]
+; [(unique x4 x2 x3 x1) <-- (unique x1 x2 x3 x4)]
+
+;; with comp-rels:
+(comp unique)
+[(=/= x1 x2) (=/= x1 x3) (=/= x1 x4)
+ (=/= x2 x3) (=/= x2 x4)
+ (=/= x3 x4)
+ (range 1 5 x1)
+ (range 1 5 x2)
+ (range 1 5 x3)
+ (range 1 5 x4)
+ -->
+ (unique x1 x2 x3 x4)]
+
+[(row-match x1 x2 x3 x4   y1 y2 y3 y4)
+ <--
+ (problem-row x1 x2 x3 x4)
+ (unique y1 y2 y3 y4)
+ (or (= x1 y1) (= x1 0))
+ (or (= x2 y2) (= x2 0))
+ (or (= x3 y3) (= x3 0))
+ (or (= x4 y4) (= x4 0))
+]
+
+ 
+[(solution
+  y11 y12 y13 y14 
+  y21 y22 y23 y24 
+  y31 y32 y33 y34 
+  y41 y42 y43 y44) 
+
+ <--
+
+ (problem
+  x11 x12 x13 x14 
+  x21 x22 x23 x24 
+  x31 x32 x33 x34 
+  x41 x42 x43 x44) 
+ 
+ ;; unique blocks
+ (unique y11 y12 y21 y22)
+ (unique y13 y14 y23 y24)
+ (unique y31 y32 y41 y42)
+ (unique y33 y34 y43 y44)
+
+ ;; unique rows
+ (unique y11 y12 y13 y14)
+ (unique y21 y22 y23 y24)
+ (unique y31 y32 y33 y34)
+ (unique y41 y42 y43 y44)
+ 
+ ;;unique columns
+ (unique y11 y21 y31 y41)
+ (unique y12 y22 y32 y42)
+ (unique y13 y23 y33 y43)
+ (unique y14 y24 y34 y44)
+ 
+ (row-match x11 x12 x13 x14   y11 y12 y13 y14)
+ (row-match x21 x22 x23 x24   y21 y22 y23 y24)
+ (row-match x31 x32 x33 x34   y31 y32 y33 y34)
+ (row-match x41 x42 x43 x44   y41 y42 y43 y44)
+]

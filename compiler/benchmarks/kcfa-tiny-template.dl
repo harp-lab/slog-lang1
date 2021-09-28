@@ -1,0 +1,120 @@
+// see kcfa-tiny-souffle-generator.rkt, which fills in the corresponding values
+.decl Prog(x:number)
+.decl Lam(id:number,x:number,y:number,idbody:number)
+.decl App(id:number,f:number,a0:number,a1:number)
+.decl Var(id:number,var:number)
+.decl Time(DT0T1) // t0:number,t1:number
+.decl AEval(id:number,DT0T1,id1:number,DOT0OT1) // t0:number,t1:number, ot0:number,ot1:number
+.output AEval
+.decl ReachesCfg(id:number,DT0T1) // t0:number,t1:number
+.output ReachesCfg
+.decl Store(var:number,DT0T1,stored_lam:number,DOT0OT1) // t0:number,t1:number ot0:number,ot1:number
+.output Store
+.decl Step(from:number,DT0T1,toid:number,DTOT0T1,clo_lam:number,DCLOT0T1) // t0:number,t1:number, to_t0:number,to_t1:number clo_t0:number,clo_t1:number
+.output Step
+.decl ReachesClo(id:number,DT0T1) // t0:number,t1:number
+.output ReachesClo
+.decl INT2(id:number,id_f:number,id_a0:number,id_a1:number,DT0T1,clo_lam:number,DCLOT0T1,x:number,y:number,id_body:number,a1_lam:number,DA1T0T1)
+.output INT2
+.decl INT1(id:number,id_f:number,id_a0:number,id_a1:number,DT0T1,clo_lam:number,DCLOT0T1,x:number,y:number,id_body:number)
+.output INT1
+.decl INT0(id:number,id_f:number,id_a0:number,id_a1:number,DT0T1,clo_lam:number,DCLOT0T1)
+.output INT0
+.decl INT00(id:number,id_f:number,id_a0:number,id_a1:number,DT0T1)
+.output INT00
+.decl INT_D(id_ref:number,x:number,clo_lam:number,DCLOT0T1, p1:number,DT0T1)
+.decl INT_C(id_ref:number,x:number,clo_lam:number,DCLOT0T1,p0:number,p1:number,DT0T1)
+.decl INT_B(id_ref:number,clo_lam:number,DCLOT0T1,p0:number,p1:number,DT0T1)
+.decl INT_A(id:number,p0:number,p1:number,DT0T1,DCLOT0T1)
+.decl APP(id:number,DT0T1,clo_lam:number,DCLOT0T1,id_body:number,x:number,y:number,a0_lam:number,DAT0T1,a1_lam:number,DA1T0T1)
+.output APP
+
+ReachesCfg(ENTRYR) :- Prog(e).
+Time(ENTRYT)       :- Prog(e).
+
+// With an app step
+Store(x,IDT0,a0_lam,A0T0T1)
+ :-
+ APP(id,T0T1,clo_lam,CLOT0T1,id_body,x,y,a0_lam,A0T0T1,a1_lam,A1T0T1).
+
+Store(y,IDT0,a1_lam,A1T0T1)
+ :-
+ APP(id,T0T1,clo_lam,CLOT0T1,id_body,x,y,a0_lam,A0T0T1,a1_lam,A1T0T1).
+
+Step(id,T0T1,id_body,IDT0,clo_lam,CLOT0T1)
+ :-
+ APP(id,T0T1,clo_lam,CLOT0T1,id_body,x,y,a0_lam,A0T0T1,a1_lam,A1T0T1).
+
+ReachesCfg(id_body,IDT0)
+ :-
+ APP(id,T0T1,clo_lam,CLOT0T1,id_body,x,y,a0_lam,A0T0T1,a1_lam,A1T0T1).
+
+ReachesClo(clo_lam,CLOT0T1)
+ :-
+ APP(id,T0T1,clo_lam,CLOT0T1,id_body,x,y,a0_lam,A0T0T1,a1_lam,A1T0T1).
+
+Time(IDT0)
+ :-
+ APP(id,T0T1,clo_lam,CLOT0T1,id_body,x,y,a0_lam,A0T0T1,a1_lam,A1T0T1).
+
+APP(id, T0T1, clo_lam, CLOT0T1, id_body, x, y, a0_lam, A0T0T1, a1_lam, A1T0T1)
+ :-
+ AEval(id_a0,T0T1,a0_lam,A0T0T1),
+ INT2(id,id_f,id_a0,id_a1,T0T1,clo_lam,CLOT0T1,x,y,id_body,a1_lam,A1T0T1).
+
+INT2(id,id_f,id_a0,id_a1,T0T1,clo_lam,CLOT0T1,x,y,id_body,a1_lam,A1T0T1)
+ :-
+ AEval(id_a1,T0T1,a1_lam,A1T0T1),
+ INT1(id,id_f,id_a0,id_a1,T0T1,clo_lam,CLOT0T1,x,y,id_body).
+
+INT1(id,id_f,id_a0,id_a1,T0T1,clo_lam,CLOT0T1,x,y,id_body)
+ :-
+ Lam(clo_lam,x,y,id_body),
+ INT0(id,id_f,id_a0,id_a1,T0T1,clo_lam,CLOT0T1).
+
+INT0(id,id_f,id_a0,id_a1,T0T1,clo_lam,CLOT0T1)
+  :-
+ INT00(id,id_f,id_a0,id_a1,T0T1),
+ AEval(id_f,T0T1,clo_lam,CLOT0T1).
+
+INT00(id,id_f,id_a0,id_a1,T0T1)
+ :-
+ App(id,id_f,id_a0,id_a1),
+ ReachesCfg(id,T0T1).
+
+// and eval of lambdas 
+AEval(id,T0T1,id,T0T1) :- Time(T0T1), Lam(id,_,_,_).
+
+// and eval of local parameter x at t 
+AEval(ref_id,T0T1,clo_lam,CLOT0T1)
+ :-
+ Var(ref_id,x),
+ Store(x,T0T1,clo_lam,CLOT0T1).
+
+// otherise  propagate free variables
+AEval(id_ref,T0T1,clo_lam,CLOT0T1)
+ :-
+ INT_D(id_ref,x,clo_lam,CLOT0T1,p1,T0T1),
+ p1 != x.
+
+INT_D(id_ref,x,clo_lam,CLOT0T1,p1,T0T1)
+ :-
+ INT_C(id_ref,x,clo_lam,CLOT0T1,p0,p1,T0T1),
+ p0 != x.
+
+INT_C(id_ref,x,clo_lam,CLOT0T1,p0,p1,T0T1)
+ :-
+ Var(id_ref,x),
+ INT_B(id_ref,clo_lam,CLOT0T1,p0,p1,T0T1).
+
+INT_B(id_ref,clo_lam,CLOT0T1,p0,p1,T0T1)
+ :-
+ INT_A(tclo_lam,p0,p1,T0T1,TCLOT0T1),
+ AEval(id_ref,TCLOT0T1,clo_lam,CLOT0T1).
+
+INT_A(tclo_lam,p0,p1,T0T1,TCLOT0T1)
+ :-
+ Lam(tclo_lam,p0,p1,_),
+ Step(_,UNDERSCORES,_,T0T1,tclo_lam,TCLOT0T1).
+
+// program

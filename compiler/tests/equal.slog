@@ -1,0 +1,16 @@
+
+
+(R 1 2 3)
+(R 2 3 4)
+(R 2 4 5)
+(R 100 100 101)
+(R 101 101 101)
+
+[(A x) <-- (R x x y)]
+
+; I would think it might desugar to:
+[(B x) <-- (R x y z) (= x y)]
+; But this also does not work if written manually
+
+
+[(C x) <-- (R x x x)]

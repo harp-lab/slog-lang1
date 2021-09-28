@@ -1,0 +1,4 @@
+(program 42)
+
+;; control remains empty: (control (time 0) 42) is not discovered
+[(control (time 0) e) <-- (program e)]

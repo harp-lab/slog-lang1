@@ -1,0 +1,113 @@
+
+; Input Program
+(program  ; this program returns (lambda e e) for dynamic scope and (lambda w w) for static scope
+ (app (lambda ["c"]
+        (app (lambda ["h"] (app (ref "c") [(ref "c")]))
+             [(lambda ["e"] (ref "e"))]))
+      [(app (lambda ["h"] (lambda ["t"] (ref "h")))
+            [(lambda ["w"] (ref "w"))])]))
+
+
+;; Entry-point rule
+
+; Start evaluation of program
+[(eval (cfp e []) [(halt)])
+ <--
+ (program e)]
+; Return from program
+[(program-return v)
+ <--
+ (ret v [(halt)])]
+
+;; App Rules
+
+; Eval step from app to ef
+(step ?(eval (cfp (app ef eas) ctx) k)
+       (eval (cfp ef ctx) [(app-k (app ef eas) [] eas ctx) k ...]))
+; Ret step to app-k (next argument)
+(step ?(ret v [(app-k e vs [e0 eas ...] ctx) k ...])
+       (eval (cfp e0 ctx) [(app-k e [vs ... v] eas ctx) k ...]))
+; Ret step to app-k (apply)
+(step ?(ret v [(app-k e [vf vas ...] [] ctx) k ...])
+       (apply e vf [vas ... v] k))
+       
+; Apply step to function body
+[(kstore kaddr k)
+ (store* xs vas ctx'')
+ (step apply_state
+       (eval (cfp eb ctx'') [kaddr]))
+ (= kaddr (kaddr eb ctx''))
+ (= ctx'' [e ctx' ...])
+ <--
+ (take !(do-take ctx 3) ctx')
+ --
+ (= apply_state
+    (apply e (clo (lambda xs eb) ctx) vas k))]
+
+; Propagate environment variables
+[(store x ctx v)
+ <--
+ (store x ctx' v)
+ (free x (lambda xs eb))
+ (step (apply e (clo (lambda xs eb) ctx') vas k)
+       (eval (cfp eb ctx) [_]))]
+
+; Propagate arguments
+[(store x ctx v)
+ (store* xs vs ctx)
+ <--
+ (store* [x xs ...] [v vs ...] ctx)]
+
+; Return to kaddr
+[(ret v [(kaddr e ctx)])
+ (kstore (kaddr e ctx) k)
+ -->
+ (ret v k)]
+
+;; Atomic-expression Rules
+
+; Variable reference
+[(step ?(eval (cfp (ref x) ctx) k)
+       (ret v k))
+ <--
+ (store x ctx v)]
+
+; Lambda abstraction
+(step ?(eval (cfp (lambda xs eb) ctx) k)
+      (ret (clo (lambda xs eb) ctx) k))
+
+
+;; Utilities / Simple analyses
+
+; Taking the first k values in a list
+[(take !(do-take lst k-1) lst')
+ (- k 1 k-1)
+ -->
+ (take ?(do-take [v lst ...] k) lst')]
+[(or (= lst []) (= k 0))
+ -->
+ (take ?(do-take lst k) [])]
+
+; Free variables
+(free x ?(ref x))
+[(free x ?(app e0 e1))
+ <--
+ (or (free x e0)
+     (free x e1))]
+[(free x ?(lambda [] e0))
+ <--
+ (free x e0)]
+[(free x lam)
+ <--
+ (=/= x y)
+ --
+ (free x !(lambda [rst ...] e0))
+ --
+ (= lam (lambda [y rst ...] e0))]
+
+
+
+
+
+
+

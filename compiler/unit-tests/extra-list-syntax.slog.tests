@@ -1,0 +1,6 @@
+(a-query _)
+{(a-query ($lst 1 ($lst 2 ($lst 3 ($nil)))))
+ (a-query ($lst 0 ($lst 1 ($lst 2 ($nil)))))}
+
+(b-baz _)
+{(b-baz ($lst 11 ($lst 12 ($nil))))}

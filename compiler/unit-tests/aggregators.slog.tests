@@ -1,0 +1,30 @@
+(a-node-degree _ _)
+{(a-node-degree 1 2) 
+ (a-node-degree 2 4) 
+ (a-node-degree 3 2) 
+ (a-node-degree 5 1)}
+
+
+(b-foo-not-bar _)
+{(b-foo-not-bar 2)}
+
+(b-bar-sum _)
+{(b-bar-sum 4)}
+
+(c-max-foo _ _)
+{(c-max-foo "a" 1000)
+ (c-max-foo "b" 2000)}
+
+(c-min-foo _ _)
+{(c-min-foo "b" 2)
+ (c-min-foo "a" 1)}
+
+(d-res _)
+{(d-res 1)}
+
+(e-res _)
+{(e-res 1)}
+
+(e-res2 _)
+{(e-res2 2)
+ (e-res2 3)}

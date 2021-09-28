@@ -1,0 +1,506 @@
+;; Written by Davis Silverman and Yihao Sun!!!
+;; Rewritten in Slog by Kris Micinski
+
+;; Scheme free variables
+[(free x e) <-- (var e x)]
+
+[(free x e)
+ <--
+ (lambda e vars body)
+ (free x body)
+ (lambda_arg_list vars _ y)
+ (=/= x y)]
+
+[(free x e)
+ <--
+ (call e func args)
+ (or (free x func) (free x args))]
+
+[(free x e)
+ <--
+ (prim_call e _ args)
+ (free x args)]
+
+[(free x e)
+ <--
+ (call_arg_list e pos arg)
+ (free x arg)]
+
+[(free x e)
+ <--
+ (if e eguard et ef)
+ (or (free x eguard) (free x et) (free x ef))]
+
+[(free y e)
+ <-- 
+ (setb e _ ev)
+ (free y ev)]
+
+[(free x e)
+ <--
+ (callcc e ev)
+ (free x ev)]
+
+[(free x e)
+ <--
+ (let e binders body)
+ (or (free x binders) (free x body))]
+
+[(free x e)
+ <--
+ (let_list e a binder)
+ (free x binder)
+ (=/= x a)]
+
+;; Injection
+
+[(E e [(null) (null) (null)] (kaddr e [(null) (null) (null)]))
+ (peek_ctx e [(null) (null) (null)] [e (null) (null)])
+ (store (kaddr e [(null) (null) (null)]) (mt))
+ <--
+ (top_exp e)]
+
+;; Context propagation
+[(peek_ctx e [c0 c1 c2] [e c0 c1])
+ <-- 
+ (E e [c0 c1 c2] _)
+ (or (callcc e _) (call e _ _) (let e _ _) (lambda e _ _))]
+
+;; Copy contexts
+[(store (vaddr fv to) v)
+ <--
+ (copy_ctx from to e)
+ (free fv e)
+ (store (vaddr fv from) v)]
+
+;;;;;;;; Step functions
+
+;;;; Evaluation
+;;;;  E states produce values returned in A states.
+
+;; conditional
+[(E eguard ctx (kaddr eguard ctx))
+ (store (kaddr eguard ctx) (ifk et ef ctx ak))
+ (flow_ee e eguard)
+ <--
+ (E e ctx ak)
+ (if e eguard et ef)]
+
+;; call/cc expression
+[(E elam ctx (kaddr elam ctx))
+ (store (kaddr elam ctx) (callcck ectx ak))
+ (flow_ee e elam)
+ <--
+ (E e ctx ak)
+ (callcc e elam)
+ (peek_ctx e ctx ectx)]
+
+;; set! expression
+[(E esetto ctx (kaddr esetto ctx))
+ (store (kaddr esetto ctx) (setk (vaddr x ctx)))
+ (flow_ee e esetto)
+ <--
+ (E e ctx ak)
+ (setb e x esetto)]
+
+;; untagged application
+[(E efunc ctx (kaddr efunc ctx))
+ (store (kaddr efunc ctx) (argk eargs ctx ectx ak))
+ (flow_ee e efunc)
+ <--
+ (E e ctx ak)
+ (call e efunc eargs)
+ (peek_ctx e ctx ectx)]
+
+;; let-binding expression
+[(E ebnd ctx (kaddr ebnd ctx))
+ (store (kaddr ebnd ctx) (letk (vaddr x ectx) ebody ectx ak))
+ (copy_ctx ctx ectx e)
+ (flow_ee e ebnd)
+ <--
+ (E e ctx ak)
+ (let e ll ebody)
+ (let_list ll x ebnd)
+ (peek_ctx e ctx ectx)]
+
+;; binary primitive operation expression
+[(E earg0 ctx (kaddr earg0 ctx))
+ (store (kaddr earg0 ctx) (prim1 op earg1 ctx ak))
+ (flow_ee e earg0)
+ <--
+ (E e ctx ak)
+ (prim_call e op pl)
+ (call_arg_list pl 0 earg0)
+ (call_arg_list pl 1 earg1)]
+
+;;;;;;;; Atomic evaluation
+;;;;;;;; ⟨E ... ⟩ → ⟨A ...⟩ → ⟨E ... ⟩ ...
+
+;; numbers
+[(A (number n) ak)
+ (flow_ea e (number n))
+ <--
+ (E e ctx ak)
+ (num e n)]
+
+;; booleans
+[(A (boolv b) ak)
+ (flow_ea e (boolv b))
+ <--
+ (E e ctx ak)
+ (bool e b)]
+
+;; closures
+[(A (closure e ctx) ak)
+ (flow_ea e (closure e ctx))
+ <--
+ (E e ctx ak)
+ (lambda e _ _)]
+
+;; variable ref
+[(A v ak)
+ (flow_ea e v)
+ <--
+ (E e ctx ak)
+ (var e x)
+ (store (vaddr x ctx) v)]
+
+;; A application forms
+
+;; return conditional true
+[(E et ctx_k next_ak)
+ (flow_ae (boolv 1) et)
+ <-- 
+ (or (A (boolv 1) ak) (A (closure _ _) ak)
+     (A (number _) ak) (A (kont _) ak))
+ (store ak (ifk et _ ctx_k next_ak))] ;; todo: any truthy (non-0?)
+
+;; return conditional false
+[(E et ctx_k next_ak)
+ (flow_ae (boolv 0) et)
+ <-- 
+ (A (boolv 0) ak)  ;; todo bad type (num)
+ (store ak (ifk et _ ctx_k next_ak))]
+
+;; cc calling a continuation instead of a lambda
+;; such as (call/cc (call/cc (λ (k) k)))
+[(A (kont ak) bk)
+ (flow_aa (kont bk) (kont ak))
+ <--
+ (A (kont bk) ak)
+ (store ak (callcc _ _))]
+
+;; processed fn, now to process argument.
+[(E earg ctx (kaddr earg ctx))
+ (store (kaddr earg ctx) (fn v pos ectx next_ak))
+ (flow_ae v earg)
+ <--
+ (A v ak)
+ (store ak (argk eargs ctx ectx next_ak))
+ (call_arg_list eargs pos earg)]
+
+;; processed arg, call closure
+[(E ebody ectx next_ak)
+ (store (vaddr x ectx) v)
+ (copy_ctx ctx_clo ectx elam)
+ (flow_ae v ebody)
+ (here ebody pos x v ectx)
+ <--
+ (A v ak)
+ (store ak (fn (closure elam ctx_clo) pos ectx next_ak))
+ (lambda elam params ebody)
+ (lambda_arg_list params pos x)]
+
+;; processed arg, call continuation
+[(A v callcck)
+ (flow_aa v v)
+ <--
+ (A v ak)
+ (store ak (fn (kont callcck) 0 _ _))]
+
+;; Processed Let bindings, evaluating body.
+[(E ebody ctx next_ak)
+ (store av v)
+ (flow_ae v ebody)
+ <--
+ (A v ak)
+ (store ak (letk av ebody ctx next_ak))]
+
+;; Processed arg0 of prim, now process arg1.
+[(E earg1 ctx (kaddr earg1 ctx))
+ (store (kaddr earg1 ctx) (prim2 op v next_ak))
+ (flow_ae v earg1)
+ <--
+ (A v ak)
+ (store ak (prim1 op earg1 ctx next_ak))]
+
+;; Processed prim args, return prim val.
+[(A (primval op v1 v2) next_ak)
+ (flow_aa v2 (primval op v1 v2))
+ <--
+ (A v2 ak)
+ (store ak (prim2 op v1 next_ak))]
+
+;; set! (we return a sentinel here, but it can be anything!)
+[(A (number 1) next_ak)
+ (store loc v)
+ (flow_aa v (num 1))
+ <--
+ (A v ak)
+ (store ak (setk loc next_ak))]
+;; Program is...
+;; ((λ (f)
+;;    (let ((m1102 (f 14))
+;;          (m1101 (f 13))
+;;          (m1100 (f 12))
+;;          (m1099 (f 11))
+;;          (m1098 (f 10))
+;;          (m1097 (f 9))
+;;          (m1096 (f 8))
+;;          (m1095 (f 7))
+;;          (m1094 (f 6))
+;;          (m1093 (f 5))
+;;          (m1092 (f 4))
+;;          (m1091 (f 3))
+;;          (m1090 (f 2))
+;;          (m1089 (f 1))
+;;          (m1088 (f 0))
+;;          (m1103 (f 0)))
+;;      m1103))
+;;  (λ (z) ((λ (x) (+ z (+ z (+ z (+ z z))))) (λ (x) x))))
+;; Facts are...
+(num	524280	0)
+(num	524281	0)
+(num	524282	1)
+(num	524283	2)
+(num	524284	3)
+(num	524285	4)
+(num	524286	5)
+(num	524287	6)
+(num	524288	7)
+(num	524289	8)
+(num	524290	9)
+(num	524291	10)
+(num	524292	11)
+(num	524293	12)
+(num	524294	13)
+(num	524295	14)
+(var	524296	524297)
+(var	524298	524299)
+(var	524300	524299)
+(var	524301	524299)
+(var	524302	524299)
+(var	524303	524299)
+(var	524304	524305)
+(var	524306	524307)
+(var	524308	524307)
+(var	524309	524307)
+(var	524310	524307)
+(var	524311	524307)
+(var	524312	524307)
+(var	524313	524307)
+(var	524314	524307)
+(var	524315	524307)
+(var	524316	524307)
+(var	524317	524307)
+(var	524318	524307)
+(var	524319	524307)
+(var	524320	524307)
+(var	524321	524307)
+(var	524322	524307)
+(lambda_arg_list	524323	0	524297)
+(lambda_arg_list	524324	0	524297)
+(lambda_arg_list	524325	0	524299)
+(lambda_arg_list	524326	0	524307)
+(top_exp	524327)
+(let_list	524328	524329	524330)
+(let_list	524328	524331	524332)
+(let_list	524328	524333	524334)
+(let_list	524328	524335	524336)
+(let_list	524328	524337	524338)
+(let_list	524328	524339	524340)
+(let_list	524328	524341	524342)
+(let_list	524328	524343	524344)
+(let_list	524328	524345	524346)
+(let_list	524328	524347	524348)
+(let_list	524328	524349	524350)
+(let_list	524328	524351	524352)
+(let_list	524328	524353	524354)
+(let_list	524328	524355	524356)
+(let_list	524328	524357	524358)
+(let_list	524328	524305	524359)
+(prim	524360	524361)
+(prim	524362	524361)
+(prim	524363	524361)
+(prim	524364	524361)
+(call_arg_list	524365	0	524366)
+(call_arg_list	524367	0	524368)
+(call_arg_list	524369	1	524370)
+(call_arg_list	524371	1	524372)
+(call_arg_list	524373	1	524374)
+(call_arg_list	524375	1	524298)
+(call_arg_list	524375	0	524300)
+(call_arg_list	524373	0	524301)
+(call_arg_list	524371	0	524302)
+(call_arg_list	524369	0	524303)
+(call_arg_list	524376	0	524280)
+(call_arg_list	524377	0	524281)
+(call_arg_list	524378	0	524282)
+(call_arg_list	524379	0	524283)
+(call_arg_list	524380	0	524284)
+(call_arg_list	524381	0	524285)
+(call_arg_list	524382	0	524286)
+(call_arg_list	524383	0	524287)
+(call_arg_list	524384	0	524288)
+(call_arg_list	524385	0	524289)
+(call_arg_list	524386	0	524290)
+(call_arg_list	524387	0	524291)
+(call_arg_list	524388	0	524292)
+(call_arg_list	524389	0	524293)
+(call_arg_list	524390	0	524294)
+(call_arg_list	524391	0	524295)
+(prim_call	524392	524364	524369)
+(prim_call	524370	524363	524371)
+(prim_call	524372	524362	524373)
+(prim_call	524374	524360	524375)
+(call	524327	524393	524365)
+(call	524394	524395	524367)
+(call	524359	524306	524376)
+(call	524358	524308	524377)
+(call	524356	524309	524378)
+(call	524354	524310	524379)
+(call	524352	524311	524380)
+(call	524350	524312	524381)
+(call	524348	524313	524382)
+(call	524346	524314	524383)
+(call	524344	524315	524384)
+(call	524342	524316	524385)
+(call	524340	524317	524386)
+(call	524338	524318	524387)
+(call	524336	524319	524388)
+(call	524334	524320	524389)
+(call	524332	524321	524390)
+(call	524330	524322	524391)
+(let	524396	524328	524304)
+(lambda	524366	524325	524394)
+(lambda	524368	524323	524296)
+(lambda	524395	524324	524392)
+(lambda	524393	524326	524396)
+;; Strings/symbols from the program have been interned to the following values, starting at 524280
+;; g1186 <-> 524290
+;; g1185 <-> 524386
+;; g1184 <-> 524317
+;; g1183 <-> 524340
+;; g1190 <-> 524289
+;; g1189 <-> 524385
+;; g1188 <-> 524316
+;; m1097 <-> 524339
+;; g1187 <-> 524342
+;; g1178 <-> 524292
+;; g1177 <-> 524388
+;; g1176 <-> 524319
+;; m1102 <-> 524329
+;; g1175 <-> 524336
+;; g1182 <-> 524291
+;; g1181 <-> 524387
+;; g1180 <-> 524318
+;; g1179 <-> 524338
+;; g1202 <-> 524286
+;; g1201 <-> 524382
+;; g1200 <-> 524313
+;; g1199 <-> 524348
+;; + <-> 524361
+;; g1206 <-> 524285
+;; g1205 <-> 524381
+;; m1088 <-> 524357
+;; z <-> 524299
+;; g1204 <-> 524312
+;; g1203 <-> 524350
+;; g1194 <-> 524288
+;; g1193 <-> 524384
+;; g1192 <-> 524315
+;; g1191 <-> 524344
+;; g1198 <-> 524287
+;; g1197 <-> 524383
+;; m1098 <-> 524337
+;; g1196 <-> 524314
+;; g1195 <-> 524346
+;; m1103 <-> 524305
+;; g1218 <-> 524282
+;; m1100 <-> 524333
+;; g1217 <-> 524378
+;; g1216 <-> 524309
+;; g1215 <-> 524356
+;; g1222 <-> 524281
+;; g1221 <-> 524377
+;; g1220 <-> 524308
+;; g1219 <-> 524358
+;; g1210 <-> 524284
+;; g1209 <-> 524380
+;; f <-> 524307
+;; m1089 <-> 524355
+;; g1208 <-> 524311
+;; g1207 <-> 524352
+;; g1214 <-> 524283
+;; m1095 <-> 524343
+;; g1213 <-> 524379
+;; g1212 <-> 524310
+;; g1211 <-> 524354
+;; g1234 <-> 524324
+;; g1233 <-> 524392
+;; g1232 <-> 524395
+;; g1231 <-> 524325
+;; g1238 <-> 524370
+;; m1090 <-> 524353
+;; g1237 <-> 524303
+;; m1101 <-> 524331
+;; g1236 <-> 524369
+;; g1235 <-> 524364
+;; g1226 <-> 524280
+;; g1225 <-> 524376
+;; g1224 <-> 524306
+;; g1223 <-> 524359
+;; m1096 <-> 524341
+;; g1230 <-> 524394
+;; g1229 <-> 524366
+;; g1228 <-> 524365
+;; g1227 <-> 524304
+;; x <-> 524297
+;; g1250 <-> 524298
+;; g1249 <-> 524300
+;; g1248 <-> 524375
+;; g1247 <-> 524360
+;; g1254 <-> 524323
+;; g1253 <-> 524296
+;; g1252 <-> 524368
+;; g1251 <-> 524367
+;; g1242 <-> 524372
+;; g1241 <-> 524302
+;; g1240 <-> 524371
+;; g1239 <-> 524363
+;; g1246 <-> 524374
+;; g1245 <-> 524301
+;; g1244 <-> 524373
+;; g1243 <-> 524362
+;; m1092 <-> 524349
+;; m1091 <-> 524351
+;; m1094 <-> 524345
+;; g1158 <-> 524327
+;; g1170 <-> 524294
+;; m1099 <-> 524335
+;; g1169 <-> 524390
+;; m1093 <-> 524347
+;; g1168 <-> 524321
+;; g1167 <-> 524332
+;; g1174 <-> 524293
+;; g1173 <-> 524389
+;; g1172 <-> 524320
+;; g1171 <-> 524334
+;; g1162 <-> 524328
+;; g1161 <-> 524326
+;; g1160 <-> 524396
+;; g1159 <-> 524393
+;; g1166 <-> 524295
+;; g1165 <-> 524391
+;; g1164 <-> 524322
+;; g1163 <-> 524330

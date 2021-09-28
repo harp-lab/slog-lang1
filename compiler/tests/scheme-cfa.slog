@@ -1,0 +1,107 @@
+
+
+;;; Example: Omega
+
+(entry-point 
+ (app (lambda (arg "x") (app (ref "x") (ref "x")))
+      (lambda (arg "y") (app (ref "y") (ref "y")))))
+
+
+;;; Program injection
+
+((ev-state e (call-ctx e (call-ctx e (empty-ctx))) (halt))
+ <--
+ (entry-point e))
+
+
+;;; Application
+
+(step ?(ev-state (app f args ...) ctx kont)
+      (ev-state f ctx () (appk (vals) (exprs args ...) ctx kont)))
+
+(step (ap-state () )
+      )
+
+; control flow and arguments
+[(step state0 (ev-state body ctx1 (kaddr body ctx1)))
+ (kstore (kaddr body ctx1) kont)
+ (store x ctx1 arval)
+ <--
+ (= state0 (evstate (app f ar) ctx0 kont))
+ (step-context state0 cloctx ctx1)
+ (returns f ctx0 (closure (lambda (arg x) body)
+                          cloctx))
+ (returns ar ctx0 arval)]
+
+; propagate environment / free vars
+[(store fr ctx1 frval)
+ <--
+ (eval-step (state (app f ar) ctx0 kont)
+            (state body ctx1 (kaddr body ctx1)))
+ (returns f ctx0 (closure (lambda (arg x) body)
+                          cloctx))
+ (store fr cloctx frval)
+ (free fr (lambda (arg x) body))]
+
+;;; Return to continuation
+[()
+ <--
+ (state e ctx kont) 
+ (returns e ctx val)]
+
+;;; Conditionals
+(eval-step ?(state (if guard then else) ctx kont)
+           (state guard ctx (ifk then else kont)))
+
+;;; Atomic evaluation
+
+; closures
+[(returns (lambda (arg x) body) ctx (closure (lambda (arg x) body) ctx))
+ <--
+ (state (lambda (arg x) body) ctx _)]
+
+; variable references
+[(returns (ref x) ctx val)
+ <--
+ (store x ctx val)
+ (state (ref x) ctx _)]
+
+; boolean literals
+[(returns (true) ctx (true))
+ <--
+ (state (true) ctx _)]
+
+[(returns (false) ctx (true))
+ <--
+ (state (false) ctx _)]
+
+; integer literals
+[(returns (int i) ctx (int i))
+ <--
+ (state (int i) ctx _)]
+
+
+;;; Polyvariance (2-call-sensitivity)
+
+[(step-context ?(state call (call-ctx call0 _) kont)
+               cloctx
+               (call-ctx call (call-ctx call0 (empty-ctx))))
+ <--
+ (closure _ cloctx)]
+
+
+;;; Rules for free vars
+
+(free x ?(ref x))
+
+[(free x ?(app e0 e1))
+ <--
+ (or (free x e0)
+     (free x e1))]
+
+[(free x ?(lambda (arg a) e0))
+ <--
+ (=/= x a)
+ (free x e0)]
+
+

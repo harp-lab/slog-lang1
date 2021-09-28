@@ -1,0 +1,10 @@
+(list 1 (list 1 (list 1 (list 1 (null)))))
+
+(append (null) (null) (null))
+(append (null) ?(list a b) ?(list a b))
+
+[(append ?(list a b) c ?(list a d))
+ <--
+ (append b c d)]
+
+

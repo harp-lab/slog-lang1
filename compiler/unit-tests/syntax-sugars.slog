@@ -1,0 +1,113 @@
+[(length-input [x xs ...])
+ (length !(length-input xs) l)
+ --
+ (add1 l l+1)
+ -->
+ (length (length-input [x xs ...]) l+1)]
+
+(length ?(length-input []) 0)
+
+;----------------------------
+[(= 1 1)
+ -->
+ (a-foo [1 2 3 4 5 6])]
+
+[(= inp (a-bigger-input [x _ ...] [y _ ...]))
+ (> x y)
+ -->
+ (a-bigger inp)]
+
+[
+ [(a-foo [1 two-three ... 4 five six])
+  -->
+  (a-bar [two-three ... five])]
+ (a-bigger !(a-bigger-input [five six] two-three))
+ (length !(length-input two-three) two-three-len)
+ -->
+ (a-quax two-three six)
+ (a-two-three-len two-three-len) 
+]
+
+;----------------------------
+(b-foo 100)
+(b-foo 101)
+(b-baz 100)
+[[(= quax-id (b-quax x)) <-- (b-baz x) -- (b-bar (b-foo x)) <-- (b-foo x)]
+ -->
+ (b-blah quax-id)]
+
+;----------------------------
+(c-foo 10)
+(c-foo 11)
+(c-bar [10 10 20 21 22]) 
+(c-bar [10 11 12 13 14])
+[
+ (c-quax xs xs-len)
+ <--
+ (length !(length-input xs) xs-len)
+ [(c-foo x) --> (c-baz x ?(c-bar [x x xs ...]))]
+]
+
+;----------------------------
+(d1 [1 2])
+(d1 [20 21])
+(d2 100 "d/c")
+[[(or (d1 [x _ ...]) (d2 x _)) (> x 10) --> (d3 x)]
+ (=/= x 100)
+ -->
+ (d4 x)]
+
+;E---------------------------
+(e-foo 2)
+(e-foo 3)
+(e-bar 1)
+(e-bar 2)
+[(> x 1)
+ --
+ (< x 3)
+ --
+ (e-bar x)
+ -->
+ (e-baz ?(e-foo x))]
+
+;F---------------------------
+(f-quax 2)
+(f-quax 3)
+
+(f-bar 1)
+(f-baz 10)
+(f-foo "bar")
+(f-foo "baz")
+
+[(= quaxid (f-quax qv))
+ (or (= qv 1) (= qv 2))
+ (f-foo f)
+ (or (and (f-bar x) (= f "bar"))
+     (and (f-baz x) (= f "baz")))
+ -->
+ (f-res quaxid x f)]
+
+
+;G---------------------------
+(g-foo 10)
+(g-foo 9)
+
+(g-foo 1)
+(g-bar1 1)
+(g-bar1 110)
+
+(g-foo 2)
+(g-bar2 2)
+(g-bar2 220)
+
+(g-foo 3)
+(g-bar3 3)
+(g-foo 5)
+(g-bar3 5)
+
+
+(g-foobar 11)
+[(or (and (g-foo x) (or (g-bar1 x) (g-bar2 x) (and (g-bar3 x) (/= x 5))))
+     (g-foobar x))
+ -->
+ (g-res x)]

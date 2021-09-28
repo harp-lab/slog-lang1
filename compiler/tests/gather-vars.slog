@@ -1,0 +1,13 @@
+; An example:
+(lambda (args "x")
+  (app (lambda (args "y") (var-ref "w"))
+       (lambda (args "w") (app (var-ref "z")
+                               (var-ref "w")))))
+
+
+; Rules for finding all vars
+((var x)
+ <--
+ (or (lambda (args x) _)
+     (var-ref x)))
+

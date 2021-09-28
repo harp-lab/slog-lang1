@@ -1,0 +1,25 @@
+
+
+[(Yyyyyyyyyyyyyy body)
+ <--
+ (app f ar)
+ (returns f ctx0
+          (closure (lambda (arg x) body)
+                   cloctx))]
+
+(step-context
+  (state
+   (app
+    (lambda (arg "x") (app (ref "x") (ref "x")))
+    (lambda (arg "y") (app (ref "y") (ref "y"))))
+   (empty-hist)
+   (halt))
+  (empty-hist)
+  (empty-hist))
+
+(returns
+  (lambda (arg "x") (app (ref "x") (ref "x")))
+  (empty-hist)
+  (closure (lambda (arg "x") (app (ref "x") (ref "x"))) (empty-hist)))
+
+

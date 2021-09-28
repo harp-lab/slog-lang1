@@ -1,0 +1,12 @@
+compiled
+*.pdf
+*.out
+*.log
+*.aux
+*#*
+*~
+output
+output-facts
+initial-facts
+.vscode
+local/

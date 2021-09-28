@@ -1,0 +1,123 @@
+(foo [1 2 3 4])
+(foo-ends ?(foo [l x ... r]) l r)
+
+
+[(foo [x1 x2-3 ... x4])
+ (nah !(x4-x2-3-x1 [x4 x2-3 ... x1]))
+ -->
+ (bar [[x4 x2-3 ... x1] x2-3 ... x1] (baz [x2-3 ... x4]))]
+
+;USEFUL----------------------
+[(invert-input [x xs ...])
+ (invert !(invert-input xs) xs-inverted)
+ -->
+ (invert (invert-input [x xs ...]) [xs-inverted ... x])]
+
+(invert ?(invert-input []) [])
+;----------------------------
+[(invert !(invert-input [1 2 3]) x)
+ -->
+ (three-to-one x)]
+
+;USEFUL----------------------
+[(flatten-input [x xs ...])
+ (flatten !(flatten-input xs) xs-flattened)
+ -->
+ (flatten (flatten-input [x xs ...]) [x ... xs-flattened ...])]
+
+(flatten ?(flatten-input []) [])
+
+;----------------------------
+[(flatten !(flatten-input [[1 2] [] [3] []]) f)
+ -->
+ (one-to-three f)]
+
+;USEFUL----------------------
+[(list-range-input lb ub)
+ (>= lb ub)
+ -->
+ (list-range (list-range-input lb ub) [])]
+
+[(list-range-input lb ub)
+ (< lb ub)
+ (add1 lb lb+1)
+ (list-range !(list-range-input lb+1 ub) lst)
+ -->
+ (list-range (list-range-input lb ub) [lb lst ...])]
+
+;----------------------------
+[(list-range !(list-range-input 1 5) [one xs ... four])
+ -->
+ (blue [(One one) xs ... (Four four) (Wrapped [0 one xs ... 4 5])])]
+
+;----------------------------
+[(magic n)
+ (list-range !(list-range-input 0 n) lst)
+ -->
+ (green [(magic n) lst ...])]
+
+[(green [!(magic 5) x0 x1 xs ... x3 x4])
+ -->
+ (green-after-magic [xs ... 20 xs ... 30 xs ... xs ...])]
+
+;----------------------------
+[(list-range !(list-range-input 1 2) l1)
+ (list-range !(list-range-input 11 13) l2)
+ --
+ (flatten !(flatten-input [l1 l2]) flattened)
+ --
+ (= flattened [1 11 12])
+ -->
+ (thumbs-up)]
+
+;J---------------------------
+(j-foo [1 2])
+[(j-foo xs)
+ -->
+ (j-bar bazid quaxid)
+ (= quaxid (j-quax [10 xs ...]))
+ (= bazid (j-baz [xs ... 42 [xs ...]]))]
+
+; ;K---------------------------
+; (k-foo [1 2 3])
+; (k-foo 1)
+; (k-foo "hello")
+; [(k-foo xs)
+;  -->
+;  (k-bar [xs ...])]
+
+;L---------------------------
+(l-foo [1 2])
+[(l-foo xs)
+ (= y 42)
+ -->
+ (= Aid (l-A y))
+ (= Bid (l-B [xs ... Aid]))
+ (= Cid (l-C [xs ... Bid]))
+ (= Did (l-D Cid))]
+
+;M---------------------------
+(m-foo [1 10 11 42 13 42 [10 11 42 13] 2])
+(m-foo [1 10 11 42 13 42 [10 11] 2])
+[(m-foo [a x1s ... 42 x2s ... [x1s ...] b]) --> (m-bar x2s)]
+
+;N---------------------------
+(n-foo [1 2 10 11 12 10 11 12 100 101 102 100 101 102])
+[(n-foo [a b x1s ... [x1s ... x2s ...]... x2s ... ])
+ --> (n-bar x1s x2s)]
+
+;O---------------------------
+(o-foo [1 2 100 4 100 6 ])
+[(o-foo [xs ... 100 ys ...]) --> (o-bar xs ys)]
+
+;P---------------------------
+(p-foo [1 2 [10 11 10]])
+(p-foo [1 2 3])
+
+[(= fooid (p-foo [x1s ... a1 x2s ... [b1 y1s ... b2 y2s ...]]))
+ (= fooid2 (p-foo [X1S ... 3 X2S ... ]))
+ (=/= fooid fooid2)
+ (=/= b1 b2)
+ (< a1 2)
+ -->
+ (p-bar a1 b1 b2)]

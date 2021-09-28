@@ -1,0 +1,38 @@
+(a-bar _)
+{(a-bar ($lst 2 ($lst 3 ($lst 5 ($nil)))))}
+
+(a-bigger-input _ _)
+{(a-bigger-input
+ ($lst 5 ($lst 6 ($nil)))
+ ($lst 2 ($lst 3 ($nil))))}
+
+(a-quax _ _)
+{(a-quax ($lst 2 ($lst 3 ($nil))) 6)}
+
+(a-two-three-len _)
+{(a-two-three-len 2)}
+
+(b-blah _)
+{(b-blah (b-quax 100))}
+
+(c-quax _ _)
+{(c-quax ($lst 20 ($lst 21 ($lst 22 ($nil)))) 3)}
+
+(d3 _)
+{(d3 20) (d3 100)}
+
+(d4 _)
+{(d4 20)}
+
+(e-baz _)
+{(e-baz (e-foo 2))}
+
+(f-res _ _ _)
+{(f-res (f-quax 2) 1 "bar")
+ (f-res (f-quax 2) 10 "baz")}
+
+(g-res _)
+{(g-res 1)
+ (g-res 2)
+ (g-res 3)
+ (g-res 11)}

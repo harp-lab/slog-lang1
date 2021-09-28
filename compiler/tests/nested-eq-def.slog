@@ -1,0 +1,15 @@
+
+(baz (baz (bar 5)))
+
+
+[(foo bz ?(= br (bar 5)))
+ <--
+ (baz (= bz (baz br)))]
+
+;;; desugared:
+;; [(foo bz br)
+;;  <--
+;;  (= br (bar 5))
+;;  (= bz (baz br))
+;;  (baz bz)]
+

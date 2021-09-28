@@ -1,0 +1,62 @@
+(foo-ends _ _ _)
+{(foo-ends (foo ($lst 1 ($lst 2 ($lst 3 ($lst 4 ($nil))))))
+           1 4)}
+
+(x4-x2-3-x1 _)
+{(x4-x2-3-x1 ($lst 4 ($lst 2 ($lst 3 ($lst 1 ($nil))))))}
+
+(three-to-one _)
+{(three-to-one ($lst 3 ($lst 2 ($lst 1 ($nil)))))}
+
+(one-to-three _)
+{(one-to-three ($lst 1 ($lst 2 ($lst 3 ($nil)))))}
+
+(blue _)
+{(blue
+ ($lst (One 1) ($lst 2 ($lst 3 ($lst (Four 4) ($lst 
+    (Wrapped ($lst 0 ($lst 1 ($lst 2 ($lst 3 ($lst 4 ($lst 5 ($nil)))))))) ($nil)))))))}
+
+(green-after-magic _)
+{(green-after-magic
+ ($lst 2 ($lst 20 ($lst 2 ($lst 30 ($lst 2 ($lst 2 ($nil))))))))}
+
+(thumbs-up)
+{(thumbs-up)}
+
+(j-bar _ _)
+{(j-bar
+ (j-baz ($lst 1 ($lst 2 ($lst 42
+         ($lst ($lst 1 ($lst 2 ($nil))) ($nil))))))
+ (j-quax ($lst 10 ($lst 1 ($lst 2 ($nil))))))}
+
+;(k-bar _)
+;{(k-bar
+;  ($lst 1 ($lst 2 ($lst 3 ($nil)))))}
+
+(l-D _)
+{(l-D
+  (l-C ($lst 1 ($lst 2
+        ($lst (l-B ($lst 1 ($lst 2 ($lst (l-A 42) ($nil)))))
+         ($nil))))))}
+
+(m-bar _)
+{(m-bar ($lst 13 ($lst 42 ($nil))))
+ (m-bar ($nil))}
+
+(n-bar _ _)
+{(n-bar
+  ($lst 10 ($lst 11 ($lst 12 ($nil))))
+  ($lst 100 ($lst 101 ($lst 102 ($nil)))))}
+
+(o-bar _ _)
+{(o-bar
+ ($lst 1 ($lst 2 ($nil)))
+ ($lst 4 ($lst 100 ($lst 6 ($nil)))))
+(o-bar
+ ($lst
+  1
+  ($lst 2 ($lst 100 ($lst 4 ($nil)))))
+ ($lst 6 ($nil)))}
+
+(p-bar _ _ _)
+{(p-bar 1 10 11)}

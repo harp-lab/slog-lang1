@@ -1,0 +1,78 @@
+;; input code
+(source 0 (mov "res" 1))
+(source 1 (mov "counter" 5))
+(source 2 (brz "counter" 6))
+(source 3 (mul "res" "res" "counter"))
+(source 4 (add "counter" "counter" -1))
+(source 5 (br 2))
+
+;; program-counter at time 0 is 0
+(pc 0 0)
+
+
+;; transition rules
+[(source pc (mov target target-val))
+ (pc time pc)
+ (store time var val)
+ (=/= target var)
+ -->
+ (pc (+ 1 time) (+ 1 pc))
+ (store (+ 1 time) target target-val)
+ (store (+ 1 time) var val)
+]
+
+
+[(source pc (mul target op1 op2))
+ (pc time pc)
+ (store time op1 op1-val)
+ (store time op2 op2-val)
+ (store time var val)
+ (=/= target var)
+ -->
+ (pc (+ 1 time) (+ 1 pc))
+ (store (+ 1 time) target (* op1-val op2-val))
+ (store (+ 1 time) var val)
+]
+
+
+[(source pc (add target op1 op2))
+ (pc time pc)
+ (store time op1 op1-val)
+ (store time op2 op2-val)
+ (store time var val)
+ (=/= target var)
+ -->
+ (pc (+ 1 time) (+ 1 pc))
+ (store (+ 1 time) target (+ op1-val op2-val))
+ (store (+ 1 time) var val)
+]
+
+[(source pc (br new-pc))
+ (pc time pc)
+ (store time var val)
+ -->
+ (pc (+ 1 time) new-pc)
+ (store (+ 1 time) var val)
+]
+
+
+;; branch taken
+[(source pc (brz br-var new-pc))
+ (pc time pc)
+ (store time br-var 0)
+ (store time var val)
+ -->
+ (pc (+ 1 time) new-pc)
+ (store (+ 1 time) var val)
+]
+
+;;branch not taken
+[(source pc (brz br-var new-pc))
+ (pc time pc)
+ (store time br-var x)
+ (=/= x 0)
+ (store time var val)
+ -->
+ (pc (+ 1 time) (+ 1 pc))
+ (store (+ 1 time) var val)
+]

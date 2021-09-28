@@ -1,0 +1,43 @@
+(a-Hello-ello)
+{(a-Hello-ello)}
+
+(a-Racket-et)
+{(a-Racket-et)}
+
+(a-One-none)
+{}
+
+(b-foo-number _)
+{(b-foo-number 1)}
+
+(b-foo-not-number _)
+{(b-foo-not-number "hey")
+ (b-foo-not-number (some 2))}
+
+(b-foo-string _)
+{(b-foo-string "hey")}
+
+(b-foo-not-string _)
+{(b-foo-not-string 1)
+ (b-foo-not-string (some 2))}
+
+(c-bar _)
+{(c-bar "a, b, c")
+ (c-bar "a, c, b")
+ (c-bar "b, a, c")
+ (c-bar "b, c, a")
+ (c-bar "c, a, b")
+ (c-bar "c, b, a")}
+
+(d-bar _)
+{(d-bar "racket sucks")}
+
+(e-foo _ _ _)
+{(e-foo 2 16 65536)
+ (e-foo 10 3 1000)}
+
+(f-bar)
+{{f-bar}}
+
+(f-baz)
+{}

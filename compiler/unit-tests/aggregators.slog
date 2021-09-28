@@ -1,0 +1,89 @@
+;; A ------------------------------------------------------
+
+(a-edge 1 2)
+(a-edge 1 4)
+(a-edge 2 3)
+(a-edge 2 4)
+(a-edge 2 5)
+(a-edge 2 6)
+(a-edge 3 3)
+(a-edge 3 4)
+(a-edge 5 3)
+
+[(a-edge x y) --> (a-node x)]
+[(a-node x) (count-by a-edge x count) --> (a-node-degree x count)]
+
+;; B ------------------------------------------------------
+
+(b-foo 1)
+(b-foo 2)
+(b-foo 3)
+
+(b-bar 1)
+(b-fez 3)
+
+[(b-fez x) --> (b-bar x)]
+
+[(b-foo x)
+ (~ b-bar x)
+ -->
+ (b-foo-not-bar x)]
+
+(b-bar-sum {sum b-bar})
+
+;; C ------------------------------------------------------
+
+(c-foo "a" 1)
+(c-foo "b" 2)
+(c-foo "a" 10)
+(c-foo "b" 20)
+(c-foo "a" 100)
+(c-foo "b" 200)
+(c-foo "a" 1000)
+(c-foo "b" 2000)
+
+(c-max-foo "a" {maximum c-foo "a"})
+(c-max-foo "b" {maximum c-foo "b"})
+
+(c-min-foo "a" {minimum c-foo "a"})
+(c-min-foo "b" {minimum c-foo "b"})
+(c-min-foo "c" {minimum c-foo "c"})
+
+;; D ------------------------------------------------------
+
+(d-foo 1 2 3 4 5 6 7 8 9 10)
+(d-bar 0)
+(d-bar 1)
+[(d-bar a0)
+ (+ a1 1 a2)
+ (+ a2 1 a3)
+ (+ a3 1 a4)
+ (+ a4 1 a5)
+ (+ a5 1 a6)
+ (+ a6 1 a7)
+ (+ a7 1 a8)
+ (+ a8 1 a9)
+ (+ a9 1 a10)
+ (+ a0 1 a1)
+ (~ d-foo a1 a2 a3 a4 a5 a6 a7 a8 a9 a10)
+ -->
+ (d-res a0)]
+
+;; E ------------------------------------------------------
+
+[(~ e-foo _ x 100)
+ (e-bar x)
+ -->
+ (e-res x)]
+
+[(~ e-foo x _ _)
+ (e-bar x)
+ -->
+ (e-res2 x)]
+
+(e-foo 1 2 100)
+(e-foo 1 3 100)
+
+(e-bar 1)
+(e-bar 2)
+(e-bar 3)

@@ -1,0 +1,47 @@
+; a program;
+; (program
+;  (app (lam 0 1 (app (ref 0) (ref 0) (ref 0)))
+;       (lam 0 1 (app (ref 0) (ref 0) (ref 0)))
+;       (lam 0 1 (app (ref 0) (ref 0) (ref 0)))))
+
+(program
+ (app (lam "x" "y" (app (ref "x") (ref "x") (ref "y")))
+      (lam "x" "y" (app (ref "y") (ref "x") (ref "y")))
+      (lam "x" "y" (app (ref "x") (ref "y") (ref "x")))))
+
+; run the program:
+[(control e (time e e)) <--
+ (program e)]
+
+; with an app step,
+[(= t (time ap e0))
+ (store p0 t av0)
+ (store p1 t av1)
+ (step st
+       (control body t)
+       cl) <--
+ (= st (control ap t0))
+ (= ap (app ae-f ae-a0 ae-a1))
+ (= t0 (time e0 e1))
+ (= cl (clo (lam p0 p1 body) _)) 
+ (ae-eval ae-f t0 cl)
+ (ae-eval ae-a0 t0 av0)
+ (ae-eval ae-a1 t0 av1)]
+
+; and eval of lambdas,
+(ae-eval ?(lam p0 p1 body) ?(time e0 e1)
+         (clo (lam p0 p1 body)
+              (time e0 e1)))
+
+; and eval of local parameter x at t,
+[(ae-eval ?(ref x) t clo) <-- (store x t clo)]
+
+; otherise, propagate free variables
+[(ae-eval (ref x) t clo) <--
+ (ae-eval (ref x) tlam clo)
+ (step (control ecall _)
+       (control ebody t)
+       (clo (lam p0 p1 ebody) tlam))
+ (=/= p0 x)
+ (=/= p1 x)]
+

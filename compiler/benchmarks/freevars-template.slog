@@ -1,0 +1,8 @@
+[(Free x id) <-- (VarRef id x)]
+
+[(Free x id) <-- (App id e0 _) (Free x e0)]
+[(Free x id) <-- (App id _ e1) (Free x e1)]
+
+[(Free x id) <-- (Lambda id y e0) (Free x e0) (=/= x y)]
+
+;; Facts

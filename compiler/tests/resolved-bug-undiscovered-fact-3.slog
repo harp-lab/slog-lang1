@@ -1,0 +1,7 @@
+
+(myless 0 1) (myless 1 2) (myless 2 3) (myless 3 4) (myless 4 5) (myless 5 6) (myless 6 7) (myless 7 8) (myless 8 9) (myless 9 10)
+
+[(num x) 
+ (num y)
+ <--
+ (myless x y)]

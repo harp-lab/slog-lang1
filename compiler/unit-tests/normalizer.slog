@@ -1,0 +1,93 @@
+(cnf-input
+ (s-or
+  (s-and  
+   (s-not (s-or (s-or (s-and (s-atom "a") (s-or (s-atom "b") (s-atom "c")))
+                      (s-and (s-atom "d") (s-atom "e")))
+                (s-atom "f")))
+   (s-or (s-atom "g")
+         (s-and (s-atom "h") (s-atom "i"))))
+  (s-and (s-atom "j") (s-atom "k"))))
+
+
+;; input: (!(((a & (b | c)) | (d & e)) | f) & (g | (h & i))) | (j & k)
+;; expected output: (~a | ~b | j) & (~a | ~b | k) & (~a | ~c | j) & (~a | ~c | k) & (~d | ~e | j) & (~d | ~e | k) & (~f | j) & (~f | k) & (g | h | j) & (g | h | k) & (g | i | j) & (g | i | k)
+;; (from http://formal.cs.utah.edu:8080/pbl/PBL.php)
+
+[(cnf-input x) (cnf x y) --> (cnf-output x y)]
+
+;; cnf rules
+(cnf ?(s-atom x) (s-atom x))
+(cnf ?(s-not (s-atom x)) (s-not (s-atom x))) 
+
+[(s-and a b)
+ (cnf a a-norm)
+ (cnf b b-norm)
+ -->
+ (cnf (s-and a b) (s-and a-norm b-norm))]
+
+[(s-or a b)
+ (cnf a a-norm)
+ (cnf b b-norm)
+ (or (cnf a (s-or _ _)) (cnf a (s-atom _)) (cnf a (s-not _)))
+ (or (cnf b (s-or _ _)) (cnf b (s-atom _)) (cnf b (s-not _)))
+ -->
+ (cnf (s-or a b) (s-or a-norm b-norm))]
+
+[(s-or a b)
+ (cnf a a-norm)
+ (or (cnf a (s-or _ _)) (cnf a (s-atom _)) (cnf a (s-not _)))
+ (cnf b b-norm)
+ (= b-norm (s-and b1 b2))
+ (cnf !(s-or a-norm b1) a-or-b1-norm)
+ (cnf !(s-or a-norm b2) a-or-b2-norm)
+ -->
+ (cnf (s-or a b) (s-and a-or-b1-norm a-or-b2-norm))]
+
+[(s-or a b)
+ (cnf a a-norm)
+ (= a-norm (s-and a1 a2))
+ (cnf b b-norm)
+ (cnf !(s-or a1 b-norm) a1-or-b-norm)
+ (cnf !(s-or a2 b-norm) a2-or-b-norm)
+ -->
+ (cnf (s-or a b) (s-and a1-or-b-norm a2-or-b-norm))]
+
+
+;; negation-related rules
+[(s-not a)
+ (push-neg (s-not a) not-a-neg-pushed)
+ (cnf not-a-neg-pushed not-a-norm)
+ -->
+ (cnf (s-not a) not-a-norm)]
+
+[(s-not (s-not a))
+ (push-neg a a-np)
+ -->
+ (push-neg (s-not (s-not a)) a-np)]
+
+[(s-not (s-and a b))
+ (push-neg !(s-not a) not-a-np)
+ (push-neg !(s-not b) not-b-np)
+ -->
+ (push-neg (s-not (s-and a b)) (s-or not-a-np not-b-np))]
+
+[(s-not (s-or a b))
+ (push-neg !(s-not a) not-a-np)
+ (push-neg !(s-not b) not-b-np)
+ -->
+ (push-neg (s-not (s-or a b)) (s-and not-a-np not-b-np))]
+
+(push-neg ?(s-not (s-atom x)) (s-not (s-atom x)))
+(push-neg ?(s-atom x) (s-atom x))
+
+[(s-and a b)
+ (push-neg a a-np)
+ (push-neg b b-np)
+ -->
+ (push-neg (s-and a b) (s-and a-np b-np))]
+
+[(s-or a b)
+ (push-neg a a-np)
+ (push-neg b b-np)
+ -->
+ (push-neg (s-or a b) (s-or a-np b-np))]

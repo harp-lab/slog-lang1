@@ -1,0 +1,26 @@
+;; reference: https://matt.might.net/articles/implementation-of-kcfa-and-0cfa/
+
+; 1. For each lambda term (lambda (v) e):
+;    (lambda (v) e) flows to (lambda (v) e).
+
+[(lam v e)
+ -->
+ (flows-to (lam v e) (lam v e))]
+
+; 2. For each application (f e), if the value (lambda (v) e') flows to the function f and the value value flows to the argument e, then
+;    value flows to v.
+
+[(app f e)
+ (flows-to (lam v e') f)
+ (flows-to value e)
+ -->
+ (flows-to value v)]
+
+; 3. For each application (f e), if the value (lambda (v) e') flows to the function f and the value value flows to body e', then
+;    value flows to (f e).
+
+[(app f e)
+ (flows-to (lam v e') f)
+ (flows-to value e')
+ -->
+ (flows-to value (app f e))]

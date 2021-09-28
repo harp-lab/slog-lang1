@@ -1,0 +1,8 @@
+(a-res _)
+{(a-res 2)}
+
+(b-res _)
+{(b-res 1)}
+
+(c-res _)
+{(c-res 1)}

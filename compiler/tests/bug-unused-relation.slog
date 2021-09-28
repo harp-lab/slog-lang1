@@ -1,0 +1,2 @@
+(squat 42) 
+[(foo x) --> (bar x)]

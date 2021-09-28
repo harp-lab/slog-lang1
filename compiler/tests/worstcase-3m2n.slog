@@ -1,0 +1,138 @@
+
+(program
+ (let "f0" (lam "x0"
+                (let "f1" (lam "x1"
+                              (let "f2" (lam "x2"
+                                            (app (app (app (lam "a0"
+                                                                (lam "a1"
+                                                                     (lam "a2"
+                                                                          (const 2))))
+                                                           (ref "x0"))
+                                                      (ref "x1"))
+                                                 (ref "x2"))) 
+                                   (seq (app (ref "f2") (const 0))
+                                        (app (ref "f2") (const 1))))) 
+                     (seq (app (ref "f1") (const 0))
+                          (app (ref "f1") (const 1))))) 
+      (seq (app (ref "f0") (const 0))
+           (app (ref "f0") (const 1)))))
+
+[(reachable e e e)
+ <--
+ (program e)]
+
+;; Application
+[(reachable bdy app0 t0)
+ (app-step app0 t0 t1 bdy app0 t0)
+ (ret-to-var ae t0 t1 x app0 t0)
+ (free-var-prop lam0 lam_t0 lam_t1 app0 t0)
+ (ret-to-ret bdy app0 t0 app0 t0 t1)
+ <--
+ (= lam0 (lam x bdy))
+ --
+ (producer lam0 lam_t0 lam_t1)
+ --
+ (t-ret-to-ret lam0 lam_t0 lam_t1 fe t0 t1)
+ --
+ (reachable app0 t0 t1)
+ (= app0 (app fe ae))]
+
+[(var-to-var y lam_t0 lam_t1 y t0 t1)
+ <--
+ (free-var-prop (lam x bdy) lam_t0 lam_t1 t0 t1)
+ (free y (lam x bdy))]
+
+;; Local Steps and Reachability
+[(reachable fe t0 t1)
+ (reachable ae t0 t1)
+ <--
+ (reachable (app fe ae) t0 t1)]
+
+[(reachable e0 t0 t1)
+ (reachable e1 t0 t1)
+ <--
+ (reachable (seq e0 e1) t0 t1)]
+
+[(reachable rhs t0 t1)
+ (reachable bdy t0 t1)
+ (ret-to-var rhs t0 t1 x t0 t1)
+ <--
+ (reachable (let x rhs bdy) t0 t1)]
+
+;; Producers
+[(ret-to-ret e t0 t1 e t0 t1)
+ <--
+ (producer e t0 t1)]
+
+[(producer (lam x bdy) t0 t1)
+ <--
+ (reachable (lam x bdy) t0 t1)]
+
+[(producer (const n) t0 t1)
+ <--
+ (reachable (const n) t0 t1)]
+
+[(var-to-ret x t0 t1 (ref x) t0 t1)
+ <--
+ (reachable (ref x) t0 t1)]
+
+;; Transitive flows
+[(t-ret-to-ret e e_t0 e_t1 v1 v1_t0 v1_t1)
+ <--
+ (ret-to-ret e e_t0 e_t1 v1 v1_t0 v1_t1)
+ (producer e e_t0 e_t1)]
+
+[(t-ret-to-ret e e_t0 e_t1 e0 e0_t0 e0_t1)
+ <--
+ (ret-to-ret e1 e1_t0 e1_t1 e0 e0_t0 e0_t1)
+ (t-ret-to-ret e e_t0 e_t1 e1 e1_t0 e1_t1)]
+
+[(t-ret-to-ret e e_t0 e_t1 e0 e0_t0 e0_t1)
+ <--
+ (var-to-ret v v_t0 v_t1 e0 e0_t0 e0_t1)
+ (t-ret-to-var e e_t0 e_t1 v v_t0 v_t1)]
+
+[(t-ret-to-var e e_t0 e_t1 v v_t0 v_t1)
+ <--
+ (ret-to-var e e_t0 e_t1 v v_t0 v_t1)
+ (producer e e_t0 e_t1)]
+
+[(t-ret-to-var e e_t0 e_t1 v v_t0 v_t1)
+ <--
+ (var-to-var v1 v1_t0 v1_t1 v v_t0 v_t1)
+ (t-ret-to-var e e_t0 e_t1 v1 v1_t0 v1_t1)]
+
+[(t-ret-to-var e e_t0 e_t1 v v_t0 v_t1)
+ <--
+ (ret-to-var e0 e0_t0 e0_t1 v v_t0 v_t1)
+ (t-ret-to-ret e e_t0 e_t1 e0 e0_t0 e0_t1)]
+
+;; Free variables
+[(free x ?(ref x))
+ <--]
+
+[(free x ?(app e0 e1))
+ <--
+ (or (free x e0)
+     (free x e1))]
+
+[(free x ?(seq e0 e1))
+ <--
+ (or (free x e0)
+     (free x e1))]
+
+[(free x ?(let y rhs bdy))
+ <--
+ (free x rhs)]
+
+[(free x ?(let y rhs bdy))
+ <--
+ (=/= x y)
+ (free x bdy)]
+
+[(free x ?(lam y bdy))
+ <--
+ (=/= x y)
+ (free x bdy)]
+
+

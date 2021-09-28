@@ -1,0 +1,262 @@
+;; LANGUAGE DESCRIPTION:
+;; we have let expressions, symbolic values, (curried) arithmetic operations,
+;; and if expressions. If expression conditions must be atomic values. symbolic
+;; values can only be used in let bindings.
+;; available arithmetic operations: +, <
+
+; (program
+;  (app (lam "x" (app (ref "x") (ref "x")))
+;       (lam "y" (app (ref "y") (ref "y")))))
+
+; (program
+;  (app (app (ref "+") (lit 3)) (lit 4)))
+
+; (program
+;  (let "x" (sym) (app (app (ref "+") (ref "x")) (lit 3))))
+
+; (program
+;   (let "x" (sym) (if (ref "x") (lit 1) (lit 0))))
+
+; (program
+;   (let "x" (lit 100) (app (app (ref "<") (ref "x")) (lit 20))))
+
+(program
+  (let "x" (sym) 
+    (let "cond1" (app (app (ref "<") (ref "x")) (lit 10)) (if (ref "cond1") 
+      (let "cond2" (app (app (ref "<") (lit 100)) (ref "x")) (if (ref "cond2") (lit 1) (lit 2))) 
+      (lit 3)))))
+
+[(program p) -->
+ (state p 0 (mt-addr) 0 (s-true))] ;; TODO (s-true)?
+
+[(state e rho (mt-addr) t π)
+ (aeval !(aeval-input e rho t) v)
+ -->
+ (result v)]
+
+(sym)
+
+[(= ς (state (app e0 e1) rho ka t π))
+ (alloc-k !(alloc-k-input ς) new-ka)
+ (tick !(tick-input ς e0) new-t)
+ -->
+ (kstore new-ka (ar e1 rho ka))
+ (state e0 rho new-ka new-t π)]
+
+[(= ς (state (let x e0 e1) rho ka t π))
+ (alloc-k !(alloc-k-input ς) new-ka)
+ (=/= e0 (sym))
+ (tick !(tick-input ς e0) new-t)
+ -->
+ (kstore new-ka (fn (clo (lam x e1) rho) ka))
+ (state e0 rho new-ka new-t π)]
+
+[(= ς (state (let x (sym) e1) rho ka t π))
+ (alloc-k !(alloc-k-input ς) new-ka)
+ (alloc !(alloc-input ς x) x-addr)
+ (get-s-ref !(get-s-ref-input ς x) x-val)
+ (tick !(tick-input ς e1) new-t)
+ -->
+ (= new-rho new-t)
+ (copy-env rho new-rho x)
+ (env new-rho x x-addr)
+ (store x-addr x-val)
+ (state e1 new-rho ka new-t π)]
+
+[(= ς (state (if cond then else) rho ka t π))
+ (aeval !(aeval-input cond rho t) 0)
+ (tick !(tick-input ς else) new-t)
+ -->
+ (state else rho ka new-t π)]
+
+[(= ς (state (if cond then else) rho ka t π))
+ (aeval !(aeval-input cond rho t) v)
+ --
+ (=/= v 0) (number? v)
+ (tick !(tick-input ς then) new-t)
+ -->
+ (state then rho ka new-t π)]
+
+;; Symbolic branching
+[(= ς (state (if cond then else) rho ka t π))
+ (aeval !(aeval-input cond rho t) v)
+ --
+ (symbolic? v)
+ (extend-path-condition-nonzero !(extend-path-condition-nonzero-input π v) new-π)
+ --
+ (satisfiable? !(satisfiable?-input new-π))
+ (tick !(tick-input ς then) new-t)
+ -->
+ (state then rho ka new-t new-π)]
+
+[(= ς (state (if cond then else) rho ka t π))
+ (aeval !(aeval-input cond rho t) v)
+ --
+ (symbolic? v)
+ (extend-path-condition-zero !(extend-path-condition-zero-input π v) new-π)
+ --
+ (satisfiable? !(satisfiable?-input new-π))
+ (tick !(tick-input ς else) new-t)
+ -->
+ (state else rho ka new-t new-π)]
+
+
+[(= ς (state e0 rho ka t π))
+ (aeval !(aeval-input e0 rho t) v)
+ (kstore ka (ar e1 ar-rho ar-ka))
+ (alloc-k !(alloc-k-input ς) new-ka)
+ (tick !(tick-input ς e1) new-t)
+ -->
+ (kstore new-ka (fn v ar-ka))
+ (state e1 ar-rho new-ka new-t π)]
+
+[(= ς (state e1 rho ka t π))
+ (aeval !(aeval-input e1 rho t) v)
+ (kstore ka (fn (clo (lam x e-lam) lam-rho) fn-ka))
+ (tick !(tick-input ς e-lam) new-t)
+ (alloc-k !(alloc-k-input ς) new-ka)
+ (alloc !(alloc-input ς x) x-addr)
+ -->
+ (= new-rho new-t)
+ (store x-addr v)
+ (copy-env lam-rho new-rho x)
+ (env new-rho x x-addr)
+ (state e-lam new-rho fn-ka new-t π)]
+
+[(= ς (state e1 rho ka t π))
+ (aeval !(aeval-input e1 rho t) v)
+ (kstore ka (fn (builtin bi) fn-ka))
+ --
+ (apply-builtin !(apply-builtin-input bi v) res)
+ --
+ (tick !(tick-input ς res) new-t)
+ -->
+ (state res rho fn-ka new-t π)]
+
+
+;; helpers
+[(tick-input ς target-expr)
+ (= ς (state e rho ka t π))
+ (add1 t new-t)
+ -->
+ (tick (tick-input ς target-expr) new-t)]
+
+[(copy-env from to exclude)
+ (env from x addr)
+ (=/= x exclude)
+ -->
+ (env to x addr)]
+
+[(= ς (state e rho ka t π))
+ (alloc-input ς x)
+ -->
+ (alloc (alloc-input ς x) (addr t x))]
+
+[(= ς (state e rho ka t π))
+ (alloc-k-input ς)
+ -->
+ (alloc-k (alloc-k-input ς) (kaddr t))]
+
+[(aeval-input (lit x) rho t)
+ -->
+ (aeval (aeval-input (lit x) rho t) x)]
+
+[(= inp (aeval-input (builtin bi) rho t))
+ -->
+ (aeval inp (builtin bi))]
+
+[(= inp (aeval-input x rho t))
+ (or (symbolic? x) (number? x))
+ -->
+ (aeval inp x)]
+
+[(= inp (aeval-input (ref x) rho t))
+ (env rho x x-addr)
+ (store x-addr v)
+ -->
+ (aeval inp v)]
+
+[(= inp (aeval-input (ref "+") rho t))
+ -->
+ (aeval inp (builtin (bi+)))]
+[(= inp (apply-builtin-input (bi+) v))
+ -->
+ (apply-builtin inp (builtin (bi+ v)))]
+[(= inp (apply-builtin-input (bi+ v1) v2))
+ (+ v1 v2 res)
+ -->
+ (apply-builtin inp res)]
+[(= inp (apply-builtin-input (bi+ v1) v2))
+ (or (symbolic? v1) (symbolic? v2))
+ -->
+ (apply-builtin inp (sym-expr (bi+ v1 v2)))]
+
+[(= inp (aeval-input (ref "<") rho t))
+ -->
+ (aeval inp (builtin (bi<)))]
+[(= inp (apply-builtin-input (bi<) v))
+ -->
+ (apply-builtin inp (builtin (bi< v)))]
+[(= inp (apply-builtin-input (bi< v1) v2))
+ (less-func !(less-func-input v1 v2) res)
+ -->
+ (apply-builtin inp res)]
+[(= inp (apply-builtin-input (bi< v1) v2))
+ (or (symbolic? v1) (symbolic? v2))
+ -->
+ (apply-builtin inp (sym-expr (bi< v1 v2)))]
+
+
+[(= inp (get-s-ref-input ς x))
+ (= ς (state e rho ka t π))
+ -->
+ (get-s-ref inp (s-ref (pair x t)))]
+
+[(= inp (sym-expr->sat-expr-input (s-ref id)))
+ -->
+ (sym-expr->sat-expr inp (s-ref id))]
+
+[(= inp (sym-expr->sat-expr-input n))
+ (number? n)
+ -->
+ (sym-expr->sat-expr inp (s-lit n))]
+
+[(= inp (sym-expr->sat-expr-input (sym-expr (bi+ e1 e2))))
+ (sym-expr->sat-expr !(sym-expr->sat-expr-input e1) new-e1)
+ (sym-expr->sat-expr !(sym-expr->sat-expr-input e2) new-e2)
+ -->
+ (sym-expr->sat-expr inp (s+ new-e1 new-e2))]
+
+[(= inp (sym-expr->sat-expr-input (sym-expr (bi< e1 e2))))
+ (sym-expr->sat-expr !(sym-expr->sat-expr-input e1) new-e1)
+ (sym-expr->sat-expr !(sym-expr->sat-expr-input e2) new-e2)
+ -->
+ (sym-expr->sat-expr inp (s-less-func new-e1 new-e2))]
+
+[(= inp (extend-path-condition-zero-input π v))
+ (sym-expr->sat-expr !(sym-expr->sat-expr-input v) new-v)
+ -->
+ (extend-path-condition-zero inp (s-and (s= new-v (s-lit 0)) π))]
+
+[(= inp (extend-path-condition-nonzero-input π v))
+ (sym-expr->sat-expr !(sym-expr->sat-expr-input v) new-v)
+ -->
+ (extend-path-condition-nonzero inp (s-and (s/= new-v (s-lit 0)) π))]
+
+[(= inp (satisfiable?-input π))
+ (sat π)
+ -->
+ (satisfiable? inp)]
+
+(symbolic? ?(s-ref _))
+(symbolic? ?(sym-expr _))
+
+[(= inp (less-func-input x y))
+ (< x y)
+ -->
+ (less-func inp 1)]
+
+[(= inp (less-func-input x y))
+ (>= x y)
+ -->
+ (less-func inp 0)]

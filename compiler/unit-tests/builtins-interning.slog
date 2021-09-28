@@ -1,0 +1,27 @@
+(data "apple") (data "banana") 
+[(data x) (data y) (string-append x y xy) --> (foo xy)]
+
+
+[(data x) (string-append x " pie" "apple pie") --> (we-have "apple pie")]
+[(data x) (string-append x " pie" "pecan pie") --> (we-have "pecan pie")]
+[(data x) (string-append "pine" x "pineapple") --> (we-have "pineapple")]
+
+[(we-have x) (string-split x " " y) --> (we-have-split y)]
+
+[(string-append "hi-" "there" x) --> (hi-there x)]
+
+;; B ------------------------------------------------------
+(b-foo "a")
+
+[(b-res "b" c)
+ <--
+ (b-foo a)
+ (b-comp x a b c)]
+
+(comp b-comp)
+[(b-comp "x" a b c)
+ <--
+ (= a "a")
+ (= b "b")
+ (string-append a b "ab")
+ (= c "c")]

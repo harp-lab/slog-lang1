@@ -1,0 +1,29 @@
+(a-bar _ _)
+{(a-bar 2 3)}
+
+(b-bar _)
+{(b-bar 1)
+ (b-bar "hello")}
+
+(c-foo _)
+{(c-foo 42)}
+
+(d-bar _ _ _)
+{(d-bar 1 2 3)}
+
+(d-bar2 _ _ _ _)
+{(d-bar2 1 2 3 4)}
+
+(e-bar _ _)
+{(e-bar 4 5)
+ (e-bar 0 3)}
+
+
+(f-facs _ _)
+{(f-facs 3 6)
+ (f-facs 4 24)
+ (f-facs 5 120)}
+
+(g-res _ _)
+{(g-res (g-foo 2 1 3) "no")
+ (g-res (g-foo 1 2 4) "yes")}

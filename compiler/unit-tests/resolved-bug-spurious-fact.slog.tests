@@ -1,0 +1,3 @@
+(must-have-fooooo _)
+
+{(must-have-fooooo (s= (fooooo 1)))}

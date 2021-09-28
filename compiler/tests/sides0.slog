@@ -1,0 +1,12 @@
+ 
+
+
+[(A x y z)
+ <--
+ (B x y z)
+ (C x y z)
+ (D x y z)
+ (E x y)
+ (=/= x y)]
+
+
