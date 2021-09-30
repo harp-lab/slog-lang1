@@ -20,7 +20,7 @@
 
 ;; Non empty tokens
 (define-tokens toks
-  (integer string id rel larr rarr dash-dash-token eq neq qlp notlp qp qb bp bb dots tor tand comp colon))
+  (integer string id rel larr rarr dash-dash-token eq neq qlp notlp qp qb bp bdop qdop bb dots tor tand comp colon))
 
 ;; Empty tokens
 (define-empty-tokens empty-toks (lb rb lp rp lc rc EOF))
@@ -119,6 +119,7 @@
 (define (fact? a)
   (match (remove-prov a)
     [`(? ,cl) #f]
+    [`(?do ,cl) #f]
     [`(,(? symbol? rel) ,(? fact-or-base? args) ...) `(,rel ,@args)]
     [else #f]))
 
@@ -194,9 +195,11 @@
          ("="          (token-eq "="))
          ("=/="        (token-neq "=/="))
          ("?("         (token-qp "?("))
+         ("?do("         (token-qdop "?do("))
          ("?["         (token-qb "?["))
          ("!["         (token-bb "!["))
          ("!("         (token-bp "!("))
+         ("!do("       (token-bdop "!do("))
          ("~("         (token-notlp "~("))
          ("comp"       (token-comp "comp keyword"))
          (":"          (token-colon "colon"))
@@ -276,6 +279,8 @@
             (wrap-prov $1-start-pos $4-end-pos (lambda () `(,$2 ,@$3))))
            ([bp prov-id iclause* rp]
             (wrap-prov $1-start-pos $4-end-pos (lambda () `(! (,$2 ,@$3)))))
+           ([bdop iclause* rp]
+            (wrap-prov $1-start-pos $3-end-pos (lambda () `(!do (,@$2)))))
            ([blst-clause] $1)
            ([curly-clause] $1)
            ([bval] $1)
@@ -283,6 +288,8 @@
             (wrap-prov $1-start-pos $5-end-pos (lambda () `(,$2 ,(cons $3 $4)))))
            ([qp prov-id iclause* rp]
             (wrap-prov $1-start-pos $4-end-pos (lambda () `(? (,$2 ,@$3)))))
+           ([qdop iclause* rp]
+            (wrap-prov $1-start-pos $3-end-pos (lambda () `(?do (,@$2)))))
            ([qp prov-tor iclause iclause* rp]
             (wrap-prov $1-start-pos $5-end-pos (lambda () `(or (,$2 ,@(cons $3 $4))))))]
 

@@ -79,7 +79,7 @@
       (filter (not/c false?) cls-inlined))
       
     (define res (match rule
-      [`(prov (,heads ... <-- ,bodys ..1) ,pos) (error "not a bodyless rule")]
+      [`(prov (,heads ... <-- ,bodys ..1) ,pos) (error (format "not a bodyless rule: ~a" (strip-prov rule)))]
       [`(prov (,heads ... <-- ) ,pos) 
         (map (λ (h) (match h
               [`(prov ((prov = ,=pos) ,(? (prov-of var?) id) ,cl) ,pos) cl]
@@ -153,8 +153,10 @@
   ; (printf "input-rule: \n~a\n" (strip-prov rule))
   (define splicing-lib-required #f)
   (define normalized-rule (normalize-rule rule))
-  (define dehuhd-rule (move-huhs-rule normalized-rule))
-  ; (printf "dehuhd-rule : \n~a\n" (simplify-prov dehuhd-rule))
+  (define do-desugared-rule (rule-desugar-bang-do-huh-do normalized-rule))
+  ; (printf "do-desugared-rule: \n~a\n" (strip-prov do-desugared-rule))
+  (define dehuhd-rule (move-huhs-rule do-desugared-rule))
+  ; (printf "dehuhd-rule : \n~a\n" (strip-prov dehuhd-rule))
   (define desegmented-rule (desugar-segmented-rule dehuhd-rule))
   (define or-split-rules (split-rule-or desegmented-rule))
   ; (printf "or-split-rules : \n~a\n" (intercalate "\n" (map strip-prov or-split-rules)))
@@ -255,6 +257,36 @@
      `(prov (,rule <--) ,pos)]
     [`(prov (,head-clauses ... <-- . ,body-clauses) ,pos) rule]
     [else (error "Rule seems invalid.")]))
+
+
+(define (clause-desugar-bang-do-huh-do cl)
+  (define (fix-!do-?do tag cl)
+    (match cl
+      [`(prov (!do (,cls ...)) ,pos) 
+       `(prov (! ((prov ,(string->symbol (format "do-~a" tag)) ,pos) ,@cls)) ,pos)]
+      [`(prov (?do (,cls ...)) ,pos) 
+       `(prov (? ((prov ,(string->symbol (format "do-~a" tag)) ,pos) ,@cls)) ,pos)]
+      [else cl]))
+
+  (match cl
+    [`(prov ,(? arg? v) ,pos)
+    cl]
+    [`(prov (! ,banged-clause) ,pos)
+     `(prov (! ,(clause-desugar-bang-do-huh-do banged-clause)) ,pos)]
+    [`(prov (LIST-SYNTAX ,args ...) ,pos)
+     `(prov (LIST-SYNTAX ,@(map clause-desugar-bang-do-huh-do args)) ,pos)]
+    [`(prov ((prov or ,orpos) ,cls ...) ,pos)
+     `(prov ((prov or ,orpos) ,@(map clause-desugar-bang-do-huh-do cls)) ,pos)]
+    [`(prov (,tag ,cls ...) ,pos)
+     `(prov (,tag ,@(map (app fix-!do-?do (strip-prov tag) _) cls)) ,pos)]
+    [`(INNER-RULE ,inner-rule)
+     `(INNER-RULE ,(rule-desugar-bang-do-huh-do inner-rule))]
+    [else cl]))
+
+(define (rule-desugar-bang-do-huh-do rule)
+  (match-define `(prov ,xs ,pos) rule)
+  (define new-xs (map clause-desugar-bang-do-huh-do xs))
+  `(prov ,new-xs ,pos))
 
 ; Removes (or ...) clauses and splits one rule into a set of one or more rules
 (define/contract-cond (split-rule-or rule)
@@ -1291,7 +1323,7 @@
                       [(cons old-var _)
                        (define updated-body-items
                         (map (transform-rule-item (app cl-replace-var _ old-var canonical-var) identity) bodys))
-                       (cons updated-body-items (cons old-var canonical-var))])]) ]))
+                        (cons updated-body-items (cons old-var canonical-var))])]) ]))
                  (cons bodys #f)
                  rule-vars))
        (match matched-vars
@@ -1386,15 +1418,15 @@
   (for/or ([head heads])
     (match head
       [`(prov ((prov = ,=pos) (prov ,id ,idpos) (prov ((prov ,rel ,relpos) ,args ...) ,clpos)) ,pos)
-        (cond 
-          [(set-member? comp-rels rel)
-          (when (> (length heads) 1)
-            (pretty-error-current pos "Multiple head clauses in a comp rule are not allowed." #:exit #t))
-          (for ([bcl bodys])
-            (match-define `(prov ((prov = ,=pos) (prov ,id ,idpos) (prov ((prov ,rel ,relpos) ,args ...) ,clpos)) ,pos) bcl)
-            (when (and (not (set-member? comp-rels rel)) (not (builtin? rel)))
-              (pretty-error-current pos "DB relations in the body of comp rules are not allowed." #:exit #t)))
-          #t]
+    (cond 
+      [(set-member? comp-rels rel)
+       (when (> (length heads) 1)
+         (pretty-error-current pos "Multiple head clauses in a comp rule are not allowed." #:exit #t))
+       (for ([bcl bodys])
+        (match-define `(prov ((prov = ,=pos) (prov ,id ,idpos) (prov ((prov ,rel ,relpos) ,args ...) ,clpos)) ,pos) bcl)
+        (when (and (not (set-member? comp-rels rel)) (not (builtin? rel)))
+          (pretty-error-current pos "DB relations in the body of comp rules are not allowed." #:exit #t)))
+       #t]
           [else #f])]
       [else #f])))
 
@@ -1403,7 +1435,8 @@
 (define/contract-cond (source-tree-rule-rel-arities rule)
   (source-tree-rule? . -> . (hash/c symbol? (set/c number?)))
   (define normalized-rule (normalize-rule rule))
-  (define dehuhd-rule (move-huhs-rule normalized-rule))
+  (define do-desugared-rule (rule-desugar-bang-do-huh-do normalized-rule))
+  (define dehuhd-rule (move-huhs-rule do-desugared-rule))
   (define desegmented-rule (desugar-segmented-rule dehuhd-rule))
   (define or-split-rules (split-rule-or desegmented-rule))
   (define curlies-removed-rules (map rule-desugar-curly-clauses or-split-rules))
