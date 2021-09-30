@@ -1,0 +1,16 @@
+
+
+
+
+
+(append (list) ?(list lst ...) ?(list lst ...))
+
+
+[(append ?(list fst rst ...) c ?(list fst d))
+ <--
+ (append (list rst ...) c d)]
+
+
+
+
+

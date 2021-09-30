@@ -1,0 +1,4 @@
+(bar 5)
+
+;; the (=/= x 1) side condition is not reflected in the IR
+[(bar 100) <-- (bar x) (=/= x 1)]

@@ -1,0 +1,79 @@
+
+
+;;; Example: Omega
+
+(entry-point 
+ (app (lambda (arg "x") (app (ref "x") (ref "x")))
+      (lambda (arg "y") (app (ref "y") (ref "y")))))
+
+
+;;; Program injection
+
+[(state e (call-ctx e (call-ctx e (empty-ctx))) (halt))
+  <--
+  (entry-point e)]
+
+
+;;; Application
+
+; control flow and arguments
+[(eval-step state0 (state body ctx1 (kaddr body ctx1)))
+ (kstore (kaddr body ctx1) kont)
+ (store x ctx1 arval)
+ <--
+ (= state0 (state (app f ar) ctx0 kont))
+ (step-context state0 cloctx ctx1)
+ (returns f ctx0 (closure (lambda (arg x) body)
+                          cloctx))
+ (returns ar ctx0 arval)]
+
+; propagate environment / free vars
+[(store fr ctx1 frval)
+ <--
+ (eval-step (state (app f ar) ctx0 kont)
+            (state body ctx1 (kaddr body ctx1)))
+ (returns f ctx0 (closure (lambda (arg x) body)
+                          cloctx))
+ (store fr cloctx frval)
+ (free fr (lambda (arg x) body))]
+
+
+;;; Atomic evaluation
+
+; closures
+[(returns ?(lambda (arg x) body) ctx (closure ?(lambda (arg x) body) ctx))
+ <--
+ (state _ ctx _)]
+
+; variable references
+[(returns ?(ref x) ctx val)
+ <--
+ (store x ctx val)]
+
+
+;;; Polyvariance (2-call-sensitivity)
+
+[(step-context ?(state call (call-ctx call0 _) kont)
+               cloctx
+               (call-ctx call (call-ctx call0 (empty-ctx))))
+ <-- 
+ (closure _ cloctx)]
+
+
+;;; Rules for free vars
+;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; free vars at var-refs
+(free x ?(ref x))
+
+[(free x ?(app e0 e1))
+ <-- ;; free variables for apps
+ (or (free x e0)
+     (free x e1))]
+
+[(free x ?(lambda (arg a) e0))
+ <-- ;; free variables for lambdas
+ (=/= x a)
+ (free x e0)]
+
+

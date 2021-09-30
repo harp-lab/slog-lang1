@@ -1,0 +1,11 @@
+(foo 1)
+(bar 42) 
+
+[(foo 1) <-- (foo 1)]
+[(bar 1) <-- (bar 1)]
+[(baz 1) <-- (baz 1)]
+
+;; (baz 1) is not discovered
+[(baz x) <--
+ (foo x)
+ (bar 42)]

@@ -1,0 +1,41 @@
+(sat-input (s-and (s= (s-ref (var 1)) (s-lit 42)) (s/= (s-ref (var 1)) (s-lit 42))))
+(sat-input 
+    (s-and (s-true)
+           (s-and (s= (s-ref (var 1)) (s-lit 42)) (s/= (s-ref (var 2)) (s-lit 42)))))
+
+(sat-input 
+    (s-and (s-true)
+           (s/= (s-lit 42) (s-lit 54))
+           (s= (s-ref (var 1)) (s-lit 42))
+           (s/= (s-ref (var 2)) (s-lit 42))))
+
+[(sat-input inp)
+ (sat inp)
+ -->
+ (is-sat inp)]
+
+[(sat-input inp)
+ (unsat inp)
+ -->
+ (is-unsat inp)]
+
+
+
+;; JUNK
+(s-and (s= (s-ref (var 1)) (s-lit 42)) (s/= (s-ref (var 1)) (s-lit 42)))
+(s= (s-ref (var 1)) (s-lit 42))
+(s-ref (var 1))
+(var 1)
+(s-lit 42)
+(s/= (s-ref (var 1)) (s-lit 42))
+
+[(s-and (s= (s-ref (var 1)) (s-lit 42)) (s/= (s-ref (var 1)) (s-lit 42)))
+(s= (s-ref (var 1)) (s-lit 42))
+(s-ref (var 1))
+(var 1)
+(s-lit 42)
+(s/= (s-ref (var 1)) (s-lit 42))
+(who x)
+-->
+(s-true)
+(cares x)]

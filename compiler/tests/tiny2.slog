@@ -1,0 +1,4 @@
+(foo 1 2)
+(foo 2 2)
+
+[(bar x) <-- (foo x y) (foo y z) (=/= y z)]

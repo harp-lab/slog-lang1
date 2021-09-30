@@ -1,0 +1,34 @@
+
+
+; Input Program
+(do-eval
+ (app (lambda "x" (app (ref "x") (ref "x")))
+      (lambda "x" (ref "x")))
+ [])
+
+
+;;; Traditional big-step CE semantics ;;;
+
+; Lambda eval
+(eval ?(do-eval (lambda x eb) env)
+      (clo (lambda x eb) env))
+; Variable eval
+[(lookup !(do-lookup env x) v)
+ -->
+ (eval ?(do-eval (ref x) env)
+       v)]
+; Application
+[(eval !(do-eval ef env) (clo (lambda x eb) envlam))
+ (eval !(do-eval ea env) va)
+ --
+ (eval !(do-eval eb [x va envlam ...]) v)
+ -->
+ (eval ?(do-eval (app ef ea) env) v)]
+; Environment lookup 
+[(lookup !(do-lookup rst x) v)
+ (=/= x y)
+ -->
+ (lookup ?(do-lookup [y _ rst ...] x) v)]
+(lookup ?(do-lookup [x v rst ...] x) v)
+
+

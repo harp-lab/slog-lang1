@@ -1,0 +1,63 @@
+[(string-contains? "Hello" "ello")
+ -->
+ (a-Hello-ello)]
+
+(Racket "Racket")
+[(string-contains? {Racket} "et")
+ -->
+ (a-Racket-et)]
+
+[(string-contains? "One" "none")
+ -->
+ (a-One-none)]
+
+;------------------------------------------------
+(b-foo 1)
+(b-foo (some 2))
+(b-foo "hey")
+
+[(b-foo x)
+ -->
+ [(number? x) --> (b-foo-number x)]
+ [(not-number? x) --> (b-foo-not-number x)]
+ [(string? x) --> (b-foo-string x)]
+ [(not-string? x) --> (b-foo-not-string x)]]
+
+;------------------------------------------------
+(c-foo "a")
+(c-foo "b")
+(c-foo "c")
+
+[(c-foo x)
+ (c-foo y)
+ (c-foo z)
+ (/= x y) (/= x z) (/= y z)
+ -->
+ (c-bar {string-append x ", " y ", " z})]
+
+;------------------------------------------------
+(d-foo "su bracket")
+
+(d-bar {string-append {substring {d-foo} 4  } ;"racket" 
+                      {substring {d-foo} 2 3} ;" "
+                      {substring {d-foo} 0 2} ;"su"
+                      {substring {d-foo} 6 8} ;"ck"
+                      {substring {d-foo} 0 1}}) ;"s"
+
+;------------------------------------------------
+(e-foo 2 16 {expt 2 16})
+(e-foo 10 3 {expt 10 3})
+
+;-------------------------------------------------
+(f-foo " example@example.com\q")
+
+; Regex argument in Slog builtin `regexp-match`
+; follows Racket's `pregexp` syntax.
+; \-escaping rules in Slog strings may change in the future.d
+[(regexp-match "\sexample@example.com\\q" {f-foo})
+  -->
+  (f-bar)]
+
+[(regexp-match "^.*foobar.*$" {f-foo})
+  -->
+  (f-baz)]

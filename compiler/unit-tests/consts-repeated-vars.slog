@@ -1,0 +1,22 @@
+(a-bar 1 2)
+
+[(a-res y) <--
+  (a-bar x y)
+  (>= x x )]
+
+;; B ------------------------------------------------------
+
+(b-foo 1)
+(b-foo 2)
+(b-bar 2 2)
+[(b-foo x) (~ b-bar x x) --> (b-res x)]
+
+
+;; C ------------------------------------------------------
+
+(comp c-useless)
+[(= x x) (= y y) (= z z) --> (c-useless x y z)]
+
+(c-foo 1)
+
+[(c-foo x) (c-useless x x x) (>= x x) --> (c-res x)]

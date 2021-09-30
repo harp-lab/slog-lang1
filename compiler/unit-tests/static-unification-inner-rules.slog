@@ -1,0 +1,98 @@
+;; A ------------------------
+(a-foo 1)
+(a-foo 2)
+[
+ [(a-foo x) --> (a-inner-head x)]
+ (= x 2)
+ -->
+ (a-outer-head x)
+]
+; expected:
+; (inner-head 1)
+; (inner-head 2)
+; (outer-head 2)
+
+
+;; B ------------------------
+(b-foo 1)
+(b-foo 2)
+(b-bar 1)
+(b-bar 2)
+
+[(= a _x)
+ (= a 2)
+ (b-bar a)
+ [(b-foo _x) --> (b-inner-head _x)]
+ -->
+ (b-outer-head a)]
+
+; expected:
+; (b-inner-head 1)
+; (b-inner-head 2)
+; (b-outer-head 2)
+
+
+;; C ------------------------
+(c-foo 1)
+(c-foo 2)
+(c-bar 1)
+(c-bar 2)
+(c-bar 3)
+
+[(c-foo x)
+ -->
+ (= sasid (c-sas x))
+ [(c-bar x)
+  (= x 2)
+  -->
+  (c-brass sasid)]]
+
+; expected: 
+; (c-brass (c-sas 2))
+
+; (c-sas 1)
+; (c-sas 2)
+
+;; D ------------------------
+
+(d-b 1)
+(d-b 10)
+(d-hirbirb 1 1)
+(d-hirbirb 1 2)
+(d-hirbirb 2 1)
+(d-hirbirb 2 2)
+
+[(range 100 102 z)
+ -->
+ [[(d-b x)
+   -->
+   [[--> (d-hirbirh0 x z)]
+    [(d-hirbirb x y) --> (d-hirbirh x y)]
+    (> y 1) 
+    --> 
+    (d-hirh x y)]]
+  (d-fooo z)
+  -->
+  (d-baaar z)]]
+
+;; E ------------------------
+(e-foo 1 1)
+(e-foo 1 2)
+(e-foo2 2 2)
+(e-foo2 3 3) 
+
+[[(e-foo x y) --> (e-bar x)]
+ [(e-foo2 x y) --> (e-bar2 x)]
+ -->
+ (e-head y)]
+
+; expected: (e-head _) empty
+
+;; F ------------------------
+
+(f-foo 3)
+[[(f-foo x) --> (f-foo' x)]
+ -->
+ [(> 2 0) --> [ (> 1 0) --> (f-bar x)]]]
+; expected: (f-bar 3)
+

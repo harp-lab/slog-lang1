@@ -1,0 +1,4 @@
+(query _)
+{(query ($lst 1 ($lst 2 ($nil))))
+ (query ($lst 2 ($lst 1 ($nil))))
+ (query ($lst 3 ($nil)))}

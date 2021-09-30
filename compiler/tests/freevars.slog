@@ -1,0 +1,21 @@
+
+; An example:
+(lambda (args 0)
+  (app (lambda (args 1) (var-ref 2))
+       (lambda (args 2) (app (var-ref 3)
+                               (var-ref 2)))))
+
+; Rules for free vars
+(free x ?(var-ref x))
+
+[(free x ?(app e0 e1))
+ <--
+ (or (free x e0)
+     (free x e1))]
+
+[(free x ?(lambda (args a) e0))
+ <--
+ (=/= x a)
+ (free x e0)]
+
+

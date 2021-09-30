@@ -1,0 +1,10 @@
+(sum-input (cons 4 (cons 8 (cons 2 (cons 1 (cons 6 (null)))))))
+[(sum-input xs) (list-sum xs res) --> (sum-output xs res)]
+
+(list-sum ?(null) 0)
+
+[(cons x xs)
+ (list-sum xs xs-sum)
+ (+ x xs-sum res)
+ -->
+ (list-sum (cons x xs) res)]

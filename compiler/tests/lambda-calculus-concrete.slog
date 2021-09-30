@@ -1,0 +1,12 @@
+
+
+(program
+ (app (lambda ["x"] (app (ref "x") [(ref "x")]))
+      (lambda ["x"] (app (ref "x") [(ref "x")]))))
+
+[(step ()
+       ())
+ <--
+ ]
+
+

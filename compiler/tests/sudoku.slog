@@ -1,0 +1,131 @@
+
+; Input problem
+(problem
+ 0 0 5 3 0 0 0 0 0
+ 8 0 0 0 0 0 0 2 0
+ 0 7 0 0 1 0 5 0 0
+ 4 0 0 0 0 5 3 0 0
+ 0 1 0 0 7 0 0 0 6
+ 0 0 3 2 0 0 0 8 0
+ 0 6 0 5 0 0 0 0 9
+ 0 0 4 0 0 0 0 3 0
+ 0 0 0 0 0 9 7 0 0)
+
+[(problem-row x11 x12 x13 x14 x15 x16 x17 x18 x19)
+ (problem-row x21 x22 x23 x24 x25 x26 x27 x28 x29)
+ (problem-row x31 x32 x33 x34 x35 x36 x37 x38 x39)
+ (problem-row x41 x42 x43 x44 x45 x46 x47 x48 x49)
+ (problem-row x51 x52 x53 x54 x55 x56 x57 x58 x59)
+ (problem-row x61 x62 x63 x64 x65 x66 x67 x68 x69)
+ (problem-row x71 x72 x73 x74 x75 x76 x77 x78 x79)
+ (problem-row x81 x82 x83 x84 x85 x86 x87 x88 x89)
+ (problem-row x91 x92 x93 x94 x95 x96 x97 x98 x99)
+
+ <--
+ 
+ (problem
+  x11 x12 x13 x14 x15 x16 x17 x18 x19
+  x21 x22 x23 x24 x25 x26 x27 x28 x29
+  x31 x32 x33 x34 x35 x36 x37 x38 x39
+  x41 x42 x43 x44 x45 x46 x47 x48 x49
+  x51 x52 x53 x54 x55 x56 x57 x58 x59
+  x61 x62 x63 x64 x65 x66 x67 x68 x69
+  x71 x72 x73 x74 x75 x76 x77 x78 x79
+  x81 x82 x83 x84 x85 x86 x87 x88 x89
+  x91 x92 x93 x94 x95 x96 x97 x98 x99)]
+
+(unique 1 2 3 4 5 6 7 8 9)
+;; populate unique with all permutations of 1..9
+[(unique x2 x1 x3 x4 x5 x6 x7 x8 x9) <-- (unique x1 x2 x3 x4 x5 x6 x7 x8 x9)]
+[(unique x1 x3 x2 x4 x5 x6 x7 x8 x9) <-- (unique x1 x2 x3 x4 x5 x6 x7 x8 x9)]
+[(unique x1 x2 x4 x3 x5 x6 x7 x8 x9) <-- (unique x1 x2 x3 x4 x5 x6 x7 x8 x9)]
+[(unique x1 x2 x3 x5 x4 x6 x7 x8 x9) <-- (unique x1 x2 x3 x4 x5 x6 x7 x8 x9)]
+[(unique x1 x2 x3 x4 x6 x5 x7 x8 x9) <-- (unique x1 x2 x3 x4 x5 x6 x7 x8 x9)]
+[(unique x1 x2 x3 x4 x5 x7 x6 x8 x9) <-- (unique x1 x2 x3 x4 x5 x6 x7 x8 x9)]
+[(unique x1 x2 x3 x4 x5 x6 x8 x7 x9) <-- (unique x1 x2 x3 x4 x5 x6 x7 x8 x9)]
+[(unique x1 x2 x3 x4 x5 x6 x7 x9 x8) <-- (unique x1 x2 x3 x4 x5 x6 x7 x8 x9)]
+
+[(row-match x1 x2 x3 x4 x5 x6 x7 x8 x9    y1 y2 y3 y4 y5 y6 y7 y8 y9)
+ <--
+ (problem-row x1 x2 x3 x4 x5 x6 x7 x8 x9)
+ (unique y1 y2 y3 y4 y5 y6 y7 y8 y9)
+ (or (= x1 y1) (= x1 0))
+ (or (= x2 y2) (= x2 0))
+ (or (= x3 y3) (= x3 0))
+ (or (= x4 y4) (= x4 0))
+ (or (= x5 y5) (= x5 0))
+ (or (= x6 y6) (= x6 0))
+ (or (= x7 y7) (= x7 0))
+ (or (= x8 y8) (= x8 0))
+ (or (= x9 y9) (= x9 0))
+]
+
+ 
+[(solution
+  y11 y12 y13 y14 y15 y16 y17 y18 y19
+  y21 y22 y23 y24 y25 y26 y27 y28 y29
+  y31 y32 y33 y34 y35 y36 y37 y38 y39
+  y41 y42 y43 y44 y45 y46 y47 y48 y49
+  y51 y52 y53 y54 y55 y56 y57 y58 y59
+  y61 y62 y63 y64 y65 y66 y67 y68 y69
+  y71 y72 y73 y74 y75 y76 y77 y78 y79
+  y81 y82 y83 y84 y85 y86 y87 y88 y89
+  y91 y92 y93 y94 y95 y96 y97 y98 y99)
+
+ <--
+
+ (problem
+  x11 x12 x13 x14 x15 x16 x17 x18 x19
+  x21 x22 x23 x24 x25 x26 x27 x28 x29
+  x31 x32 x33 x34 x35 x36 x37 x38 x39
+  x41 x42 x43 x44 x45 x46 x47 x48 x49
+  x51 x52 x53 x54 x55 x56 x57 x58 x59
+  x61 x62 x63 x64 x65 x66 x67 x68 x69
+  x71 x72 x73 x74 x75 x76 x77 x78 x79
+  x81 x82 x83 x84 x85 x86 x87 x88 x89
+  x91 x92 x93 x94 x95 x96 x97 x98 x99)
+ 
+ ;; unique blocks
+ (unique y11 y12 y13 y21 y22 y23 y31 y32 y33)
+ (unique y14 y15 y16 y24 y25 y26 y34 y35 y36)
+ (unique y17 y18 y19 y27 y28 y29 y37 y38 y39)
+ (unique y41 y42 y43 y51 y52 y53 y61 y62 y63)
+ (unique y44 y45 y46 y54 y55 y56 y64 y65 y66)
+ (unique y47 y48 y49 y57 y58 y59 y67 y68 y69)
+ (unique y71 y72 y73 y81 y82 y83 y91 y92 y93)
+ (unique y74 y75 y76 y84 y85 y86 y94 y95 y96)
+ (unique y77 y78 y79 y87 y88 y89 y97 y98 y99)
+
+ ;; unique rows
+ (unique y11 y12 y13 y14 y15 y16 y17 y18 y19)
+ (unique y21 y22 y23 y24 y25 y26 y27 y28 y29)
+ (unique y31 y32 y33 y34 y35 y36 y37 y38 y39)
+ (unique y41 y42 y43 y44 y45 y46 y47 y48 y49)
+ (unique y51 y52 y53 y54 y55 y56 y57 y58 y59)
+ (unique y61 y62 y63 y64 y65 y66 y67 y68 y69)
+ (unique y71 y72 y73 y74 y75 y76 y77 y78 y79)
+ (unique y81 y82 y83 y84 y85 y86 y87 y88 y89)
+ (unique y91 y92 y93 y94 y95 y96 y97 y98 y99)
+ 
+ ;;unique columns
+ (unique y11 y21 y31 y41 y51 y61 y71 y81 y91)
+ (unique y12 y22 y32 y42 y52 y62 y72 y82 y92)
+ (unique y13 y23 y33 y43 y53 y63 y73 y83 y93)
+ (unique y14 y24 y34 y44 y54 y64 y74 y84 y94)
+ (unique y15 y25 y35 y45 y55 y65 y75 y85 y95)
+ (unique y16 y26 y36 y46 y56 y66 y76 y86 y96)
+ (unique y17 y27 y37 y47 y57 y67 y77 y87 y97)
+ (unique y18 y28 y38 y48 y58 y68 y78 y88 y98)
+ (unique y19 y29 y39 y49 y59 y69 y79 y89 y99)
+
+ 
+ (row-match x11 x12 x13 x14 x15 x16 x17 x18 x19    y11 y12 y13 y14 y15 y16 y17 y18 y19)
+ (row-match x21 x22 x23 x24 x25 x26 x27 x28 x29    y21 y22 y23 y24 y25 y26 y27 y28 y29)
+ (row-match x31 x32 x33 x34 x35 x36 x37 x38 x39    y31 y32 y33 y34 y35 y36 y37 y38 y39)
+ (row-match x41 x42 x43 x44 x45 x46 x47 x48 x49    y41 y42 y43 y44 y45 y46 y47 y48 y49)
+ (row-match x51 x52 x53 x54 x55 x56 x57 x58 x59    y51 y52 y53 y54 y55 y56 y57 y58 y59)
+ (row-match x61 x62 x63 x64 x65 x66 x67 x68 x69    y61 y62 y63 y64 y65 y66 y67 y68 y69)
+ (row-match x71 x72 x73 x74 x75 x76 x77 x78 x79    y71 y72 y73 y74 y75 y76 y77 y78 y79)
+ (row-match x81 x82 x83 x84 x85 x86 x87 x88 x89    y81 y82 y83 y84 y85 y86 y87 y88 y89)
+ (row-match x91 x92 x93 x94 x95 x96 x97 x98 x99    y91 y92 y93 y94 y95 y96 y97 y98 y99)
+]

@@ -1,0 +1,58 @@
+
+
+; Input Program
+(app (lambda "x" (app (ref "x") (ref "x")))
+     (lambda "x" (ref "x")))
+
+
+;;; Traditional control expression (C), textual reduction semantics ;;;
+
+; Beta reduction
+[(subst !(do-subst eb x ea) eb+)
+ -->
+ (step ?(app (lambda x eb) ea)
+       eb+)]
+
+; Capture avoiding substitution
+[(subst !(do-subst ef x e+) ef+)
+ (subst !(do-subst ea x e+) ea+)
+ -->
+ (subst ?(do-subst (app ef ea) x e+) (app ef+ ea+))]
+
+[(subst !(do-subst eb x e+) eb+)
+ (=/= x y)
+ ;~(free y e+)   ; requires stratified negation to be correct
+ ; (free? !(free?-input y e+) 1)
+ -->
+ (subst ?(do-subst (lambda y eb) x e+) (lambda y eb+))]
+
+(subst ?(do-subst (lambda x eb) x e+) (lambda x eb))
+(subst ?(do-subst (ref x) x e+) e+)
+
+; Free variables
+(free x ?(ref x)) ; what about (free y ?(ref x))?
+[(free x ?(app e0 e1))
+ <--
+ (or (free x e0)
+     (free x e1))]
+[(free x ?(lambda a e0))
+ <--
+ (=/= x a)
+ (free x e0)]
+
+
+; alternative impl:
+(free? ?(free?-input x (ref x)) 1)
+[(= inp (free?-input x (app e0 e1)))
+ (free? !(free?-input x e0) e0-res)
+ (free? !(free?-input x e0) e1-res)
+ --
+ (+ e0-res e1-res res)
+ -->
+ [(> res 0) --> (free? inp 1)]
+ [(= res 0) --> (free? inp 0)]]
+
+[(= inp (free?-input (lambda a e0)))
+ -->
+ [(=/= x a) --> (free? inp 1)]
+ [(= x a) --> (free? inp 0)]]

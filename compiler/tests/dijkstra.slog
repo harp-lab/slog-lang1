@@ -1,0 +1,122 @@
+;; Graph 1:
+; (neighbors "A" [(pair "B" 5) (pair "C" 10) (pair "D" 16) (pair "E" 12)])
+; (neighbors "B" [(pair "C" 8)])
+; (neighbors "C" [(pair "D" 2) (pair "E" 3)])
+; (neighbors "D" [])
+; (neighbors "E" [(pair "D" 6)])
+
+; (initial-node "A")
+; (initial-node "C")
+
+;; Graph 2:
+(neighbors "A" [(pair "B" 1) (pair "C" 3)])
+(neighbors "B" [(pair "C" 8) (pair "D" 3) (pair "F" 1)])
+(neighbors "C" [(pair "D" 2) (pair "E" 2)])
+(neighbors "D" [(pair "A" 4) (pair "E" 3)])
+(neighbors "E" [(pair "A" 4)])
+(neighbors "F" [(pair "E" 20)])
+
+(initial-node "A")
+(initial-node "B")
+(initial-node "C")
+(initial-node "D")
+(initial-node "E")
+(initial-node "F")
+
+
+[(initial-node n) 
+ -->
+ (outer-loop n [(pair n 0)] [] [] [])]
+
+
+[(outer-loop n q dists prevs visited)
+ (queue-remove !(do-queue-remove q) q' cur-node cur-node-dist)
+;  (assoc-upsert !(do-assoc-upsert dists cur-node cur-node-dist) dists')
+ -->
+ (inner-loop n q' dists prevs visited cur-node cur-node-dist {neighbors cur-node})]
+
+[(outer-loop n [] dists prevs visited)
+ -->
+ (shortest-distances n dists prevs)]
+
+[(inner-loop n q dists prevs visited cur-node cur-node-dist [])
+ -->
+ (outer-loop n q dists prevs [cur-node visited ...])]
+
+[(inner-loop n q dists prevs visited cur-node cur-node-dist [(pair neighbor edge-length) rst-edges ...])
+ (in-list !(do-in-list neighbor visited) neighbor-visited)
+ -->
+ [(= neighbor-visited (false))
+  (assoc-lookup !(do-assoc-lookup dists neighbor 1000000) cur-neighbor-dist)
+  (+ cur-node-dist edge-length alt-neighbor-dist)
+  -->
+  [(< alt-neighbor-dist cur-neighbor-dist)
+   (assoc-upsert !(do-assoc-upsert dists neighbor alt-neighbor-dist) dists')
+   (assoc-upsert !(do-assoc-upsert prevs neighbor cur-node) prevs')
+   (assoc-upsert !(do-assoc-upsert q neighbor alt-neighbor-dist) q')
+   -->
+   (inner-loop n q' dists' prevs' visited cur-node cur-node-dist rst-edges)]
+  [(>= alt-neighbor-dist cur-neighbor-dist)
+   -->
+   (inner-loop n q dists prevs visited cur-node cur-node-dist rst-edges)]]
+ [(= neighbor-visited (true))
+  -->
+  (inner-loop n q dists prevs visited cur-node cur-node-dist rst-edges)]]
+
+
+
+;; --------------------------------------------------------
+;; Utils
+[(= inp (do-queue-remove [(pair k v) rest ...]))
+ (queue-remove !(do-queue-remove rest) rest' rest-k rest-v)
+ -->
+ [(<= v rest-v)
+  -->
+  (queue-remove inp rest k v)]
+ [(> v rest-v)
+  -->
+  (queue-remove inp [(pair k v) rest' ...] rest-k rest-v)]]
+
+(queue-remove ?(do-queue-remove [(pair k v)]) [] k v)
+
+;; --------------------------------------------------------
+;; Generic Utils
+
+;; Association lookup in lists of key-value pairs
+(assoc-lookup ?(do-assoc-lookup [(pair k v) rest ...] k) v)
+
+[(= inp (do-assoc-lookup [(pair k v) rest ...] x))
+ (=/= x k)
+ (assoc-lookup !(do-assoc-lookup rest x) res)
+ -->
+ (assoc-lookup inp res)]
+
+;; Association lookup with default value
+(assoc-lookup ?(do-assoc-lookup [] k default) default)
+(assoc-lookup ?(do-assoc-lookup [(pair k v) rest ...] k default) v)
+[(= inp (do-assoc-lookup [(pair k v) rest ...] x default))
+ (=/= x k)
+ (assoc-lookup !(do-assoc-lookup rest x default) res)
+ -->
+ (assoc-lookup inp res)]
+
+;; Updating/inserting into an association list
+(assoc-upsert ?(do-assoc-upsert [] k v) [(pair k v)])
+(assoc-upsert ?(do-assoc-upsert [(pair k v) rest ...] k v') [(pair k v') rest ...])
+
+[(= inp (do-assoc-upsert [(pair k v) rest ...] x new-v))
+ (=/= x k)
+ (assoc-upsert !(do-assoc-upsert rest x new-v) rest')
+ -->
+ (assoc-upsert inp [(pair k v) rest' ...])]
+
+
+;; Checking list membership. returns either (true) or (false)
+[(= inp (do-in-list x [y ys ...]))
+ -->
+ [(= x y) --> (in-list inp (true))]
+ [(=/= x y)
+  (in-list !(do-in-list x ys) res)
+  -->
+  (in-list inp res)]]
+(in-list ?(do-in-list x []) (false))

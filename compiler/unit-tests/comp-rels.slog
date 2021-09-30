@@ -1,0 +1,138 @@
+(comp non-negative)
+[(>= x 0)
+ -->
+ (non-negative x)]
+
+;; aliasing =/=
+(comp /=) 
+[(=/= x y)
+ -->
+ (/= x y)]
+
+(comp distinct)
+[(/= x y) (=/= y z) (/= x z)
+ -->
+ (distinct x y z)]
+
+[(distinct x y z)
+ (distinct y z w)
+ (/= x w)
+ -->
+ (distinct x y z w)]
+
+(comp primitive?)
+[(or (number? x) (string? x))
+ -->
+ (primitive? x)]
+
+;;a
+(a-foo -1 2)
+(a-foo 2 3)
+(a-foo 1 1)
+[(a-foo x y)
+ (/= x y)
+ (non-negative x)
+ -->
+ (a-bar x y)]
+
+;;b
+(b-foo 1)
+(b-foo "hello")
+(b-foo (b-null))
+
+[(b-foo x)
+ (primitive? x)
+ -->
+ (b-bar x)]
+
+;;c
+(comp fourty-two)
+[ --> (fourty-two 42)]
+[(fourty-two x)
+ -->
+ (c-foo x)]
+
+;;d
+(d-foo 1 2 3)
+(d-foo 1 2 2)
+(d-foo 1 2 1)
+[(d-foo x y z)
+ (distinct x y z)
+ -->
+ (d-bar x y z)]
+
+(d-foo2 1 2 3 4)
+(d-foo2 1 2 3 3)
+[(d-foo2 x y z w)
+ (distinct x y z w)
+ -->
+ (d-bar2 x y z w)]
+
+;;e
+(comp even? odd?)
+[(/ x 2 x/2)
+ (* x/2 2 x)
+ -->
+ (even? x)]
+
+[(/ x 2 x/2)
+ (* x/2 2 x/2*2)
+ (add1 x/2*2 x)
+ -->
+ (odd? x)]
+
+(e-foo 1 2)
+(e-foo 0 3)
+(e-foo 4 5)
+(e-foo 4 12)
+(e-foo 7 5)
+
+[(e-foo x y)
+ (even? x)
+ (odd? y)
+ -->
+ (e-bar x y)]
+
+;;f
+
+(comp factorial)
+[(= x 0)
+ -->
+ (factorial x 1)]
+
+[(> x 0)
+ (sub1 x x-1)
+ (factorial x-1 x-1fac)
+ (* x x-1fac res)
+ -->
+ (factorial x res)]
+
+(f-foo 3)
+(f-foo 4)
+(f-foo 5)
+[(f-foo n)
+ (factorial n nfac)
+ -->
+ (f-facs n nfac)]
+
+;;g
+
+(comp ite')
+[(=/= x 0) -->
+ (ite' x then else then)]
+[(= x 0) -->
+ (ite' x then else else)]
+
+(comp <?)
+[(<  x y) --> (<? x y 1)]
+[(>= x y) --> (<? x y 0)]
+
+(g-foo 1 2 4)
+(g-foo 2 1 3)
+[(g-foo x y z)
+ (<? x y c1)
+ (<? y z c2)
+ (* c1 c2 c)
+ (ite' c "yes" "no" res)
+ -->
+ (g-res (g-foo x y z) res)]

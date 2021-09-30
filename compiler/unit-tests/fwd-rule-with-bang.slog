@@ -1,0 +1,10 @@
+(foo 1)
+(bar 1)
+(foo 2)
+(bar 2)
+
+[(foo x)
+ (bar x)
+ (= foobar-id !(foobar x)) 
+ -->
+ (baz foobar-id)]

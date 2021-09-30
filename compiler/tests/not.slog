@@ -1,0 +1,6 @@
+;; Simple not test
+(does "hello")
+(does "foo")
+
+;; Should work
+[(doesnot x) <-- ~(does x)]

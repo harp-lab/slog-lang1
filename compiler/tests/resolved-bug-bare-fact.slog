@@ -1,0 +1,2 @@
+;; causes an error in the interpreter
+(foo 1)

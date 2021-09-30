@@ -1,0 +1,289 @@
+// see kcfa-tiny-souffle-generator.rkt, which fills in the corresponding values
+.decl Prog(x:number)
+.decl Lam(id:number,x:number,y:number,idbody:number)
+.decl App(id:number,f:number,a0:number,a1:number)
+.decl Var(id:number,var:number)
+.decl Time(dt0:number,dt1:number) // t0:number,t1:number
+.decl AEval(id:number,dt0:number,dt1:number,id1:number,dot0:number,dot1:number) // t0:number,t1:number, ot0:number,ot1:number
+.output AEval
+.decl ReachesCfg(id:number,dt0:number,dt1:number) // t0:number,t1:number
+.output ReachesCfg
+.decl Store(var:number,dt0:number,dt1:number,stored_lam:number,dot0:number,dot1:number) // t0:number,t1:number ot0:number,ot1:number
+.output Store
+.decl Step(from:number,dt0:number,dt1:number,toid:number,dto_t0:number,dto_t1:number,clo_lam:number,dclo_t0:number,dclo_t1:number) // t0:number,t1:number, to_t0:number,to_t1:number clo_t0:number,clo_t1:number
+.output Step
+.decl ReachesClo(id:number,dt0:number,dt1:number) // t0:number,t1:number
+.output ReachesClo
+
+// run the program:
+ReachesCfg(e,e,e), Time(e,e) :- Prog(e). // e,e,e    e,e   e
+
+// with an app step,
+Store(x,id,t0,a0_lam,a0_t0,a0_t1),                      // id,t0    a0_t0,a0_t1
+Store(y,id,t0,a1_lam,a1_t0,a1_t1),
+Step(id,t0,t1,id_body,id,t0,clo_lam,clo_t0,clo_t1),
+ReachesCfg(id_body,id,t0),
+ReachesClo(clo_lam,clo_t0,clo_t1),
+Time(id,t0)
+ :-
+  App(id,id_f,ida0,ida1),
+  AEval(id_f,t0,t1,clo_lam,clo_t0,clo_t1),
+  AEval(id_a0,t0,t1,a0_lam,a0_t0,a0_t1),
+  AEval(id_a1,t0,t1,a1_lam,a1_t0,a1_t1),                // a1_t0,a1_t1
+  Lam(clo_lam,x,y,id_body),
+  ReachesCfg(id,t0,t1).
+
+// and eval of lambdas,
+AEval(id,t0,t1,id,t0,t1) :- Time(t0,t1), Lam(id,_,_,_).
+
+// and eval of local parameter x at t,
+AEval(ref_id,t0,t1,clo_lam,clo_t0,clo_t1) :-
+  Var(ref_id,x),
+  Store(x,t0,t1,clo_lam,clo_t0,clo_t1).
+
+// otherise, propagate free variables
+AEval(id_ref,t0,t1,clo_lam,clo_t0,clo_t1) :-
+  Step(id_call,_,_,id_body,t0,t1,tclo_lam,to_clo_t0,to_clo_t1), // _,_
+  Lam(tclo_lam,p0,p1,tclo_lam_body),
+  Var(id_ref,x),
+  AEval(id_ref,to_clo_t0,to_clo_t1,clo_lam,clo_t0,clo_t1),
+  p0 != x,
+  p1 != x.
+
+// program
+;;intern table...
+;; (hash
+;;  'App
+;;  (set
+;;   '(34 35 60 85)
+;;   '(115 116 117 118)
+;;   '(55 56 57 58)
+;;   '(50 51 52 59)
+;;   '(90 91 92 93)
+;;   '(63 64 65 84)
+;;   '(5 6 31 86)
+;;   '(38 39 40 47)
+;;   '(74 75 76 77)
+;;   '(97 98 105 112)
+;;   '(68 69 70 71)
+;;   '(26 27 28 29)
+;;   '(21 22 23 30)
+;;   '(43 44 45 46)
+;;   '(80 81 82 83)
+;;   '(108 109 110 111)
+;;   '(1 2 87 94)
+;;   '(14 15 16 17)
+;;   '(9 10 11 18)
+;;   '(101 102 103 104))
+;;  'Lam
+;;  (set
+;;   '(35 36 4 38)
+;;   '(23 24 4 26)
+;;   '(18 19 20 21)
+;;   '(40 3 4 43)
+;;   '(52 24 4 55)
+;;   '(77 78 73 80)
+;;   '(98 99 4 101)
+;;   '(65 66 4 68)
+;;   '(11 3 4 14)
+;;   '(6 7 4 9)
+;;   '(112 113 4 115)
+;;   '(2 3 4 5)
+;;   '(105 106 4 108)
+;;   '(87 88 4 90)
+;;   '(60 61 4 63)
+;;   '(31 32 4 34)
+;;   '(71 66 73 74)
+;;   '(94 19 20 97)
+;;   '(47 19 20 50))
+;;  'Prog
+;;  (set '(1))
+;;  'Var
+;;  (set
+;;   '(16 3)
+;;   '(69 66)
+;;   '(116 113)
+;;   '(84 4)
+;;   '(44 4)
+;;   '(30 4)
+;;   '(117 113)
+;;   '(86 4)
+;;   '(46 3)
+;;   '(64 4)
+;;   '(82 78)
+;;   '(51 36)
+;;   '(91 88)
+;;   '(10 7)
+;;   '(103 99)
+;;   '(45 3)
+;;   '(93 4)
+;;   '(83 78)
+;;   '(59 4)
+;;   '(85 4)
+;;   '(81 4)
+;;   '(56 4)
+;;   '(58 24)
+;;   '(70 61)
+;;   '(28 24)
+;;   '(104 4)
+;;   '(92 88)
+;;   '(76 32)
+;;   '(27 4)
+;;   '(118 4)
+;;   '(111 4)
+;;   '(39 36)
+;;   '(110 106)
+;;   '(29 24)
+;;   '(15 4)
+;;   '(102 99)
+;;   '(17 3)
+;;   '(57 24)
+;;   '(22 7)
+;;   '(75 66)
+;;   '(109 106)))
+// '(program
+//   (app
+//    (lam
+//     "x"
+//     "k"
+//     (app
+//      (lam
+//       "f_1"
+//       "k"
+//       (app
+//        (ref "f_1")
+//        (lam "x" "k" (app (ref "k") (ref "x") (ref "x")))
+//        (lam
+//         "na0"
+//         "na1"
+//         (app
+//          (ref "f_1")
+//          (lam "y" "k" (app (ref "k") (ref "y") (ref "y")))
+//          (ref "k")))))
+//      (lam
+//       "z_1"
+//       "k"
+//       (app
+//        (lam
+//         "f_2"
+//         "k"
+//         (app
+//          (ref "f_2")
+//          (lam "x" "k" (app (ref "k") (ref "x") (ref "x")))
+//          (lam
+//           "na0"
+//           "na1"
+//           (app
+//            (ref "f_2")
+//            (lam "y" "k" (app (ref "k") (ref "y") (ref "y")))
+//            (ref "k")))))
+//        (lam
+//         "z_2"
+//         "k"
+//         (app
+//          (ref "k")
+//          (lam
+//           "w"
+//           "k"
+//           (app
+//            (ref "w")
+//            (ref "z_2")
+//            (lam
+//             "w"
+//             "na"
+//             (app
+//              (ref "w")
+//              (ref "z_1")
+//              (lam "v" "na" (app (ref "k") (ref "v") (ref "v")))))))
+//          (ref "k")))
+//        (ref "k")))
+//      (ref "k")))
+//    (lam "u" "k" (app (ref "u") (ref "u") (ref "k")))
+//    (lam
+//     "na0"
+//     "na1"
+//     (app
+//      (lam "u0" "k" (app (ref "u0") (ref "u0") (ref "k")))
+//      (lam "u1" "k" (app (ref "u1") (ref "u1") (ref "k")))
+//      (lam "u2" "k" (app (ref "u2") (ref "u2") (ref "k")))))))
+Prog(1).
+Var(16, 3).
+Var(69, 66).
+Var(116, 113).
+Var(84, 4).
+Var(44, 4).
+Var(30, 4).
+Var(117, 113).
+Var(86, 4).
+Var(46, 3).
+Var(64, 4).
+Var(82, 78).
+Var(51, 36).
+Var(91, 88).
+Var(10, 7).
+Var(103, 99).
+Var(45, 3).
+Var(93, 4).
+Var(83, 78).
+Var(59, 4).
+Var(85, 4).
+Var(81, 4).
+Var(56, 4).
+Var(58, 24).
+Var(70, 61).
+Var(28, 24).
+Var(104, 4).
+Var(92, 88).
+Var(76, 32).
+Var(27, 4).
+Var(118, 4).
+Var(111, 4).
+Var(39, 36).
+Var(110, 106).
+Var(29, 24).
+Var(15, 4).
+Var(102, 99).
+Var(17, 3).
+Var(57, 24).
+Var(22, 7).
+Var(75, 66).
+Var(109, 106).
+Lam(35, 36, 4, 38).
+Lam(23, 24, 4, 26).
+Lam(18, 19, 20, 21).
+Lam(40, 3, 4, 43).
+Lam(52, 24, 4, 55).
+Lam(77, 78, 73, 80).
+Lam(98, 99, 4, 101).
+Lam(65, 66, 4, 68).
+Lam(11, 3, 4, 14).
+Lam(6, 7, 4, 9).
+Lam(112, 113, 4, 115).
+Lam(2, 3, 4, 5).
+Lam(105, 106, 4, 108).
+Lam(87, 88, 4, 90).
+Lam(60, 61, 4, 63).
+Lam(31, 32, 4, 34).
+Lam(71, 66, 73, 74).
+Lam(94, 19, 20, 97).
+Lam(47, 19, 20, 50).
+App(34, 35, 60, 85).
+App(115, 116, 117, 118).
+App(55, 56, 57, 58).
+App(50, 51, 52, 59).
+App(90, 91, 92, 93).
+App(63, 64, 65, 84).
+App(5, 6, 31, 86).
+App(38, 39, 40, 47).
+App(74, 75, 76, 77).
+App(97, 98, 105, 112).
+App(68, 69, 70, 71).
+App(26, 27, 28, 29).
+App(21, 22, 23, 30).
+App(43, 44, 45, 46).
+App(80, 81, 82, 83).
+App(108, 109, 110, 111).
+App(1, 2, 87, 94).
+App(14, 15, 16, 17).
+App(9, 10, 11, 18).
+App(101, 102, 103, 104).

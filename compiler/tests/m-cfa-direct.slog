@@ -1,0 +1,95 @@
+; (program
+;  (app (lam "x" (app (ref "x") (ref "x")))
+;       (lam "y" (app (ref "y") (ref "y")))))
+
+;; with reclam
+(program
+ (app (reclam "f" "x" (app (ref "f") (ref "x")))
+      (lam "y" (app (ref "y") (ref "y")))))
+
+[(program e)
+ -->
+ (control e (mt-addr) (time (null) (null) (null)))]
+
+(kstore (mt-addr) (mt))
+
+[(lam x e)
+ (= t (time _ _ _))
+ -->
+ (aeval t (lam x e) (clo (lam x e) t))]
+
+[(reclam f x e)
+ (= t (time _ _ _))
+ -->
+ (aeval t (reclam f x e) (clo (reclam f x e) t))]
+
+[(store t var val)
+ -->
+ (aeval t ?(ref var) val)]
+
+[(tick-input (time l1 l2 l3) e)
+ --> 
+ (tick (tick-input (time l1 l2 l3) e) (time e l1 l2))]
+
+[(alloc-kont-input t e)
+ -->
+ (alloc-kont (alloc-kont-input t e) (kont-addr t e))]
+
+[(control c ka t)
+ (aeval t c v)
+ (kstore ka (fn (clo (lam x e) lam-t) ka-prime))
+ (tick !(tick-input t c) new-t)
+ -->
+ (copy-store lam-t new-t x)
+ (store new-t x v)
+ (control e ka-prime new-t)]
+
+[(control c ka t)
+ (aeval t c v)
+ (kstore ka (fn (clo (reclam f x e) lam-t) ka-prime))
+ (tick !(tick-input t c) new-t)
+ -->
+ (copy-store lam-t new-t x f)
+ (store new-t f (clo (reclam f x e) new-t))
+ (store new-t x v)
+ (control e ka-prime new-t)]
+
+[(control c ka t)
+ (aeval t c v)
+ (kstore ka (ar ar-e ar-t ka-prime))
+ (alloc-kont !(alloc-kont-input t c) ka-2prime)
+ -->
+ (kstore ka-2prime (fn v ka-prime))
+ (control ar-e ka-2prime ar-t)]
+
+[(control (app f e) ka t)
+ (alloc-kont !(alloc-kont-input t (app f e)) ka-prime)
+ -->
+ (kstore ka-prime (ar e t ka))
+ (control f ka-prime t)]
+
+[(control (let x ex e) ka t)
+ (tick !(tick-input t (let x ex e)) new-t)
+ (alloc-kont !(alloc-kont-input t (let x ex e)) ka-prime)
+ -->
+ (kstore ka-prime (fn (clo (lam x e) t) ka))
+ (control ex ka-prime new-t)]
+
+;; utils
+[(copy-store t1 t2)
+ (store t1 x v)
+ -->
+ (store t2 x v)]
+
+[(copy-store t1 t2 exclude)
+ (store t1 x v)
+ (=/= x exclude)
+ -->
+ (store t2 x v)]
+
+
+;; TODO JUNK
+
+[(foo 1) -->
+ (mt-addr)
+ (mt)]

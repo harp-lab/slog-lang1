@@ -1,0 +1,27 @@
+(cnf-output _ _)
+{(cnf-output
+    (s-or (s-and (s-not (s-or (s-or
+                            (s-and (s-atom "a") (s-or (s-atom "b") (s-atom "c")))
+                            (s-and (s-atom "d") (s-atom "e")))
+                            (s-atom "f")))
+                (s-or (s-atom "g") (s-and (s-atom "h") (s-atom "i"))))
+        (s-and (s-atom "j") (s-atom "k")))
+    (s-and (s-and (s-and (s-and (s-and
+                                (s-or (s-or (s-not (s-atom "a")) (s-not (s-atom "b"))) (s-atom "j"))
+                                (s-or (s-or (s-not (s-atom "a")) (s-not (s-atom "b"))) (s-atom "k")))
+                                (s-and
+                                (s-or (s-or (s-not (s-atom "a")) (s-not (s-atom "c"))) (s-atom "j"))
+                                (s-or (s-or (s-not (s-atom "a")) (s-not (s-atom "c"))) (s-atom "k"))))
+                        (s-and
+                        (s-or (s-or (s-not (s-atom "d")) (s-not (s-atom "e"))) (s-atom "j"))
+                        (s-or (s-or (s-not (s-atom "d")) (s-not (s-atom "e"))) (s-atom "k"))))
+                (s-and
+                (s-or (s-not (s-atom "f")) (s-atom "j"))
+                (s-or (s-not (s-atom "f")) (s-atom "k"))))
+        (s-and
+            (s-and
+            (s-or (s-or (s-atom "g") (s-atom "h")) (s-atom "j"))
+            (s-or (s-or (s-atom "g") (s-atom "h")) (s-atom "k")))
+            (s-and
+            (s-or (s-or (s-atom "g") (s-atom "i")) (s-atom "j"))
+            (s-or (s-or (s-atom "g") (s-atom "i")) (s-atom "k"))))))}

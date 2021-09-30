@@ -1,0 +1,12 @@
+
+
+; rule with y as index
+[(A x z)
+ <--
+ (A x y) (B y z)]
+
+; rule with x as index
+[(A x z)
+ <--
+ (A x y) (B x z)]
+

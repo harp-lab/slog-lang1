@@ -1,0 +1,12 @@
+;; BUG: must-have-fooooo has a spurious fact added to it
+
+(instr1 "x")
+(instr2 "x")
+
+[(instr1 x)
+ -->
+ (s= x)]
+
+[(instr2 x)
+ -->
+ (must-have-fooooo (s= (fooooo 1)))]

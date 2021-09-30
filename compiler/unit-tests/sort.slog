@@ -1,0 +1,20 @@
+(sort-input (cons 3 (cons 11 (cons 9 (cons 10
+             (cons 4 (cons 2 (cons 1 (cons 6 (cons 9 (cons 0 (null))))))))))))
+
+[(sort-input xs) (sorted xs xs-s) --> (sort-output xs xs-s)]
+
+(sorted (null) (null))
+(sorted ?(cons x (null)) (cons x (null)))
+
+[(cons x xs)
+ (sorted xs (cons xs-s-h xs-s-t))
+ (<= x xs-s-h)
+ -->
+ (sorted (cons x xs) (cons x (cons xs-s-h xs-s-t)))]
+
+[(cons x xs)
+ (sorted xs (cons xs-s-h xs-s-t))
+ (< xs-s-h x)
+ (sorted !(cons x xs-s-t) x-xs-s-s)
+ -->
+ (sorted (cons x xs) (cons xs-s-h x-xs-s-s))]

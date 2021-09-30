@@ -1,0 +1,171 @@
+[(reachable e e e e e)
+ <--
+ (program e)]
+
+;; Application
+[(reachable bdy app0 t0 t1 t2)
+ (app-step app0 t0 t1 t2 t3 bdy app0 t0 t1 t2)
+ (ret-to-var ae t0 t1 t2 t3 x app0 t0 t1 t2)
+ (free-var-prop lam0 lam_t0 lam_t1 lam_t2 lam_t3 app0 t0 t1 t2)
+ (ret-to-ret bdy app0 t0 t1 t2 app0 t0 t1 t2 t3)
+ <--
+ (= lam0 (lam x bdy))
+ --
+ (producer lam0 lam_t0 lam_t1 lam_t2 lam_t3)
+ --
+ (ret-to-ret lam0 lam_t0 lam_t1 lam_t2 lam_t3 fe t0 t1 t2 t3)
+ --
+ (reachable app0 t0 t1 t2 t3)
+ (= app0 (app fe ae))]
+
+[(var-to-var y lam_t0 lam_t1 lam_t2 lam_t3 y t0 t1 t2 t3)
+ <--
+ (free-var-prop (lam x bdy) lam_t0 lam_t1 lam_t2 lam_t3 t0 t1 t2 t3)
+ (free y (lam x bdy))]
+
+;; Local Steps and Reachability
+[(reachable fe t0 t1 t2 t3)
+ (reachable ae t0 t1 t2 t3)
+ <--
+ (reachable (app fe ae) t0 t1 t2 t3)]
+
+[(reachable e0 t0 t1 t2 t3)
+ (reachable e1 t0 t1 t2 t3)
+ <--
+ (reachable (seq e0 e1) t0 t1 t2 t3)]
+
+[(reachable rhs t0 t1 t2 t3)
+ (reachable bdy t0 t1 t2 t3)
+ (ret-to-var rhs t0 t1 t2 t3 x t0 t1 t2 t3)
+ <--
+ (reachable (let x rhs bdy) t0 t1 t2 t3)]
+
+;; Producers
+[(ret-to-ret e t0 t1 t2 t3 e t0 t1 t2 t3)
+ <--
+ (producer e t0 t1 t2 t3)]
+
+[(producer (lam x bdy) t0 t1 t2 t3)
+ <--
+ (reachable (lam x bdy) t0 t1 t2 t3)]
+
+[(producer (const n) t0 t1 t2 t3)
+ <--
+ (reachable (const n) t0 t1 t2 t3)]
+
+[(var-to-ret x t0 t1 t2 t3 (ref x) t0 t1 t2 t3)
+ <--
+ (reachable (ref x) t0 t1 t2 t3)]
+
+;; Transitive flows
+[(ret-to-var e e_t0 e_t1 e_t2 e_t3 v1 v1_t0 v1_t1 v1_t2 v1_t3)
+ <--
+ (var-to-var v v_t0 v_t1 v_t2 v_t3 v1 v1_t0 v1_t1 v1_t2 v1_t3)
+ (ret-to-var e e_t0 e_t1 e_t2 e_t3 v v_t0 v_t1 v_t2 v_t3)]
+
+[(ret-to-var e e_t0 e_t1 e_t2 e_t3 v v_t0 v_t1 v_t2 v_t3)
+ <--
+ (ret-to-var e1 e1_t0 e1_t1 e1_t2 e1_t3 v v_t0 v_t1 v_t2 v_t3)
+ (ret-to-ret e e_t0 e_t1 e_t2 e_t3 e1 e1_t0 e1_t1 e1_t2 e1_t3)]
+
+[(ret-to-ret e e_t0 e_t1 e_t2 e_t3 v1 v1_t0 v1_t1 v1_t2 v1_t3)
+ <--
+ (var-to-ret v v_t0 v_t1 v_t2 v_t3 v1 v1_t0 v1_t1 v1_t2 v1_t3)
+ (ret-to-var e e_t0 e_t1 e_t2 e_t3 v v_t0 v_t1 v_t2 v_t3)]
+
+[(ret-to-ret e e_t0 e_t1 e_t2 e_t3 e2 e2_t0 e2_t1 e2_t2 e2_t3)
+ <--
+ (ret-to-ret e1 e1_t0 e1_t1 e1_t2 e1_t3 e2 e2_t0 e2_t1 e2_t2 e2_t3)
+ (ret-to-ret e e_t0 e_t1 e_t2 e_t3 e1 e1_t0 e1_t1 e1_t2 e1_t3)]
+
+[(var-to-ret x x_t0 x_t1 x_t2 x_t3 e1 e1_t0 e1_t1 e1_t2 e1_t3)
+ <--
+ (var-to-ret x x_t0 x_t1 x_t2 x_t3 e e_t0 e_t1 e_t2 e_t3)
+ (ret-to-ret e e_t0 e_t1 e_t2 e_t3 e1 e1_t0 e1_t1 e1_t2 e1_t3)]
+
+[(var-to-ret y y_t0 y_t1 y_t2 y_t3 e e_t0 e_t1 e_t2 e_t3)
+ <--
+ (var-to-ret x x_t0 x_t1 x_t2 x_t3 e e_t0 e_t1 e_t2 e_t3)
+ (var-to-var y y_t0 y_t1 y_t2 y_t3 x x_t0 x_t1 x_t2 x_t3)]
+
+[(var-to-var x x_t0 x_t1 x_t2 x_t3 y y_t0 y_t1 y_t2 y_t3)
+ <--
+ (var-to-ret x x_t0 x_t1 x_t2 x_t3 e e_t0 e_t1 e_t2 e_t3)
+ (ret-to-var e e_t0 e_t1 e_t2 e_t3 y y_t0 y_t1 y_t2 y_t3)]
+
+[(var-to-var x x_t0 x_t1 x_t2 x_t3 y y_t0 y_t1 y_t2 y_t3)
+ <--
+ (var-to-var x x_t0 x_t1 x_t2 x_t3 z z_t0 z_t1 z_t2 z_t3)
+ (var-to-var z z_t0 z_t1 z_t2 z_t3 y y_t0 y_t1 y_t2 y_t3)]
+
+;; Free variables
+[(free x ?(ref x))
+ <--]
+
+[(free x ?(app e0 e1))
+ <--
+ (or (free x e0)
+     (free x e1))]
+
+[(free x ?(seq e0 e1))
+ <--
+ (or (free x e0)
+     (free x e1))]
+
+[(free x ?(let y rhs bdy))
+ <--
+ (free x rhs)]
+
+[(free x ?(let y rhs bdy))
+ <--
+ (=/= x y)
+ (free x bdy)]
+
+[(free x ?(lam y bdy))
+ <--
+ (=/= x y)
+ (free x bdy)]
+(program
+ (let "f6"
+   (lam
+    "x6"
+    (let "f5"
+      (lam
+       "x5"
+       (let "f4"
+         (lam
+          "x4"
+          (let "f3"
+            (lam
+             "x3"
+             (let "f2"
+               (lam
+                "x2"
+                (let "f1"
+                  (lam
+                   "x1"
+                   (app
+                    (app
+                     (app
+                      (app
+                       (app
+                        (app
+                         (lam
+                          "a6"
+                          (lam
+                           "a5"
+                           (lam
+                            "a4"
+                            (lam "a3" (lam "a2" (lam "a1" (const 2)))))))
+                         (ref "x1"))
+                        (ref "x2"))
+                       (ref "x3"))
+                      (ref "x4"))
+                     (ref "x5"))
+                    (ref "x6")))
+                  (seq (app (ref "f1") (const 0)) (app (ref "f1") (const 1)))))
+               (seq (app (ref "f2") (const 0)) (app (ref "f2") (const 1)))))
+            (seq (app (ref "f3") (const 0)) (app (ref "f3") (const 1)))))
+         (seq (app (ref "f4") (const 0)) (app (ref "f4") (const 1)))))
+      (seq (app (ref "f5") (const 0)) (app (ref "f5") (const 1)))))
+   (seq (app (ref "f6") (const 0)) (app (ref "f6") (const 1)))))

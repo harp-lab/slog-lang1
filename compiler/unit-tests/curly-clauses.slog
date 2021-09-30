@@ -1,0 +1,130 @@
+(comp factorial)
+(factorial 0 1)
+[(> x 0)
+ -->
+ (factorial x {* x {factorial {- x 1}}})]
+
+[(= x {range 1 5})
+ -->
+ (fac x {factorial x})]
+
+;; A ------------------------
+
+(a-foo {+ 1 2})
+(a-foo {range 10 12})
+
+;; B ------------------------
+
+(list-sum ?(list-sum-input []) 0)
+(list-sum ?(list-sum-input [x xs ...]) {+ x {list-sum !(list-sum-input xs)}})
+
+; [(list-sum !(list-sum-input xs) xs-sum)
+;  (+ x xs-sum res)
+;  -->
+;  (list-sum ?(list-sum-input [x xs ...]) res)]
+
+[(= inp (list-range-input x y))
+ -->
+ [(< x y) --> (list-range inp [x {list-range !(list-range-input {add1 x} y)} ...])]
+ [(>= x y) --> (list-range inp [])]]
+
+(b-1-to-4 {list-range !(list-range-input 1 5)})
+(b-sum1-10 {list-sum !(list-sum-input {list-range !(list-range-input 1 {add1 10})})})
+
+;; C ------------------------
+
+(c-foo 1 6)
+(c-fooo 1 6 16)
+
+[(c-foo x y)
+ --
+ (< x y)
+ --
+ (= two-x {* x 2})
+ -->
+ (c-bar {c-fooo x y} {+ two-x 1})]
+
+;; D ------------------------
+
+(comp delta)
+[-->
+ (delta a b c {- {* b b} {* 4 {* a c}}})]
+
+(d-foo 1 2 3)
+(d-foo 4 6 2)
+
+[(d-foo a b c)
+ (>= {delta a b c} 0)
+ -->
+ (d-real-sol a b c)]
+
+;; E ------------------------
+
+(e-foo [1 2 3])
+(e-foo [3 4])
+(e-foo [2 3])
+(e-foo [2])
+ 
+(e-bar {list-range !(list-range-input 1 5)})
+
+[(e-bar [_ ... x {e-foo} ... y _ ...])
+ -->
+ (e-baz x y)]
+
+;; F ------------------------
+
+(comp ==)
+[(= x y) --> (== x y)]
+
+(f-foo 0)
+(f-foo 1)
+(f-foo 2)
+(f-bar 1 3)
+(f-bar 2 0)
+(f-bar 1 2)
+(f-bar 2 4)
+
+[(f-foo x)
+ (or (= id (f-bar x {+ x 2})) 
+     (= id (f-bar {+ x 2} {== x})))
+ -->
+ (f-baz id)]
+
+;; G ------------------------
+
+(π "3.14159265")
+(g-pi-is {π})
+
+;; H ------------------------
+
+(h-foo [1 2 3])
+
+[(h-foo [xs ... y zs ...])
+ -->
+ (h-bar {+ {list-sum !(list-sum-input xs)} {list-sum !(list-sum-input zs)}})]
+
+;; I ------------------------
+
+(comp >')
+[(> x y) --> (>' x y x)]
+
+(i-foo -1)
+(i-foo 0)
+(i-foo 1)
+[(i-foo x)
+ -->
+ (i-bar {>' x 0})]
+
+
+; (foo 1 2)
+
+; [(= inp (create-bar-input x))
+;  (> x 1)
+;  -->
+;  (create-bar inp x)]
+
+; [(foo x y)
+;  (create-bar !(create-bar-input x) xbar)
+;  (create-bar !(create-bar-input y) ybar)
+;  -->
+;  (output xbar ybar)]

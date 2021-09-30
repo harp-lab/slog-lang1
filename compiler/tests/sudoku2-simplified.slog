@@ -1,0 +1,355 @@
+
+;;; Sudoku solver, search with CP
+
+; input: (sudoku _)     output: (solution _ _)
+
+; supposedly an "11 star"-rated problem 
+;; (sudoku
+;;  [[8 0 0 0 0 0 0 0 0]
+;;   [0 0 3 6 0 0 0 0 0]
+;;   [0 7 0 0 9 0 2 0 0]
+;;   [0 5 0 0 0 7 0 0 0]
+;;   [0 0 0 0 4 5 7 0 0]
+;;   [0 0 0 1 0 0 0 3 0]
+;;   [0 0 1 0 0 0 0 6 8]
+;;   [0 0 8 5 0 0 0 1 0]
+;;   [0 9 0 0 0 0 4 0 0]])
+
+; Wikipedia Sudoku -- can be solved with transitive CP only
+(sudoku
+ [[5 3 0 0 7 0 0 0 0]
+  [6 0 0 1 9 5 0 0 0]
+  [0 9 8 0 0 0 0 6 0]
+  [8 0 0 0 6 0 0 0 3]
+  [4 0 0 8 0 3 0 0 1]
+  [7 0 0 0 2 0 0 0 6]
+  [0 6 0 0 0 0 2 8 0]
+  [0 0 0 4 1 9 0 0 5]
+  [0 0 0 0 8 0 0 7 9]])
+
+; Test
+;; (sudoku
+;;  [[0 0 0 0 0 0 0 0 0]
+;;   [0 0 6 1 7 8 3 9 4]
+;;   [0 4 1 2 3 9 8 5 6]
+;;   [0 9 5 7 4 2 1 6 8]
+;;   [0 1 8 9 6 5 7 4 3]
+;;   [0 7 4 8 1 3 9 2 5]
+;;   [0 3 2 5 9 7 6 8 1]
+;;   [0 6 7 4 2 1 5 3 9]
+;;   [0 5 9 3 8 6 4 7 2]])
+
+
+; init
+(found s ?(sudoku s))
+
+;; Search
+
+; every other step, run CR
+[(step ?(found s prov) (search s' prov))
+ <--
+ (do !(propagate* s) s')]
+
+; every other step, search in parallel
+[(step ?(search s prov) (found s' prov))
+ <--
+ (do !(update-board s pos v) s')
+ (do !(open-pos-values s pos) v)
+ (do !(first-unset s) pos)]
+
+; solution found
+[(solution prov s)
+ <--
+ (do !(is-board-solved s))
+ (or (found s prov)
+     (search s prov))]
+
+; find the first unset square
+[(do ?(first-unset s) p) <-- (do !(first-unset s 0 0) p)]
+[(do ?(first-unset s r 9) p)
+ <--
+ (do !(first-unset s {+ r 1} 0) p)
+ (< r 9)]
+[(do ?(first-unset s r c) (pos r c))
+ <--
+ (do !(board-ref s (pos r c)) 0)
+ (< r 9)
+ (< c 9)]
+[(do ?(first-unset s r c) p)
+ <--
+ (do !(first-unset s r {+ c 1}) p)
+ (> n 0)
+ --
+ (do !(board-ref s (pos r c)) n)
+ (< r 9)
+ (< c 9)]
+
+; is-board-solved predicate
+[(do ?(is-board-solved s)) <-- (do !(is-board-solved s 0 0))]
+(do ?(is-board-solved s 9 0))
+[(do ?(is-board-solved s r 9))
+ <--
+ (do !(is-board-solved s {+ r 1} 0))
+ (< r 9)]
+[(do ?(is-board-solved s r c))
+ <--
+ (do !(is-board-solved s r {+ c 1}))
+ (> n 0)
+ --
+ (do !(board-ref s (pos r c)) n)
+ (< r 9)
+ (< c 9)]
+
+; Compute open positions for a board
+[(do ?(open-positions [rw _ ...]) (pos 0 c))
+ <--
+ (do !(open-row-positions rw) c)]
+[(do ?(open-positions [_ rs ...]) (pos {+ r 1} c))
+ <--
+ (do !(open-positions rs) (pos r c))]
+
+(do ?(open-row-positions [0 _ ...]) 0)
+[(do ?(open-row-positions [_ rst ...]) {+ c 1})
+ <--
+ (do !(open-row-positions rst) c)]
+
+
+
+;; Constraint propagation
+
+; fixed-point CP
+[(do ?(propagate* s) s) <-- (do !(propagate s) s)]
+[(do ?(propagate* s) s'')
+ <--
+ (do !(propagate* s') s'')
+ (do !(propagate s) s')]
+
+; base case
+(do ?(propagate s 9 0) s)
+; init
+[(do ?(propagate s) s')
+ <--
+ (do !(propagate s 0 0) s')]
+; wrap case
+[(do ?(propagate s r 9) s')
+ <--
+ (do !(propagate s {+ r 1} 0) s')
+ (< r 9)]
+; handle propagate case
+[(do ?(propagate s r c) s'')
+ <--
+ (do !(propagate s' r c+1) s'')
+ (do !(handle-propagate s r c) s')
+ (do !(count-open-pos-values s (pos r c)) 1)
+ (do !(board-ref s (pos r c)) 0)
+ (+ c 1 c+1)
+ (< r 9)
+ (< c 9)]
+; either the square has multiple options...
+[(do ?(propagate s r c) s')
+ <--
+ (do !(propagate s r c+1) s')
+ (> n 1)
+ (do !(count-open-pos-values s (pos r c)) n)
+ (do !(board-ref s (pos r c)) 0)
+ (+ c 1 c+1)
+ (< r 9)
+ (< c 9)]
+; ...or has none...
+[(do ?(propagate s r c) (dead s (pos r c)))
+ <--
+ (do !(count-open-pos-values s (pos r c)) 0)
+ (do !(board-ref s (pos r c)) 0)
+ (< r 9)
+ (< c 9)]
+; ...or is filled already
+[(do ?(propagate s r c) s')
+ <--
+ (do !(propagate s r {+ c 1}) s')
+ (> v 0)
+ (do !(board-ref s (pos r c)) v)
+ (< r 9)
+ (< c 9)]
+; Set a given 0-square to its only possible value
+[(do ?(handle-propagate s r c) s')
+ <--
+ (do !(update-board s (pos r c) v) s')
+ (do !(open-pos-values s (pos r c)) v)]
+
+; Board update
+[(do ?(update-board s (pos r c) v) s')
+ <--
+ (do !(list-set s r row') s')
+ (do !(list-set row c v) row')
+ (do !(list-ref s r) row)]
+
+; Board reference/lookup
+[(do ?(board-ref s (pos r c)) v)
+ <--
+ (do !(list-ref row c) v)
+ (do !(list-ref s r) row)]
+
+;; Compute the possible values of an open position
+[(do ?(open-pos-values s p) v)
+ <--
+ (do !(open-pos-val s p v))
+ (range 1 10 v)]
+
+; Count the number of open-pos values
+[(do ?(count-open-pos-values s p) n)
+ <--
+ (do !(count-open-pos-values+ s p 9) n)]
+(do ?(count-open-pos-values+ s p 0) 0)
+[(do ?(count-open-pos-values+ s p i) {+ n 1})
+ <--
+ (do !(count-open-pos-values+ s p {- i 1}) n)
+ (do !(open-pos-val s p i))
+ (> i 0)]
+[(do ?(count-open-pos-values+ s p i) n)
+ <--
+ (do !(count-open-pos-values+ s p {- i 1}) n)
+ (do !(closed-pos-val s p i))
+ (> i 0)]
+
+; check a specific position value
+[(do ?(open-pos-val s (pos r c) v))
+ <--
+ (do !(not-in-group s v {/ r 3} {/ c 3}))
+ (do !(in-list? v col) (false))
+ (do !(map-listref s c) col)
+ (do !(in-list? v rw-r) (false))
+ (do !(list-ref s r) rw-r)]
+[(do ?(closed-pos-val s (pos r c) v))
+ <--
+ (in-list v rw-r)
+ (do !(list-ref s r) rw-r)]
+[(do ?(closed-pos-val s (pos r c) v))
+ <--
+ (in-list v col)
+ (do !(map-listref s c) col)]
+[(do ?(closed-pos-val s (pos r c) v))
+ <--
+ (do !(in-group s v {/ r 3} {/ c 3}))]
+
+; check that a value is not in a 3x3 group
+[(do ?(not-in-group s v rg cg))
+ <--
+ (do !(in-list? v ls0) (false))
+ (do !(in-list? v ls1) (false))
+ (do !(in-list? v ls2) (false))
+ (do !(list-slice rwi ci 3) ls0)
+ (do !(list-slice rwi+1 ci 3) ls1)
+ (do !(list-slice rwi+2 ci 3) ls2)
+ (do !(list-ref s ri+2) rwi+2)
+ (do !(list-ref s ri+1) rwi+1)
+ (do !(list-ref s ri) rwi)
+ (+ ri 2 ri+2)
+ (+ ri 1 ri+1)
+ (* rg 3 ri)
+ (* cg 3 ci)]
+; check that a value is in a 3x3 group
+[(do ?(in-group s v rg cg))
+ <--
+ (in-list v ls)
+ --
+ (do !(list-slice rw ci 3) ls)
+ --
+ (do !(list-ref s ri) rw)
+ --
+ (* rg 3 ri)
+ (* cg 3 ci)]
+[(do ?(in-group s v rg cg))
+ <--
+ (in-list v ls)
+ --
+ (do !(list-slice rw ci 3) ls)
+ --
+ (do !(list-ref s ri+1) rw)
+ --
+ (+ ri 1 ri+1)
+ (* rg 3 ri)
+ (* cg 3 ci)]
+[(do ?(in-group s v rg cg))
+ <--
+ (in-list v ls)
+ --
+ (do !(list-slice rw ci 3) ls)
+ --
+ (do !(list-ref s ri+2) rw)
+ --
+ (+ ri 2 ri+2)
+ (* rg 3 ri)
+ (* cg 3 ci)]
+
+; [(= inp (in-group s v rg cg))
+;  (range {* 3 rg} {* 3 {+ rg 1}} ri)
+;  (range {* 3 cg} {* 3 {+ cg 1}} ci)
+;  (do !(list-ref s ri) row)
+;  (do !(list-ref row ci) v)
+;  -->
+;  (do inp)]
+
+
+
+;; Utils
+
+; map list-ref of i over a list of lists
+(do ?(map-listref [] i) [])
+[(do ?(map-listref [ls rst ...] i) [v rst' ...])
+ <--
+ (do !(map-listref rst i) rst')
+ (do !(list-ref ls i) v)]
+
+; list set
+(do ?(list-set [x lst ...] 0 v) [v lst ...])
+[(do ?(list-set [x lst ...] i v) [x {do !(list-set lst {- i 1} v)} ...])
+ <--
+ (> i 0)]
+
+; list ref
+(do ?(list-ref [x _ ...] 0) x)
+[(do ?(list-ref [_ rst ...] n) {do !(list-ref rst {- n 1})})
+ <--
+ (> n 0)]
+
+; in list
+[(in-list x xs) <-- (= xs [x _ ...])]
+[(in-list x xs) <-- (= xs [_ rst ...]) (in-list x rst)]
+
+[(= inp (in-list? v [x xs ...]))
+ -->
+ [(= v x) --> (do inp (true))]
+ [(=/= v x) --> (do inp {do !(in-list? v xs)})]]
+(do ?(in-list? v []) (false))
+
+[(= id (do (in-list? _ _) _)) --> (res-in-list? id)]
+
+; Drop the first k values in a list
+(do ?(drop [] _) [])
+(do ?(drop lst 0) lst)
+[(do ?(drop [x rst ...] i) {do !(drop rst {- i 1})})
+ <--
+ (> i 0)]
+
+; Taking the first k values in a list
+[(> k 0)
+ -->
+ (do ?(take [v lst ...] k) [v {do !(take lst {- k 1})} ...])]
+(do ?(take [] _) [])
+(do ?(take _ 0) [])
+
+; list slice
+[(do ?(list-slice lst i len) lst'')
+ <--
+ (do !(take lst' len) lst'')
+ (do !(drop lst i) lst')]
+
+(| (false) (false) (false))
+(| (false) (true ) (true ))
+(| (true ) (false) (true ))
+(| (true ) (true ) (true ))
+
+(& (false) (false) (false))
+(& (false) (true ) (false))
+(& (true ) (false) (false))
+(& (true ) (true ) (true ))

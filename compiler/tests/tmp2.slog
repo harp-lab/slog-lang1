@@ -1,0 +1,29 @@
+
+
+(edge 0 1)
+(edge 1 2)
+(edge 2 3)
+(edge 3 4)
+(edge 4 5)
+(edge 5 6)
+(edge 6 7)
+(edge 7 8)
+(edge 8 9)
+(edge 9 10)
+(edge 10 11)
+(edge 11 12)
+(edge 13 14)
+(edge 14 15)
+
+[(path4 a i)
+ <--
+ (edge a b)
+ (edge b c)
+ (edge c d)
+ (edge d e)
+ (edge e f)
+ (edge f g)
+ (edge g h)
+ (edge h i)]
+
+

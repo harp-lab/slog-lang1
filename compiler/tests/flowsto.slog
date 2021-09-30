@@ -1,0 +1,3 @@
+(app (lambda (arg x) x) (lambda (arg x) x))
+
+(flowsTo ?(lambda (arg x) e) ?(lambda (arg x) e))

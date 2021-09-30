@@ -1,0 +1,65 @@
+
+; (program
+;  (app (lam "x" "y" (app (ref "x") (ref "x") (ref "y")))
+;       (lam "x" "y" (app (ref "y") (ref "x") (ref "y")))
+;       (lam "x" "y" (app (ref "x") (ref "y") (ref "x")))))
+
+(prog 0)
+(app 0 1 2 3)
+(lam 1 0 1 4)
+(lam 2 0 1 5)
+(lam 3 0 1 6)
+(app 4 7 8 9)
+(app 5 10 11 12)
+(app 6 13 14 15)
+(var 7 0)  ; x
+(var 8 0)  ; x
+(var 9 1)  ; y
+(var 10 1) ; y
+(var 11 0) ; x
+(var 12 1) ; y
+(var 13 0) ; x
+(var 14 1) ; y
+(var 15 0) ; x
+
+; run the program:
+[(prog x) --> (reachesCfg x x x)]
+[(prog x) -->  (time x x)]
+
+; with an app step,
+[(app id id-f id-a0 id-a1)
+ (aeval id-f t0 t1 clo-lam-id clo-t0 clo-t1)
+ (aeval id-a0 t0 t1 a0-lam-id a0-t0 a0-t1)
+ (aeval id-a1 t0 t1 a1-lam-id a1-t0 a1-t1)
+ (lam clo-lam-id x y id-body)
+ (reachesCfg id t0 t1)
+ -->
+ (store x id t0 a0-lam-id a0-t0 a0-t1)
+ (store y id t0 a1-lam-id a1-t0 a1-t1)
+ (step id t0 t1 id-body id t0 clo-lam-id clo-t0 clo-t1)
+ (reachesCfg id-body id t0)
+ (reachesClo clo-lam-id clo-t0 clo-t1)
+ (time id t0)]
+
+; and eval of lambdas,
+[(lam id x y id-body)
+ (time t0 t1)
+ -->
+ (aeval id t0 t1 id t0 t1)]
+
+; and eval of local parameter x at t,
+[(var ref-id x)
+ (reachesClo clo-lam-id clo-t0 clo-t1)
+ (store x t0 t1 clo-lam-id clo-t0 clo-t1)
+ -->
+ (aeval ref-id t0 t1 clo-lam-id clo-t0 clo-t1)]
+
+; otherwise, propagate free variables
+[(step id-call _ _ id-body t0 t1 tclo-lam-id tclo-t0 tclo-t1)
+ (lam tclo-lam-id p0 p1 tclo-lam-body)
+ (var id-ref x)
+ (aeval id-ref lam-t0 lam-t1 clo-lam-id clo-t0 clo-t1)
+ (=/= p0 x)
+ (=/= p1 x)
+ -->
+ (aeval id-ref t0 t1 clo-lam-id clo-t0 clo-t1)]

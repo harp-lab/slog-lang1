@@ -1,0 +1,10 @@
+
+(list [1])
+(list [2])
+(list [1 2])
+
+(append [] ?[lst ...] lst)
+[(append ?[x lst0 ...] ?[lst1 ...] ?[x lst ...])
+ <--
+ (append lst0 lst1 lst)]
+

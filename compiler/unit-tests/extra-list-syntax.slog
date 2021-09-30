@@ -1,0 +1,24 @@
+;; A ------------------------
+(append [] [] [])
+(append [] ?[x xs ...] [x xs ...])
+[(append ?[x lst0 ...] ?[lst1 ...] ?[x lst ...])
+ <--
+ (append lst0 lst1 lst)]
+
+(a-junk [1 2 3] [0 1 2])
+
+(a-query {append ![1 2] [3]})
+(a-query {append ![0] [1 2]})
+
+;; B ------------------------
+(b-foo [2 3])
+(b-foo [11 12])
+
+[(= xs [x {add1 x} rst ...])
+ -->
+ (b-bar xs)]
+
+[(b-foo xs)
+ (b-bar ![10 xs ...])
+ -->
+ (b-baz xs)]

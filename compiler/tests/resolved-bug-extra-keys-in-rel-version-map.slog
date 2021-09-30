@@ -1,0 +1,8 @@
+;; It appears that the hashmap for this rel-version: (rel-version foo 3 (2) total) has extra keys
+;; eg: '((tag integer 4) (tag 259 1) (tag integer 3) (tag integer 5)) 
+
+(foo 3 4 5) (foo 2 3 4) (foo 1 2 3)
+(bar 1) (bar 2) (bar 3)
+
+[(foo x y z) (bar z) --> (baz x)]
+[(foo x y z) (bar y) --> (foo2 y z)]

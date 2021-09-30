@@ -1,0 +1,117 @@
+[(reachable ENTRYR)
+ <--
+ (program e)]
+
+;; Application
+[(reachable bdy APP0T0)
+ (app-step app0 T0T1 bdy APP0T0)
+ (ret-to-var ae T0T1 x APP0T0)
+ (free-var-prop lam0 LAMT0T1 APP0T0)
+ (ret-to-ret bdy APP0T0 app0 T0T1)
+ <--
+ (= lam0 (lam x bdy))
+ --
+ (producer lam0 LAMT0T1)
+ --
+ (t-ret-to-ret lam0 LAMT0T1 fe T0T1)
+ --
+ (reachable app0 T0T1)
+ (= app0 (app fe ae))]
+
+[(var-to-var y LAMT0T1 y T0T1)
+ <--
+ (free-var-prop (lam x bdy) LAMT0T1 T0T1)
+ (free y (lam x bdy))]
+
+;; Local Steps and Reachability
+[(reachable fe T0T1)
+ (reachable ae T0T1)
+ <--
+ (reachable (app fe ae) T0T1)]
+
+[(reachable e0 T0T1)
+ (reachable e1 T0T1)
+ <--
+ (reachable (seq e0 e1) T0T1)]
+
+[(reachable rhs T0T1)
+ (reachable bdy T0T1)
+ (ret-to-var rhs T0T1 x T0T1)
+ <--
+ (reachable (let x rhs bdy) T0T1)]
+
+;; Producers
+[(ret-to-ret e T0T1 e T0T1)
+ <--
+ (producer e T0T1)]
+
+[(producer (lam x bdy) T0T1)
+ <--
+ (reachable (lam x bdy) T0T1)]
+
+[(producer (const n) T0T1)
+ <--
+ (reachable (const n) T0T1)]
+
+[(var-to-ret x T0T1 (ref x) T0T1)
+ <--
+ (reachable (ref x) T0T1)]
+
+;; Transitive flows
+[(t-ret-to-ret e ET0T1 v1 V1T0T1)
+ <--
+ (ret-to-ret e ET0T1 v1 V1T0T1)
+ (producer e ET0T1)]
+
+[(t-ret-to-ret e ET0T1 e0 E0T0T1)
+ <--
+ (ret-to-ret e1 e1_t0 e1_t1 e0 E0T0T1)
+ (t-ret-to-ret e ET0T1 e1 E1T0T1)]
+
+[(t-ret-to-ret e ET0T1 e0 E0T0T1)
+ <--
+ (var-to-ret v VT0T1 e0 E0T0T1)
+ (t-ret-to-var e ET0T1 v VT0T1)]
+
+[(t-ret-to-var e ET0T1 v VT0T1)
+ <--
+ (ret-to-var e ET0T1 v VT0T1)
+ (producer e ET0T1)]
+
+[(t-ret-to-var e ET0T1 v VT0T1)
+ <--
+ (var-to-var v1 V1T0T1 v VT0T1)
+ (t-ret-to-var e ET0T1 v1 V1T0T1)]
+
+[(t-ret-to-var e ET0T1 v VT0T1)
+ <--
+ (ret-to-var e0 E0T0T1 v VT0T1)
+ (t-ret-to-ret e ET0T1 e0 E0T0T1)]
+
+;; Free variables
+[(free x ?(ref x))
+ <--]
+
+[(free x ?(app e0 e1))
+ <--
+ (or (free x e0)
+     (free x e1))]
+
+[(free x ?(seq e0 e1))
+ <--
+ (or (free x e0)
+     (free x e1))]
+
+[(free x ?(let y rhs bdy))
+ <--
+ (free x rhs)]
+
+[(free x ?(let y rhs bdy))
+ <--
+ (=/= x y)
+ (free x bdy)]
+
+[(free x ?(lam y bdy))
+ <--
+ (=/= x y)
+ (free x bdy)]

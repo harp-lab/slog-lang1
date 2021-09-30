@@ -1,0 +1,9 @@
+
+(edge 0 1)
+(edge 1 2)
+
+[(path x y) <-- (edge x y)]
+
+[(path x z) <-- (path x y) (edge y z)]
+
+

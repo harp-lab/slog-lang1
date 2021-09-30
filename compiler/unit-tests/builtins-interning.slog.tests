@@ -1,0 +1,14 @@
+(foo _)
+{ (foo "applebanana") (foo "bananaapple") (foo "appleapple") (foo "bananabanana") }
+
+(we-have _)
+{ (we-have "apple pie") (we-have "pineapple")}
+
+(we-have-split _)
+{ (we-have-split "apple") (we-have-split "pie") (we-have-split "pineapple")}
+
+(hi-there _)
+{ (hi-there "hi-there")}
+
+(b-res _ _)
+{(b-res "b" "c")}

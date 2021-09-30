@@ -1,0 +1,32 @@
+
+
+
+[(A x y z)
+ <--
+ (B y z)
+ (C y z)
+ (D y z)
+ (E x y)
+ (F y z)
+ (G y z)
+ (H y z)
+ (I x z)
+ (J y z)
+ (K y z)
+ (L y z)
+ (M y x)
+ (N y z)
+ (O y z)
+ (P y z)
+ (Q x z y)
+ (R y z)
+ (S y z)
+ (T y z)
+ (U x z)
+ (V y z)
+ (W y z)
+ (X y z)
+ (Y x x)
+ (Z y z)
+ (=/= x y)]
+

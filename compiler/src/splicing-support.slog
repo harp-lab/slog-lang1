@@ -1,0 +1,73 @@
+[(= inp (breaks-into-input beginning-count end-count lst))
+ (split-at !(split-at-input beginning-count lst) left rest)
+ --
+ (split-at-end !(split-at-end-input end-count rest) middle right)
+ -->
+ (breaks-into inp left middle right)]
+
+[(= inp (split-at-input i ($lst x xs)))
+ (> i 0)
+ ;;-- ;;TODO remove (workaround for negative integers bug)
+ (sub1 i i-1)
+ (split-at !(split-at-input i-1 xs) res1 res2)
+ -->
+ (split-at inp ($lst x res1) res2)]
+
+[(split-at-input 0 xs)
+ -->
+ (split-at (split-at-input 0 xs) ($nil) xs)]
+
+[(= inp (split-at-end-input n lst))
+ (length !(length-input lst) len)
+ --
+ (>= len n)
+ ;;-- ;;TODO remove (workaround for negative integers bug)
+ (- len n i)
+ (split-at !(split-at-input i lst) res1 res2)
+ -->
+ (split-at-end inp res1 res2)]
+
+[(= inp (length-input ($lst x xs)))
+ (length !(length-input xs) n)
+ --
+ (add1 n n+1)
+ -->
+ (length inp n+1)]
+
+(length (length-input ($nil)) 0)
+
+
+[($lst-append-input ($nil) lst2)
+ -->
+ ($lst-append ($lst-append-input ($nil) lst2) lst2)]
+
+[($lst-append-input ($lst x xs) lst2)
+ ($lst-append !($lst-append-input xs lst2) xs-lst2)
+ -->
+ ($lst-append ($lst-append-input ($lst x xs) lst2) ($lst x xs-lst2))]
+
+
+[(= inp ($lst-split-input lst))
+ -->
+ ($lst-split inp ($nil) lst)]
+
+[(= inp ($lst-split-input lst))
+ (= lst ($lst head tail))
+ ($lst-split !($lst-split-input tail) tail-l tail-r)
+ -->
+ ($lst-split inp ($lst head tail-l) tail-r)]
+ 
+; [(breaks-into !(breaks-into-input 2 3 [1 2 3 4 5 6 7]) l m r)
+;  ($nil)
+;  -->
+;  (foo0 l m r)]
+
+; [(split-at !(split-at-input 4 [1 2 3 4 5]) l1 l2)
+;  ($nil)
+;  -->
+;  (foo1 l1 l2)]
+
+; [(split-at-end !(split-at-end-input 2 [1 2 3 4 5 6 7]) l1 l2)
+;  ($nil)
+;  -->
+;  (foo2 l1 l2)]

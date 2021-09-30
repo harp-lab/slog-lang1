@@ -1,0 +1,111 @@
+
+;; (program
+;;  (letrec [(bind "fact"
+;;                 (lambda ["n"]
+;;                   (if (app (ref "=") [(ref "n") (const 0)])
+;;                       (const 1)
+;;                       (app (ref "*")
+;;                            [(ref "n")
+;;                             (app (ref "fact")
+;;                                  [(app (ref "-") [(ref "n") (const 1)])])]))))]
+;;    (app (ref "fact") [(const 5)])))
+
+(program
+ (app (lambda ["x"] (app (ref "x") [(ref "x")]))
+      (lambda ["x"] (app (ref "x") [(ref "x")]))))
+
+
+; Program start
+[(start (state (cf-point e ctx) (halt-kont)))
+ <--
+ (program e)
+ (start-ctx ctx)]
+
+;; == app-related rules ==
+
+; step app to fe
+[(local-step
+  state0
+  (state (cf-point fe ctx)
+         (app-kont app-e [] [args ...] kont)))
+ <--
+ (= app-e (app fe [args ...]))
+ --
+ (= state0 (state (cf-point app-e ctx) kont))]
+
+; return to intermediate app-kont continuation
+[()
+ <--
+ (= state0 (state (cf-point e0 ctx)
+                  (app-kont app-e vs [ea0 eas ...] kont)))]
+
+[(find-arg-states [args ...] ctx kont app-e)
+ (state (cf-point arg0 ctx) (app-kont app-e [args ...] ctx kont))
+ <--
+ (find-arg-states [arg0 args ...] ctx kont app-e)]
+
+[(call-step state0 (state (cf-point body ctx+) (kont-addr body ctx+)))
+ (setup-argument-flows [args ...] ctx [params ...] ctx+)
+ (setup-freevar-flows fclo ctx+)
+ (kont-store (kont-addr body ctx+) kont)
+ <--
+ (new-ctx !(get-call-ctx (state (cf-point app-e ctx) kont) fclo) ctx+)
+ --
+ (= fclo (clo (lambda [params ...] body) lctx))
+ --
+ (all-clos !(do-all-clos (cf-point fe ctx)) fclo)
+ --
+ (= app-e (app fe [args ...]))
+ (= state0 (state (cf-point app-e ctx) kont))]
+
+[(setup-argument-flows [args ...] ctx [params ...] ctx+)
+ (flow-edge (cf-point a ctx) (addr p ctx))
+ <--
+ (setup-argument-flows [a args ...] ctx [p params ...] ctx+)]
+
+[(flow-edge (addr x lctx) (addr x ctx))
+ <--
+ (free x lam)
+ (setup-freevar-flows (clo lam lctx) ctx)]
+
+;; Atomic Expressions
+[(flow-edge (addr x ctx) ?(cf-point (ref x) ctx)) <--]
+
+
+;; Special Resolution
+[(all-clos ?(do-all-clos p) (clo (lambda params body) ctx))
+ <--
+ (reaching-flow (cf-point (lambda params body) ctx) p)]
+
+;; Transitive flows
+[(flow-edge-2 p0 p1) <-- (flow-edge p0 p2) (flow-edge p2 p1)]
+[(flow-edge-2 p0 p1) <-- (flow-edge p0 p1)]
+[(flow-edge-4 p0 p1) <-- (flow-edge-2 p0 p2) (flow-edge-2 p2 p1)]
+[(flow-edge-4 p0 p1) <-- (flow-edge p0 p1)]
+[(flow-edge-8 p0 p1) <-- (flow-edge-4 p0 p2) (flow-edge-4 p2 p1)]
+[(flow-edge-8 p0 p1) <-- (flow-edge p0 p1)]
+[(flow-edge-16 p0 p1) <-- (flow-edge-8 p0 p2) (flow-edge-8 p2 p1)]
+[(flow-edge-16 p0 p1) <-- (flow-edge p0 p1)]
+[(reaching-flow kp kp) <-- (key-point kp)]
+[(reaching-flow kp p1) <-- (reaching-flow kp p) (flow-edge-16 p p1)]
+
+;; Free variables
+[(free x ?(ref x)) <--]
+[(free x ?(app e0 e1)) <-- (or (free x e0) (free x e1))]
+[(free x ?(seq e0 e1)) <-- (or (free x e0) (free x e1))]
+[(free x ?(let y rhs bdy)) <-- (free x rhs)]
+[(free x ?(let y rhs bdy)) <-- (=/= x y) (free x bdy)]
+[(free x ?(lambda y bdy)) <-- (=/= x y) (free x bdy)]
+
+;; Context Sensitivity
+(start-ctx ["" ""])
+[(new-ctx get ctx+)
+ <--
+ (short !(do-shorten [exp ctx ...]) ctx+)
+ --
+ (= get (get-call-ctx (state (cf-point exp [ctx ...]) _) _))]
+
+[(short ?(do-shorten [a b rst ...]) [a b]) <--]
+[(short ?(do-shorten [a]) [a]) <--]
+[(short ?(do-shorten []) []) <--]
+

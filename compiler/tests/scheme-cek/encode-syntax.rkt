@@ -1,0 +1,135 @@
+#lang racket
+
+
+(define syn-id 0)
+(define (gen!)
+  (let ([x syn-id])
+   (set! syn-id (+ 1 syn-id))
+   x))
+
+(define (write-indent! n)
+  (if (= n 0)
+      (void)
+      (begin
+        (display " ")
+        (write-indent! (- n 1)))))
+
+(define (line-break! n)
+  (display "\n")
+  (write-indent! n))
+
+(define (write-out s-expr i)
+  (define (normal-s-expr lst i)
+    (if (null? lst)
+        (void)
+        (foldl (lambda (e vd)
+                 (line-break! i)
+                 (write-out e i))
+               (write-out (car lst) i)
+               (cdr lst))))
+  (match s-expr
+         [`(letrec ([,x ,rhs] [,x* ,rhs*] ...) ,body)
+          (display "(letrec ")
+          (display (gen!))
+          (line-break! (+ 8 i))
+          (display "[")
+          (display (format "\"~a\"" x))
+          (line-break! (+ 9 i))
+          (write-out rhs (+ 9 i))
+          (foldl (lambda (x rhs vd)
+                   (line-break! (+ 9 i))
+                   (display (format "\"~a\"" x))
+                   (line-break! (+ 9 i))
+                   (write-out rhs (+ 9 i)))
+                 (void)
+                 x*
+                 rhs*)
+          (display "]")
+          (line-break! (+ 8 i))
+          (write-out body (+ 8 i))
+          (display ")")]
+         [`(let ([,x ,rhs] [,x* ,rhs*] ...) ,body)
+          (display "(let [")
+          (display (gen!))
+          (line-break! (+ 5 i))
+          (display "[")
+          (display (format "\"~a\"" x))
+          (line-break! (+ 6 i))
+          (write-out rhs (+ 6 i))
+          (foldl (lambda (x rhs vd)
+                   (line-break! (+ 6 i))
+                   (display (format "\"~a\"" x))
+                   (line-break! (+ 6 i))
+                   (write-out rhs (+ 6 i)))
+                 (void)
+                 x*
+                 rhs*)
+          (display "]")
+          (line-break! (+ 5 i))
+          (write-out body (+ 5 i))
+          (display ")")]
+         [`(let* ([,x ,rhs] [,x* ,rhs*] ...) ,body)
+          (display "(let* [")
+          (display (gen!))
+          (line-break! (+ 6 i))
+          (display "[")
+          (display (format "\"~a\"" x))
+          (line-break! (+ 7 i))
+          (write-out rhs (+ 7 i))
+          (foldl (lambda (x rhs vd)
+                   (line-break! (+ 7 i))
+                   (display (format "\"~a\"" x))
+                   (line-break! (+ 7 i))
+                   (write-out rhs (+ 7 i)))
+                 (void)
+                 x*
+                 rhs*)
+          (display "]")
+          (line-break! (+ 6 i))
+          (write-out body (+ 6 i))
+          (display ")")]
+         [`(lambda (,x ,xs ...) ,body)
+          (display "(lambda ") 
+          (display (gen!))
+          (line-break! (+ 8 i))
+          (display "[")
+          (display (format "\"~a\"" x))
+          (foldl (lambda (x vd)
+                   (display (format " \"~a\"" x)))
+                 (void)
+                 xs)
+          (display "]")
+          (line-break! (+ 8 i))
+          (write-out body (+ 8 i))
+          (display ")")]
+         [`(if ,eg ,et ,ef)
+          (display "(if ")
+          (display (gen!))
+          (line-break! (+ 4 i))
+          (normal-s-expr `(,eg ,et ,ef) (+ i 4))
+          (display ")")]
+         [(? symbol? x)
+          (display (format "(ref ~a \"~a\")" (gen!) x))]
+         [(? integer? x)
+          (display (format "(int ~a)" x))]
+         [(? string? x)
+          (display (format "(str \"~a\")" x))]
+         [`(,ef ,eas ...)
+          (display "(app ")
+          (display (gen!))
+          (line-break! (+ i 5))
+          (write-out ef (+ i 5))
+          (line-break! (+ i 5))
+          (display "[")
+          (normal-s-expr eas (+ i 6))
+          (display "])")]))
+
+
+
+
+(display "(program\n ")
+(write-out (read) 1)
+(display ")\n")
+
+
+

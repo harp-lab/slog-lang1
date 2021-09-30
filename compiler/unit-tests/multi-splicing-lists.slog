@@ -1,0 +1,14 @@
+[(addup !(addup-input [1 3 2] 3) res)
+ -->
+ (query res)]
+
+[(= inp (addup-input [xs1 ... x xs2 ...] 0))
+ -->
+ (addup inp [])]
+
+[(= inp (addup-input [xs1 ... x xs2 ...] target))
+ (=/= target 0)
+ (- target x new-target)
+ (addup !(addup-input [xs1 ... xs2 ...] new-target) res)
+ -->
+ (addup inp [x res ...])]

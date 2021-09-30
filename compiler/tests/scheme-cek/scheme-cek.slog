@@ -1,0 +1,496 @@
+
+; Input Program
+(program
+ (letrec 0
+         ["fact"
+          (lambda 1
+                  ["n"]
+                  (if 2
+                      (app 3
+                           (ref 4 "=")
+                           [(ref 5 "n")
+                            (int 0)])
+                      (int 1)
+                      (app 6
+                           (ref 7 "*")
+                           [(ref 8 "n")
+                            (app 9
+                                 (ref 10 "fact")
+                                 [(app 11
+                                       (ref 12 "-")
+                                       [(ref 13 "n")
+                                        (int 1)])])])))]
+         (app 14
+              (ref 15 "fact")
+              [(int 5)])))
+
+
+;;;;;; Program entry-points ;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Start evaluation of program
+[(local-enty-e-state
+  (eval (cfp e []) [(halt)]))
+ <--
+ (program e)]
+; Return from program
+[(program-return v)
+ <--
+ (ret v [(halt)])]
+
+
+;;;;;; Transitive steps and paths ;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; transitive closure helper
+; input relatoion: tc-step; output: tc-path
+[(tc-2-step g a c) <-- (tc-step g a b) (tc-step g b c)]
+[(tc-4-step g a c) <-- (tc-2-step g a b) (tc-2-step g b c)]
+[(tc-8-step g a c) <-- (tc-4-step g a b) (tc-4-step g b c)]
+[(tc-1-2-path g a b) <-- (or (tc-2-step g a b) (tc-step g a b))]
+[(tc-1-4-path g a c) <-- (tc-2-step g a b) (tc-1-2-path g b c)]
+[(tc-1-4-path g a b) <-- (tc-1-2-path g a b)]
+[(tc-1-8-path g a c) <-- (tc-4-step g a b) (tc-1-4-path g b c)]
+[(tc-1-8-path g a b) <-- (tc-1-4-path g a b)]
+[(tc-8-path g a c) <-- (tc-8-path g a b) (tc-8-step g a c)]
+[(tc-8-path g a b) <-- (tc-8-step g a b)]
+[(tc-path g a b) <-- (or (tc-8-path g a b) (tc-1-8-path g a b))]
+
+; classifying immediate steps
+(ee-step ?(step (eval _ _)
+                (eval _ _)))
+(aa-step ?(step (apply _ _ _ _)
+                (apply _ _ _ _)))
+(rr-step ?(step (ret _ _)
+                (ret _ _)))
+(er-step ?(step (eval _ _)
+                (ret _ _)))
+(re-step ?(step (ret _ _)
+                (eval _ _)))
+(ra-step ?(step (ret _ _)
+                (apply _ _ _ _)))
+(ar-step ?(step (apply _ _ _ _)
+                (ret _ _)))
+(ea-step ?(step (eval _ _)
+                (apply _ _ _ _)))
+(ae-step ?(step (apply _ _ _ _)
+                (eval _ _)))
+
+; local steps ee,er,ea,re (excludes any aX and rr steps)
+[(local-step stp)
+ <--
+ (or (ee-step stp) (er-step stp) (ea-step stp) (re-step stp))]
+
+; local paths
+[(tc-step (local-step) a b) <-- (local-step (step a b))]
+[(local-path (step a b)) <-- (tc-path (local-step) a b)]
+
+; local entry and reenty eval states
+[(local-entry-e-state e-st)
+ <--
+ (= e-st (eval _ _))
+ (step (apply _ _ _ _) e-st)]
+[(local-reentry-e-state e-st)
+ <--
+ (= e-st (eval _ _))
+ (re-step (step r-st' e-st))
+ (rr-step (step r-st r-st'))]
+
+; Apply state to corresponding ret state (just before the eval reenty state)
+[(matching-apply-ret apply-st (ret v k))
+ <--
+ (= apply-st (apply _ _ _ k))
+ (step (ret v [(kaddr e ctx)]) (ret v k))
+ (step apply-st (eval cfp [(kaddr e ctx)]))]
+
+
+;;;;;; Store-related Rules ;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; store* -- store each pair in a list of binds
+[(store x st v)
+ (store* xs st vs)
+ <--
+ (store* [x xs ...] st [v vs ...])]
+
+; propagate local-step values
+[(store x st' v)
+ <--
+ (store x st v)
+ --
+ (local-step (step st st'))]
+
+; reinstate values upon return
+[(store x ret-st v)
+ <--
+ (store x apply-st v)
+ (matching-apply-ret apply-st ret-st)]
+
+; Propagate arguments
+[(store x eval-st v)
+ <--
+ (store x apply-st v)
+ --
+ (in-list x xs)
+ --
+ (free x e)
+ --
+ (= apply-st (apply _ (clo (lambda _ xs e) _) _ _))
+ (= eval-st (eval (cfp e _) _))
+ (step apply-st eval-st)]
+
+; Propagate environment variables
+[(store x eval-st v)
+ <--
+ (store x apply-st v)
+ --
+ (free x (lambda lab xs eb))
+ --
+ (= apply-st (apply e (clo (lambda lab xs eb) _) _ _))
+ (= eval-st (eval (cfp eb _) [_]))
+ (step apply-st
+       eval-st)]
+
+
+;;;;;; Syntax-directed step rules ;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; App-related step rules
+
+; Eval step from app to ef
+(step ?(eval (cfp (app lab0 ef eas) ctx) k)
+       (eval (cfp ef ctx) [(app-k (app lab0 ef eas) [] eas ctx) k ...]))
+; Ret step to app-k (next argument)
+(step ?(ret v [(app-k e vs [e0 eas ...] ctx) k ...])
+       (eval (cfp e0 ctx) [(app-k e [vs ... v] eas ctx) k ...]))
+; Ret step to app-k (apply)
+(step ?(ret v [(app-k e [vf vas ...] [] ctx) k ...])
+       (apply e vf [vas ... v] k))
+       
+; Apply step to function body
+[(kstore kaddr k)
+ (step apply_state
+       (eval (cfp eb ctx') [kaddr]))
+ (= kaddr (kaddr eb ctx'))
+ <--
+ (take !(do-take [e ctx ...] 0) ctx')
+ --
+ (= apply_state
+    (apply e (clo (lambda _ xs eb) (eval (cfp _ ctx) _)) vas k))]
+
+;; Return to kaddr
+
+[(ret v [(kaddr e ctx)])
+ (kstore (kaddr e ctx) k)
+ -->
+ (ret v k)]
+
+;; let, let* and letrec step rules
+
+; empty let
+(step ?(eval (cfp (let _ [] body) ctx) k)
+      (eval (cfp body ctx) k))
+; step to rhs of let
+[(step ?(eval (cfp e ctx k))
+       (eval (cfp rhs0 ctx) [(let-k e [x] [] more ctx) k ...]))
+ <--
+ (= e (let _ [x rhs0 more ...] body))]
+; return to let-k
+(step ?(ret v [(let-k e xs vs [x rhs rem ...] ctx) k ...])
+      (eval (cfp rhs ctx) [(let-k e [xs ... x] [vs ... v] rem ctx) k ...]))
+; return to complete let-k
+[(store* xs eval-st [vs ... v])
+ (step ?(ret v [(let-k (let _ _ eb) xs vs [] ctx) k ...])
+       eval-st)
+ (= eval-st (eval (cfp eb ctx) k))
+ <--]
+
+; empty let*
+(step ?(eval (cfp (let* _ [] body) ctx) k)
+      (eval (cfp body ctx) k))
+; step to rhs of let*
+[(step ?(eval (cfp e ctx k))
+       (eval (cfp rhs0 ctx) [(let*-k e x more ctx) k ...]))
+ <--
+ (= e (let* _ [x rhs0 more ...] body))]
+; return to let*-k
+[(store x eval-st v)
+ (step ?(ret v [(let*-k e x [x' rhs rem ...] ctx) k ...])
+       eval-st)
+ (= eval-st (eval (cfp rhs ctx) [(let*-k e x' rem ctx) k ...]))
+ <--]
+; return to complete let-k
+[(store x eval-st v)
+ (step ?(ret v [(let*-k (let* _ _ eb) x [] ctx) k ...])
+       eval-st)
+ (= eval-st (eval (cfp eb ctx) k))
+ <--]
+
+
+; empty letrec
+(step ?(eval (cfp (letrec _ [] body) ctx) k)
+      (eval (cfp body ctx) k))
+; step to rhs of let
+[(step ?(eval (cfp e ctx k))
+       (eval (cfp rhs0 ctx) [(letrec-k e [x] [] more ctx) k ...]))
+ <--
+ (= e (letrec _ [x rhs0 more ...] body))]
+; return to letrec-k
+(step ?(ret v [(letrec-k e xs vs [x rhs rem ...] ctx) k ...])
+      (eval (cfp rhs ctx) [(letrec-k e [xs ... x] [vs ... v] rem ctx) k ...]))
+; return to complete let-k
+[(store* xs eval-st [vs ... v])
+ (step ?(ret v [(letrec-k (letrec _ _ eb) xs vs [] ctx) k ...])
+       eval-st)
+ (= eval-st (eval (cfp eb ctx) k))
+ <--]
+
+
+
+;; Atomic-expression Rules
+
+; Variable reference
+[(step ?(eval (cfp (ref _ x) ctx) k)
+       (ret v k))
+ <--
+ (store x ctx v)]
+
+; Lambda abstraction
+[(step eval-st
+       (ret (clo (lambda lab xs eb) eval-st) k))
+ <--
+ (= eval-st (eval (cfp (lambda lab xs eb) ctx) k))]
+
+
+;; Utilities / Simple analyses
+
+; Taking the first k values in a list
+[(- k 1 k-1)
+ (> k 0)
+ (take !(do-take lst k-1) lst')
+ -->
+ (take ?(do-take [v lst ...] k) [v lst' ...])]
+(take ?(do-take [] _) [])
+(take ?(do-take _ 0) [])
+
+; every-other
+(every-other ?(do-every-other []) [])
+(every-other ?(do-every-other [a]) [a])
+[(every-other ?(do-every-other [a b rst ...])
+              [a rst+ ...])
+ <--
+ (every-other !(do-every-other rst) rst+)]
+
+; in list
+[(in-list x xs) <-- (= xs [x _ ...])]
+[(in-list x xs) <-- (= xs [_ rst ...]) (in-list x rst)]
+
+; not in list
+(not-in-list ?(do-not-in-list x []))
+[(not-in-list ?(do-not-in-list x [y rst ...]))
+ <--
+ (=/= x y)
+ (not-in-list !(do-not-in-list x rst))]
+
+;; subexpressions
+
+(subexpr e ?(lambda _ _ e))
+(subexpr e ?(let _ _ e))
+(subexpr e ?(let _ [_ e _ ...] _))
+[(subexpr e ?(let _ [_ _ rst ...] eb)) <-- (subexpr e !(let (synthetic) rst eb))]
+(subexpr e ?(let* _ _ e))
+(subexpr e ?(let* _ [_ e _ ...] _))
+[(subexpr e ?(let* _ [_ _ rst ...] eb)) <-- (subexpr e !(let* (synthetic) rst eb))]
+(subexpr e ?(letrec _ _ e))
+(subexpr e ?(letrec _ [_ e _ ...] _))
+[(subexpr e ?(letrec _ [_ _ rst ...] eb)) <-- (subexpr e !(letrec (synthetic) rst eb))]
+(subexpr e ?(app _ e _))
+(subexpr e ?(app _ _ [e _ ...]))
+[(subexpr e ?(app _ ef [_ rst ...])) <-- (subexpr e !(app (synthetic) ef rst))]
+(subexpr e ?(if _ e _ _))
+(subexpr e ?(if _ _ e _))
+(subexpr e ?(if _ _ _ e))
+
+;; variable is in the formal-param list for a lambda, let, etc
+
+[(expr-vars xs ?(let _ binds _))
+ <--
+ (every-other !(do-every-other binds) xs)]
+[(expr-vars xs ?(let* _ binds _))
+ <--
+ (every-other !(do-every-other binds) xs)]
+[(expr-vars xs ?(letrec _ binds _))
+ <--
+ (every-other !(do-every-other binds) xs)]
+(expr-vars xs ?(lambda _ xs _))
+
+[(expr-var x e)
+ <--
+ (in-list x xs)
+ (expr-vars xs e)]
+
+;; Free variables
+
+(free x ?(ref _ x))
+
+[(free x ?(app _ e0 e1))
+ <--
+ (or (free x e0)
+     (free x e1))]
+
+[(free x ?(lambda _ xs e0))
+ <--
+ (not-in-list !(do-not-in-list x xs))
+ (free x e0)]
+
+[(free x ?(let _ [] eb)) <-- (free x eb)]
+[(free x ?(let _ [x rhs more ...] eb))
+ <--
+ (free x rhs)
+ --
+ (in-list rhs rhss)
+ --
+ (every-other !(do-every-other [rhs more ...]) rhss)]
+[(free x ?(let _ binds eb))
+ <--
+ (not-in-list !(do-not-in-list x xs))
+ --
+ (every-other !(do-every-other binds) xs)
+ --
+ (free x eb)]
+
+
+[(free x ?(let* _ [] eb)) <-- (free x eb)]
+[(free x ?(let* _ [x rhs _ ...] eb))
+ <--
+ (free x rhs)]
+[(free x ?(let* _ [y rhs more ...] eb))
+ <--
+ (=/= x y)
+ --
+ (or (free x rhs)
+     (free x !(let* (synthetic) more eb)))]
+
+[(free x ?(letrec _ binds eb))
+ <--
+ (not-in-list !(do-not-in-list x xs))
+ --
+ (every-other !(do-every-other binds) xs)
+ --
+ (free x eb)]
+[(free x ?(letrec _ [x rhs more ...] eb))
+ <--
+ (not-in-list !(do-not-in-list x xs))
+ --
+ (every-other !(do-every-other [x rhs more ...]) xs)
+ --
+ (free x rhs)
+ --
+ (in-list rhs rhss)
+ --
+ (every-other !(do-every-other [rhs more ...]) rhss)]
+
+[(free x ?(if eg et ef))
+ <--
+ (or (free x eg) (free x et) (free x ef))]
+
+;; Bound Variables
+
+; let
+; inherited bindings for body
+[(in-scope x be e)
+ <--
+ (not-in-list !(do-not-in-list x xs))
+ --
+ (expr-vars xs let-e)
+ --
+ (in-scope x be let-e)
+ (= let-e (let _ _ e))]
+; inherited bindings for rhss
+[(in-scope x be rhs)
+ <--
+ (in-list rhs rhss)
+ --
+ (every-other !(do-every-other binds-rst) rhss)
+ --
+ (in-scope x be let-e)
+ (= let-e (let _ [_ binds-rst ...] _))]
+; generated bindings for let body
+[(in-scope x let-e e)
+ <--
+ (in-list x xs)
+ --
+ (expr-vars xs let-e)
+ (= let-e (let _ _ e))]
+; let*
+; back pointers for synthetic let forms (with a tail of their bindings) to the original source expr
+(original-let* ?(let lab binds eb) ?(let lab binds eb))
+[(original-let* (let (synthetic) binds-rst eb) let-e)
+ <--
+ (original-let* (let lab [x rhs binds-rst ...] eb) let-e)]
+; inherited bindings for let* subexprs
+[(in-scope x be e)
+ <--
+ (in-scope x be let-e)
+ (= let-e (let* _ [] e))]
+[(in-scope x be (let* (synthetic) binds-rst e))
+ <--
+ (=/= x y)
+ --
+ (in-scope x be let-e)
+ (= let-e (let* _ [y rhs binds-rst ...] e))]
+[(in-scope x be rhs)
+ <--
+ (in-scope x be let-e)
+ (= let-e (let* _ [_ rhs _ ...] e))]
+; generated bindings for let*
+[(in-scope x orig (let* (synthetic) binds-rst eb))
+ <--
+ (original-let* (let* _ [x _ binds-rst ...] eb)
+                orig)]
+; letrec
+; inherited bindings for body
+[(in-scope x be e)
+ <--
+ (not-in-list !(do-not-in-list x xs))
+ --
+ (expr-vars xs let-e)
+ --
+ (in-scope x be let-e)
+ (= let-e (letrec _ _ e))]
+; inherited bindings for rhss
+[(in-scope x be rhs)
+ <--
+ (not-in-list !(do-not-in-list x xs))
+ --
+ (expr-vars xs let-e)
+ --
+ (in-list rhs rhss)
+ --
+ (every-other !(do-every-other binds-rst) rhss)
+ --
+ (in-scope x be let-e)
+ (= let-e (letrec _ [_ binds-rst ...] _))]
+; generated bindings for body
+[(in-scope x let-e e)
+ <--
+ (in-list x xs)
+ --
+ (expr-vars xs let-e)
+ (= let-e (letrec _ _ e))]
+; generated bindings for rhs
+[(in-scope x let-e rhs)
+ <--
+ (in-list x xs)
+ --
+ (in-list rhs rhss)
+ --
+ (every-other !(do-every-other binds-rst) rhss)
+ --
+ (expr-vars xs let-e)
+ (= let-e (letrec _ [_ binds-rst ...] _))]
+
+
+
+
+

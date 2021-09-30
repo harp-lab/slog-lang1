@@ -1,0 +1,13 @@
+
+
+(do-every-other [1 2 3 4 5])
+
+; every-other
+(every-other ?(do-every-other []) [])
+(every-other ?(do-every-other [a]) [a])
+[(every-other ?(do-every-other [a b rst ...])
+              [a rst+ ...])
+ <--
+ (every-other !(do-every-other rst) rst+)]
+
+

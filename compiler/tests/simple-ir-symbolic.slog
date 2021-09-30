@@ -1,0 +1,435 @@
+;; non-symbolic source code:
+;;; (source 0 (mov "res" (lit 1)))
+;;; (source 1 (mov "counter" (lit 5)))
+;;; (source 2 (brz "counter" 6))
+;;; (source 3 (i-mul "res" (ref "res") (ref "counter")))
+;;; (source 4 (i-add "counter" (ref "counter") (lit -1)))
+;;; (source 5 (br 2))
+;;; (source 6 (mov "ANSWER" (ref "res")))
+
+
+;; simple source code:
+; (source 0 (mov "x" (lit 10)))
+; (source 1 (mov "y" (lit 2)))
+; (source 2 (i-mul "z" (ref "x") (ref "y")))
+; (source 3 (i-add "t" (ref "z") (lit 100)))
+; (source 4 (brz "t" 0))
+; (source 5 (br 6))
+; (source 6 (mov "ANSWER" (ref "t"))) ; expected ANSWER: 120
+
+
+;; simple source code with memory operations:
+; (source 0 (store (lit 42) (lit 1000))) ; store 42 at addr 1000
+; (source 1 (mov "x" (lit 500)))
+; (source 2 (i-mul "z" (ref "x") (lit 2)))
+; (source 3 (load "t" (ref "z")))
+; (source 4 (brz "t" 0))
+; (source 5 (br 6))
+; (source 6 (mov "ANSWER" (ref "t"))) ; expected ANSWER: 42
+
+
+;; symbolic source code:
+;; this should never get to the last line, so xxx should never be in the store.
+; (source 0 (mov "x" (sym)))
+; (source 1 (mov "y" (sym)))
+; (source 2 (i-cmp "xy" (ref "x") (ref "y")))
+; (source 3 (brz "xy" 5))
+; (source 4 (br 100))
+; (source 5 (i-add "x2" (ref "x") (ref "x")))
+; (source 6 (i-add "y2" (ref "y") (ref "y")))
+; (source 7 (i-cmp "x2y2" (ref "x2") (ref "y2")))
+; (source 8 (brz "x2y2" 100))
+; (source 9 (mov "xxx" (lit 42)))
+
+;; symbolic source code:
+;; a loop involving a symbolic variable in the loop condition
+(source 0 (mov "x" (sym)))
+(source 1 (i-cmp "x0" (ref "x") (lit 0)))
+(source 2 (i-cmp "x<0" (ref "x0") (lit -1)))
+(source 3 (brz "x<0" 100))
+(source 4 (mov "i" (ref "x")))
+(source 5 (i-cmp "iub" (ref "i") (lit 10)));; loop:
+(source 6 (i-cmp "iub2" (ref "iub") (lit 1)))
+(source 7 (brz "iub2" 100))
+(source 8 (i-add "i+1" (ref "i") (lit 1)))
+(source 9 (mov "i" (ref "i+1")))
+(source 10 (br 5))
+
+
+;; simple symbolic source code:
+;;; (source 0 (mov "x" (sym)))
+;;; (source 1 (i-cmp "x0" (ref "x") (lit 10)))
+;;; (source 2 (brz "x0" 4))
+
+;;; (source 3 (br 100))
+;;; (source 4 (i-cmp "x0-2" (ref "x") (lit 10)))
+;;; (source 5 (brz "x0-2"  100))
+;;; (source 6 (mov "xxx" (lit 42)))
+
+
+
+;; (trace prgoram-counter trace-tail)
+(trace 0 (null))
+(path-cond (trace 0 (null)) (s-true)) 
+
+
+[(aeval time (ref var) val) <--
+ (store time var val)]
+
+(aeval ?(trace _ _) ?(lit val) (s-lit val))
+
+;; transition rules
+[(source pc (mov target target-val))
+ (= time (trace pc trace-tail))
+ --
+ (path-cond time pi)
+ (aeval time target-val target-eval)
+ (add1 pc new-pc)
+ -->
+ (trace new-pc time)
+ (copy-store time (trace new-pc time) target)
+ (copy-memory time (trace new-pc time))
+ (store (trace new-pc time) target target-eval)
+ (path-cond (trace new-pc time) pi)
+]
+
+[(source pc (mov target (sym))) 
+ (= time (trace pc trace-tail))
+ --
+ (path-cond time pi)
+ (add1 pc new-pc)
+ (gen-sym !(gen-sym-input time) new-sym)
+ -->
+ (trace new-pc time)
+ (copy-store time (trace new-pc time) target)
+ (copy-memory time (trace new-pc time))
+ (store (trace new-pc time) target new-sym) 
+ (path-cond (trace new-pc time) pi)
+]
+
+[(source pc (load target addr-arg))
+ (= time (trace pc trace-tail))
+ --
+ (aeval time addr-arg (s-lit addr))
+ (memory time addr val)
+ (path-cond time pi)
+ (add1 pc new-pc)
+ -->
+ (trace new-pc time)
+ (copy-store time (trace new-pc time) target)
+ (copy-memory time (trace new-pc time))
+ (store (trace new-pc time) target val)
+ (path-cond (trace new-pc time) pi)
+]
+
+[(source pc (store val-arg target-addr-arg))
+ (= time (trace pc trace-tail))
+ --
+ (aeval time val-arg val)
+ (aeval time target-addr-arg (s-lit target-addr))
+ (path-cond time pi)
+ (add1 pc new-pc)
+ -->
+ (trace new-pc time)
+ (copy-store time (trace new-pc time))
+ (copy-memory time (trace new-pc time) target-addr)
+ (memory (trace new-pc time) target-addr val)
+ (path-cond (trace new-pc time) pi)
+]
+
+;; add rules
+[(source pc (i-add target opr1 opr2))
+ (= time (trace pc trace-tail))
+ --
+ (path-cond time pi)
+ (aeval time opr1 (s-lit opr1-val))
+ (aeval time opr2 (s-lit opr2-val))
+ (add1 pc new-pc)
+ (+ opr1-val opr2-val res-val)
+ -->
+ (copy-store time (trace new-pc time) target)
+ (copy-memory time (trace new-pc time))
+ (trace new-pc time)
+ (store (trace new-pc time) target (s-lit res-val))
+ (path-cond (trace new-pc time) pi) 
+]
+
+[(source pc (i-add target opr1 opr2))
+ (= time (trace pc trace-tail))
+ --
+ (path-cond time pi)
+ (aeval time opr1 opr1-val)
+ (aeval time opr2 opr2-val)
+ (or (= opr1-val (s-ref _)) (= opr2-val (s-ref _)))
+ (gen-sym !(gen-sym-input time) new-sym)
+ (add1 pc new-pc)
+ -->
+ (copy-store time (trace new-pc time) target)
+ (copy-memory time (trace new-pc time))
+ (trace new-pc time)
+ (store (trace new-pc time) target new-sym)
+ (path-cond (trace new-pc time) (s-and pi (s= new-sym (s+ opr1-val opr2-val))))
+]
+
+;; mul rules
+[(source pc (i-mul target opr1 opr2))
+ (= time (trace pc trace-tail))
+ --
+ (path-cond time pi)
+ (aeval time opr1 (s-lit opr1-val))
+ (aeval time opr2 (s-lit opr2-val))
+ (add1 pc new-pc)
+ (* opr1-val opr2-val res-val)
+ -->
+ (copy-store time (trace new-pc time) target)
+ (copy-memory time (trace new-pc time))
+ (trace new-pc time)
+ (store (trace new-pc time) target (s-lit res-val))
+ (path-cond (trace new-pc time) pi) 
+]
+
+[(source pc (i-mul target opr1 opr2))
+ (= time (trace pc trace-tail))
+ --
+ (path-cond time pi)
+ (aeval time opr1 opr1-val)
+ (aeval time opr2 opr2-val)
+ (or (= opr1-val (s-ref _)) (= opr2-val (s-ref _)))
+ (gen-sym !(gen-sym-input time) new-sym)
+ (add1 pc new-pc)
+ -->
+ (copy-store time (trace new-pc time) target)
+ (copy-memory time (trace new-pc time))
+ (trace new-pc time)
+ (store (trace new-pc time) target new-sym)
+ (path-cond (trace new-pc time) (s-and pi (s= new-sym (s* opr1-val opr2-val)))) 
+]
+
+;; cmp rules
+[(source pc (i-cmp target opr1 opr2))
+ (= time (trace pc trace-tail))
+ --
+ (path-cond time pi)
+ (aeval time opr1 (s-lit opr1-val))
+ (aeval time opr2 (s-lit opr2-val))
+ (add1 pc new-pc)
+ (cmp !(cmp-input opr1-val opr2-val) res-val)
+ -->
+ (trace new-pc time)
+ (copy-store time (trace new-pc time) target)
+ (copy-memory time (trace new-pc time))
+ (store (trace new-pc time) target (s-lit res-val))
+ (path-cond (trace new-pc time) pi) 
+ (i-cmp-path-cond "non-sym" pi "null" (trace new-pc time) pi)
+]
+
+[(source pc (i-cmp target opr1 opr2))
+ (= time (trace pc trace-tail))
+ --
+ (path-cond time pi)
+ (aeval time opr1 opr1-val)
+ (aeval time opr2 opr2-val)
+ (or (= opr1-val (s-ref _)) (= opr2-val (s-ref _)))
+ (add1 pc new-pc)
+ (gen-sym !(gen-sym-input time) new-sym)
+ -->
+ (trace new-pc time)
+ (copy-store time (trace new-pc time) target)
+ (copy-memory time (trace new-pc time))
+ (store (trace new-pc time) target new-sym)
+ (path-cond (trace new-pc time) (s-and pi (s= new-sym (s-cmp opr1-val opr2-val))))
+]
+
+
+;; jumps
+[(source pc (br new-pc))
+ (= time (trace pc trace-tail))
+ --
+ (path-cond time pi)
+ -->
+ (trace new-pc time)
+ (copy-store time (trace new-pc time))
+ (copy-memory time (trace new-pc time))
+ (path-cond (trace new-pc time) pi)
+]
+
+
+;; branch taken
+[(source pc (brz br-var new-pc))
+ (= time (trace pc trace-tail))
+ --
+ (path-cond time pi)
+ (store time br-var (s-lit 0))
+ -->
+ (trace new-pc time)
+ (copy-store time (trace new-pc time))
+ (copy-memory time (trace new-pc time))
+ (path-cond (trace new-pc time) pi)
+]
+
+[(source pc (brz br-var new-pc))
+ (= time (trace pc trace-tail))
+ --
+ (path-cond time pi)
+ (store time br-var (s-ref br-val))
+ (sat !(s-and pi (s= (s-ref br-val) (s-lit 0)))) 
+ -->
+ (trace new-pc time)
+ (copy-store time (trace new-pc time))
+ (copy-memory time (trace new-pc time))
+ (path-cond (trace new-pc time) (s-and pi (s= (s-ref br-val) (s-lit 0))))
+]
+
+
+;; branch not taken
+[(source pc (brz br-var _))
+ (= time (trace pc trace-tail))
+ --
+ (store time br-var (s-lit x))
+ --
+ (path-cond time pi)
+ (=/= x 0)
+ (add1 pc new-pc)
+ -->
+ (trace new-pc time)
+ (copy-store time (trace new-pc time))
+ (copy-memory time (trace new-pc time))
+ (path-cond (trace new-pc time) pi)
+]
+
+[(source pc (brz br-var _))
+ (= time (trace pc trace-tail))
+ --
+ (path-cond time pi)
+ (store time br-var (s-ref br-val))
+ (sat !(s-and pi (s/= (s-ref br-val) (s-lit 0))))
+ --
+ (add1 pc new-pc)
+ -->
+ (trace new-pc time)
+ (copy-store time (trace new-pc time))
+ (copy-memory time (trace new-pc time))
+ (path-cond (trace new-pc time) (s-and pi (s/= (s-ref br-val) (s-lit 0))))
+]
+
+
+[(copy-store t0 t1 exclude)
+ (store t0 var val)
+ (=/= var exclude)
+ -->
+ (store t1 var val)]
+
+[(copy-store t0 t1)
+ (store t0 var val)
+ -->
+ (store t1 var val)]
+
+[(copy-memory t0 t1 exclude)
+ (memory t0 addr val)
+ (=/= addr exclude)
+ -->
+ (memory t1 addr val)]
+
+[(copy-memory to t1)
+ (memory t0 addr val)
+ -->
+ (memory t1 addr val)] 
+
+[(gen-sym-input time)
+ -->
+ (gen-sym (gen-sym-input time) (s-ref time))]
+
+[(cmp-input x x) --> (cmp (cmp-input x x) 0)]
+[(cmp-input x y) (< x y) --> (cmp (cmp-input x y) -1)]
+[(cmp-input x y) (> x y) --> (cmp (cmp-input x y) 1)]
+
+
+
+;; TODO junk to workaround bugs:
+(s+ 1 2)
+(s* 1 2)
+(s-cmppp 1 2)
+(s-cmp 1 2)
+(junk "null")
+(junk "taken")
+(junk "taken sym")
+(junk "not-taken")
+(junk "not-taken sym")
+(junk "non-sym")
+(junk "sym")
+(ref "x")
+(ref "sdf")
+(ref "y2")
+(null)
+(i-cmp "x" (sym) (ref "sdf"))
+(ref "x")
+(sym)
+(lit 23)
+(br 123)
+(mov "x" (sym))
+(mov "y" (sym))
+(i-cmp "xy" (ref "x") (ref "y"))
+(brz "xy" (lit 5))
+(br 100)
+(i-add "x2" (ref "x") (ref "x"))
+(i-add "y2" (ref "y") (ref "y"))
+(i-mul "x2" (ref "x") (ref "x"))
+(ref "x")
+(ref "y")
+(ref "y2")
+(ref "x2")
+(i-cmp "x2y2" (ref "x2") (ref "y2"))
+(brz "x2y2" (lit 100))
+(mov "xxx" (lit 42))
+(s-true)
+(s-false)
+
+(mov "res" (lit 1))
+(mov "counter" (lit 5))
+(brz "counter" 6)
+(i-mul "res" (ref "res") (ref "counter"))
+(i-add "counter" (ref "counter") (lit -1))
+(br 2)
+(mov "ANSWER" "res")
+[
+ (s+ 1 2)
+ (s* 1 2)
+ (s-cmppp 1 2)
+ (s-cmp 1 2)
+ (null)
+ (i-cmp "x" (sym) (ref "sdf"))
+ (ref "x")
+ (sym)
+ (lit 23)
+ (br 123)
+ (mov "x" (sym))
+ (mov "y" (sym))
+ (i-cmp "xy" (ref "x") (ref "y"))
+ (brz "xy" (lit 5))
+ (br 100)
+ (i-add "x2" (ref "x") (ref "x"))
+ (i-add "y2" (ref "y") (ref "y"))
+ (i-mul "x2" (ref "x") (ref "x"))
+ (ref "x")
+ (ref "y")
+ (ref "y2")
+ (ref "x2")
+ (i-cmp "x2y2" (ref "x2") (ref "y2"))
+ (brz "x2y2" (lit 100))
+ (mov "xxx" (lit 42))
+ (s-true)
+ (s-false)
+
+ (mov "res" (lit 1))
+ (mov "counter" (lit 5))
+ (brz "counter" 6)
+ (i-mul "res" (ref "res") (ref "counter"))
+ (i-add "counter" (ref "counter") (lit -1))
+ (br 2)
+ (mov "ANSWER" "res")
+
+ (junk2 x)
+ -->
+ (junk x)
+]
+
