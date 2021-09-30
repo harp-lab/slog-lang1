@@ -73,9 +73,9 @@ add_executable(fact ${source_files_fact})
 INCLUDE_DIRECTORIES(${MPI_INCLUDE_PATH})
 TARGET_LINK_LIBRARIES(fact parallel_RA ${MPI_LIBRARIES})
 
-add_executable(out ${source_files_out})
-INCLUDE_DIRECTORIES(${MPI_INCLUDE_PATH})
-TARGET_LINK_LIBRARIES(out parallel_RA ${MPI_LIBRARIES})
+# add_executable(out ${source_files_out})
+# INCLUDE_DIRECTORIES(${MPI_INCLUDE_PATH})
+# TARGET_LINK_LIBRARIES(out parallel_RA ${MPI_LIBRARIES})
 
 #add_executable(prim_32_3 ${source_files_prim_32_3})
 #INCLUDE_DIRECTORIES(${MPI_INCLUDE_PATH})

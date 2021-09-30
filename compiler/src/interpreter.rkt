@@ -470,7 +470,7 @@
 ;; files (containing the correct structure), along with a manifest
 ;; specifying the canonical indices.
 (define (create-initial-database program directory)
-  (displayln (format "Creating initial database in directory ~a" directory))
+  ;(displayln (format "Creating initial database in directory ~a" directory))
   
   ;; run the interning pass on this program to populate pools of static constants (strings, ..)
   (define post-interning

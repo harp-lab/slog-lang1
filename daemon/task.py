@@ -202,33 +202,33 @@ class RunTask(Task):
         self._logfile = RUNSVC_LOG
         self._name = "RunTask"
         self.log("MPI runner initialized.")
+        self.relations = []
 
     def reset_lines(self, database_id):
         rows = self._db.get_all_relations_in_db(database_id)
         self.relations = []
         for row in rows:
-            self.relations.append([row[0], row[1], row[2], list(
-                map(lambda x: int(x), row[3].split(",")))])
+            self.relations.append([row[0], row[1], row[2],
+                                  list(map(int, row[3].split(",")))])
 
-    def finalize_run(self, hsh, db_id):
+    def finalize_run(self, in_db, out_db):
         """
         Check the output DB for consistency and index final outputs
         Return true/false if succeed/fail
         if no final ouptful, check latest check point (by file update time)
         """
-        dirs = glob.glob(os.path.join(DATABASE_PATH, db_id, "checkpoint-*"))
+        dirs = glob.glob(os.path.join(DATABASE_PATH, out_db, "checkpoint-*"))
         if len(dirs) < 1:
             self.log("Could not find any output at {}".format(
-                glob.glob(os.path.join(DATABASE_PATH, db_id, "checkpoint-*"))))
+                glob.glob(os.path.join(DATABASE_PATH, out_db, "checkpoint-*"))))
             self.log("try latest checkpoint ...")
             return False
-        dir = sorted(dirs, key=checkpoint_ord, reverse=True)[0]
-        self.log("Indexing directory {}".format(dir))
+        checkpoint_dir = sorted(dirs, key=checkpoint_ord, reverse=True)[0]
+        self.log("Indexing directory {}".format(checkpoint_dir))
         # copy strings.csv
         # find the corresponed input database
-        input_db = self._db.get_input_db_reverse(hsh, db_id)
-        string_file_in = os.path.join(DATABASE_PATH, input_db, '$strings.csv')
-        string_file_out = os.path.join(DATABASE_PATH, db_id, '$strings.csv')
+        string_file_in = os.path.join(DATABASE_PATH, in_db, '$strings.csv')
+        string_file_out = os.path.join(DATABASE_PATH, out_db, '$strings.csv')
         shutil.copy2(string_file_in, string_file_out)
         for relation in self.relations:
             # if relation[0].startswith('$inter'):
@@ -238,11 +238,11 @@ class RunTask(Task):
                 rel_name_covert(relation[0]), relation[1],
                 "__".join(map(str, relation[3]))
             )
-            data_file = os.path.join(dir, rel_file_name)
+            data_file = os.path.join(checkpoint_dir, rel_file_name)
             size_file = "{}.size".format(data_file)
-            new_data_file = os.path.join(DATABASE_PATH, db_id, data_file)
+            new_data_file = os.path.join(DATABASE_PATH, out_db, data_file)
             new_size_file = os.path.join(
-                DATABASE_PATH, db_id, f'{data_file}.size')
+                DATABASE_PATH, out_db, f'{data_file}.size')
             print(data_file)
             if ((not os.path.exists(data_file)) or (not os.path.exists(size_file))):
                 # touch file
@@ -255,24 +255,24 @@ class RunTask(Task):
                      " maybe the output relation has no tuple?")
                 # rule maybe empty
                 self._db.update_relation_data_info(
-                    new_data_file, 0, db_id, relation[0], relation[1])
+                    new_data_file, 0, out_db, relation[0], relation[1])
                 continue
             try:
                 # copy file out of checkpoint
                 shutil.copy2(data_file, new_data_file)
                 shutil.copy2(size_file, new_size_file)
-                with open(size_file, 'r') as s:
-                    lines = s.readlines()
+                with open(size_file, 'r') as size_f:
+                    lines = size_f.readlines()
                 rows = int(lines[0])
                 self._db.update_relation_data_info(
-                    data_file, rows, db_id, relation[0], relation[1])
+                    data_file, rows, out_db, relation[0], relation[1])
                 self.log("Found {} rows for relation {}.".format(
                     rows, relation[0]))
             except:
                 self.log("Size file {} was corrupted.".format(size_file))
         return True
 
-    def run_mpi(self, promise, hsh, db_id):
+    def run_mpi(self, promise, hsh, in_db, out_db):
         """ run compiled c++ program """
         build_dir = os.path.join(BINS_PATH, hsh)
         self.log("Starting mpirun for hash {}".format(hsh))
@@ -288,11 +288,11 @@ class RunTask(Task):
         env = os.environ.copy()
         env["TMPDIR"] = "/tmp"
         failed = False
-        _proc = subprocess.Popen(["mpirun", "-n", "2", "target"], stdin=PIPE,
-                                      stdout=PIPE, stderr=open(stderrpath, 'w+'),
+        _proc = subprocess.Popen(["mpirun", "-n", "2", "target", in_db, out_db], stdin=PIPE,
+                                      stdout=PIPE, stderr=open(stderrpath, 'w'),
                                       cwd=f"{build_dir}/build", env=env)
         with open(stdoutpath, 'w') as stdout_f:
-            self.reset_lines(db_id)
+            self.reset_lines(out_db)
             # Process each line of the MPI tasks's output
             while True:
                 line = _proc.stdout.readline()
@@ -312,10 +312,10 @@ class RunTask(Task):
         failed = failed or _proc.returncode != 0
         self._db.reslove_mpi_job(promise)
         # Index output db if we haven't failed yet
-        if ((not failed) and (not self.finalize_run(hsh, db_id))):
+        if ((not failed) and (not self.finalize_run(in_db, out_db))):
             failed = True
             failed_comment = 'Could not finalize run for database from hash {} and DB ID {}'.format(
-                hsh, db_id)
+                hsh, out_db)
         # Update the promise
         if failed:
             self._db.fail_promise(promise, failed_comment)
@@ -323,8 +323,7 @@ class RunTask(Task):
             self._db.reslove_promise(promise)
             # persist output database info
             # get input database
-            input_db = self._db.get_input_db_reverse(hsh, db_id)
-            self._db.create_database_info(db_id, "", "", input_db)
+            self._db.create_database_info(out_db, "", "", in_db)
 
 
     def loop(self):
@@ -336,9 +335,10 @@ class RunTask(Task):
                 idx = row[0]
                 promise = row[1]
                 hsh = row[3]
+                in_db = row [4]
                 try:
-                    db_id = self._db.get_db_by_promise(promise)
-                    self.run_mpi(promise, hsh, db_id)
+                    out_db = self._db.get_db_by_promise(promise)
+                    self.run_mpi(promise, hsh, in_db, out_db)
                 except Exception as err:
                     self._db.fail_mpi_job(promise, err)
                     self.log("Exception during MPI job {}: {}".format(idx, err))

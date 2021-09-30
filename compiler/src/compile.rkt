@@ -118,14 +118,14 @@
              (define relation (first maybe-relation))
              (match-define `(relation ,_ ,_ ,rid ,_ ,index ,data ,size) relation) 
              (string-append rel-txt
-                            (format "relation* ~a = new relation(~a, ~a, ~a, ~a, \"~a\", \"~a\", FULL);\n"
+                            (format "relation* ~a = new relation(~a, ~a, ~a, ~a, \"~a\", slog_input_dir + \"/~a\", FULL);\n"
                                     (rel->name rel-sel)
                                     (length (rel->sel rel-sel))
                                     (if (and (not (member 0 (rel->sel rel-sel))) (= (length (rel->sel rel-sel)) (rel->arity rel-sel))) "true" "false")
                                     (rel->arity rel-sel)
                                     rid
                                     (rel->name rel-sel)
-                                    data)))
+                                    (format "~a_~a" rel-name rel-arity))))
            ""
            (set->list all-rel-selects)))
   (define scc-txt-h

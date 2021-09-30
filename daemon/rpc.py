@@ -203,11 +203,10 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
             in_db = generate_db_hash(list(hashes), using_db)
             out_db = generate_db_hash(list(hashes), in_db)
         joined_hashes = join_hashes(list(hashes))
-        row = self._db.get_promise_by_db(out_db)
         response = slog_pb2.Promise()
         # Already started a compile job for this
-        if row is not None:
-            response.promise_id = row[0]
+        if self._db.is_compiled_before(hsh):
+            response.promise_id = MAXSIZE
             return response
         try:
             # Else, start a compile job and promise the new input DB
@@ -216,7 +215,7 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
             buckets = request.buckets
             if (buckets < MIN_BUCKETS or buckets > MAX_BUCKETS):
                 self.log(f"Got request for compilation with {buckets} buckets, which is invalid.\n")
-                response.promise_id = -1
+                response.promise_id = MAXSIZE
                 return response
             # otherwise, insert, will be handled by CompileTask
             self._db.create_compile_job(promise_id, joined_hashes, in_db, out_db, buckets)
@@ -238,11 +237,10 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
         for hsh in request.hashes:
             hashes.add(hsh)
         # Check that this program was previously successfully compiled
-        # using this database
-        out_db = self._db.get_compile_out(join_hashes(list(hashes)))
-        if out_db is None:
+        if not self._db.is_compiled_before(join_hashes(list(hashes))):
             ret.promise_id = MAXSIZE
             return ret
+        out_db = generate_db_hash(list(hashes), in_db)
         row = self._db.get_promise_by_db(out_db)
         response = slog_pb2.Promise()
         # Already started an MPI job for this
@@ -252,7 +250,7 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
         try:
             # Else, start an MPI job
             promise_id = self._db.create_db_promise(out_db)
-            self._db.create_mpi_job(promise_id, in_db)
+            self._db.create_mpi_job(promise_id, in_db, hsh)
             response.promise_id = promise_id
         except Exception as e:
             print(e)

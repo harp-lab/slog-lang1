@@ -54,6 +54,7 @@ CREATE TABLE mpi_jobs (
        promise INTEGER NOT NULL,
        status INTEGER NOT NULL,
        hash TEXT NOT NULL,
+       in_database_id TEXT NOT NULL,
        creation_time TEXT NOT NULL,
        completion_time TEXT,
        error TEXT

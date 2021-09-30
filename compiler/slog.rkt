@@ -122,6 +122,7 @@
 (define o-dir (if (equal? output-database 'none) (format "../data/~a" basename) output-database))
 (define extn (if (slog-souffle-mode) "dl" "cpp"))
 (define o-path (format "~a/~a.~a" o-dir basename extn))
+(define cmake-path (format "~a/CMakeLists.txt" o-dir))
 (define default-input-dir (format "../data/~a-input" basename))
 
 (cond
@@ -142,7 +143,14 @@
          (define template
            (with-input-from-file "src/driver-template.cpp"
              (lambda () (read-string 99999))))
-         (display (format template builtins-cpp-file global-definitions cpp o-dir)))
+         (display (format template builtins-cpp-file global-definitions i-dir o-dir cpp)))
+       #:exists 'replace)
+     (with-output-to-file cmake-path
+       (lambda ()
+         (define template
+           (with-input-from-file "src/cmake-template"
+             (lambda () (read-string 99999))))
+         (display (format template basename basename basename basename basename)))
        #:exists 'replace)
      (display (format "[wrote C++ driver and data to \"~a\"]\n" o-path)))]
   [else (slog-debug program)])

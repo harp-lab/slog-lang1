@@ -80,42 +80,16 @@ class MetaDatabase:
     def get_db_by_promise(self, promise_id):
         conn = sqlite3.Connection(self.db_path)
         c = conn.cursor()
-        c.execute('SELECT database_id FROM promises_for_databases WHERE promise_id = ?', (promise_id,))
+        c.execute('SELECT database_id FROM promises_for_databases'
+                  ' WHERE promise_id = ?',
+                  (promise_id,))
         db_row = c.fetchone()
         if db_row is not None:
             res = db_row[0]
         else:
-            res = None      
+            res = None
         conn.close()
         return res
-
-    def get_input_db_reverse(self, hashes, out_db):
-        """ get input database id by input slog file hash and output database id"""
-        conn = sqlite3.Connection(self.db_path)
-        c = conn.cursor()
-        input_db_row = c.execute(
-            'SELECT in_database_id FROM'
-            ' compile_jobs WHERE hashes=? AND out_database_id=?',
-            (hashes, out_db)).fetchone()
-        conn.close()
-        return input_db_row[0]
-
-    def get_compile_out(self, hashes):
-        """ get the output db of a compilation (should have no dup), if not found return None """
-        conn = sqlite3.Connection(self.db_path)
-        c = conn.cursor()
-        r = c.execute(
-            'SELECT out_database_id'
-            ' FROM compile_jobs'
-            ' WHERE status=? AND hashes=?',
-            (STATUS_RESOLVED, hashes)
-        ).fetchone()
-        if r is None:
-            ret = None
-        else:
-            ret = r[0]
-        conn.close()
-        return ret
 
     def get_relations_by_db_and_tag(self, db_id, tag):
         """ get a relation row by give database and tag, if not found return None """
@@ -171,14 +145,14 @@ class MetaDatabase:
         conn.close()
         return res
 
-    def is_compiled_before(self, db_id, hsh):
+    def is_compiled_before(self, hsh):
         """ check if a file has compiled with some input before """
         conn = sqlite3.Connection(self.db_path)
         c = conn.cursor()
         res = True
         row = c.execute('SELECT out_database_id FROM compile_jobs'
-                      ' WHERE status=? AND in_database_id=? AND hashes=?',
-                      (STATUS_RESOLVED, db_id, hsh))
+                        ' WHERE status=? AND hashes=?',
+                        (STATUS_RESOLVED, hsh)).fetchall()
         if row is None or row == []:
             res = False
         return res
@@ -232,7 +206,7 @@ class MetaDatabase:
         conn.close()
         return compile_job_id
 
-    def create_mpi_job(self, promise_id, in_db):
+    def create_mpi_job(self, promise_id, in_db, hsh):
         """
         create a mpi job for some database promising
         this job will run with given input database
@@ -241,9 +215,9 @@ class MetaDatabase:
         conn = sqlite3.Connection(self.db_path)
         c = conn.cursor()
         c.execute(
-            'INSERT INTO mpi_jobs (promise, status, hash, creation_time)'
+            'INSERT INTO mpi_jobs (promise, status, hash, in_database_id, creation_time)'
             ' VALUES (?,?,?,time(\'now\'))',
-            (promise_id, STATUS_PENDING, in_db))
+            (promise_id, STATUS_PENDING, hsh, in_db))
         job_id = c.lastrowid
         conn.commit()
         conn.close()

@@ -20,7 +20,7 @@ CMAKE_FILE = os.path.join(os.path.dirname(__file__),"../data/binaries/CMakeLists
 SOURCES_PATH = os.path.join(os.path.dirname(__file__),"../data/sources")
 SLOG_COMPILER_PROCESS = os.path.join(os.path.dirname(__file__),"../compiler/slog-process.rkt")
 SLOG_COMPILER_ROOT = os.path.join(os.path.dirname(__file__),"../compiler")
-TSV2BIN_PATH = os.path.join(os.path.dirname(__file__), "../parallel-RA/build/tsv_to_bin")
+TSV2BIN_PATH = os.path.join(os.path.dirname(__file__), "../backend/build/tsv_to_bin")
 
 # Logs
 CMDSVC_LOG = open(os.path.join(DATA_PATH,"cmdsvc.log"),'a')

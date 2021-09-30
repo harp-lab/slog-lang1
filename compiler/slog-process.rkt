@@ -30,8 +30,9 @@
 (define (compile-hashes compiler-root slog-files num-processes output-cpp data-directory output-fact-directory)
   (match-define (cons program elapsed-millis) (time (lambda () (slog-compile (parse-slog-files slog-files)))))
   ;; Write the initial databse
-  (define serialized-facts (materialize-facts program data-directory))
-  (match-define (cons global-definitions cpp-file) (slog-compile-cpp program serialized-facts))
+  ;(define serialized-facts (materialize-facts program data-directory))
+  (create-initial-database program data-directory)
+  (match-define (cons global-definitions cpp-file) (slog-compile-cpp program data-directory output-fact-directory))
   (define builtins-cpp-file (file->string (build-path compiler-root "src/builtins.cpp")))
   (parameterize ([slog-bucket-count num-processes])
     (with-output-to-file output-cpp
@@ -39,7 +40,7 @@
         (define template
           (with-input-from-file (build-path compiler-root "src" "daemondriver-template.cpp")
             (lambda () (read-string 99999))))
-        (display (format template builtins-cpp-file global-definitions cpp-file output-fact-directory)))
+        (display (format template builtins-cpp-file global-definitions data-directory output-fact-directory cpp-file)))
       #:exists 'replace))
   `(success ,elapsed-millis))
 
