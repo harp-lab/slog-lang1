@@ -71,3 +71,9 @@ CREATE TABLE compile_jobs (
        error TEXT
 );
 
+CREATE TABLE databases (
+       database_id TEXT NOT NULL PRIMARY KEY,
+       tag_name TEXT NOT NULL,
+       user TEXT NOT NULL,
+       forked_from TEXT NOT NULL
+);

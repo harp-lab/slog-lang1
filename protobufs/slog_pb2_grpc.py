@@ -22,7 +22,12 @@ class CommandServiceStub(object):
         self.PutHashes = channel.unary_unary(
                 '/CommandService/PutHashes',
                 request_serializer=slog__pb2.PutHashesRequest.SerializeToString,
-                response_deserializer=slog__pb2.Promise.FromString,
+                response_deserializer=slog__pb2.ErrorResponse.FromString,
+                )
+        self.PutCSVFacts = channel.stream_unary(
+                '/CommandService/PutCSVFacts',
+                request_serializer=slog__pb2.PutCSVFactsRequest.SerializeToString,
+                response_deserializer=slog__pb2.FactResponse.FromString,
                 )
         self.CompileHashes = channel.unary_unary(
                 '/CommandService/CompileHashes',
@@ -54,6 +59,16 @@ class CommandServiceStub(object):
                 request_serializer=slog__pb2.RelationRequest.SerializeToString,
                 response_deserializer=slog__pb2.Tuples.FromString,
                 )
+        self.GetStrings = channel.unary_stream(
+                '/CommandService/GetStrings',
+                request_serializer=slog__pb2.StringRequest.SerializeToString,
+                response_deserializer=slog__pb2.Strings.FromString,
+                )
+        self.ShowDB = channel.unary_stream(
+                '/CommandService/ShowDB',
+                request_serializer=slog__pb2.ShowDBRequest.SerializeToString,
+                response_deserializer=slog__pb2.DatabaseInfo.FromString,
+                )
 
 
 class CommandServiceServicer(object):
@@ -68,6 +83,13 @@ class CommandServiceServicer(object):
 
     def PutHashes(self, request, context):
         """Put hashes
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def PutCSVFacts(self, request_iterator, context):
+        """upload a CSV file into slog fact database
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -112,6 +134,18 @@ class CommandServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetStrings(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ShowDB(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_CommandServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -123,7 +157,12 @@ def add_CommandServiceServicer_to_server(servicer, server):
             'PutHashes': grpc.unary_unary_rpc_method_handler(
                     servicer.PutHashes,
                     request_deserializer=slog__pb2.PutHashesRequest.FromString,
-                    response_serializer=slog__pb2.Promise.SerializeToString,
+                    response_serializer=slog__pb2.ErrorResponse.SerializeToString,
+            ),
+            'PutCSVFacts': grpc.stream_unary_rpc_method_handler(
+                    servicer.PutCSVFacts,
+                    request_deserializer=slog__pb2.PutCSVFactsRequest.FromString,
+                    response_serializer=slog__pb2.FactResponse.SerializeToString,
             ),
             'CompileHashes': grpc.unary_unary_rpc_method_handler(
                     servicer.CompileHashes,
@@ -154,6 +193,16 @@ def add_CommandServiceServicer_to_server(servicer, server):
                     servicer.GetTuples,
                     request_deserializer=slog__pb2.RelationRequest.FromString,
                     response_serializer=slog__pb2.Tuples.SerializeToString,
+            ),
+            'GetStrings': grpc.unary_stream_rpc_method_handler(
+                    servicer.GetStrings,
+                    request_deserializer=slog__pb2.StringRequest.FromString,
+                    response_serializer=slog__pb2.Strings.SerializeToString,
+            ),
+            'ShowDB': grpc.unary_stream_rpc_method_handler(
+                    servicer.ShowDB,
+                    request_deserializer=slog__pb2.ShowDBRequest.FromString,
+                    response_serializer=slog__pb2.DatabaseInfo.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -195,7 +244,24 @@ class CommandService(object):
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/CommandService/PutHashes',
             slog__pb2.PutHashesRequest.SerializeToString,
-            slog__pb2.Promise.FromString,
+            slog__pb2.ErrorResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def PutCSVFacts(request_iterator,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.stream_unary(request_iterator, target, '/CommandService/PutCSVFacts',
+            slog__pb2.PutCSVFactsRequest.SerializeToString,
+            slog__pb2.FactResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -298,5 +364,39 @@ class CommandService(object):
         return grpc.experimental.unary_stream(request, target, '/CommandService/GetTuples',
             slog__pb2.RelationRequest.SerializeToString,
             slog__pb2.Tuples.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetStrings(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(request, target, '/CommandService/GetStrings',
+            slog__pb2.StringRequest.SerializeToString,
+            slog__pb2.Strings.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def ShowDB(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(request, target, '/CommandService/ShowDB',
+            slog__pb2.ShowDBRequest.SerializeToString,
+            slog__pb2.DatabaseInfo.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

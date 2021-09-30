@@ -1,0 +1,19 @@
+[MASTER]
+
+# A comma-separated list of package or module names from where C extensions may
+# be loaded. Extensions are loading into the active Python interpreter and may
+# run arbitrary code
+extension-pkg-whitelist=protobufs,protobufs.slog_pb2,protobufs.slog_pb2_grpc
+
+[TYPECHECK]
+
+# List of module names for which member attributes should not be checked
+# (useful for modules/projects where namespaces are manipulated during runtime
+# and thus existing member attributes cannot be deduced by static analysis. It
+# supports qualified module names, as well as Unix pattern matching.
+ignored-modules=protobufs,protobufs.slog_pb2,protobufs.slog_pb2_grpc
+
+# List of classes names for which member attributes should not be checked
+# (useful for classes with attributes dynamically set). This supports can work
+# with qualified names.
+ignored-classes=protobufs,protobufs.slog_pb2,protobufs.slog_pb2_grpc

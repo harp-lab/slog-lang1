@@ -14,7 +14,9 @@ service CommandService {
   // Client sends hashes, server returns unstored hashes
   rpc ExchangeHashes(HashesRequest) returns (Hashes);
   // Put hashes
-  rpc PutHashes(PutHashesRequest) returns (Promise);
+  rpc PutHashes(PutHashesRequest) returns (ErrorResponse);
+  // upload a CSV file into slog fact database
+  rpc PutCSVFacts(stream PutCSVFactsRequest) returns (FactResponse);
   // Compile hashes, promise for initial DB (immediately resolved if previously compiled)
   rpc CompileHashes(CompileHashesRequest) returns (Promise);
   rpc Ping(PingRequest) returns (Pong);
@@ -24,6 +26,8 @@ service CommandService {
   // Get a description of relations for a database
   rpc GetRelations(DatabaseRequest) returns (RelationDescriptionsResponse);
   rpc GetTuples(RelationRequest) returns (stream Tuples);
+  rpc GetStrings(StringRequest) returns (stream Strings);
+  rpc ShowDB(ShowDBRequest) returns (stream DatabaseInfo);
 }
 
 message PingRequest {
@@ -48,6 +52,16 @@ message PutHashesRequest {
   repeated string bodies = 4;
 }
 
+message PutCSVFactsRequest {
+  string session_key = 1;
+  string relation_name = 2;
+  // string deliminater = 3;
+  uint32 buckets = 4;
+  // usually it is current database in session, just in case
+  string using_database = 5;
+  repeated string bodies = 6;
+}
+
 message CompileHashesRequest {
   string session_key = 1;
   uint32 buckets = 2;
@@ -67,6 +81,12 @@ message RunProgramRequest {
 message ErrorResponse {
   bool success = 1;
   optional string error_msg = 2;
+}
+
+message FactResponse {
+  bool success = 1;
+  optional string error_msg = 2;
+  optional string new_database = 3;
 }
 
 message DatabaseRequest {
@@ -96,6 +116,15 @@ message RelationDescriptionsResponse {
   repeated RelationDescription relations = 2;
 }
 
+message StringRequest {
+  string database_id = 1;
+}
+
+message Strings {
+  uint32 id = 1;
+  string text = 2;
+}
+
 message PromiseRequest {
   string session_key = 1;
   uint64 promise_id = 2;
@@ -114,4 +143,16 @@ message Tuples {
   uint32 status = 1;
   uint32 num_tuples = 2;
   repeated uint64 data = 3;
+}
+
+message ShowDBRequest {
+  // reserved, only need to be empty
+  string msg = 1; 
+}
+
+message DatabaseInfo {
+  string database_id = 1;
+  string tag_name = 2;
+  string user = 3;
+  string forked_from = 4;
 }
