@@ -71,10 +71,9 @@ CREATE TABLE compile_jobs (
        error TEXT
 );
 
--- CREATE TABLE persisted_db (
---        database_id TEXT NOT NULL PRIMARY KEY,
---        forked_from TEXT NOT NULL,
---        source_file_hash TEXT NOT NULL,
---        db_type INTEGER NOT NULL,          -- either 0: input 1: output 
---        comment TEXT NOT NULL
--- );
+CREATE TABLE databases (
+       database_id TEXT NOT NULL PRIMARY KEY,
+       tag_name TEXT NOT NULL,
+       user TEXT NOT NULL,
+       forked_from TEXT NOT NULL
+);

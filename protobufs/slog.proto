@@ -16,7 +16,7 @@ service CommandService {
   // Put hashes
   rpc PutHashes(PutHashesRequest) returns (ErrorResponse);
   // upload a CSV file into slog fact database
-  rpc PutCSVFacts(PutCSVFactsRequest) returns (ErrorResponse);
+  rpc PutCSVFacts(stream PutCSVFactsRequest) returns (FactResponse);
   // Compile hashes, promise for initial DB (immediately resolved if previously compiled)
   rpc CompileHashes(CompileHashesRequest) returns (Promise);
   rpc Ping(PingRequest) returns (Pong);
@@ -27,6 +27,7 @@ service CommandService {
   rpc GetRelations(DatabaseRequest) returns (RelationDescriptionsResponse);
   rpc GetTuples(RelationRequest) returns (stream Tuples);
   rpc GetStrings(StringRequest) returns (stream Strings);
+  rpc ShowDB(ShowDBRequest) returns (stream DatabaseInfo);
 }
 
 message PingRequest {
@@ -80,6 +81,12 @@ message RunProgramRequest {
 message ErrorResponse {
   bool success = 1;
   optional string error_msg = 2;
+}
+
+message FactResponse {
+  bool success = 1;
+  optional string error_msg = 2;
+  optional string new_database = 3;
 }
 
 message DatabaseRequest {
@@ -136,4 +143,16 @@ message Tuples {
   uint32 status = 1;
   uint32 num_tuples = 2;
   repeated uint64 data = 3;
+}
+
+message ShowDBRequest {
+  // reserved, only need to be empty
+  string msg = 1; 
+}
+
+message DatabaseInfo {
+  string database_id = 1;
+  string tag_name = 2;
+  string user = 3;
+  string forked_from = 4;
 }
