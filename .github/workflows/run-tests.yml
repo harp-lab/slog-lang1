@@ -40,19 +40,19 @@ jobs:
       run: sudo apt install z3
       
     - name: run tests
-      working-directory: .
+      working-directory: ./compiler
       run: racket ./unit-tests/tests.rkt -c --run-slow-tests
 
     - name: run tests with --merge-builtins
-      working-directory: .
+      working-directory: ./compiler
       run: racket ./unit-tests/tests.rkt -c --merge-builtins --run-slow-tests
 
     - name: run c++ compilation tests
-      working-directory: ./unit-tests
+      working-directory: ./compiler/unit-tests
       run : ./cpp_compilation_tests.sh
       
     - name: benchmark-worstcase-4-terms-2-m
-      working-directory: .
+      working-directory: ./compiler
       run: |
         START=$(date +%s)
         echo quit | racket slog.rkt -i ./ci-benchmarks/worstcase-4-terms-2-m.slog
