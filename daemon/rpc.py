@@ -130,8 +130,7 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
                     _mf.write(new_mf_s)
                 self._db.load_manifest(new_db_id, mf_path)
                 ret.new_database = new_db_id
-                # the default tag name if db_id
-                self._db.create_database_info(new_db_id, new_db_id, "", in_db)
+                self._db.create_database_info(new_db_id, "", "", in_db)
         ret.error_msg = ", ". join(failed_files)
         return ret
 
@@ -236,8 +235,7 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
                 file_size = os.stat(data_file).st_size
                 num_u64s = int(file_size) / 8
                 num_tuples = int(num_u64s) / tuplen
-                max_tuples_per_chunk = int(
-                    math.floor(MAX_CHUNK_DATA / (8 * arity)))
+                max_tuples_per_chunk = int(math.floor(MAX_CHUNK_DATA / (8 * arity)))
                 num_tuples_left = num_tuples
                 while num_tuples_left > 0:
                     num_tuples = int(

@@ -489,7 +489,7 @@ class Repl:
                 self._fecth_dbs()
                 completer_map = {cmd: None for cmd in CMD}
                 completer_map['dump'] = FuzzyWordCompleter(list(relation_names))
-                possible_db_name = reduce(lambda db_row, res : res + [db_row[0][:5], db_row[1]],
+                possible_db_name = reduce(lambda res, db_row : res + [db_row[0][:5], db_row[1]],
                                           self.all_db, [])
                 completer_map['run'] = merge_completers([StringPathCompeleter(),
                                                          FuzzyWordCompleter(possible_db_name)])
