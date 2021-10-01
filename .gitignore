@@ -7,3 +7,4 @@ parser.out
 parsertab.py
 .vscode
 .slog-history
+metadatabase/database.sqlite3
