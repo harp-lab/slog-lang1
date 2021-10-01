@@ -79,7 +79,7 @@ def read_intern_file(fpath):
 
 def bin_to_tsv(filename, arity, output, index, meta_folder):
     string_dict = read_intern_file(f"{meta_folder}/$strings.csv")
-    symbol_dict = read_intern_file(f"{meta_folder}/$symbols.csv")
+    # symbol_dict = read_intern_file(f"{meta_folder}/$symbols.csv")
     rows = []
     with open(filename, "rb") as bin_file:
         bin_bytes = bin_file.read()
@@ -98,8 +98,8 @@ def bin_to_tsv(filename, arity, output, index, meta_folder):
                     attr_val = raw_val & VAL_MASK
                 elif val_tag == STRING_TAG:
                     attr_val = string_dict[raw_val & VAL_MASK]
-                elif val_tag == SYMBOL_TAG:
-                    attr_val = symbol_dict[raw_val & VAL_MASK]
+                # elif val_tag == SYMBOL_TAG:
+                #     attr_val = symbol_dict[raw_val & VAL_MASK]
                 else:
                     # relation
                     attr_val = f'rel_{raw_val & (~TUPLE_ID_MASK)}'

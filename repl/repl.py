@@ -298,9 +298,11 @@ class Repl:
             self._cur_db = output_db
             self.switchto_db(output_db)
 
-    def run_with_db(self, filename, db_id):
+    def run_with_db(self, filename, db_id=None):
         ''' run a program with input database '''
         self._fecth_dbs()
+        if not db_id:
+            db_id = self._cur_db
         path = os.path.join(os.getcwd(), filename)
         elaborator = Elaborator()
         try:
@@ -470,6 +472,13 @@ class Repl:
             return
         self.recursive_dump_tuples(self.lookup_rels(name)[0])
 
+    def tag_db(self, db_id, tag_name):
+        """ tag a database with some name """
+        request = slog_pb2.TagDBRequest()
+        request.database_id = db_id
+        request.tag_name = tag_name
+        self._stub.TagDB(request)
+
     def get_front(self):
         """ get prompt prefix mark """
         if not self._cur_db:
@@ -495,6 +504,8 @@ class Repl:
                                           self.all_db, [])
                 completer_map['run'] = merge_completers([StringPathCompeleter(),
                                                          FuzzyWordCompleter(possible_db_name)])
+                completer_map['ta'] = merge_completers([FuzzyWordCompleter(possible_db_name),
+                                                        StringPathCompeleter()])
                 completer_map['load'] = StringPathCompeleter()
                 completer_map['compile'] = StringPathCompeleter()
                 completer = NestedCompleter(completer_map)
@@ -534,7 +545,7 @@ class Repl:
     def bottom_toolbar(self):
         """ prompt toolkit bottom bar setting """
         if self.connected():
-            return HTML(f'<style color="lightgreen">'
+            return HTML('<style color="lightgreen">'
                         '[host: <b>{}</b> ping: {:.2f} ms]  [?? jobs in queue]'
                         '</style>'.format(self._server, self.calc_ping()))
         else:

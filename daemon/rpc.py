@@ -34,19 +34,21 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
         self._db = MetaDatabase(DB_PATH)
 
     def log(self, msg):
+        """ RPC log """
         out = "[ CommandService {} ] {}".format(
             datetime.datetime.now().strftime("(%H:%M:%S %d/%m/%Y)"), msg)
         print(out)
         CMDSVC_LOG.write(out + "\n")
 
     def gen_data_directory(self):
+        """ create a data dir """
         return tempfile.mkdtemp(prefix=DATA_PATH+"/")
 
     def ExchangeHashes(self, request, context):
         res = slog_pb2.Hashes()
-        for h in request.hashes:
-            if not self._db.is_file_hash_exists(h):
-                res.hashes.extend([h])
+        for hsh in request.hashes:
+            if not self._db.is_file_hash_exists(hsh):
+                res.hashes.extend([hsh])
         return res
 
     def Ping(self, request, context):
@@ -249,7 +251,7 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
                     for row_num in range(num_tuples):
                         for i in range(arity+1):
                             cpy[row_num*tuplen + mapping[i]] = int.from_bytes(
-                                buffer[row_num*tuplen*8 + i*8:row_num*tuplen*8 + (i+1)*8], 
+                                buffer[row_num*tuplen*8 + i*8:row_num*tuplen*8 + (i+1)*8],
                                 'little', signed=False)
                     num_tuples_left -= num_tuples
                     response.num_tuples = num_tuples
@@ -290,3 +292,11 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
             db_info_response.user = db_info_row[2]
             db_info_response.forked_from = db_info_row[3]
             yield db_info_response
+
+    def TagDB(self, request, context):
+        database_id = request.database_id
+        tag_name = request.tag_name
+        self._db.tag_database(database_id, tag_name)
+        response = slog_pb2.ErrorResponse()
+        response.success = True
+        return response

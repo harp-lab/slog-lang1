@@ -5,7 +5,6 @@ Kris Micinski
 Yihao Sun
 """
 
-from array import array
 from subprocess import PIPE
 import datetime
 import glob
@@ -32,6 +31,7 @@ class Task:
         self._logfile = None
 
     def log(self, msg):
+        """ task logging """
         curtime = datetime.datetime.now().strftime("(%H:%M:%S %d/%m/%Y)")
         out = "[ {} {} ] {}".format(self._name, curtime, msg)
         print(out)
@@ -43,6 +43,7 @@ class Task:
         time.sleep(.1)
 
     def set_promise_comment(self, promise, comment):
+        """ set promise comment """
         self._db.update_promise_comment(promise, comment)
 
 
@@ -190,6 +191,7 @@ class RunTask(Task):
         self.relations = []
 
     def reset_lines(self, database_id):
+        """ upldate cached relation in task """
         rows = self._db.get_all_relations_in_db(database_id)
         self.relations = []
         for row in rows:
@@ -324,7 +326,6 @@ class RunTask(Task):
             self.wait()
             rows = self._db.get_all_pending_mpi_job()
             for row in rows:
-                idx = row[0]
                 promise = row[1]
                 hsh = row[3]
                 in_db = row [4]

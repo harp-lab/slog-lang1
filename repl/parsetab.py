@@ -6,9 +6,9 @@ _tabversion = '3.10'
 
 _lr_method = 'LALR'
 
-_lr_signature = 'ID LPAREN RPAREN STRINGstatement : IDstatement : ID IDstatement : ID STRINGstatement : ID STRING ID'
+_lr_signature = 'ID LPAREN RPAREN STRINGstatement : IDstatement : ID IDstatement : ID STRINGstatement : ID STRING IDstatement : ID ID STRING'
     
-_lr_action_items = {'ID':([0,2,4,],[2,3,5,]),'$end':([1,2,3,4,5,],[0,-1,-2,-3,-4,]),'STRING':([2,],[4,]),}
+_lr_action_items = {'ID':([0,2,4,],[2,3,6,]),'$end':([1,2,3,4,5,6,],[0,-1,-2,-3,-5,-4,]),'STRING':([2,3,],[4,5,]),}
 
 _lr_action = {}
 for _k, _v in _lr_action_items.items():
@@ -27,8 +27,9 @@ for _k, _v in _lr_goto_items.items():
 del _lr_goto_items
 _lr_productions = [
   ("S' -> statement","S'",1,None,None,None),
-  ('statement -> ID','statement',1,'p_statement_unary','parser.py',49),
-  ('statement -> ID ID','statement',2,'p_statement_id_cmd','parser.py',61),
-  ('statement -> ID STRING','statement',2,'p_statement_str_cmd','parser.py',69),
-  ('statement -> ID STRING ID','statement',3,'p_statement_str_id_cmd','parser.py',83),
+  ('statement -> ID','statement',1,'p_statement_unary','parser.py',50),
+  ('statement -> ID ID','statement',2,'p_statement_id_cmd','parser.py',62),
+  ('statement -> ID STRING','statement',2,'p_statement_str_cmd','parser.py',70),
+  ('statement -> ID STRING ID','statement',3,'p_statement_str_id_cmd','parser.py',84),
+  ('statement -> ID ID STRING','statement',3,'p_statement_id_str_cmd','parser.py',89),
 ]

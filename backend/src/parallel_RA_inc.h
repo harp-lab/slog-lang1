@@ -14,7 +14,7 @@
 #include "shmap/shmap_goog.h"
 
 
-#define DEBUG_OUTPUT 1
+// #define DEBUG_OUTPUT 1
 
 #define MAX_LOOP_COUNT 3700
 

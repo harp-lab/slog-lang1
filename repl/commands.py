@@ -13,12 +13,14 @@ HELP = '''
     help                        Print help
     showdb                      show all committed databases
     compile "<file_path>"       load and compile a slog source file, this will reset database to ⊥
-    run "<file_path>" <db>      load a slog source file into background, will create a database 
-                                with file name, and then compile and run it
+    run "<file_path>" (<db>)    load a slog source file into background, will create a database 
+                                with file name, and then compile and run it, if db is not provide
+                                will run with current db
     dump <ID>                   dump all data in a relation into stdout           
     connect "<server>"          connect to a slog server
     load "<csv_file/folder>"    upload a csv file/folder into input database, file must ends with 
                                 `.fact`, name of target relation will be same as file name
+    tag <db> "<tag>"            give a database hash a taged name
 '''
 
 
@@ -39,14 +41,16 @@ class Command(abc.ABC):
 
 
 class IdCommand(Command):
-    def __init__(self, id):
-        self.id = id
+    ''' dump a relation '''
+    def __init__(self, rel_id):
+        self.rel_id = rel_id
 
     def execute(self, repl):
-        repl.pretty_dump_relation(self.id)
+        repl.pretty_dump_relation(self.rel_id)
 
 
 class ConnectCommand(Command):
+    ''' connect to grpc server '''
     def __init__(self, server):
         self.server = server
 
@@ -55,11 +59,13 @@ class ConnectCommand(Command):
 
 
 class HelpCommand(Command):
+    ''' print help '''
     def execute(self, _repl):
         print(HELP)
 
 
 class NotImplCommand(Command):
+    ''' mock command for unimplemented comment '''
     def __init__(self, cmd):
         self.cmd = cmd
 
@@ -90,9 +96,6 @@ class CompileCommand(Command):
 class ShowDbCommand(Command):
     ''' print all persisted database '''
 
-    def __init__(self) -> None:
-        super().__init__()
-
     def execute(self, repl):
         return repl.showdbs()
 
@@ -100,10 +103,20 @@ class ShowDbCommand(Command):
 class RunWithDbCommand(Command):
     '''' run a program with given input database '''
 
-    def __init__(self, program, db):
+    def __init__(self, program, db_id=None):
         self.program = program
         print(program)
-        self.db = db
+        self.db_id = db_id
 
     def execute(self, repl):
-        repl.run_with_db(self.program, self.db)
+        repl.run_with_db(self.program, self.db_id)
+
+class TagCommand(Command):
+    "tag a database hash with some name"
+ 
+    def __init__(self, db_id, tag_name):
+        self.db_id = db_id
+        self.tag_name = tag_name
+
+    def execute(self, repl):
+        repl.tag_db(self.db_id, self.tag_name)
