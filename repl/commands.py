@@ -15,10 +15,9 @@ HELP = '''
     compile "<file_path>"       load and compile a slog source file, this will reset database to ⊥
     run "<file_path>" <db>      load a slog source file into background, will create a database 
                                 with file name, and then compile and run it
-    commit                      commit current database
     dump <ID>                   dump all data in a relation into stdout           
     connect "<server>"          connect to a slog server
-    csv "<csv_file/folder>"     upload a csv file/folder into input database, file must ends with 
+    load "<csv_file/folder>"    upload a csv file/folder into input database, file must ends with 
                                 `.fact`, name of target relation will be same as file name
 '''
 
