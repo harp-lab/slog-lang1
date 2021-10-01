@@ -5,6 +5,10 @@ Kris Micinski
 Yihao Sun
 '''
 
+import ply.lex as lex
+import ply.yacc as yacc
+
+from repl.commands import *
 
 tokens = (
     'ID', 'LPAREN','RPAREN','STRING'
@@ -28,7 +32,6 @@ def t_error(t):
     t.lexer.skip(1)
 
 # Build the lexer
-import ply.lex as lex
 lexer = lex.lex()
 
 # Parsing rules
@@ -39,11 +42,9 @@ precedence = (
     # ('right','UMINUS'),
 )
 
-from repl.commands import *
-
 s = None
 
-CMD = ['help', 'run', 'connect', 'dump', 'showdb', 'csv', 'load', 'commit']
+CMD = ['help', 'run', 'connect', 'dump', 'showdb', 'load', 'commit', 'compile']
 
 def p_statement_unary(t):
     'statement : ID'
@@ -67,15 +68,15 @@ def p_statement_id_cmd(t):
 
 def p_statement_str_cmd(t):
     'statement : ID STRING'
-    str = t[2][1:-1]
+    str_arg = t[2][1:-1]
     # if t[1] == "run":
     #     t[0] = RunCommand(str)
     if t[1] == "connect":
-        t[0] = ConnectCommand(str)
-    elif t[1] == "csv":
-        t[0] = CsvCommand(str)
+        t[0] = ConnectCommand(str_arg)
     elif t[1] == "load":
-        t[0] = LoadCommand(str)
+        t[0] = LoadCommand(str_arg)
+    elif t[1] == "compile":
+        t[0] = CompileCommand(str_arg)
     else:
         print("Unrecognized str command syntax, please type `help`!")
 
@@ -90,12 +91,11 @@ def p_error(t):
     else:
         print("Unrecognized command syntax")
 
-import ply.yacc as yacc
 parser = yacc.yacc(debug=True,write_tables=True)
 
 class CommandParser():
     def __init__(self):
         pass
-    def parse(self,str):
-        return parser.parse(str)
-
+    def parse(self, cmd):
+        """ parsing command """
+        return parser.parse(cmd)

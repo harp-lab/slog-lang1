@@ -27,16 +27,19 @@ class MetaDatabase:
         manifest = Manifest(manifest_file)
         for relation in manifest.relations:
             # Ignore non-canonical relations, we don't need to record data for those
-            pcs = list(map(str, relation[4]))
             name = relation[0].value()
-            if name.startswith('$'):
-                # inter relation
-                continue
             arity = relation[1]
+            tag = relation[2]
+            pcs = list(map(str, relation[4]))
+            data_file = relation[5]
+            size_file = relation[6]
+            # read size file to get number of tuples
+            with open(size_file, 'r') as size_f:
+                num_tuples = int(size_f.readlines()[1])
             c.execute('INSERT INTO canonical_relations'
-                      ' (database_id,name,arity,selection,tag,num_tuples)'
-                      ' VALUES (?,?,?,?,?,0)',
-                      (db_id, name, arity, ",".join(pcs), str(relation[3])))
+                      ' (database_id,name,arity,selection,tag,num_tuples,data_file)'
+                      ' VALUES (?,?,?,?,?,?,?)',
+                      (db_id, name, arity, ",".join(pcs), tag, num_tuples, data_file))
         conn.commit()
         conn.close()
 
@@ -98,7 +101,7 @@ class MetaDatabase:
         r = c.execute(
             'SELECT name,arity,tag,selection,data_file'
             ' FROM canonical_relations'
-            ' WHERE database_id = ? AND tag = ?',
+            ' WHERE database_id = ? and tag = ?',
             (db_id, tag)).fetchone()
         conn.close()
         return r
@@ -108,7 +111,7 @@ class MetaDatabase:
         conn = sqlite3.Connection(self.db_path)
         c = conn.cursor()
         c.execute(
-            'SELECT name,arity,tag,selection FROM'
+            'SELECT name,arity,tag,selection,data_file FROM'
             ' canonical_relations'
             ' WHERE database_id = ?',
             (db_id,))
@@ -216,7 +219,7 @@ class MetaDatabase:
         c = conn.cursor()
         c.execute(
             'INSERT INTO mpi_jobs (promise, status, hash, in_database_id, creation_time)'
-            ' VALUES (?,?,?,time(\'now\'))',
+            ' VALUES (?,?,?,?,time(\'now\'))',
             (promise_id, STATUS_PENDING, hsh, in_db))
         job_id = c.lastrowid
         conn.commit()

@@ -6,6 +6,7 @@ Yihao Sun
 '''
 
 import copy
+from functools import reduce
 import os
 import sys
 import time
@@ -15,7 +16,7 @@ import grpc
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.completion import NestedCompleter, PathCompleter, FuzzyWordCompleter
-from prompt_toolkit.completion.base import Completer
+from prompt_toolkit.completion.base import Completer, merge_completers
 from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import HTML
 from pyfiglet import Figlet
@@ -149,7 +150,7 @@ class Repl:
         self._fecth_dbs()
         print('tag\tid\tforked from')
         for db_info in self.all_db:
-            db_str = f'{db_info[1]}\t{db_info[0]}\t{db_info[2]}'
+            db_str = f'{db_info[1]}\t{db_info[0][:10]}\t{db_info[2][:10]}'
             print(db_str)
 
     def _fecth_dbs(self):
@@ -216,13 +217,14 @@ class Repl:
                 self._cur_db = response.new_database
                 print(f"All relation uploaded. now in database {self._cur_db}")
 
-    def _run(self, program_hashes, edb):
+    def _run(self, program_hashes, input_database):
         ''' run a program list (hashes) with given EDB hash and return updated idb'''
         req = slog_pb2.RunProgramRequest()
-        req.using_database = edb
+        req.using_database = input_database
         req.hashes.extend(program_hashes)
         # Get a promise for the running response
         response = self._stub.RunHashes(req)
+        print(f"running promise is {response.promise_id}")
         if response.promise_id == MAXSIZE:
             print("running a file never loaded!")
             return
@@ -299,7 +301,6 @@ class Repl:
     def run_with_db(self, filename, db_id):
         ''' run a program with input database '''
         self._fecth_dbs()
-        print(self.all_db)
         path = os.path.join(os.getcwd(), filename)
         elaborator = Elaborator()
         try:
@@ -318,7 +319,6 @@ class Repl:
             print("database not exists!")
             return
         if output_db:
-            self._cur_db = output_db
             self.switchto_db(output_db)
 
     def switchto_db(self, db_id):
@@ -338,8 +338,7 @@ class Repl:
         res = self._stub.GetRelations(req)
         self.relations = []
         for relation in res.relations:
-            self.relations.append(
-                [relation.name, relation.arity, relation.tag])
+            self.relations.append([relation.name, relation.arity, relation.tag])
 
     def lookup_db_by_id(self, db_id):
         """ check if a db info record is in cache """
@@ -381,10 +380,10 @@ class Repl:
         tuples = []
         buf = [-1 for i in range(0, arity+1)]
         for response in self._stub.GetTuples(req):
-            if (response.num_tuples == 0):
+            if response.num_tuples == 0:
                 continue
             for u64 in response.data:
-                if (x == 0):
+                if x == 0:
                     # index col
                     # rel_tag = u64 >> 46
                     # bucket_hash = (u64 & BUCKET_MASK) >> 28
@@ -487,12 +486,15 @@ class Repl:
                 front = self.get_front()
                 relation_names = map(lambda x: x[0], self.relations)
                 # completer = WordCompleter(relation_names)
+                self._fecth_dbs()
                 completer_map = {cmd: None for cmd in CMD}
-                completer_map['dump'] = FuzzyWordCompleter(
-                    list(relation_names))
-                completer_map['run'] = StringPathCompeleter()
-                completer_map['csv'] = StringPathCompeleter()
+                completer_map['dump'] = FuzzyWordCompleter(list(relation_names))
+                possible_db_name = reduce(lambda db_row, res : res + [db_row[0][:5], db_row[1]],
+                                          self.all_db, [])
+                completer_map['run'] = merge_completers([StringPathCompeleter(),
+                                                         FuzzyWordCompleter(possible_db_name)])
                 completer_map['load'] = StringPathCompeleter()
+                completer_map['compile'] = StringPathCompeleter()
                 completer = NestedCompleter(completer_map)
                 text = prompt_session.prompt(
                     'σλoγ [{}] » '.format(front),

@@ -12,7 +12,7 @@ HELP = '''
     Command:
     help                        Print help
     showdb                      show all committed databases
-    load "<file_path>"          load and compile a slog source file, this will reset database to ⊥
+    compile "<file_path>"       load and compile a slog source file, this will reset database to ⊥
     run "<file_path>" <db>      load a slog source file into background, will create a database 
                                 with file name, and then compile and run it
     commit                      commit current database
@@ -68,7 +68,7 @@ class NotImplCommand(Command):
         print(f"Command {self.cmd} not implemented yet!")
 
 
-class CsvCommand(Command):
+class LoadCommand(Command):
     ''' upload a csv/csv_folder to input facts database '''
 
     def __init__(self, csv_dir):
@@ -78,7 +78,7 @@ class CsvCommand(Command):
         repl.upload_csv(self.csv_dir)
 
 
-class LoadCommand(Command):
+class CompileCommand(Command):
     ''' switch current active file '''
 
     def __init__(self, filename):
