@@ -134,7 +134,8 @@ class CompileTask(Task):
         try:
             cmake = ["cmake", "-Bbuild", "."]
             result = subprocess.run(
-                cmake, cwd=build_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+                cmake, cwd=build_dir, stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE, check=True)
         except:
             err = "Error: cmake failed for {}".format(build_dir)
             self._db.fail_compiled_job(promise_id, err)
@@ -279,7 +280,7 @@ class RunTask(Task):
         env = os.environ.copy()
         env["TMPDIR"] = "/tmp"
         failed = False
-        _proc = subprocess.Popen(["mpirun", "-n", "2", "target", in_db_dir, out_db_dir],
+        _proc = subprocess.Popen(["mpirun", "-n", "2", "./target", in_db_dir, out_db_dir],
                                   stdin=PIPE, stdout=PIPE, stderr=open(stderrpath, 'w'),
                                   cwd=f"{build_dir}/build", env=env)
         with open(stdoutpath, 'w') as stdout_f:

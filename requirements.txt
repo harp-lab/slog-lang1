@@ -5,3 +5,4 @@ grpcio-tools
 prompt_toolkit
 yaspin
 pyfiglet
+grpc_interceptor
