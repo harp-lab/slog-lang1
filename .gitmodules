@@ -1,6 +1,0 @@
-[submodule "compiler"]
-	path = compiler
-	url = git@github.com:harp-lab/slog-lang.git
-[submodule "parallel-RA"]
-	path = parallel-RA
-	url = git@github.com:harp-lab/parallel-RA.git
