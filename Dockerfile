@@ -31,9 +31,9 @@ ENV OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
 COPY . /slog
 
 # build backend
-RUN rm -rf /slog/parallel-RA/build
-RUN cd /slog/parallel-RA && cmake -Bbuild .
-RUN cd /slog/parallel-RA/build && make -j8
+RUN rm -rf /slog/backend/build
+RUN cd /slog/backend && cmake -Bbuild .
+RUN cd /slog/backend/build && make -j8
 
 WORKDIR /slog
 RUN pip3 install -r requirements.txt
