@@ -472,6 +472,8 @@ class Repl:
 
     def get_front(self):
         """ get prompt prefix mark """
+        if not self._cur_db:
+            return "⊥"
         if not self.connected():
             return "Disconnected"
         elif self._cur_db == "":
