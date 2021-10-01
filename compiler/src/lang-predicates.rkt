@@ -130,6 +130,7 @@
 (define (source-tree-ihclause? ihc)
   (match ihc
          [`(prov (? ((prov ,(? rel-name?) ,(? pos?)) ,(? source-tree-ibclause?) ...)) ,(? pos?)) #t]
+         [`(prov (?do (,(? source-tree-ibclause?) ...)) ,(? pos?)) #t]
          [`(prov (? (LIST-SYNTAX ,args ...)) ,(? pos?)) (source-tree-blist-items? args)]
          [`(prov ((prov ,(? rel-name?) ,(? pos?)) ,(? source-tree-ihclause?) ...) ,(? pos?)) #t]
          [`(prov ,(? arg?) ,(? pos?)) #t]
@@ -141,6 +142,7 @@
   (match ibc
          [`(prov (,(? source-tree-rel?) ,(? source-tree-ibclause?) ...) ,(? pos?)) #t]
          [`(prov (! ((prov ,(? rel-name?) ,(? pos?)) ,(? source-tree-ihclause?) ...)) ,(? pos?)) #t]
+         [`(prov (!do (,(? source-tree-ibclause?) ...)) ,(? pos?)) #t]
          [`(prov (! (LIST-SYNTAX ,args ...)) ,(? pos?)) (source-tree-hlist-items? args)]
          [`(prov ,(? arg?) ,(? pos?)) #t]
          [`(prov (or ,(? source-tree-ibclause?) ...) ,(? pos?)) #t]
@@ -687,13 +689,13 @@
     ['db #t]
     ['comp #t]
     [`(agg ,agg-rel) #t]
-    [else #f]))
+         [else #f]))
 
 ; predicate for a relation name + arity + select-set
 (define (rel-select? r)
   (match r
     [`(rel-select ,(? rel-name?) ,(? nonnegative-integer?) ,(? select-order?) ,(? rel-select-kind?)) #t]
-    [else #f]))
+         [else #f]))
 
 (define (rel-select->kind rel-select)
  (match rel-select
@@ -747,7 +749,6 @@
 
 (define (simplify-prov e [replacement '_])
   (map-prov e (λ (x) replacement)))
-
 (struct syntax-error (syntax msg))
 
 (define (assert-pred-syntax pred syntax)

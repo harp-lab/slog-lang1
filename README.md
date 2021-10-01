@@ -1,5 +1,7 @@
 ### Slog: Data-Parallel Deductive Programming
 
+![CI](https://github.com/harp-lab/slog-lang/workflows/CI/badge.svg)
+
 Slog is a language, compiler, and runtime system for implementing
 data-parallel deductive programming.
 
