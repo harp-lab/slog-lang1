@@ -36,3 +36,6 @@
  (g-res 2)
  (g-res 3)
  (g-res 11)}
+
+(h-res _)
+{(h-res ($lst 1 ($lst 2 ($lst 3 ($nil)))))}

@@ -263,14 +263,16 @@
   (define (fix-!do-?do tag cl)
     (match cl
       [`(prov (!do (,cls ...)) ,pos) 
-       `(prov (! ((prov ,(string->symbol (format "do-~a" tag)) ,pos) ,@cls)) ,pos)]
+       `(prov (! ((prov ,(string->symbol (format "do-~a" tag)) ,pos) ,@(map clause-desugar-bang-do-huh-do cls))) ,pos)]
       [`(prov (?do (,cls ...)) ,pos) 
-       `(prov (? ((prov ,(string->symbol (format "do-~a" tag)) ,pos) ,@cls)) ,pos)]
-      [else cl]))
+       `(prov (? ((prov ,(string->symbol (format "do-~a" tag)) ,pos) ,@(map clause-desugar-bang-do-huh-do cls))) ,pos)]
+      [else (clause-desugar-bang-do-huh-do cl)]))
 
   (match cl
     [`(prov ,(? arg? v) ,pos)
     cl]
+    [`(prov (CURLY-CLAUSE ,tag ,args ...) ,pos)
+     `(prov (CURLY-CLAUSE ,tag ,@(map (app fix-!do-?do (strip-prov tag) _) args)) ,pos)]
     [`(prov (! ,banged-clause) ,pos)
      `(prov (! ,(clause-desugar-bang-do-huh-do banged-clause)) ,pos)]
     [`(prov (LIST-SYNTAX ,args ...) ,pos)

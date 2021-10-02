@@ -111,3 +111,9 @@
      (g-foobar x))
  -->
  (g-res x)]
+
+;H---------------------------
+(h-append ?do([x xs ...] ys) [x {h-append !do(xs ys)} ...])
+(h-append ?do([] ys) ys)
+
+(h-res {h-append !do([1 2] [3])})
