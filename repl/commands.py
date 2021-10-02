@@ -12,17 +12,17 @@ HELP = '''
     Command:
     NOTE: `(...)` means optionanl argument, `/` means alternative argument, `<...>` is meta name
 
-    help                            Print help
-    showdb                          show all committed databases
-    compile "<file_path>"           load and compile a slog source file.
-    run "<file_path>" (<db>)        load a slog source file into background, will create a database 
-                                    with file name, and then compile and run it, if db is not provide
-                                    will run with current db
+    help                                Print help
+    showdb                              show all committed databases
+    compile "<file_path>"               load and compile a slog source file.
+    run "<file_path>" (<db>) (<core>)   load a slog source file into background, will create a database 
+                                        with file name, and then compile and run it, if db is not provide
+                                        will run with current db, core is how many core mpirun use
     dump [<hash>]/"<tag>"           dump all data in a relation into stdout           
     connect "<server>"              connect to a slog server
     load "<csv_file/folder>"        upload a csv file/folder into input database, file must ends with 
                                     `.fact`, name of target relation will be same as file name
-    tag <db> "<tag>"                give a database hash a taged name
+    tag [<hash>] "<tag>"            give a database hash a taged name
 '''
 
 

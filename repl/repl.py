@@ -503,8 +503,7 @@ class Repl:
                     PrefixWordCompleter('[', possible_db_hash)])
                 completer_map['tag'] = SequencialCompleter([
                     PrefixWordCompleter('[', possible_db_hash),
-                    PrefixWordCompleter('"', possible_db_tag),
-                    WordCompleter([int(i) for i in range(12)])])
+                    PrefixWordCompleter('"', possible_db_tag)])
                 completer_map['load'] = StringPathCompeleter()
                 completer_map['compile'] = StringPathCompeleter()
                 completer = NestedCompleter(completer_map)
