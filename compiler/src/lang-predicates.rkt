@@ -711,6 +711,12 @@
          [`(rel-version ,(? rel-name?) ,(or (? nonnegative-integer?) 'variadic) ,(? select-order?) ,(or 'delta 'total 'comp `(agg ,_))) #t]
          [else #f]))
 
+;; Given a rel-version, returns if it is a db rel-version
+(define (db-rel-version? r)
+  (match r
+    [`(rel-version ,name ,arity ,sel ,ver)
+     (or (equal? ver 'total) (equal? ver 'delta))]))
+
 ; A canonical index must include all the columns from 1 to N and not include 0
 (define (canonical-index? l arity)
   (equal? (sort l <) (range 1 (add1 arity))))

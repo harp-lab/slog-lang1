@@ -198,7 +198,7 @@
                           (prov ((prov ,(? rel-version? brel-vers) ,_) ,bvars0 ...) ,_) ...)
                   (define b-rel-sels 
                     (filter-map  
-                      (λ (rel-ver) (if (db-rel-kind? rel-ver) `(rel-select ,@(drop (take rel-ver 4) 1) db) #f))
+                      (λ (rel-ver) (if (db-rel-version? rel-ver) `(rel-select ,@(drop (take rel-ver 4) 1) db) #f))
                       brel-vers))
                   (set-union st (set rel-sel) (list->set b-rel-sels))]
                 [`(arule ,(? ir-incremental-hclause? `(prov ((prov ,(? rel-select? rel-sel) ,_) ,hvars ...) ,_))
