@@ -387,9 +387,11 @@ class Repl:
             for u64 in response.data:
                 if x == 0:
                     # index col
-                    # rel_tag = u64 >> 46
-                    # bucket_hash = (u64 & BUCKET_MASK) >> 28
+                    rel_tag = u64 >> 46
+                    bucket_hash = (u64 & BUCKET_MASK) >> 28
                     tuple_id = u64 & (~TUPLE_ID_MASK)
+                    print(u64)
+                    print((rel_tag, bucket_hash, tuple_id))
                     # buf[0] = (rel_tag, bucket_hash, tuple_id)
                     buf[0] = tuple_id
                     x += 1
