@@ -6,7 +6,6 @@ Yihao Sun
 '''
 
 import copy
-from functools import reduce
 import os
 import sys
 import time
@@ -15,14 +14,13 @@ import timeit
 import grpc
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
-from prompt_toolkit.completion import NestedCompleter, PathCompleter, FuzzyWordCompleter
-from prompt_toolkit.completion.base import Completer, merge_completers
-from prompt_toolkit.document import Document
+from prompt_toolkit.completion import NestedCompleter, FuzzyWordCompleter, WordCompleter
 from prompt_toolkit.formatted_text import HTML
 from pyfiglet import Figlet
 from six import MAXSIZE
 from yaspin import yaspin
 
+from repl.completer import SequencialCompleter, StringPathCompeleter, PrefixWordCompleter
 from repl.parser import CommandParser, CMD
 from repl.elaborator import Elaborator
 
@@ -59,18 +57,6 @@ SYMBOL_TAG = 3
 prompt_session = PromptSession(history=FileHistory("./.slog-history"))
 
 
-class StringPathCompeleter(Completer):
-    """ completer for '<file path>' """
-
-    def get_completions(self, document, complete_event):
-        text = document.text_before_cursor
-        # stripped_len = len(document.text_before_cursor) - len(text)
-        if "\"" in text:
-            remain_document = Document(
-                text[1:],
-                cursor_position=document.cursor_position - 1
-            )
-            yield from PathCompleter().get_completions(remain_document, complete_event)
 
 
 def get_arity_souffle_facts(souffle_fpath):
@@ -201,6 +187,10 @@ class Repl:
                     continue
                 csv_file_paths.append(f'{csv_dir}/{fname}')
         elif csv_dir.strip().endswith('.facts'):
+            rel_name = os.path.basename(csv_dir)[:-6]
+            if not(rel_name in [r[0] for r in self.relations]):
+                print(f"current database don't have relation {rel_name}" \
+                       " please make sure the fact file has name `<rel_name>.facts`")
             csv_file_paths.append(csv_dir)
         if csv_file_paths == []:
             print("no valid facts file found! NOTICE: all csv facts"
@@ -217,10 +207,11 @@ class Repl:
                 self._cur_db = response.new_database
                 print(f"All relation uploaded. now in database {self._cur_db}")
 
-    def _run(self, program_hashes, input_database):
+    def _run(self, program_hashes, input_database, cores=2):
         ''' run a program list (hashes) with given EDB hash and return updated idb'''
         req = slog_pb2.RunProgramRequest()
         req.using_database = input_database
+        req.cores = cores
         req.hashes.extend(program_hashes)
         # Get a promise for the running response
         response = self._stub.RunHashes(req)
@@ -246,7 +237,7 @@ class Repl:
             return
         self._load(elaborator)
         inited_db = self._compile(elaborator.hashes.keys())
-        self._cur_db = inited_db
+        self.switchto_db(inited_db)
 
     def _load(self, eloborated_file: Elaborator):
         ''' load a eloborated slog file into backend '''
@@ -390,8 +381,8 @@ class Repl:
                     rel_tag = u64 >> 46
                     bucket_hash = (u64 & BUCKET_MASK) >> 28
                     tuple_id = u64 & (~TUPLE_ID_MASK)
-                    print(u64)
-                    print((rel_tag, bucket_hash, tuple_id))
+                    # print(u64)
+                    # print((rel_tag, bucket_hash, tuple_id))
                     # buf[0] = (rel_tag, bucket_hash, tuple_id)
                     buf[0] = tuple_id
                     x += 1
@@ -502,12 +493,18 @@ class Repl:
                 self._fecth_dbs()
                 completer_map = {cmd: None for cmd in CMD}
                 completer_map['dump'] = FuzzyWordCompleter(list(relation_names))
-                possible_db_name = reduce(lambda res, db_row : res + [db_row[0][:5], db_row[1]],
-                                          self.all_db, [])
-                completer_map['run'] = merge_completers([StringPathCompeleter(),
-                                                         FuzzyWordCompleter(possible_db_name)])
-                completer_map['ta'] = merge_completers([FuzzyWordCompleter(possible_db_name),
-                                                        StringPathCompeleter()])
+                possible_db_hash = [db[0][:6] for db in self.all_db]
+                possible_db_tag = []
+                for db_info in self.all_db:
+                    if db_info[1].strip() != "":
+                        possible_db_tag.append(db_info[1])
+                completer_map['run'] = SequencialCompleter([
+                    StringPathCompeleter(),
+                    PrefixWordCompleter('[', possible_db_hash)])
+                completer_map['tag'] = SequencialCompleter([
+                    PrefixWordCompleter('[', possible_db_hash),
+                    PrefixWordCompleter('"', possible_db_tag),
+                    WordCompleter([int(i) for i in range(12)])])
                 completer_map['load'] = StringPathCompeleter()
                 completer_map['compile'] = StringPathCompeleter()
                 completer = NestedCompleter(completer_map)

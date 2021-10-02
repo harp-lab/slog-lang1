@@ -262,7 +262,7 @@ class RunTask(Task):
         print(self._db.get_all_relations_in_db(out_db))
         return True
 
-    def run_mpi(self, promise, hsh, in_db, out_db):
+    def run_mpi(self, promise, hsh, in_db, out_db, cores):
         """ run compiled c++ program """
         # compute digest of combined hashe to get build hash
         hashes = split_hashes(hsh)
@@ -282,7 +282,9 @@ class RunTask(Task):
         env = os.environ.copy()
         env["TMPDIR"] = "/tmp"
         failed = False
-        _proc = subprocess.Popen(["mpirun", "-n", "2", "./target", in_db_dir, out_db_dir],
+        if cores < 0:
+            cores = 1
+        _proc = subprocess.Popen(["mpirun", "-n", str(cores), "./target", in_db_dir, out_db_dir],
                                   stdin=PIPE, stdout=PIPE, stderr=open(stderrpath, 'w'),
                                   cwd=f"{build_dir}/build", env=env)
         with open(stdoutpath, 'w') as stdout_f:
@@ -330,6 +332,7 @@ class RunTask(Task):
                 hsh = row[3]
                 in_db = row [4]
                 out_db = self._db.get_db_by_promise(promise)
-                self.run_mpi(promise, hsh, in_db, out_db)
+                cores = row[8]
+                self.run_mpi(promise, hsh, in_db, out_db, cores)
                 # self._db.fail_mpi_job(promise, str(err))
                 # self.log("Exception during MPI job {}: {}".format(idx, err))

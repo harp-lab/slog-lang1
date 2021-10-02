@@ -13,17 +13,35 @@ from repl.commands import CompileCommand, RunWithDbCommand, IdCommand, ShowDbCom
                           TagCommand
 
 tokens = (
-    'ID', 'LPAREN','RPAREN','STRING'
+     'ID', 'NUMBER', 'LPAREN','RPAREN','STRING', 'HASH'
     )
 # Tokens
 
+DIGIT = r'([0-9])'
+CHAR = r'([a-zA-Z])'
+
 t_LPAREN  = r'\('
 t_RPAREN  = r'\)'
-t_STRING  = r'".*?"'
-t_ID    = r'[a-zA-Z0-9_]+'
+t_ID    = r'[a-zA-Z][a-zA-Z0-9_]*'
+# hash token
 
 # Ignored characters
 t_ignore = " \t"
+
+def t_NUMBER(token):
+    r'\d+'
+    token.value = int(token.value)
+    return token
+
+def t_STRING(token):
+    r'".*?"'
+    token.value = token.value[1:-1]
+    return token
+
+def t_HASH(token):
+    r'\[[a-zA-Z0-9]+\]'
+    token.value = token.value[1:-1]
+    return token
 
 def t_newline(token):
     r'\n+'
@@ -68,7 +86,7 @@ def p_statement_id_cmd(cmd):
 
 def p_statement_str_cmd(cmd):
     'statement : ID STRING'
-    str_arg = cmd[2][1:-1]
+    str_arg = cmd[2]
     if cmd[1] == "run":
         cmd[0] = RunWithDbCommand(str_arg)
     if cmd[1] == "connect":
@@ -81,14 +99,23 @@ def p_statement_str_cmd(cmd):
         print("Unrecognized str command syntax, please type `help`!")
 
 def p_statement_str_id_cmd(cmd):
-    'statement : ID STRING ID'
+    '''statement : ID STRING STRING
+                 | ID STRING HASH'''
     if cmd[1] == "run":
-        cmd[0] = RunWithDbCommand(cmd[2][1:-1], cmd[3].strip())
+        cmd[0] = RunWithDbCommand(cmd[2], cmd[3])
+    elif cmd[1] == "tag":
+        cmd[0] = TagCommand(cmd[2].strip(), cmd[3])
 
-def p_statement_id_str_cmd(cmd):
-    'statement : ID ID STRING'
+def p_statement_tag_cmd(cmd):
+    '''statement : ID HASH STRING'''
     if cmd[1] == "tag":
-        cmd[0] = TagCommand(cmd[2].strip(), cmd[3][1:-1])
+        cmd[0] = TagCommand(cmd[2].strip(), cmd[3])
+
+def p_statement_complex_run_cmd(cmd):
+    '''statement : ID STRING STRING NUMBER
+                 | ID STRING HASH NUMBER'''
+    if cmd[1] == 'run':
+        cmd[0] = RunWithDbCommand(cmd[2], cmd[3], cmd[4])
 
 def p_error(cmd):
     if cmd:

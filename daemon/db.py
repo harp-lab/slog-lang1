@@ -222,16 +222,16 @@ class MetaDatabase:
             (promise_id, STATUS_PENDING, joined_hashes, in_db, out_db, buckets))
         return compile_job_id
 
-    def create_mpi_job(self, promise_id, in_db, hsh):
+    def create_mpi_job(self, promise_id, in_db, hsh, cores):
         """
         create a mpi job for some database promising
         this job will run with given input database
         and return generated job id
         """
         job_id = self._db_add(
-            'INSERT INTO mpi_jobs (promise, status, hash, in_database_id, creation_time)'
-            ' VALUES (?,?,?,?,time(\'now\'))',
-            (promise_id, STATUS_PENDING, hsh, in_db))
+            'INSERT INTO mpi_jobs (promise, status, hash, in_database_id, creation_time, cores)'
+            ' VALUES (?,?,?,?,time(\'now\'),?)',
+            (promise_id, STATUS_PENDING, hsh, in_db, cores))
         return job_id
 
     def create_database_info(self, database_id, tag_name, user, forked_from):

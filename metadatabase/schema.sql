@@ -57,7 +57,8 @@ CREATE TABLE mpi_jobs (
        in_database_id TEXT NOT NULL,
        creation_time TEXT NOT NULL,
        completion_time TEXT,
-       error TEXT
+       error TEXT,
+       cores INTEGER NOT NULL
 );
  
 CREATE TABLE compile_jobs (

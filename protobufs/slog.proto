@@ -76,7 +76,8 @@ message RunProgramRequest {
   // Must be the initial database or a database for which this program
   // was compiled.
   string using_database = 2;
-  repeated string hashes = 3;
+  int32 cores = 3;
+  repeated string hashes = 4;
 }
 
 message ErrorResponse {

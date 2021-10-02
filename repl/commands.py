@@ -10,17 +10,19 @@ import abc
 
 HELP = '''
     Command:
-    help                        Print help
-    showdb                      show all committed databases
-    compile "<file_path>"       load and compile a slog source file, this will reset database to ⊥
-    run "<file_path>" (<db>)    load a slog source file into background, will create a database 
-                                with file name, and then compile and run it, if db is not provide
-                                will run with current db
-    dump <ID>                   dump all data in a relation into stdout           
-    connect "<server>"          connect to a slog server
-    load "<csv_file/folder>"    upload a csv file/folder into input database, file must ends with 
-                                `.fact`, name of target relation will be same as file name
-    tag <db> "<tag>"            give a database hash a taged name
+    NOTE: `(...)` means optionanl argument, `/` means alternative argument, `<...>` is meta name
+
+    help                            Print help
+    showdb                          show all committed databases
+    compile "<file_path>"           load and compile a slog source file.
+    run "<file_path>" (<db>)        load a slog source file into background, will create a database 
+                                    with file name, and then compile and run it, if db is not provide
+                                    will run with current db
+    dump [<hash>]/"<tag>"           dump all data in a relation into stdout           
+    connect "<server>"              connect to a slog server
+    load "<csv_file/folder>"        upload a csv file/folder into input database, file must ends with 
+                                    `.fact`, name of target relation will be same as file name
+    tag <db> "<tag>"                give a database hash a taged name
 '''
 
 
@@ -101,11 +103,11 @@ class ShowDbCommand(Command):
 
 
 class RunWithDbCommand(Command):
-    '''' run a program with given input database '''
+    '''' run a program with given input database and using cores '''
 
-    def __init__(self, program, db_id=None):
+    def __init__(self, program, db_id=None, cores=None):
         self.program = program
-        print(program)
+        self.cores = cores
         self.db_id = db_id
 
     def execute(self, repl):
@@ -113,7 +115,7 @@ class RunWithDbCommand(Command):
 
 class TagCommand(Command):
     "tag a database hash with some name"
- 
+
     def __init__(self, db_id, tag_name):
         self.db_id = db_id
         self.tag_name = tag_name

@@ -192,6 +192,7 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
                 ret.promise_id = MAXSIZE
                 return ret
         in_db = request.using_database
+        cores = request.cores
         hashes = set()
         for hsh in request.hashes:
             hashes.add(hsh)
@@ -207,7 +208,7 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
             return ret
         # Else, start an MPI job
         promise_id = self._db.create_db_promise(out_db)
-        self._db.create_mpi_job(promise_id, in_db, join_hashes(list(hashes)))
+        self._db.create_mpi_job(promise_id, in_db, join_hashes(list(hashes)), cores)
         ret.promise_id = promise_id
         self.log(f"Made promise {promise_id} for new MPI job on hashes {hashes}\n")
         return ret
