@@ -378,13 +378,10 @@ class Repl:
             for u64 in response.data:
                 if x == 0:
                     # index col
-                    rel_tag = u64 >> 46
-                    bucket_hash = (u64 & BUCKET_MASK) >> 28
+                    # rel_tag = u64 >> 46
+                    bucket_id = (u64 & BUCKET_MASK) >> 28
                     tuple_id = u64 & (~TUPLE_ID_MASK)
-                    # print(u64)
-                    # print((rel_tag, bucket_hash, tuple_id))
-                    # buf[0] = (rel_tag, bucket_hash, tuple_id)
-                    buf[0] = tuple_id
+                    buf[0] = (bucket_id, tuple_id)
                     x += 1
                     continue
                 val_tag = u64 >> 46
@@ -398,7 +395,9 @@ class Repl:
                     # attr_val = f'rel_{rel_name}_{u64 & (~TUPLE_ID_MASK)}'
                     if name != rel_name and rel_name not in self.updated_tuples.keys():
                         self.fetch_tuples(rel_name)
-                    attr_val = ['NESTED', rel_name, u64 & (~TUPLE_ID_MASK)]
+                    bucket_id = (u64 & BUCKET_MASK) >> 28
+                    tuple_id = u64 & (~TUPLE_ID_MASK)
+                    attr_val = ['NESTED', rel_name, (bucket_id, tuple_id)]
                 buf[x] = attr_val
                 x += 1
                 if x == arity + 1:
@@ -451,7 +450,7 @@ class Repl:
         self.fetch_tuples(rel[0])
         # print(self.updated_tuples)
         # _resolve(rel[0])
-        for fact_row in sorted(self.updated_tuples[rel[0]], key=lambda t: int(t[0])):
+        for fact_row in sorted(self.updated_tuples[rel[0]], key=lambda t: int(t[0][1])):
             print(f"#{fact_row[0]}:  {rel_to_str(fact_row[1:])}")
 
     def pretty_dump_relation(self, name):
