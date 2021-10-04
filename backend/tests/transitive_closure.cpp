@@ -4,7 +4,7 @@
 void func(mpi_comm mcomm, int mode, const char* log_name, const char* input_name)
 {
 relation* T1 = new relation(1, true, 2, 257, "T", "../data/g5955/path_2_1_2", FULL);
-relation* G1 = new relation(1, true, 2, 256, "G", input_name, FULL);
+relation* G1 = new relation(1, true, 2, 256, "G", "../data/g5955/edge_2_1_2", FULL);
 
 RAM* join1 = new RAM(true, 1);
 join1->add_relation(G1, false);
@@ -24,9 +24,10 @@ lie1->set_sloav_mode(mode);
 lie1->enable_all_to_all_dump();
 lie1->set_output_dir(log_name);
 lie1->enable_IO();
+lie1->enable_data_IO();
 lie1->set_name("TC");
 lie1->set_comm(mcomm);
-lie1->set_batch_size(10);
+lie1->set_batch_size(1);
 lie1->execute();
 lie1->print_all_relation_size();
 delete lie1;
@@ -71,6 +72,7 @@ int main(int argc, char **argv)
     func(mcomm, 0, "final-TC-drim-log_3_0", "../data/new_data/Drim");
     func(mcomm, 1, "final-TC-drim-log_3_1", "../data/new_data/Drim");
     func(mcomm, 3, "final-TC-drim-log_3_3", "../data/new_data/Drim");
+    
 
     mcomm.destroy();
     return 0;

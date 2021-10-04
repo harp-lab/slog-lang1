@@ -149,7 +149,7 @@ void read_symbols(string filename)
 	unsigned lineno = 1;
 	if (fp_in.fail())
 	{
-		cerr << "warning: could not open $symbols.csv file. Will create it.\n";
+		cout << "warning: could not open $symbols.csv file. Will create it.\n";
 	}
 	while (fp_in.good())
 	{
@@ -186,7 +186,7 @@ void read_strings(string filename)
 	unsigned lineno = 1;
 	if (fp_in.fail())
 	{
-		cerr << "warning: could not open $strings.csv file. Will create it.\n";
+		cout << "warning: could not open $strings.csv file. Will create it.\n";
 	}
 	while (fp_in.good())
 	{
@@ -222,7 +222,7 @@ void read_size(string filename)
 	int col_size;
 	if (size_in.fail())
 	{
-		cerr << "warning: could not open size file" << filename << "file. Will create it.\n";
+		cout << "warning: could not open size file" << filename << "file. Will create it.\n";
 	}
 	size_in >> current_tuple_id >> col_size;
 	if (col_size != (arity + 1))

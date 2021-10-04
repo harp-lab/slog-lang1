@@ -21,54 +21,10 @@ from daemon.const import STATUS_RESOLVED, STATUS_NOSUCHPROMISE, MAX_BUCKETS, MIN
                          , MAX_CHUNK_DATA
 from daemon.db import MetaDatabase
 from daemon.manifest import Manifest
+from daemon.util import join_hashes, generate_db_hash, compute_hash_file, read_intern_file
 
 import protobufs.slog_pb2 as slog_pb2
 import protobufs.slog_pb2_grpc as slog_pb2_grpc
-
-
-# util functions
-def join_hashes(hashes):
-    """ join 2 hash values? """
-    return ",".join(hashes)
-
-
-def generate_db_hash(hashes, using_db=None):
-    """
-    calculate an output database hash from a combined hash of a list of
-    hashes of input files and previous db
-    using_db == "" if not using any other DB
-    """
-    if using_db != "" and using_db is not None:
-        hashes = [using_db] + hashes
-    hashes.sort()
-    cathashes = "|".join(hashes).encode('utf-8')
-    hash_func = hashlib.sha256()
-    hash_func.update(cathashes)
-    return hash_func.hexdigest()
-
-
-def compute_hash_file(fdata):
-    """ generate a hash value from a file content data """
-    hash_func = hashlib.sha256()
-    hash_func.update(fdata)
-    hsh = hash_func.hexdigest()
-    return hsh
-
-
-def read_intern_file(fpath):
-    ''' read intern file into a python dict '''
-    intern_dict = {}
-    with open(fpath, 'r') as intern_file:
-        for line in intern_file.readlines():
-            if line.strip() != '':
-                splited = line.strip().split('\t')
-                v_id = splited[0]
-                if len(splited) == 1:
-                    str_val = ''
-                else:
-                    str_val = splited[1].strip()
-                intern_dict[int(v_id)] = str_val
-    return intern_dict
 
 
 class CommandService(slog_pb2_grpc.CommandServiceServicer):
@@ -78,19 +34,21 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
         self._db = MetaDatabase(DB_PATH)
 
     def log(self, msg):
+        """ RPC log """
         out = "[ CommandService {} ] {}".format(
             datetime.datetime.now().strftime("(%H:%M:%S %d/%m/%Y)"), msg)
         print(out)
         CMDSVC_LOG.write(out + "\n")
 
     def gen_data_directory(self):
+        """ create a data dir """
         return tempfile.mkdtemp(prefix=DATA_PATH+"/")
 
     def ExchangeHashes(self, request, context):
         res = slog_pb2.Hashes()
-        for h in request.hashes:
-            if not self._db.is_file_hash_exists(h):
-                res.hashes.extend([h])
+        for hsh in request.hashes:
+            if not self._db.is_file_hash_exists(hsh):
+                res.hashes.extend([hsh])
         return res
 
     def Ping(self, request, context):
@@ -174,8 +132,7 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
                     _mf.write(new_mf_s)
                 self._db.load_manifest(new_db_id, mf_path)
                 ret.new_database = new_db_id
-                # the default tag name if db_id
-                self._db.create_database_info(new_db_id, new_db_id, "", in_db)
+                self._db.create_database_info(new_db_id, "", "", in_db)
         ret.error_msg = ", ". join(failed_files)
         return ret
 
@@ -203,66 +160,64 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
             in_db = generate_db_hash(list(hashes), using_db)
             out_db = generate_db_hash(list(hashes), in_db)
         joined_hashes = join_hashes(list(hashes))
-        row = self._db.get_promise_by_db(out_db)
         response = slog_pb2.Promise()
         # Already started a compile job for this
-        if row is not None:
-            response.promise_id = row[0]
+        if self._db.is_compiled_before(hsh):
+            response.promise_id = MAXSIZE
             return response
         try:
             # Else, start a compile job and promise the new input DB
+            # empty database is not the execution result of any program
+            # so give source program ""
             promise_id = self._db.create_db_promise(in_db)
             response.promise_id = promise_id
             buckets = request.buckets
             if (buckets < MIN_BUCKETS or buckets > MAX_BUCKETS):
                 self.log(f"Got request for compilation with {buckets} buckets, which is invalid.\n")
-                response.promise_id = -1
+                response.promise_id = MAXSIZE
                 return response
             # otherwise, insert, will be handled by CompileTask
             self._db.create_compile_job(promise_id, joined_hashes, in_db, out_db, buckets)
         except Exception as e:
             print(e)
-        self.log("Made promise {} for new compile job on hashes {}\n".format(
-            promise_id, hashes))
+        self.log(f"Made promise {promise_id} for new compile job on hashes {hashes}\n")
         return response
 
     def RunHashes(self, request, context):
         ret = slog_pb2.Promise()
+        # compute slog file hash digest
         # Check that all hashes are present
         for hsh in request.hashes:
             if not self._db.is_file_hash_exists(hsh):
                 ret.promise_id = MAXSIZE
                 return ret
         in_db = request.using_database
+        cores = request.cores
         hashes = set()
         for hsh in request.hashes:
             hashes.add(hsh)
         # Check that this program was previously successfully compiled
-        # using this database
-        out_db = self._db.get_compile_out(join_hashes(list(hashes)))
-        if out_db is None:
+        if not self._db.is_compiled_before(join_hashes(list(hashes))):
             ret.promise_id = MAXSIZE
             return ret
+        out_db = generate_db_hash(list(hashes), in_db)
         row = self._db.get_promise_by_db(out_db)
-        response = slog_pb2.Promise()
         # Already started an MPI job for this
         if row is not None:
-            response.promise_id = row[0]
-            return response
-        try:
-            # Else, start an MPI job
-            promise_id = self._db.create_db_promise(out_db)
-            self._db.create_mpi_job(promise_id, in_db)
-            response.promise_id = promise_id
-        except Exception as e:
-            print(e)
-        self.log("Made promise {} for new MPI job on hashes {}\n".format(
-            promise_id, hashes))
-        return response
+            ret.promise_id = row[0]
+            return ret
+        # Else, start an MPI job
+        promise_id = self._db.create_db_promise(out_db)
+        self._db.create_mpi_job(promise_id, in_db, join_hashes(list(hashes)), cores)
+        ret.promise_id = promise_id
+        self.log(f"Made promise {promise_id} for new MPI job on hashes {hashes}\n")
+        return ret
 
     def GetTuples(self, request, context):
         row = self._db.get_relations_by_db_and_tag(
-            request.database_id, request.tag)
+            request.database_id,
+            request.tag)
+        print()
         try:
             arity = int(row[1])
             selection = list(map(int, row[3].split(",")))
@@ -283,8 +238,7 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
                 file_size = os.stat(data_file).st_size
                 num_u64s = int(file_size) / 8
                 num_tuples = int(num_u64s) / tuplen
-                max_tuples_per_chunk = int(
-                    math.floor(MAX_CHUNK_DATA / (8 * arity)))
+                max_tuples_per_chunk = int(math.floor(MAX_CHUNK_DATA / (8 * arity)))
                 num_tuples_left = num_tuples
                 while num_tuples_left > 0:
                     num_tuples = int(
@@ -298,7 +252,7 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
                     for row_num in range(num_tuples):
                         for i in range(arity+1):
                             cpy[row_num*tuplen + mapping[i]] = int.from_bytes(
-                                buffer[row_num*tuplen*8 + i*8:row_num*tuplen*8 + (i+1)*8], 
+                                buffer[row_num*tuplen*8 + i*8:row_num*tuplen*8 + (i+1)*8],
                                 'little', signed=False)
                     num_tuples_left -= num_tuples
                     response.num_tuples = num_tuples
@@ -310,7 +264,7 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
 
     def GetRelations(self, request, context):
         print(request.database_id)
-        rows = self._db.get_all_relations_in_db(request.database_id,)
+        rows = self._db.get_all_relations_in_db(request.database_id)
         res = slog_pb2.RelationDescriptionsResponse()
         res.success = True
         for row in rows:
@@ -339,3 +293,11 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
             db_info_response.user = db_info_row[2]
             db_info_response.forked_from = db_info_row[3]
             yield db_info_response
+
+    def TagDB(self, request, context):
+        database_id = request.database_id
+        tag_name = request.tag_name
+        self._db.tag_database(database_id, tag_name)
+        response = slog_pb2.ErrorResponse()
+        response.success = True
+        return response

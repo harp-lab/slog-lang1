@@ -15,11 +15,8 @@
          generate-cpp-lambda-for-rule-with-direct-builtin)
 
 (require
- "interpreter.rkt"
  "lang-predicates.rkt"
  "slog-params.rkt"
- "graphs.rkt"
- "generic-utils.rkt"
  "utils.rkt"
  "builtins.rkt"
  "slog-params.rkt"
@@ -44,9 +41,9 @@
  )
 
 (require racket/runtime-path)
-(require racket/file)
 (define-runtime-path HERE ".")
 (define (get-path path) (build-path HERE path))
+
 
 ; Run an input source-tree? through all primary compiler passes
 (define (slog-compile source-tree)
@@ -71,6 +68,7 @@
             ((time organize-pass)
               source-tree)))))))))))
     ; (printf "static-unification-pass-res: \n~a\n" (intercalate "\n" (map strip-prov (hash-keys (third static-unification-pass-res)))))
+
 
 ; Complete compilation to C++
 ;; returns (cons global-definitions program-text)
@@ -116,16 +114,19 @@
              (when (not (= (length maybe-relation) 1))
                (error (format "Could not find an appropriate relation ~a ~a in manifest (either 0 or >1 possible candidates)" rel-name rel-arity)))
              (define relation (first maybe-relation))
-             (match-define `(relation ,_ ,_ ,rid ,_ ,index ,data ,size) relation) 
+             (match-define `(relation ,_ ,_ ,rid ,_ ,index ,data ,size) relation)
              (string-append rel-txt
-                            (format "relation* ~a = new relation(~a, ~a, ~a, ~a, \"~a\", \"~a\", FULL);\n"
+                            (format "relation* ~a = new relation(~a, ~a, ~a, ~a, \"~a\", slog_input_dir + \"/~a\", FULL);\n"
                                     (rel->name rel-sel)
                                     (length (rel->sel rel-sel))
                                     (if (and (not (member 0 (rel->sel rel-sel))) (= (length (rel->sel rel-sel)) (rel->arity rel-sel))) "true" "false")
                                     (rel->arity rel-sel)
                                     rid
                                     (rel->name rel-sel)
-                                    data)))
+                                    (if (and (not (member 0 (rel->sel rel-sel))) (= (length (rel->sel rel-sel)) (rel->arity rel-sel)))
+                                        (format "~a_~a" rel-name rel-arity)
+                                        (format "~a_nc_~a" rel-name rel-arity))
+                                    )))
            ""
            (set->list all-rel-selects)))
   (define scc-txt-h

@@ -28,6 +28,7 @@ service CommandService {
   rpc GetTuples(RelationRequest) returns (stream Tuples);
   rpc GetStrings(StringRequest) returns (stream Strings);
   rpc ShowDB(ShowDBRequest) returns (stream DatabaseInfo);
+  rpc TagDB(TagDBRequest) returns (stream ErrorResponse); 
 }
 
 message PingRequest {
@@ -75,7 +76,8 @@ message RunProgramRequest {
   // Must be the initial database or a database for which this program
   // was compiled.
   string using_database = 2;
-  repeated string hashes = 3;
+  int32 cores = 3;
+  repeated string hashes = 4;
 }
 
 message ErrorResponse {
@@ -155,4 +157,9 @@ message DatabaseInfo {
   string tag_name = 2;
   string user = 3;
   string forked_from = 4;
+}
+
+message TagDBRequest {
+  string database_id = 1;
+  string tag_name = 2;
 }

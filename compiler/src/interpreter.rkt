@@ -470,7 +470,7 @@
 ;; files (containing the correct structure), along with a manifest
 ;; specifying the canonical indices.
 (define (create-initial-database program directory)
-  (displayln (format "Creating initial database in directory ~a" directory))
+  ;(displayln (format "Creating initial database in directory ~a" directory))
   
   ;; run the interning pass on this program to populate pools of static constants (strings, ..)
   (define post-interning
@@ -493,18 +493,21 @@
   (define (touch-empty-files rel-arity)
     (match-define `(rel-arity ,rel ,arity ,kind) rel-arity)
     ;; touch empty output/size files
-    (define extn ".dat")
     (define output-file (format "~a/~a_~a" directory rel arity))
+    (define output-file-nc (format "~a/~a_nc_~a" directory rel arity))
     (define out (open-output-file output-file #:exists 'replace))
+    (define out-nc (open-output-file output-file-nc #:exists 'replace))
     (close-output-port out)
+    (close-output-port out-nc)
     (define output-size-file (format "~a.size" output-file))
-    (define size-out (open-output-file output-size-file #:exists 'replace))
+    (define output-size-file-nc (format "~a.size" output-file-nc))
     (define rows 0)
     (define columns (add1 arity))
-    (display (format "~a\n~a\n" rows columns) size-out)
-    (close-output-port size-out)
+    (with-output-to-file output-size-file #:exists 'replace
+      (lambda () (display (format "~a\n~a\n" rows columns))))
+    (with-output-to-file output-size-file-nc #:exists 'replace
+      (lambda () (display (format "~a\n~a\n" rows columns))))
     `(,output-file ,output-size-file))
-  
   ;; build up a list of metatdata for each relation: name, arity, ID,
   ;; #facts (starts at 0, incremented by other tools), data file, and
   ;; data size file.
@@ -512,14 +515,13 @@
     (foldl
      (lambda (rel-arity relations)
        (match-define `(rel-instance ,_ ,relation-id ,_) (hash-ref rm rel-arity))
-       (match-define `(,data-file ,size-file) (touch-empty-files rel-arity)) 
+       (match-define `(,data-file ,size-file) (touch-empty-files rel-arity))
        (match-define `(rel-arity ,rel ,arity ,_) rel-arity)
        (define canonical-index (hash-ref rel-arity->canonical-index rel-arity))
        (define num-facts 0)
        `((relation ,rel ,arity ,relation-id ,num-facts ,canonical-index ,data-file ,size-file) . ,relations))
      '()
      (hash-keys rm)))
-  
   (define (write-strings)
     (define output-file (format "~a/$strings.csv" directory))
     (define out (open-output-file output-file #:exists 'replace))

@@ -69,6 +69,11 @@ class CommandServiceStub(object):
                 request_serializer=slog__pb2.ShowDBRequest.SerializeToString,
                 response_deserializer=slog__pb2.DatabaseInfo.FromString,
                 )
+        self.TagDB = channel.unary_stream(
+                '/CommandService/TagDB',
+                request_serializer=slog__pb2.TagDBRequest.SerializeToString,
+                response_deserializer=slog__pb2.ErrorResponse.FromString,
+                )
 
 
 class CommandServiceServicer(object):
@@ -146,6 +151,12 @@ class CommandServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def TagDB(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_CommandServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -203,6 +214,11 @@ def add_CommandServiceServicer_to_server(servicer, server):
                     servicer.ShowDB,
                     request_deserializer=slog__pb2.ShowDBRequest.FromString,
                     response_serializer=slog__pb2.DatabaseInfo.SerializeToString,
+            ),
+            'TagDB': grpc.unary_stream_rpc_method_handler(
+                    servicer.TagDB,
+                    request_deserializer=slog__pb2.TagDBRequest.FromString,
+                    response_serializer=slog__pb2.ErrorResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -398,5 +414,22 @@ class CommandService(object):
         return grpc.experimental.unary_stream(request, target, '/CommandService/ShowDB',
             slog__pb2.ShowDBRequest.SerializeToString,
             slog__pb2.DatabaseInfo.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def TagDB(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(request, target, '/CommandService/TagDB',
+            slog__pb2.TagDBRequest.SerializeToString,
+            slog__pb2.ErrorResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
