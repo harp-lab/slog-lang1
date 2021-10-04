@@ -1,66 +1,46 @@
- 
-name: CI
-
-# Controls when the action will run. Triggers the workflow on push or pull request
-# events but only for the master branch
+name: Slog CI Testing
 on:
   push:
-    branches: [ master, github-actions-test, cpp-builtins, comp-rels, aggregators]
+    branches: [ master, github-actions-test]
   pull_request:
     branches: [ master ]
-
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  test:
-    # The type of runner that the job will run on
+  build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    # Steps represent a sequence of tasks that will be executed as part of the job
+    timeout-minutes: 20
     steps:
-    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-    - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v2
 
-    - name: Setup Racket environment
-      uses: Bogdanp/setup-racket@v0.8
-      with:
-        # The target architecture (x86, x64) of the Racket interpreter.
-        architecture: 'x64'
-        # The target distribution (minimal, full) of Racket.
-        # distribution: # optional, default is full
-        # The target variant (regular, CS) of Racket.
-        # variant: # optional, default is regular
-        # Version range or exact version of a Racket version to use.
-        # version: # optional, default is 7.7
-        # A comma-separated list of package catalogs to use when installing packages.
-        # catalogs: # optional, default is 
-        # A comma-separated list of packages to install from the Package Catalog.
-        packages: 'z3, graph, readline-gpl, binaryio'
+      - name: Build docker image
+        run: docker build -t slog-ci-test .
 
-    - name: install z3
-      run: sudo apt install z3
-      
-    - name: run tests
-      working-directory: ./compiler
-      run: racket ./unit-tests/tests.rkt -c --run-slow-tests
+      - name: Compiler tests
+        run: docker run --rm --entrypoint racket slog-ci-test /slog/compiler/unit-tests/tests.rkt -c --run-slow-tests
 
-    - name: run tests with --merge-builtins
-      working-directory: ./compiler
-      run: racket ./unit-tests/tests.rkt -c --merge-builtins --run-slow-tests
+      - name: Compiler tests with --merge-builtins
+        run: docker run --rm --entrypoint racket slog-ci-test /slog/compiler/unit-tests/tests.rkt -c --merge-builtins --run-slow-tests
 
-    - name: run c++ compilation tests
-      working-directory: ./compiler/unit-tests
-      run : ./cpp_compilation_tests.sh
-      
-    - name: benchmark-worstcase-4-terms-2-m
-      working-directory: ./compiler
-      run: |
-        START=$(date +%s)
-        echo quit | racket slog.rkt -i ./ci-benchmarks/worstcase-4-terms-2-m.slog
-        END=$(date +%s)
-        DIFF=$(echo "$END - $START" | bc)
-        echo "took $DIFF seconds."
-        if [ $DIFF -gt  300 ]
-        then 
-          echo took too long
-          exit 1
-        fi
+      - name: C++ compilation tests
+        run: docker run --rm --entrypoint bash slog-ci-test /slog/compiler/unit-tests/cpp_compilation_tests.sh
+
+      - name: Compile hashes
+        run: docker run --rm --entrypoint bash slog-ci-test /slog/tests/run_test.sh compile_hashes
+
+      # TODO: Backend tests (Yihao working on them)
+
+    # TODO: integrate benchmarking into CI,
+    #       maybe into some persistent store so we can track perf over time?
+    # - name: benchmark-worstcase-4-terms-2-m
+    #   working-directory: ./compiler
+    #   run: |
+    #     START=$(date +%s)
+    #     echo quit | racket slog.rkt -i ./ci-benchmarks/worstcase-4-terms-2-m.slog
+    #     END=$(date +%s)
+    #     DIFF=$(echo "$END - $START" | bc)
+    #     echo "took $DIFF seconds."
+    #     if [ $DIFF -gt  300 ]
+    #     then
+    #       echo took too long
+    #       exit 1
+    #     fi

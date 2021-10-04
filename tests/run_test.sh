@@ -1,9 +1,12 @@
+#!/usr/bin/env bash
+set -e
+
 # Run a test (first argument)
 trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
-PYTHON=python3
-HERE=$PWD
 
-source ~/.profile
+# go to this scripts location to run tests.
+cd $(dirname $(realpath $0))
+cd ..
 
 if [ -z $1 ]; then
     echo "Please specify (only) a test name to run."
@@ -11,12 +14,10 @@ if [ -z $1 ]; then
 fi
 
 #echo "Starting server..."
-cd ..; ./slog-server &>$HERE/server_log &
-SERVER=$! # Get server's process ID
-sleep 1
-cd $HERE
-# Run the test
-cd ..
-#echo "Running test..."
-$PYTHON -m tests.$1
-#echo "Done."
+./slog-server &> server_log &
+
+sleep 4
+
+python3 -m tests.$1
+
+echo "Done."
