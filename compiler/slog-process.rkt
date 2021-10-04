@@ -22,7 +22,7 @@
   (define elapsed-millis (- (current-inexact-milliseconds) before))
   (cons ret-val elapsed-millis))
 
-;; Compiles a set of slog files 
+;; Compiles a set of slog files
 (define (compile-hashes compiler-root slog-files num-processes output-cpp data-directory output-fact-directory)
   (match-define (cons program elapsed-millis) (time (lambda () (slog-compile (parse-slog-files slog-files)))))
   ;; Write the initial databse
