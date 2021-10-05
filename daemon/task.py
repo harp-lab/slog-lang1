@@ -175,11 +175,6 @@ class CompileTask(Task):
                 self.compile_to_mpi(in_database_id, out_database_id,
                                     split_hashes(hashes), buckets, promise)
 
-#
-# Run task
-#
-
-
 class RunTask(Task):
     """ running slog program task """
 
@@ -195,8 +190,7 @@ class RunTask(Task):
         rows = self._db.get_all_relations_in_db(database_id)
         self.relations = []
         for row in rows:
-            self.relations.append([row[0], row[1], row[2],
-                                  list(map(int, row[3].split(",")))])
+            self.relations.append([row[0], row[1], row[2]])
 
     def finalize_run(self, in_db, out_db):
         """
@@ -223,8 +217,7 @@ class RunTask(Task):
         for relation in relations:
             rel_file_name = "rel__{}__{}__{}_full".format(
                 rel_name_covert(relation[0]), relation[1],
-                "__".join(map(str, [i for i in range(1,relation[1]+1)]))
-            )
+                "__".join(map(str, range(1,relation[1]+1))))
             checkpoint_data_file = os.path.join(checkpoint_dir, rel_file_name)
             checkpoint_size_file = "{}.size".format(checkpoint_data_file)
             new_data_file = os.path.join(DATABASE_PATH, out_db, f'{relation[0]}_{relation[1]}')
@@ -244,8 +237,8 @@ class RunTask(Task):
                                                    relation[0], relation[1])
                 continue
             # copy file out of checkpoint
-            shutil.copy(checkpoint_data_file, new_data_file)
-            shutil.copy(checkpoint_size_file, new_size_file)
+            shutil.copy2(checkpoint_data_file, new_data_file)
+            shutil.copy2(checkpoint_size_file, new_size_file)
             with open(checkpoint_size_file, 'r') as size_f:
                 lines = size_f.readlines()
             rows = int(lines[0])

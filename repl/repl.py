@@ -447,7 +447,7 @@ class Repl:
             return f"({rel[-1]} {' '.join(res)})"
         self.fetch_tuples(rel[0])
         # print(self.updated_tuples)
-        _resolve(rel[0])
+        # _resolve(rel[0])
         if not out_path:
             for fact_row in sorted(self.updated_tuples[rel[0]], key=lambda t: int(t[0][2])):
                 print(f"#{fact_row[0][2]}:  {rel_to_str(fact_row[1:])}")

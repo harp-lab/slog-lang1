@@ -6,7 +6,6 @@
 """
 
 import os
-import pprint
 
 import sexpdata
 from sexpdata import Symbol

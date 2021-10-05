@@ -7,15 +7,13 @@ CREATE TABLE promises_for_databases (
        database_id TEXT NOT NULL
 );
 
-CREATE TABLE canonical_relations (
+CREATE TABLE relations (
        /* hash of the database ID */
        database_id TEXT NOT NULL,
        /* relation name */
        name TEXT NOT NULL,
        /* relation arity */
        arity INTEGER NOT NULL,
-       /* selection in comma-separated format, e.g., `3,0,5` */
-       selection TEXT NOT NULL,
        /* 16-bit tag specific to rel-arity and identifying this database */
        tag INTEGER NOT NULL,
        /* number of tuples in the database */

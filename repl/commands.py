@@ -78,11 +78,13 @@ def exec_command(repl, raw_input: str):
         else:
             repl.invalid_alert(f'{cmd} expect 1 arg, but get {len(args)}')
     elif cmd == 'run':
-        if len(args) > 1 and (not args[0].startswith('"') or not args[0].endswith('"')):
+        if len(args) >= 1 and (not args[0].startswith('"') or not args[0].endswith('"')):
             repl.invalid_alert(f'{cmd} expect a string at postion 1 as arg')
             return
         if len(args) == 2 and len(args[1]) < 5 and args[1].isnumeric():
             repl.run_with_db(args[0][1:-1], cores=int(args[1]))
+        elif len(args) == 1:
+            repl.run_with_db(args[0][1:-1])
         elif len(args) == 2:
             repl.run_with_db(args[0][1:-1], args[1])
         elif len(args) == 3 and args[2].isnumeric():
