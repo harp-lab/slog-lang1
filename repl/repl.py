@@ -13,15 +13,16 @@ import time
 import timeit
 import grpc
 from prompt_toolkit import PromptSession
+from prompt_toolkit.completion.base import merge_completers
 from prompt_toolkit.history import FileHistory
-from prompt_toolkit.completion import NestedCompleter, FuzzyWordCompleter, WordCompleter
+from prompt_toolkit.completion import NestedCompleter, FuzzyWordCompleter
 from prompt_toolkit.formatted_text import HTML
 from pyfiglet import Figlet
 from six import MAXSIZE
 from yaspin import yaspin
 
 from repl.completer import SequencialCompleter, StringPathCompeleter, PrefixWordCompleter
-from repl.parser import CommandParser, CMD
+from repl.commands import exec_command, CMD
 from repl.elaborator import Elaborator
 
 # Generated protobufs stuff
@@ -114,7 +115,6 @@ class Repl:
 
     def __init__(self):
         self._channel = None
-        self._parser = CommandParser()
         try:
             self.reconnect("localhost")
         except grpc.RpcError:
@@ -363,26 +363,25 @@ class Repl:
 
     def fetch_tuples(self, name):
         """ print all tulple of a relation """
-        # print(name)
         req = slog_pb2.RelationRequest()
         req.database_id = self._cur_db
         arity = self.lookup_rels(name)[0][1]
         req.tag = self.lookup_rels(name)[0][2]
-        n = 0
-        x = 0
+        row_count = 0
+        col_count = 0
         tuples = []
-        buf = [-1 for i in range(0, arity+1)]
+        buf = [-1 for _ in range(0, arity+1)]
         for response in self._stub.GetTuples(req):
             if response.num_tuples == 0:
                 continue
             for u64 in response.data:
-                if x == 0:
+                if col_count == 0:
                     # index col
                     # rel_tag = u64 >> 46
                     bucket_id = (u64 & BUCKET_MASK) >> 28
                     tuple_id = u64 & (~TUPLE_ID_MASK)
-                    buf[0] = (bucket_id, tuple_id)
-                    x += 1
+                    buf[0] = (bucket_id, tuple_id, row_count)
+                    col_count += 1
                     continue
                 val_tag = u64 >> 46
                 if val_tag == INT_TAG:
@@ -398,19 +397,19 @@ class Repl:
                     bucket_id = (u64 & BUCKET_MASK) >> 28
                     tuple_id = u64 & (~TUPLE_ID_MASK)
                     attr_val = ['NESTED', rel_name, (bucket_id, tuple_id)]
-                buf[x] = attr_val
-                x += 1
-                if x == arity + 1:
+                buf[col_count] = attr_val
+                col_count += 1
+                if col_count == arity + 1:
                     # don't print id col
                     # rel name at last
                     tuples.append(copy.copy(buf)+[name])
-                    x = 0
-                    n += 1
-            assert n == response.num_tuples
+                    col_count = 0
+                    row_count += 1
+            assert row_count == response.num_tuples
         self.updated_tuples[name] = tuples
         return tuples
 
-    def recursive_dump_tuples(self, rel):
+    def recursive_dump_tuples(self, rel, out_path):
         """ recursive print all tuples of a relation """
         # reset all tuples to non-updated
         def find_val_by_id(name, row_id):
@@ -418,7 +417,6 @@ class Repl:
                 if row[0] == row_id:
                     return row
         resolved_relname = []
-
         def _resolve(rname):
             if rname in resolved_relname:
                 return
@@ -449,11 +447,16 @@ class Repl:
             return f"({rel[-1]} {' '.join(res)})"
         self.fetch_tuples(rel[0])
         # print(self.updated_tuples)
-        # _resolve(rel[0])
-        for fact_row in sorted(self.updated_tuples[rel[0]], key=lambda t: int(t[0][1])):
-            print(f"#{fact_row[0]}:  {rel_to_str(fact_row[1:])}")
+        _resolve(rel[0])
+        if not out_path:
+            for fact_row in sorted(self.updated_tuples[rel[0]], key=lambda t: int(t[0][2])):
+                print(f"#{fact_row[0][2]}:  {rel_to_str(fact_row[1:])}")
+        else:
+            with open(out_path, 'w') as out_f:
+                for fact_row in sorted(self.updated_tuples[rel[0]], key=lambda t: int(t[0][2])):
+                    out_f.write(f"#{fact_row[0][2]}:  {rel_to_str(fact_row[1:])}")
 
-    def pretty_dump_relation(self, name):
+    def pretty_dump_relation(self, name, out_file=None):
         """ recursive print all tuples of a relation """
         if len(self.lookup_rels(name)) == 0:
             print("No relation named {} in the current database".format(name))
@@ -462,7 +465,7 @@ class Repl:
             print(f"More than one arity for {name}, not currently"
                   " supporting printing for multi-arity relations")
             return
-        self.recursive_dump_tuples(self.lookup_rels(name)[0])
+        self.recursive_dump_tuples(self.lookup_rels(name)[0], out_file)
 
     def tag_db(self, db_id, tag_name):
         """ tag a database with some name """
@@ -497,11 +500,11 @@ class Repl:
                 for db_info in self.all_db:
                     if db_info[1].strip() != "":
                         possible_db_tag.append(db_info[1])
-                completer_map['run'] = SequencialCompleter([
+                completer_map['run'] = merge_completers([
                     StringPathCompeleter(),
-                    PrefixWordCompleter('[', possible_db_hash)])
+                    FuzzyWordCompleter(possible_db_hash+possible_db_tag)])
                 completer_map['tag'] = SequencialCompleter([
-                    PrefixWordCompleter('[', possible_db_hash),
+                    FuzzyWordCompleter(possible_db_hash),
                     PrefixWordCompleter('"', possible_db_tag)])
                 completer_map['load'] = StringPathCompeleter()
                 completer_map['compile'] = StringPathCompeleter()
@@ -513,9 +516,7 @@ class Repl:
                     completer=completer)
                 if text.strip() == '':
                     continue
-                cmd = self._parser.parse(text)
-                if cmd:
-                    cmd.execute(self)
+                exec_command(self, text)
             except EOFError:
                 self.exit()
             except AssertionError:
@@ -525,6 +526,10 @@ class Repl:
         """ exit REPL """
         print('Goodbye.')
         sys.exit(0)
+
+    def invalid_alert(self, message):
+        """ print alert for command exectution """
+        print(f"Invalid command: {message}")
 
     def calc_ping(self):
         """ calculate ping time to slog rpc server """
