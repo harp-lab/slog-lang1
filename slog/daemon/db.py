@@ -75,21 +75,15 @@ class MetaDatabase:
             name = relation[0].value()
             arity = relation[1]
             tag = relation[2]
-            pcs = list(map(str, relation[4]))
             data_file = relation[5]
             size_file = relation[6]
             # read size file to get number of tuples
             with open(size_file, 'r') as size_f:
                 num_tuples = int(size_f.readlines()[1])
-            try:
-                cur.execute('INSERT INTO canonical_relations'
-                            ' (database_id,name,arity,selection,tag,num_tuples,data_file)'
-                            ' VALUES (?,?,?,?,?,?,?)',
-                            (db_id, name, arity, ",".join(pcs), tag, num_tuples, data_file))
-            except sqlite3.IntegrityException:
-                # Already compiled this file.
-                return None
-
+            cur.execute('INSERT INTO relations'
+                        ' (database_id,name,arity,tag,num_tuples,data_file)'
+                        ' VALUES (?,?,?,?,?,?)',
+                        (db_id, name, arity, tag, num_tuples, data_file))
         conn.commit()
         conn.close()
 
@@ -137,8 +131,8 @@ class MetaDatabase:
     def get_relations_by_db_and_tag(self, db_id, tag):
         """ get a relation row by give database and tag, if not found return None """
         relation_row = self._db_fechone(
-            'SELECT name,arity,tag,selection,data_file'
-            ' FROM canonical_relations'
+            'SELECT name,arity,tag,data_file'
+            ' FROM relations'
             ' WHERE database_id = ? and tag = ?',
             (db_id, tag))
         return relation_row
@@ -146,11 +140,20 @@ class MetaDatabase:
     def get_all_relations_in_db(self, db_id):
         """ return all relation row of a slog database """
         rows = self._db_fetchall(
-            'SELECT name,arity,tag,selection,data_file FROM'
-            ' canonical_relations'
+            'SELECT name,arity,tag,data_file FROM'
+            ' relations'
             ' WHERE database_id = ?',
             (db_id,))
         return rows
+
+    def get_relation_tag(self, db_id, rel_name, arity):
+        """ return  the tag of a relation (it is determined by) name + arity """
+        res = self._db_fechone(
+            'SELECT tag FROM relations'
+            ' WHERE database_id=? AND name=? AND arity=?',
+            (db_id, rel_name, arity))
+        if res is not None:
+            return res[0]
 
     def get_all_pending_compile_job(self):
         """ return all pending compiled_job row  """
@@ -264,7 +267,7 @@ class MetaDatabase:
     def update_relation_data_info(self, data_file, tuple_num, db_id, rel_name, arity):
         """ update the data file information of a rule """
         self._db_update(
-            'UPDATE canonical_relations SET num_tuples = ?, data_file = ?'
+            'UPDATE relations SET num_tuples = ?, data_file = ?'
             ' WHERE database_id = ? AND name = ? AND arity = ?'
             , (tuple_num, data_file, db_id, rel_name, arity))
 

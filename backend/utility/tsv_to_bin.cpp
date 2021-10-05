@@ -27,7 +27,6 @@
 #define INTEGER_TAG 0
 #define FLOAT_TAG 1
 #define STRING_TAG 2
-#define SYMBOL_TAG 3
 #define BOOL_TAG 4
 
 #define TUPLE_MASK_LENGTH 28
@@ -39,8 +38,6 @@
 using namespace std;
 
 // globals
-unordered_map<string, long> symbols_map;
-long max_symbol_id;
 unordered_map<string, long> strings_map;
 long max_string_id = 0;
 long current_tuple_id = 0;
@@ -49,7 +46,6 @@ unsigned index_length = 0;
 unordered_set<u64> tuple_ids;
 unsigned buckets;
 string string_intern_file_path;
-string symbol_intern_file_path;
 string size_file_path;
 string mode = "slog";
 
@@ -140,44 +136,6 @@ void parse_column_order(char *index, vector<unsigned> &result)
 	// }
 }
 
-// populate symbols_map
-void read_symbols(string filename)
-{
-	ifstream fp_in(filename, ios_base::in);
-	string symbol_id;
-	string symbol_value;
-	unsigned lineno = 1;
-	if (fp_in.fail())
-	{
-		cout << "warning: could not open $symbols.csv file. Will create it.\n";
-	}
-	while (fp_in.good())
-	{
-		try
-		{
-			getline(fp_in, symbol_id, '\t');
-			if (!fp_in.good())
-				break;
-			getline(fp_in, symbol_value, '\n');
-			long id = stoi(symbol_id);
-			if (id < 0)
-			{
-				cerr << "error: ID < 0 is not allowed" << endl;
-				exit(1);
-			}
-			symbols_map[symbol_value] = id;
-			max_symbol_id = max(max_symbol_id, id);
-			cout << symbol_id << "   " << symbol_value << endl;
-		}
-		catch (...)
-		{
-			cerr << "error reading symbols (line " << lineno << ")\n";
-			exit(1);
-		}
-		lineno++;
-	}
-}
-
 void read_strings(string filename)
 {
 	ifstream fp_in(filename, ios_base::in);
@@ -235,22 +193,15 @@ void read_size(string filename)
 	size_in.close();
 }
 
-// fill in $strings.csv, $symbols.csv, ...
+// fill in $strings.csv, ...
 void write_interned_pools()
 {
 	// const string strings_file = "./$strings.csv";
-	// const string symbols_file = "./$symbols.csv";
 	int strings = open(string_intern_file_path.c_str(), O_CREAT | O_RDWR, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 	for (const auto &[key, value] : strings_map)
 	{
 		string s = to_string(value) + "\t" + key + "\n";
 		write(strings, s.c_str(), s.length());
-	}
-	int symbols = open(symbol_intern_file_path.c_str(), O_CREAT | O_RDWR, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-	for (const auto &[key, value] : symbols_map)
-	{
-		string s = to_string(value) + "\t" + key + "\n";
-		write(symbols, s.c_str(), s.length());
 	}
 }
 
@@ -287,7 +238,6 @@ void stream_file_to_slog(char *input_file, char *output_file,
 		Scanning,
 		ReadNumber,
 		ReadString,
-		ReadSymbol,
 		StringEsc,
 		StringEnd
 	} cur_state = Scanning;
@@ -335,25 +285,11 @@ void stream_file_to_slog(char *input_file, char *output_file,
 					last_idx = i;
 					cur_state = ReadNumber;
 				}
-				else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c == '_') || (c == '$'))
-				{
-					// Symbol
-					last_idx = i;
-					cur_state = ReadSymbol;
-				}
 				else if (c == '\"')
 				{
 					// String
 					last_idx = i;
 					cur_state = ReadString;
-				}
-				else if (c == '\t')
-				{
-					// Tab when already scanning, ignore this tab
-					last_idx = i;
-					cur_state = ReadSymbol;
-					i--;
-					continue;
 				}
 				else
 				{
@@ -386,7 +322,7 @@ void stream_file_to_slog(char *input_file, char *output_file,
 			else if (c == '\t' || c == '\n')
 			{
 				u64 v = 0;
-				// Done reading int/symbol/string
+				// Done reading int/string
 				char buf[i - last_idx + 1];
 				for (size_t j = last_idx, x = 0; j < i; j++, x++)
 				{
@@ -421,30 +357,6 @@ void stream_file_to_slog(char *input_file, char *output_file,
 					else
 					{
 						v |= strings_map[str];
-					}
-				}
-				else if (cur_state == ReadSymbol)
-				{
-					// encode symbol, extend symbols map if necessary
-					if (string_buffer == "")
-					{
-						// empty symbol
-						string_buffer = "$_EMPTY";
-					}
-					auto itr = symbols_map.find(string_buffer);
-					v = SYMBOL_TAG;
-					v <<= TUPLE_MASK_LENGTH + BUCKET_MASK_LENGTH;
-					if (itr == symbols_map.end())
-					{
-						long new_id = max_symbol_id + 1;
-						cout << "symbol in buffer is " << string_buffer << endl;
-						symbols_map[string_buffer] = new_id;
-						max_symbol_id = new_id;
-						v |= new_id;
-					}
-					else
-					{
-						v |= symbols_map[string_buffer];
 					}
 				}
 
@@ -487,8 +399,9 @@ void stream_file_to_slog(char *input_file, char *output_file,
 					// generate intern id
 					u64 tid = rel_tag;
 					tid <<= (TUPLE_MASK_LENGTH + BUCKET_MASK_LENGTH);
-					tid |= ((hash_tuple(tuple_buffer, index_length) % buckets)) << TUPLE_MASK_LENGTH;
-					tid |= current_tuple_id++;
+					tid |= ((hash_tuple(tuple_buffer, arity) % buckets)) << TUPLE_MASK_LENGTH;
+					tid |= hash_tuple(tuple_buffer, arity);
+					current_tuple_id++;
 					tuple_buffer[inverse_column_order[0]] = tid;
 
 					// write data
@@ -514,46 +427,28 @@ int main(int argc, char **argv)
 	vector<unsigned> column_ordering;
 	unsigned rel_tag = MIN_REL_TAG;
 	string interned_prims_dir("");
-	// symbols_map[""] = 0;
 
-	if (argc < 5 || argc > 7)
+	if (argc < 6 || argc > 8)
 	{
-		cout << "usage: tsv_bin <input>.(c|t)sv <arity> <output> <index> <buckets>\n";
-		cout << "usage: tsv_bin <input>.(c|t)sv <arity> <output> <index> <buckets> <interned-prims-dir>\n";
-		cout << "usage: tsv_bin <input>.(c|t)sv <arity> <output> <index> <buckets> <interned-prims-dir> <mode> \n\n";
-		cout << "This utility converts tab-separated value files (either .csv\n";
-		cout << "or .tsv, assuming tab separators regardless) into Slog\n";
-		cout << "u64-encoded input tuple files. The tuple file <output> will be\n";
-		cout << "written using the comma-separated ordering provided (e.g.,\n";
-		cout << "`1,2,0`). <buckets> is the number of buckets. If <tag>\n";
-		cout << "is provided, <tag> will be used as the relation tag.\n";
-		cout << "mode is either souffle or slog, in souffle mode, first \n";
-		cout << "line of fact will be type of column \n\n";
-		cout << "Primitive values are assumed to exist in $(symbols|strings|...).csv\n";
-		cout << "of the current directory or <interned-prims-dir> if it is provided.\n";
+		cerr << "usage: tsv_bin <input>.(c|t)sv <arity> <output> <index> <buckets> <tag>\n";
+		cerr << "usage: tsv_bin <input>.(c|t)sv <arity> <output> <index> <buckets> <tag> <interned-prims-dir>\n";
+		// cout << "usage: tsv_bin <input>.(c|t)sv <arity> <output> <index> <buckets> <tag> <interned-prims-dir> \n\n";
+		cerr << "This utility converts tab-separated value files (either .csv\n";
+		cerr << "or .tsv, assuming tab separators regardless) into Slog\n";
+		cerr << "u64-encoded input tuple files. The tuple file <output> will be\n";
+		cerr << "written using the comma-separated ordering provided (e.g.,\n";
+		cerr << "`1,2,0`). <buckets> is the number of buckets. If <tag>\n";
+		cerr << "is provided, <tag> will be used as the relation tag.\n";
+		cerr << "mode is either souffle or slog, in souffle mode, first \n";
+		cerr << "line of fact will be type of column \n\n";
+		cerr << "Primitive values are assumed to exist in $(strings|...).csv\n";
+		cerr << "of the current directory or <interned-prims-dir> if it is provided.\n";
 		exit(1);
-	}
-
-	if (argc > 6)
-	{
-		interned_prims_dir = argv[6];
 	}
 
 	if (argc > 7)
 	{
-		mode = argv[7];
-	}
-
-	if (argc > 8)
-	{
-		int i = stoi(argv[8]);
-		if (i < MIN_REL_TAG || i > MAX_REL_TAG)
-		{
-			cerr << "invalid tag (must be between "
-				 << MIN_REL_TAG << " and " << MAX_REL_TAG << ").\n";
-			exit(1);
-		}
-		rel_tag = (unsigned)i;
+		interned_prims_dir = argv[7];
 	}
 
 	input_file = argv[1];
@@ -563,7 +458,7 @@ int main(int argc, char **argv)
 	}
 	catch (...)
 	{
-		cout << "Could not read arity " << argv[3] << endl;
+		cerr << "Could not read arity " << argv[3] << endl;
 		exit(1);
 	}
 
@@ -582,14 +477,21 @@ int main(int argc, char **argv)
 	}
 	catch (...)
 	{
-		cout << "Could not read arity " << argv[3] << endl;
+		cerr << "Could not read arity " << argv[3] << endl;
 		exit(1);
 	}
 
-	// read symbols and strings
+	int i = stoi(argv[6]);
+	if (i < MIN_REL_TAG || i > MAX_REL_TAG)
+	{
+		cerr << "invalid tag (must be between "
+			 << MIN_REL_TAG << " and " << MAX_REL_TAG << ").\n";
+		exit(1);
+	}
+	rel_tag = (unsigned)i;
+	
+	// read strings
 	string_intern_file_path = interned_prims_dir + "/$strings.csv";
-	symbol_intern_file_path = interned_prims_dir + "/$symbols.csv";
-	read_symbols(symbol_intern_file_path);
 	read_strings(string_intern_file_path);
 
 	// read size
