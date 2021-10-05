@@ -1,4 +1,4 @@
- 
+
 name: CI
 
 # Controls when the action will run. Triggers the workflow on push or pull request
@@ -32,13 +32,13 @@ jobs:
         # Version range or exact version of a Racket version to use.
         # version: # optional, default is 7.7
         # A comma-separated list of package catalogs to use when installing packages.
-        # catalogs: # optional, default is 
+        # catalogs: # optional, default is
         # A comma-separated list of packages to install from the Package Catalog.
         packages: 'z3, graph, readline-gpl, binaryio'
 
     - name: install z3
       run: sudo apt install z3
-      
+
     - name: run tests
       working-directory: ./compiler
       run: racket ./unit-tests/tests.rkt -c --run-slow-tests
@@ -50,7 +50,7 @@ jobs:
     - name: run c++ compilation tests
       working-directory: ./compiler/unit-tests
       run : ./cpp_compilation_tests.sh
-      
+
     - name: benchmark-worstcase-4-terms-2-m
       working-directory: ./compiler
       run: |
@@ -60,7 +60,7 @@ jobs:
         DIFF=$(echo "$END - $START" | bc)
         echo "took $DIFF seconds."
         if [ $DIFF -gt  300 ]
-        then 
+        then
           echo took too long
           exit 1
         fi

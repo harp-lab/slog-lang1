@@ -8,3 +8,4 @@ parsertab.py
 .vscode
 .slog-history
 metadatabase/database.sqlite3
+env/

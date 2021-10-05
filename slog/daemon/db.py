@@ -10,8 +10,8 @@ Yihao Sun
 
 import sqlite3
 
-from daemon.const import STATUS_PENDING, STATUS_RESOLVED, STATUS_FAILED
-from daemon.util import get_relation_info
+from slog.daemon.const import STATUS_PENDING, STATUS_RESOLVED, STATUS_FAILED
+from slog.daemon.util import get_relation_info
 
 
 class MetaDatabase:
@@ -181,7 +181,7 @@ class MetaDatabase:
                                      (hsh,)).fetchone()
             if exist_hash is None or exist_hash == []:
                 cur.execute('INSERT INTO slog_source_files (hash,filename) VALUES (?,?)',
-                    (hsh, fname))
+                            (hsh, fname))
                 saved_dict[fname] = hsh
         conn.commit()
         conn.close()
@@ -253,25 +253,25 @@ class MetaDatabase:
             'UPDATE promises_for_databases'
             ' SET comment = ?'
             ' WHERE promise_id = ?',
-            (comment,promise))
+            (comment, promise))
 
     def update_relation_data_info(self, data_file, tuple_num, db_id, rel_name, arity):
         """ update the data file information of a rule """
         self._db_update(
             'UPDATE relations SET num_tuples = ?, data_file = ?'
             ' WHERE database_id = ? AND name = ? AND arity = ?'
-            ,(tuple_num, data_file, db_id, rel_name, arity))
+            , (tuple_num, data_file, db_id, rel_name, arity))
 
     def fail_compiled_job(self, promise_id, err_message):
         """ update the compiled job status and error message on a failed promise """
         conn = sqlite3.Connection(self.db_path)
         cur = conn.cursor()
         cur.execute('UPDATE compile_jobs'
-                  ' SET status = ?, error = ? WHERE promise = ?',
-                  (STATUS_FAILED,err_message,promise_id))
+                    ' SET status = ?, error = ? WHERE promise = ?',
+                    (STATUS_FAILED, err_message, promise_id))
         cur.execute('UPDATE promises_for_databases'
-                  ' SET status = ?, comment = ? WHERE promise_id = ?',
-                  (STATUS_FAILED,err_message,promise_id))
+                    ' SET status = ?, comment = ? WHERE promise_id = ?',
+                    (STATUS_FAILED, err_message, promise_id))
         conn.commit()
         conn.close()
 
@@ -282,11 +282,11 @@ class MetaDatabase:
         fail_comment = "Exception during MPI execution." \
                        " Try again or contact administrator for error log."
         cur.execute('UPDATE mpi_jobs'
-                  ' SET status = ?, error = ? WHERE promise = ?',
-                  (STATUS_FAILED,err_message,promise_id))
+                    ' SET status = ?, error = ? WHERE promise = ?',
+                    (STATUS_FAILED, err_message, promise_id))
         cur.execute('UPDATE promises_for_databases'
-                  ' SET status = ?, comment = ? WHERE promise_id = ?',
-                  (STATUS_FAILED,fail_comment,promise_id))
+                    ' SET status = ?, comment = ? WHERE promise_id = ?',
+                    (STATUS_FAILED, fail_comment, promise_id))
         conn.commit()
         conn.close()
 
@@ -303,9 +303,9 @@ class MetaDatabase:
         conn = sqlite3.Connection(self.db_path)
         cur = conn.cursor()
         cur.execute('UPDATE compile_jobs SET status = ? WHERE promise = ?',
-                  (STATUS_RESOLVED,promise_id))
+                    (STATUS_RESOLVED, promise_id))
         cur.execute('UPDATE promises_for_databases SET status = ? where promise_id = ?',
-                  (STATUS_RESOLVED,promise_id))
+                    (STATUS_RESOLVED, promise_id))
         conn.commit()
         conn.close()
 

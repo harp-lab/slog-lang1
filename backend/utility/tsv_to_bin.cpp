@@ -390,11 +390,10 @@ int main(int argc, char **argv)
 
 	if (argc < 6 || argc > 8)
 	{
-		cerr << "usage: tsv_bin <input>.(c|t)sv <arity> <output> <index> <buckets> <tag>\n";
-		cerr << "usage: tsv_bin <input>.(c|t)sv <arity> <output> <index> <buckets> <tag> <interned-prims-dir>\n";
+		cerr << "usage: tsv_to_bin <input-tsv> <arity> <output> <index> <buckets> <tag>\n";
+		cerr << "usage: tsv_to_bin <input-tsv> <arity> <output> <index> <buckets> <tag> <interned-prims-dir>\n";
 		// cout << "usage: tsv_bin <input>.(c|t)sv <arity> <output> <index> <buckets> <tag> <interned-prims-dir> \n\n";
-		cerr << "This utility converts tab-separated value files (either .csv\n";
-		cerr << "or .tsv, assuming tab separators regardless) into Slog\n";
+		cerr << "This utility converts tab-separated value files into Slog\n";
 		cerr << "u64-encoded input tuple files. The tuple file <output> will be\n";
 		cerr << "written using the comma-separated ordering provided (e.g.,\n";
 		cerr << "`1,2,0`). <buckets> is the number of buckets. If <tag>\n";
