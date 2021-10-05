@@ -1,0 +1,294 @@
+// M-CFA P4F AAM in Souffle
+// Uses a CESK* machine with global store
+// assume we only has binary primimtive operator
+
+// Written by Davis Silverman and Yihao Sun!!!
+
+#include "lang.dl"
+
+// uncomment the one you want
+// For [m=n]-CFA, there is n items in the context.
+
+// 0-CFA
+// #define CONTEXT_TYPE Context{}
+// #define EMPTY_CTX $Context()
+// #define INIT_CTX $Context()
+// #define OLD_CTX $Context()
+// #define NEW_CTX $Context()
+
+// 1-CFA
+// #define CONTEXT_TYPE Context{ctx0:id}
+// #define EMPTY_CTX $Context("")
+// #define INIT_CTX $Context(e)
+// #define OLD_CTX $Context(ctx0)
+// #define NEW_CTX $Context(e)
+
+// 2-CFA
+// #define CONTEXT_TYPE Context{ctx0:id,ctx1:id}
+// #define EMPTY_CTX $Context("","")
+// #define INIT_CTX $Context(e,"")
+// #define OLD_CTX $Context(ctx1,ctx0)
+// #define NEW_CTX $Context(e,ctx1)
+
+// 3-CFA
+#define CONTEXT_TYPE Context{ctx0:id,ctx1:id,ctx2:id}
+#define EMPTY_CTX $Context("","","")
+#define INIT_CTX $Context(e,"","")
+#define OLD_CTX $Context(ctx2,ctx1,ctx0)
+#define NEW_CTX $Context(e,ctx2,ctx1)
+
+// 4-CFA
+// #define CONTEXT_TYPE Context{ctx0:id,ctx1:id,ctx2:id,ctx3:id}
+// #define EMPTY_CTX $Context("","","","")
+// #define INIT_CTX $Context(e,"","","")
+// #define OLD_CTX $Context(ctx0,ctx1,ctx2,ctx3)
+// #define NEW_CTX $Context(e,ctx0,ctx1,ctx2)
+
+.type context = CONTEXT_TYPE
+
+// eval state, control is syntax
+.decl state_e(e: id, ctx: context, ak: address_k)
+.output state_e
+
+// apply state, control is value, no context needed.
+.decl state_a(v: value, ak: address_k)
+.output state_a
+
+.type value = Number { n : number }
+                | Bool { b : symbol }
+                | Kont { k : address_k }
+                | Closure { e: id, ctx: context }
+                | PrimVal {op: id , v1: value , v2: value}
+
+.type kont = Done {}
+           | Arg {args: id, ctx: context, ectx: context, next_ak: address_k}
+           | Fn {fn: value, pos: number, ctx: context, next_ak: address_k}
+           | Set {loc: address_v, next_ak: address_k}
+           | If {true_branch: id, false_branch: id, ctx: context, next_ak: address_k}
+           | Callcc {ectx: context, next_ak: address_k}
+           | Let {av: address_v, ebody: id, ctx: context, next_ak: address_k}
+           | Prim1 {op: id, e2: id, ctx: context, next_ak: address_k}
+           | Prim2 {op: id, v1: value, next_ak: address_k}
+
+.type address_k = KAddress{e: id, ctx: context}
+.type address_v = VAddress{x: symbol, ctx: context}
+
+// The global value store
+.decl stored_val(av: address_v, v: value)
+.output stored_val
+
+// the global continuation store
+.decl stored_kont(ak: address_k, k: kont)
+.output stored_kont
+
+// continuation types
+
+// flow relations
+//  We need one for each type of flow
+.decl flow_ee(e1: id, e2: id)
+.output flow_ee
+.decl flow_ea(e1: id, a2: value)
+.output flow_ea
+.decl flow_aa(a1: value, a2: value)
+.output flow_aa
+.decl flow_ae(a1: value, e2: id)
+.output flow_ae
+
+// use this to retrieve the context for the next frame
+.decl peek_ctx(e: id, ctx_old: context, ctx_new: context)
+.output peek_ctx
+// We use this to copy a context into another.
+// the third argument is the expression so we only copy needed free variables
+.decl copy_ctx(from: context, to: context, e:id)
+.output copy_ctx
+
+
+// contexts
+
+peek_ctx(e, OLD_CTX, NEW_CTX) :-
+    state_e(e, OLD_CTX, _),
+    // We really only need new contexts in the following control states.
+    // the others are atomic-exprs and their contexts would be unused
+    // so we do this to avoid generating spurious facts.
+    (callcc(e, _) ; call(e, _, _)
+    ; let(e, _, _); lambda(e,_,_)).
+
+stored_val($VAddress(fv, to), v) :-
+    copy_ctx(from, to, e),
+    freevar(fv, e),
+    stored_val($VAddress(fv, from), v).
+
+// injection
+state_e(e, EMPTY_CTX, $KAddress(e, EMPTY_CTX)),
+peek_ctx(e, EMPTY_CTX, INIT_CTX),
+stored_kont($KAddress(e, EMPTY_CTX), $Done()) :- top_exp(e).
+
+//////// step functions
+
+//// state_e evaluation
+////    Evaluating eval states to produce values.
+
+// conditional expression
+state_e(eguard, ctx, $KAddress(eguard, ctx)),
+stored_kont($KAddress(eguard, ctx), $If(et, ef, ctx, ak)),
+flow_ee(e, eguard) :-
+    state_e(e, ctx, ak),
+    if(e, eguard, et, ef).
+
+// call/cc expression
+state_e(elam, ctx, $KAddress(elam, ctx)),
+stored_kont($KAddress(elam, ctx), $Callcc(ectx, ak)),
+flow_ee(e, elam) :-
+    state_e(e, ctx, ak),
+    callcc(e, elam),
+    peek_ctx(e, ctx, ectx).
+
+// set! expression
+state_e(esetto, ctx, $KAddress(esetto, ctx)),
+stored_kont($KAddress(esetto, ctx), $Set($VAddress(x, ctx), ak)),
+flow_ee(e, esetto) :-
+    state_e(e, ctx, ak),
+    setb(e, x, esetto).
+
+// untagged application expression
+state_e(efunc, ctx, $KAddress(efunc, ctx)),
+stored_kont($KAddress(efunc, ctx), $Arg(eargs, ctx, ectx, ak)),
+flow_ee(e, efunc) :-
+    state_e(e, ctx, ak),
+    call(e, efunc, eargs),
+    peek_ctx(e, ctx, ectx).
+
+// let binding expression
+state_e(ebnd, ctx, $KAddress(ebnd, ctx)),
+stored_kont($KAddress(ebnd, ctx), $Let($VAddress(x, ectx), ebody, ectx, ak)),
+copy_ctx(ctx, ectx, e),
+flow_ee(e, ebnd) :-
+    state_e(e, ctx, ak),
+    let(e, ll, ebody),
+    let_list(ll, x, ebnd),
+    peek_ctx(e, ctx, ectx).
+
+// binary primitive operation expression
+// (op ,e1 ,e2)
+state_e(earg0, ctx, $KAddress(earg0, ctx)),
+stored_kont($KAddress(earg0, ctx), $Prim1(op, earg1, ctx, ak)),
+flow_ee(e, earg0) :-
+    state_e(e, ctx, ak),
+    prim_call(e, op, pl),
+    // currently we only support binary primitives
+    call_arg_list(pl, 0, earg0),
+    call_arg_list(pl, 1, earg1).
+
+/// atomic evaluation of literals (state_e -> state_a)
+
+// numbers
+state_a($Number(n), ak),
+flow_ea(e, $Number(n)) :-
+    state_e(e, ctx, ak),
+    num(e, n).
+
+// booleans
+state_a($Bool(b), ak),
+flow_ea(e, $Bool(b)) :-
+    state_e(e, ctx, ak),
+    bool(e, b).
+
+// closures
+state_a($Closure(e, ctx), ak),
+// copy_ctx(ctx, ectx, e),
+flow_ea(e, $Closure(e, ctx)) :-
+    state_e(e, ctx, ak),
+    // peek_ctx(e, ctx, ectx),
+    lambda(e, _, _).
+
+// variable references
+state_a(v, ak),
+flow_ea(e, v) :-
+    state_e(e, ctx, ak),
+    var(e, x),
+    stored_val($VAddress(x, ctx), v).
+
+//// state_a applications
+////    Applying the continuation, making an expression
+
+// conditional true taken
+state_e(et, ctx_k, next_ak),
+flow_ae($Bool("#t"), et) :-
+    (state_a($Bool("#t"), ak) ; state_a($Closure(_,_), ak)
+            ; state_a($Number(_), ak) ; state_a($Kont(_), ak)),
+    stored_kont(ak, $If(et, _, ctx_k, next_ak)).
+
+// conditional false taken
+state_e(ef, ctx_k, next_ak),
+flow_ae($Bool("#f"), ef) :-
+    state_a($Bool("#f"), ak),
+    stored_kont(ak, $If(_, ef, ctx_k, next_ak)).
+
+// call/cc calling lambda body
+state_e(ebody, ectx, next_ak),
+stored_val($VAddress(x, ectx), $Kont(ak)),
+copy_ctx(ctx_clo, ectx, elam),
+flow_ae($Closure(elam, ctx_clo), ebody) :-
+    state_a($Closure(elam, ctx_clo), ak),
+    stored_kont(ak, $Callcc(ectx, next_ak)),
+    lambda(elam, params, ebody),
+    lambda_arg_list(params, 0, x).
+
+// call/cc calling a continuation instead of a lambda
+// such as (call/cc (call/cc (λ (k) k)))
+state_a($Kont(ak), bk),
+flow_aa($Kont(bk), $Kont(ak)) :-
+    state_a($Kont(bk), ak),
+    stored_kont(ak, $Callcc(_, _)).
+
+// processed fn, now to process argument.
+state_e(earg, ctx, $KAddress(earg, ctx)),
+stored_kont($KAddress(earg, ctx), $Fn(v, pos, ectx, next_ak)),
+flow_ae(v, earg) :-
+    state_a(v, ak),
+    stored_kont(ak, $Arg(eargs, ctx, ectx, next_ak)),
+    call_arg_list(eargs, pos, earg).
+
+// processed arg, call closure
+state_e(ebody, ectx, next_ak),
+stored_val($VAddress(x, ectx), v),
+copy_ctx(ctx_clo, ectx, elam),
+flow_ae(v, ebody) :-
+    state_a(v, ak),
+    stored_kont(ak, $Fn($Closure(elam, ctx_clo), pos, ectx, next_ak)),
+    lambda(elam, params, ebody),
+    lambda_arg_list(params, pos, x).
+
+// processed arg, call continuation
+state_a(v, callcc_kont),
+flow_aa(v, v) :-
+    state_a(v, ak),
+    stored_kont(ak, $Fn($Kont(callcc_kont), 0, _, _)).
+
+// Processed Let bindings, evaluating body.
+state_e(ebody, ctx, next_ak),
+stored_val(av, v),
+flow_ae(v, ebody) :-
+    state_a(v, ak),
+    stored_kont(ak, $Let(av, ebody, ctx, next_ak)).
+
+// Processed arg0 of prim, now process arg1.
+state_e(earg1, ctx, $KAddress(earg1, ctx)),
+stored_kont($KAddress(earg1, ctx), $Prim2(op, v, next_ak)),
+flow_ae(v, earg1) :-
+    state_a(v, ak),
+    stored_kont(ak, $Prim1(op, earg1, ctx, next_ak)).
+
+// Processed prim args, return prim val.
+state_a($PrimVal(op, v1, v2), next_ak),
+flow_aa(v2, $PrimVal(op, v1, v2)) :-
+    state_a(v2, ak),
+    stored_kont(ak, $Prim2(op, v1, next_ak)).
+
+/// set! (we return a sentinel here, but it can be anything!)
+state_a($Number(-42), next_ak),
+stored_val(loc, v),
+flow_aa(v, $Number(-42)) :-
+    state_a(v, ak),
+    stored_kont(ak, $Set(loc, next_ak)).
+

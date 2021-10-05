@@ -1,0 +1,117 @@
+// The core scheme language definition as EDB
+// no fact validation here, be careful
+
+// Yihao Sun
+// Syracuse 2021
+
+.type id <: symbol
+
+///////////////////////////////////////////////
+// scheme expression input
+
+// lambda function with one argument
+.decl lambda(Id: id, Vars: id, BodyId: id)
+.input lambda
+
+.decl lambda_arg_list(Id: id, Pos: number, X: symbol)
+.input lambda_arg_list
+
+.decl prim(Id: id, OpName: symbol)
+.input prim
+
+// the `Args` id is to a `call_arg_list`
+.decl prim_call(Id: id, PrimId: id, Args: id)
+.input prim_call
+
+.decl call(Id: id, FuncId: id, Args: id)
+.input call
+
+.decl call_arg_list(Id: id, Pos: number, X: id)
+.input call_arg_list
+
+// variable
+.decl var(Id: id, MetaName: symbol)
+.input var
+
+// text num in original code
+.decl num(Id: id, v: number)
+.input num
+
+// bool can only be "#t" or "#f"
+.decl bool(Id: id, v: symbol)
+.input bool
+
+.decl quotation(Id: id, Expr: id)
+.input quotation
+
+.decl value_form(Id: id)
+value_form(id) :- 
+    (num(id, _); var(id, _); lambda(id, _, _); quotation(id, _); bool(id, _)).
+
+///// complex
+
+// if
+.decl if(Id:id, GuardId: id, TrueId: id, False: id)
+.input if
+
+// set!
+.decl setb(Id: id, Var: symbol, ExprId: id)
+.input setb
+
+// call/cc
+.decl callcc(Id: id, ExprId: id)
+.input callcc
+
+// let
+.decl let(Id: id, BindId: id, BodyId: id)
+.input let
+
+.decl let_list(Id: id, X: symbol, EId: id)
+.input let_list
+
+// since facts are flatten we need to declare a top level fact
+.decl top_exp(Id: id)
+.input top_exp
+
+.decl freevar(x:symbol, e: id)
+.output freevar
+
+freevar(x, e) :- var(e, x).
+freevar(x, e) :-
+    lambda(e, vars, body),
+    freevar(x, body),
+    lambda_arg_list(vars, _, v),
+    x != v.
+
+freevar(x, e) :-
+    call(e, func, args),
+    (freevar(x, func); freevar(x, args)).
+
+freevar(x, e) :-
+    prim_call(e, _, args),
+    freevar(x, args).
+
+freevar(x, e) :-
+    call_arg_list(e, pos, arg),
+    freevar(x, arg).
+
+freevar(x, e) :-
+    if(e, eguard, et, ef),
+    (freevar(x, eguard); freevar(x, et); freevar(x, ef)).
+
+freevar(y, e) :-
+    setb(e, _, ev),
+    freevar(y, ev).
+
+freevar(x, e) :-
+    callcc(e, ev),
+    freevar(x, ev).
+
+freevar(x, e) :-
+    let(e, binds, body),
+    (freevar(x, binds); freevar(x, body)).
+
+freevar(x, e) :-
+    let_list(e, a, bind),
+    freevar(x, bind),
+    x != a.
