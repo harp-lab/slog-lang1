@@ -16,11 +16,11 @@ import time
 import sexpdata
 from sexpdata import Symbol
 
-from daemon.db import MetaDatabase
-from daemon.const import DB_PATH, COMPILESVC_LOG, SLOG_COMPILER_PROCESS, SOURCES_PATH, \
+from slog.daemon.db import MetaDatabase
+from slog.daemon.const import DB_PATH, COMPILESVC_LOG, SLOG_COMPILER_PROCESS, SOURCES_PATH, \
                          DATABASE_PATH, SLOG_COMPILER_ROOT, BINS_PATH, CMAKE_FILE, RUNSVC_LOG
-from daemon.manifest import Manifest
-from daemon.util import generate_db_hash, split_hashes, rel_name_covert, checkpoint_ord
+from slog.daemon.manifest import Manifest
+from slog.daemon.util import generate_db_hash, split_hashes, rel_name_covert, checkpoint_ord
 
 
 class Task:
@@ -75,9 +75,9 @@ class CompileTask(Task):
     def compile_to_mpi(self, in_db, out_db, hashes, buckets, promise_id):
         """ compile a program wil given input database and output dir """
         files = " ".join(map(lambda hsh: ("\"" + os.path.join(SOURCES_PATH, hsh) + "\""),
-                            hashes))
+                             hashes))
         self.log(f"Beginning compilation to C++ for hashes {','.join(hashes)},"
-                  " generating program for db hash {in_db}")
+                 " generating program for db hash {in_db}")
         # C++ file
         cpp_file = os.path.join(SOURCES_PATH, in_db + "-compiled.cpp")
         indata_directory = os.path.join(DATABASE_PATH, in_db)
@@ -125,7 +125,7 @@ class CompileTask(Task):
         except FileExistsError:
             # File already exists. Ignore for now and overwrite
             self.log(f"Warning: in compiling C++, build directory {build_dir} already exists."
-                      " Overwriting")
+                     " Overwriting")
         # Copy the C++ source to the build directory
         shutil.copy2(cppfile, build_dir)
         # Copy the CMakeList.txt to the build directory
@@ -146,7 +146,7 @@ class CompileTask(Task):
         try:
             make = ["make"]
             result = subprocess.run(
-                make, cwd=f"{build_dir}/build",stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                make, cwd=f"{build_dir}/build", stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                 check=True)
         except:
             err = "Error: make failed for {}:\n{}".format(
@@ -196,7 +196,7 @@ class RunTask(Task):
         self.relations = []
         for row in rows:
             self.relations.append([row[0], row[1], row[2],
-                                  list(map(int, row[3].split(",")))])
+                                   list(map(int, row[3].split(",")))])
 
     def finalize_run(self, in_db, out_db):
         """
@@ -223,7 +223,7 @@ class RunTask(Task):
         for relation in relations:
             rel_file_name = "rel__{}__{}__{}_full".format(
                 rel_name_covert(relation[0]), relation[1],
-                "__".join(map(str, [i for i in range(1,relation[1]+1)]))
+                "__".join(map(str, [i for i in range(1, relation[1]+1)]))
             )
             checkpoint_data_file = os.path.join(checkpoint_dir, rel_file_name)
             checkpoint_size_file = "{}.size".format(checkpoint_data_file)
@@ -238,7 +238,7 @@ class RunTask(Task):
                     size_f.write(f'0\n{relation[1]}\n')
                 self.log(
                     f"Output files {checkpoint_data_file} or {checkpoint_size_file}"
-                     " do not exists as expected, maybe the output relation has no tuple?")
+                    " do not exists as expected, maybe the output relation has no tuple?")
                 # rule maybe empty
                 self._db.update_relation_data_info(new_data_file, 0, out_db,
                                                    relation[0], relation[1])
@@ -251,7 +251,7 @@ class RunTask(Task):
             rows = int(lines[0])
             print(rows)
             self._db.update_relation_data_info(checkpoint_data_file, rows, out_db,
-                                              relation[0], relation[1])
+                                               relation[0], relation[1])
             self.log(f"Found {rows} rows for relation {relation[0]}.")
         # generate manifest for out
         old_manifest = Manifest(os.path.join(DATABASE_PATH, in_db, "manifest"))
@@ -285,8 +285,8 @@ class RunTask(Task):
         if cores < 0:
             cores = 1
         _proc = subprocess.Popen(["mpirun", "-n", str(cores), "./target", in_db_dir, out_db_dir],
-                                  stdin=PIPE, stdout=PIPE, stderr=open(stderrpath, 'w'),
-                                  cwd=f"{build_dir}/build", env=env)
+                                 stdin=PIPE, stdout=PIPE, stderr=open(stderrpath, 'w'),
+                                 cwd=f"{build_dir}/build", env=env)
         with open(stdoutpath, 'w') as stdout_f:
             self.reset_lines(out_db)
             # Process each line of the MPI tasks's output
@@ -330,7 +330,7 @@ class RunTask(Task):
             for row in rows:
                 promise = row[1]
                 hsh = row[3]
-                in_db = row [4]
+                in_db = row[4]
                 out_db = self._db.get_db_by_promise(promise)
                 cores = row[8]
                 self.run_mpi(promise, hsh, in_db, out_db, cores)

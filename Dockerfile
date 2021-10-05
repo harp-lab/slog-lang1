@@ -9,12 +9,13 @@ RUN apt-get install -y clang-format clang-tidy clang-tools clang clangd libc++-d
             libc++abi1 libclang-dev libclang1 liblldb-dev libomp-dev libomp5 lld lldb \
             llvm-dev llvm-runtime llvm python-clang mcpp cmake racket build-essential mpich z3 \
             git python3-pip sqlite3
-
 RUN raco setup --doc-index --force-user-docs
 RUN raco pkg install --batch --deps search-auto binaryio graph
 
 ENV OMPI_ALLOW_RUN_AS_ROOT=1
 ENV OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
+ENV CC=mpicc
+ENV CXX=mpicxx
 
 COPY . /slog
 
@@ -27,6 +28,4 @@ WORKDIR /slog
 RUN pip3 install -r requirements.txt
 EXPOSE 5108
 
-ENV CC=mpicc
-ENV CXX=mpicxx
-# ENTRYPOINT [ "./slog-server" ]
+ENTRYPOINT ["/bin/bash", "-c", "/slog/slog-server" ]

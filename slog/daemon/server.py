@@ -12,20 +12,19 @@ import traceback
 
 import grpc
 from grpc_interceptor import ServerInterceptor
-from grpc_interceptor.exceptions import GrpcException
 
-from daemon.const import PORT
-from daemon.rpc import CommandService
-from daemon.task import CompileTask, RunTask
-import protobufs.slog_pb2_grpc as slog_pb2_grpc
+from slog.daemon.const import PORT
+from slog.daemon.rpc import CommandService
+from slog.daemon.task import CompileTask, RunTask
+import slog.protobufs.slog_pb2_grpc as slog_pb2_grpc
 
 class ExceptionToStatusInterceptor(ServerInterceptor):
     def intercept(
-        self,
-        method,
-        request,
-        context: grpc.ServicerContext,
-        method_name: str,
+            self,
+            method,
+            request,
+            context: grpc.ServicerContext,
+            _method_name: str,
     ):
         """Override this method to implement a custom interceptor.
 

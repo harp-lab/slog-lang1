@@ -5,24 +5,23 @@
 ## where the file's contents have been hashed using sha256
 import os
 import re
-import tempfile
 import hashlib
 
 class Elaborator():
     def __init__(self):
-        self.include_pattern = re.compile('^include \"((?:[^\"]|\\\")*)\"$')
+        self.include_pattern = re.compile('^(include \"((?:[^\"]|\\\")*)\")$')
         self.hashes = {}
         self.path_to_hash = {}
 
-    def calculate_preamble_length(self,path):
+    def calculate_preamble_length(self, path):
         length = 0
         with open(path) as f:
             for i, line in enumerate(f):
-                if len(re.findall(self.include_pattern,line)) > 0:
+                if len(re.findall(self.include_pattern, line)) > 0:
                     length = i+1
         return length
 
-    def traverse_dependencies(self,path):
+    def traverse_dependencies(self, path):
         abs_path = os.path.abspath(path)
         if (abs_path in self.path_to_hash.keys()):
             return self.path_to_hash[path]
@@ -31,9 +30,9 @@ class Elaborator():
         with open(abs_path) as f:
             for i, line in enumerate(f):
                 if (i < preamble_length):
-                    matches = re.findall(self.include_pattern,line)
+                    matches = re.findall(self.include_pattern, line)
                     if len(matches) > 0:
-                        self.traverse_dependencies(os.path.join(os.path.dirname(abs_path),matches[0]))
+                        self.traverse_dependencies(os.path.join(os.path.dirname(abs_path), matches[0]))
                     str += "\n"
                 else:
                     str += line
@@ -44,5 +43,5 @@ class Elaborator():
         self.hashes[hsh] = str
         self.path_to_hash[abs_path] = hsh
 
-    def elaborate(self,path):
+    def elaborate(self, path):
         self.traverse_dependencies(path)

@@ -6,11 +6,10 @@ database, and when done again it should return the same hash.
 import os
 import time
 
-from repl.elaborator import Elaborator
-import protobufs.slog_pb2 as slog_pb2
-import protobufs.slog_pb2_grpc as slog_pb2_grpc
-
-from tests.test import Test
+from slog.common.elaborator import Elaborator
+import slog.protobufs.slog_pb2 as slog_pb2
+import slog.protobufs.slog_pb2_grpc as slog_pb2_grpc
+from slog.tests.test import Test
 
 FILE = "tc.slog"
 
@@ -25,7 +24,7 @@ class CompileHashesTest(Test):
     Tests if the correct hash is given to the input tc.slog file.
     """
     def __init__(self):
-        super().__init__("localhost", ("Compiling a valid file should return " +
+        super().__init__("localhost", ("Compiling a valid file should return" +
                                        "hash for initial DB, when recompiled " +
                                        "should return that same hash."))
 

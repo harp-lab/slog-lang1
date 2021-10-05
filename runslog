@@ -1,0 +1,72 @@
+#!/usr/bin/env python3
+
+"""
+Runs a slog file on a specifed server
+
+USAGE: `./runslog <server-address IP> <slogfile> <outrelname> [<factdir>]`
+e.g. `./runslog localhost  ./entrypoint.slog ./my/factdir`
+     `./runslog localhost ./someentry.slog ./some/knowledge.facts`
+     `./runslog localhost ./anotherentry.slog`
+
+fact directory is optional.
+However, the output will be stored on the server, and `dumpslog` needs to be used
+to get the output... dumpslog does not exist at the moment.
+"""
+
+import os
+import sys
+import time
+
+import grpc
+from yaspin import yaspin
+
+from slog.common import make_stub
+from slog.common.verbs import compile_slog, upload_csvs, run_hashes
+import slog.protobufs.slog_pb2_grpc as slog_pb2_grpc
+
+def main():
+    """
+    Does what main does, collect arguments and run top-level functions.
+    """
+    if len(sys.argv) not in {3, 4}:
+        print("3 or 4 arguments required! See usage at top of file!")
+        sys.exit()
+    server = sys.argv[1] + ":5108" # add gRPC port
+    slogfile = os.path.join(os.getcwd(), sys.argv[2]) # make absolute path
+    #outrel = sys.argv[3] # TODO!
+    if len(sys.argv) == 4:
+        factdir = sys.argv[3] # optional!
+    else:
+        factdir = None
+    cores = 2 # TODO: make this a CLI argument!
+
+    _, stub = make_stub(server)
+
+    cur_db = ""
+    with yaspin(text="Compiling slog file.") as spinner:
+
+        out = compile_slog(stub, cur_db, slogfile, spinner)
+        if out:
+            cur_db, program_hashes = out
+        else:
+            spinner.write("Error compiling slog")
+            return
+        spinner.text = "Compiled file, uploading facts..."
+
+        if factdir:
+            cur_db = upload_csvs(stub, cur_db, factdir, spinner)
+            if not cur_db:
+                spinner.write("Error uploading facts.")
+                return
+        else:
+            spinner.write("No input facts, continuing...")
+
+        spinner.text = "Running program"
+        cur_db = run_hashes(stub, cur_db, program_hashes, cores, spinner)
+        if not cur_db:
+            spinner.write("Error running the file.")
+
+    print(f"Finished ID:\n{cur_db}")
+
+if __name__ == '__main__':
+    main()
