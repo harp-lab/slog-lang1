@@ -8,3 +8,5 @@ prompt_toolkit
 yaspin
 pyfiglet
 grpc_interceptor
+six
+sexpdata

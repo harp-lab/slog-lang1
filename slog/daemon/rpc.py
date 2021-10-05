@@ -16,15 +16,15 @@ import tempfile
 
 from six import MAXSIZE
 
-from daemon.const import DATA_PATH, DATABASE_PATH, CMDSVC_LOG, DB_PATH, SOURCES_PATH, TSV2BIN_PATH
-from daemon.const import STATUS_RESOLVED, STATUS_NOSUCHPROMISE, MAX_BUCKETS, MIN_BUCKETS \
+from slog.daemon.const import DATA_PATH, DATABASE_PATH, CMDSVC_LOG, DB_PATH, SOURCES_PATH, TSV2BIN_PATH
+from slog.daemon.const import STATUS_RESOLVED, STATUS_NOSUCHPROMISE, MAX_BUCKETS, MIN_BUCKETS \
                          , MAX_CHUNK_DATA
-from daemon.db import MetaDatabase
-from daemon.manifest import Manifest
-from daemon.util import join_hashes, generate_db_hash, compute_hash_file, read_intern_file
+from slog.daemon.db import MetaDatabase
+from slog.daemon.manifest import Manifest
+from slog.daemon.util import join_hashes, generate_db_hash, compute_hash_file, read_intern_file
 
-import protobufs.slog_pb2 as slog_pb2
-import protobufs.slog_pb2_grpc as slog_pb2_grpc
+import slog.protobufs.slog_pb2 as slog_pb2
+import slog.protobufs.slog_pb2_grpc as slog_pb2_grpc
 
 
 class CommandService(slog_pb2_grpc.CommandServiceServicer):

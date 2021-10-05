@@ -1,9 +1,10 @@
 # Base class for tests
-from yaspin import yaspin
 
 import grpc
-import protobufs.slog_pb2 as slog_pb2
-import protobufs.slog_pb2_grpc as slog_pb2_grpc
+from yaspin import yaspin
+
+import slog.protobufs.slog_pb2 as slog_pb2
+import slog.protobufs.slog_pb2_grpc as slog_pb2_grpc
 
 class DynText:
     def __init__(self, base_text):

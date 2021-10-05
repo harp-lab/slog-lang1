@@ -9,23 +9,30 @@ HELP = '''
     NOTE: `(...)` means optionanl argument, `/` means alternative argument, `<...>` is meta name
 
     help                                Print help
-    showdb                              show all committed databases
-    compile "<file>"                    load and compile a slog source file.
 
-    run "<file>" (<db>) (<core>)        load a slog source file into background, will create a database 
+    showdb                              Show all committed databases
+
+    compile "<file>"                    Load and compile a slog source file.
+
+    run "<file>" (<db>) (<core>)        Load a slog source file into background, will create a database
                                         with file name, and then compile and run it, if db is not provide
                                         will run with current db, core is how many core mpirun use.
 
-    dump <hash>/"<tag>" ("<file>")      dump all data in a relation into stdout, if optional file argument
+    dump <hash>/"<tag>" ("<file>")      Dump all data in a relation into stdout, if optional file argument
                                         is provided, result will be printed to file 
 
-    connect "<server>"              connect to a slog server
-    load "<csv_file/folder>"        upload a csv file/folder into input database, file must ends with 
-                                    `.fact`, name of target relation will be same as file name
-    tag <hash> "<tag>"              give a database hash a taged name
+    connect "<server>"                  Connect to a slog server
+
+    load "<csv_file/folder>"            Upload a csv file/folder into input database, file must ends with
+                                        `.fact`, name of target relation will be same as file name
+
+    tag <hash> "<tag>"                  Give a database hash a taged name
+
+    switch <db>                         Switch to a given DB
 '''
 
-CMD = ['help', 'run', 'connect', 'dump', 'showdb', 'load', 'commit', 'compile', 'tag']
+CMD = ['help', 'run', 'connect', 'dump', 'showdb',
+       'load', 'commit', 'compile', 'tag', 'switch']
 
 
 def exec_command(repl, raw_input: str):
@@ -86,7 +93,7 @@ def exec_command(repl, raw_input: str):
         elif len(args) == 2:
             repl.run_with_db(args[0][1:-1], args[1])
         elif len(args) == 3 and args[2].isnumeric():
-            repl.run_with_db(args[0][1:-1], args[1],int(args[2]))
+            repl.run_with_db(args[0][1:-1], args[1], int(args[2]))
         else:
             repl.invalid_alert(f'{cmd} has wrong args, please see help')
     elif cmd == 'tag':
@@ -97,5 +104,10 @@ def exec_command(repl, raw_input: str):
                 repl.invalid_alert(f'{cmd} expect a string at postion 1 as arg')
         else:
             repl.invalid_alert(f'{cmd} expect 2 arg, but get {len(args)}')  
+    elif cmd == 'switch':
+        if len(args) == 1:
+            repl.switchto_db(args[0])
+        else:
+            repl.invalid_alert(f'{cmd} expected 1 argument, got {len(args)}.')
     else:
         repl.invalid_alert(f'{cmd} is not a valid command, type `help to see help`')

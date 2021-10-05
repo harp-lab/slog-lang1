@@ -1,2 +1,4 @@
-rm metadatabase/database.sqlite3 || true
-sqlite3 metadatabase/database.sqlite3 <metadatabase/schema.sql
+#!/usr/bin/env bash
+
+rm -f metadatabase/database.sqlite3 || true
+sqlite3 metadatabase/database.sqlite3 < metadatabase/schema.sql

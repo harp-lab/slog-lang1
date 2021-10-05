@@ -5,7 +5,6 @@ Kris Micinski
 Yihao Sun
 '''
 
-import copy
 import os
 import sys
 import time
@@ -21,22 +20,17 @@ from pyfiglet import Figlet
 from six import MAXSIZE
 from yaspin import yaspin
 
-from repl.completer import SequencialCompleter, StringPathCompeleter, PrefixWordCompleter
-from repl.commands import exec_command, CMD
-from repl.elaborator import Elaborator
-
-# Generated protobufs stuff
-import protobufs.slog_pb2 as slog_pb2
-import protobufs.slog_pb2_grpc as slog_pb2_grpc
+from slog.common import (STATUS_PENDING, STATUS_FAILED, STATUS_RESOLVED, STATUS_NOSUCHPROMISE,
+                         rel_name_from_file, run_until_promised, make_stub)
+from slog.common.elaborator import Elaborator
+from slog.common.verbs import upload_csvs, run_hashes
+import slog.protobufs.slog_pb2 as slog_pb2
+import slog.protobufs.slog_pb2_grpc as slog_pb2_grpc
+from slog.repl.completer import SequencialCompleter, StringPathCompeleter, PrefixWordCompleter
+from slog.repl.commands import exec_command, CMD
 
 # How often to wait between pinging the server
 PING_INTERVAL = .1
-
-# Constants (see server.py)
-STATUS_PENDING = 0
-STATUS_FAILED = 1
-STATUS_RESOLVED = 2
-STATUS_NOSUCHPROMISE = 10
 
 # thanks to Daniel found this great lib
 BANNER_LOGO = Figlet(font="slant").renderText("   Slog")
@@ -58,58 +52,6 @@ SYMBOL_TAG = 3
 prompt_session = PromptSession(history=FileHistory("./.slog-history"))
 
 
-
-
-def get_arity_souffle_facts(souffle_fpath):
-    ''' get arity of a souffle facts file'''
-    with open(souffle_fpath, 'r') as souffle_f:
-        fst_line = souffle_f.readline()
-    if fst_line.strip() == '':
-        return -1
-    else:
-        return len(fst_line.strip().split('\t'))
-
-
-def get_rel_name_souffle_fact(souffle_fpath):
-    ''' get relation name from a souffle facts file '''
-    return souffle_fpath.split('/')[-1][:-6]
-
-
-def run_until_promised(stub, promise_id, spinner=None):
-    '''
-    run promise query until promised value returned, if spinner is provide
-    intermidiate message will be printed
-    '''
-    cmmt = ""
-    while True:
-        time.sleep(PING_INTERVAL)
-        promise_response = slog_pb2.PromiseRequest()
-        promise_response.promise_id = promise_id
-        res = stub.QueryPromise(promise_response)
-        if cmmt is None and res.err_or_db != "":
-            cmmt = res.err_or_db
-            if spinner:
-                spinner.write("✔ {}".format(cmmt))
-        elif cmmt != res.err_or_db:
-            cmmt = res.err_or_db
-            spinner.write("✔ {}".format(cmmt))
-        elif res.status == STATUS_PENDING:
-            continue
-        elif res.status == STATUS_FAILED:
-            if spinner:
-                spinner.fail("💥")
-            print(res.err_or_db)
-            return False
-        elif res.status == STATUS_RESOLVED:
-            if spinner:
-                spinner.ok("✅ ")
-            return res.err_or_db
-        elif res.status == STATUS_NOSUCHPROMISE:
-            spinner.fail("💥")
-            print(f"promise id {promise_id} not exists !")
-            return
-
-
 class Repl:
     """ Slog REPL """
 
@@ -126,7 +68,6 @@ class Repl:
         self._cur_db = ''
         self._cur_program_hashes = None
         self.intern_string_dict = {}
-        self.updated_tuples = {}
         self.all_db = []
         print(BANNER_LOGO)
         print(BANNER)
@@ -153,77 +94,21 @@ class Repl:
     def reconnect(self, server):
         """ reconnect to rpc server """
         self._server = server
-        self._channel = grpc.insecure_channel('{}:5108'.format(server))
-        self._stub = slog_pb2_grpc.CommandServiceStub(self._channel)
+
+        self._channel, self._stub = make_stub('{}:5108'.format(server))
         self._cur_time = -1
         # Hash from timestamps to database hashes
         self._times = {}
 
-    def _update_intern_strings(self):
-        """ update cached string.csv data """
-        req = slog_pb2.StringRequest()
-        req.database_id = self._cur_db
-        for sres in self._stub.GetStrings(req):
-            self.intern_string_dict[sres.id] = sres.text
-
     def upload_csv(self, csv_dir):
-        ''' upload csv to current EDB using tsv_bin tool '''
-        def csv_request_generator(csv_file_paths: list):
-            ''' a generator to create gRPC stream from a list of facts file '''
-            for csv_fname in csv_file_paths:
-                rel_name = get_rel_name_souffle_fact(csv_fname)
-                req = slog_pb2.PutCSVFactsRequest()
-                req.using_database = self._cur_db
-                req.relation_name = rel_name
-                req.buckets = 16
-                with open(csv_fname, 'r') as csv_f:
-                    csv_text = csv_f.read()
-                    req.bodies.extend([csv_text])
-                yield req
-        csv_file_paths = []
-        if os.path.isdir(csv_dir):
-            for fname in os.listdir(csv_dir):
-                if not fname.endswith('.facts'):
-                    continue
-                csv_file_paths.append(f'{csv_dir}/{fname}')
-        elif csv_dir.strip().endswith('.facts'):
-            rel_name = os.path.basename(csv_dir)[:-6]
-            if not(rel_name in [r[0] for r in self.relations]):
-                print(f"current database don't have relation {rel_name}" \
-                       " please make sure the fact file has name `<rel_name>.facts`")
-            csv_file_paths.append(csv_dir)
-        if csv_file_paths == []:
-            print("no valid facts file found! NOTICE: all csv facts"
-                  " file must has extension `.facts`")
-            return
         with yaspin(text='uploading csv facts ...') as spinner:
-            response = self._stub.PutCSVFacts(
-                csv_request_generator(csv_file_paths))
-            if not response.success:
-                spinner.fail("💥")
-                print(f" {response.error_msg} fail to update!")
-            else:
-                spinner.ok("✅ ")
-                self._cur_db = response.new_database
-                print(f"All relation uploaded. now in database {self._cur_db}")
+            relset = {r[0] for r in self.relations}
+            self._cur_db = upload_csvs(self._stub, self._cur_db, csv_dir, spinner, relset)
 
     def _run(self, program_hashes, input_database, cores=2):
         ''' run a program list (hashes) with given EDB hash and return updated idb'''
-        req = slog_pb2.RunProgramRequest()
-        req.using_database = input_database
-        req.cores = cores
-        req.hashes.extend(program_hashes)
-        # Get a promise for the running response
-        response = self._stub.RunHashes(req)
-        print(f"running promise is {response.promise_id}")
-        if response.promise_id == MAXSIZE:
-            print("running a file never loaded!")
-            return
         with yaspin(text="Running...") as spinner:
-            idb = run_until_promised(self._stub, response.promise_id, spinner)
-            if not idb:
-                print("Execution failed!")
-            return idb
+            return run_hashes(self._stub, program_hashes, input_database, cores, spinner)
 
     def load_slog_file(self, filename):
         ''' load a slog file, and set current file as that one '''
@@ -320,18 +205,8 @@ class Repl:
         self._cur_db = db_id
         new_ts = self._cur_time
         self._times[new_ts] = db_id
-        self.load_relations(db_id)
-        self._update_intern_strings()
-        self.updated_tuples = {}
-
-    def load_relations(self, db_id):
-        """ get all relation inside a database """
-        req = slog_pb2.DatabaseRequest()
-        req.database_id = db_id
-        res = self._stub.GetRelations(req)
-        self.relations = []
-        for relation in res.relations:
-            self.relations.append([relation.name, relation.arity, relation.tag])
+        self.relations = load_relations(db_id)
+        self.intern_string_dict.update(get_intern_strings(self._stub, self._cur_db))
 
     def lookup_db_by_id(self, db_id):
         """ check if a db info record is in cache """
@@ -347,125 +222,16 @@ class Repl:
                 return db_info
         return False
 
-    def lookup_rels(self, name):
-        """ check if a relation info is in cache """
-        data = []
-        for rel in self.relations:
-            if rel[0] == name:
-                data.append(rel)
-        return data
-
     def lookup_rel_by_tag(self, tag):
         """ check if a relation info is in cache """
         for rel in self.relations:
             if rel[2] == tag:
                 return rel
-
-    def fetch_tuples(self, name):
-        """ print all tulple of a relation """
-        req = slog_pb2.RelationRequest()
-        req.database_id = self._cur_db
-        arity = self.lookup_rels(name)[0][1]
-        req.tag = self.lookup_rels(name)[0][2]
-        row_count = 0
-        col_count = 0
-        tuples = []
-        buf = [-1 for _ in range(0, arity+1)]
-        for response in self._stub.GetTuples(req):
-            if response.num_tuples == 0:
-                continue
-            for u64 in response.data:
-                if col_count == 0:
-                    # index col
-                    # rel_tag = u64 >> 46
-                    bucket_id = (u64 & BUCKET_MASK) >> 28
-                    tuple_id = u64 & (~TUPLE_ID_MASK)
-                    buf[0] = (bucket_id, tuple_id, row_count)
-                    col_count += 1
-                    continue
-                val_tag = u64 >> 46
-                if val_tag == INT_TAG:
-                    attr_val = u64 & VAL_MASK
-                elif val_tag == STRING_TAG:
-                    attr_val = self.intern_string_dict[u64 & VAL_MASK]
-                else:
-                    # relation
-                    rel_name = self.lookup_rel_by_tag(val_tag)[0]
-                    # attr_val = f'rel_{rel_name}_{u64 & (~TUPLE_ID_MASK)}'
-                    if name != rel_name and rel_name not in self.updated_tuples.keys():
-                        self.fetch_tuples(rel_name)
-                    bucket_id = (u64 & BUCKET_MASK) >> 28
-                    tuple_id = u64 & (~TUPLE_ID_MASK)
-                    attr_val = ['NESTED', rel_name, (bucket_id, tuple_id)]
-                buf[col_count] = attr_val
-                col_count += 1
-                if col_count == arity + 1:
-                    # don't print id col
-                    # rel name at last
-                    tuples.append(copy.copy(buf)+[name])
-                    col_count = 0
-                    row_count += 1
-            assert row_count == response.num_tuples
-        self.updated_tuples[name] = tuples
-        return tuples
-
-    def recursive_dump_tuples(self, rel, out_path):
-        """ recursive print all tuples of a relation """
-        # reset all tuples to non-updated
-        def find_val_by_id(name, row_id):
-            for row in self.updated_tuples[name]:
-                if row[0] == row_id:
-                    return row
-        resolved_relname = []
-        def _resolve(rname):
-            if rname in resolved_relname:
-                return
-            for i, row in enumerate(self.updated_tuples[rname]):
-                for j, col in enumerate(row[:-1]):
-                    if not isinstance(col, list):
-                        continue
-                    if col[0] == 'NESTED':
-                        nested_name = col[1]
-                        nested_id = col[2]
-                        val = find_val_by_id(nested_name, nested_id)
-                        if val is None:
-                            val = f'"{nested_name} has no fact with id {nested_id} !"'
-                        _resolve(nested_name)
-                        self.updated_tuples[rname][i][j] = val
-            resolved_relname.append(rname)
-
-        def rel_to_str(rel):
-            res = []
-            for col in rel[:-1]:
-                if isinstance(col, type):
-                    if col[0] == 'NESTED':
-                        res.append(f"({' '.join([str(v) for v in col])})")
-                    else:
-                        res.append(rel_to_str(col))
-                else:
-                    res.append(str(col))
-            return f"({rel[-1]} {' '.join(res)})"
-        self.fetch_tuples(rel[0])
-        # print(self.updated_tuples)
-        _resolve(rel[0])
-        if not out_path:
-            for fact_row in sorted(self.updated_tuples[rel[0]], key=lambda t: int(t[0][2])):
-                print(f"#{fact_row[0][2]}:  {rel_to_str(fact_row[1:])}")
-        else:
-            with open(out_path, 'w') as out_f:
-                for fact_row in sorted(self.updated_tuples[rel[0]], key=lambda t: int(t[0][2])):
-                    out_f.write(f"#{fact_row[0][2]}:  {rel_to_str(fact_row[1:])}")
+        return None
 
     def pretty_dump_relation(self, name, out_file=None):
         """ recursive print all tuples of a relation """
-        if len(self.lookup_rels(name)) == 0:
-            print("No relation named {} in the current database".format(name))
-            return
-        elif len(self.lookup_rels(name)) > 1:
-            print(f"More than one arity for {name}, not currently"
-                  " supporting printing for multi-arity relations")
-            return
-        self.recursive_dump_tuples(self.lookup_rels(name)[0], out_file)
+        dump_relation(cur_db, name, out_file)
 
     def tag_db(self, db_id, tag_name):
         """ tag a database with some name """
@@ -480,8 +246,6 @@ class Repl:
             return "⊥"
         if not self.connected():
             return "Disconnected"
-        elif self._cur_db == "":
-            return "⊥"
         else:
             return self._cur_db[:5]
 
@@ -508,6 +272,7 @@ class Repl:
                     PrefixWordCompleter('"', possible_db_tag)])
                 completer_map['load'] = StringPathCompeleter()
                 completer_map['compile'] = StringPathCompeleter()
+                completer_map['switch'] = FuzzyWordCompleter(possible_db_hash + possible_db_tag)
                 completer = NestedCompleter(completer_map)
                 text = prompt_session.prompt(
                     'σλoγ [{}] » '.format(front),
