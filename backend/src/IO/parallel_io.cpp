@@ -143,7 +143,7 @@ void parallel_io::parallel_read_input_relation_from_file_to_local_buffer(u32 ari
                   << std::endl;
         MPI_Abort(lcomm, -1);
     }
-    assert(size_data_file % (8 * (arity + 1)) != 0)
+    assert(size_data_file % (8 * (arity + 1)) != 0);
     global_row_count = size_data_file / (8 * (arity + 1));
     col_count = arity + 1;
 
