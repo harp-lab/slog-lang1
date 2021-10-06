@@ -12,7 +12,6 @@ import traceback
 
 import grpc
 from grpc_interceptor import ServerInterceptor
-from grpc_interceptor.exceptions import GrpcException
 
 from daemon.const import PORT
 from daemon.rpc import CommandService
@@ -20,6 +19,10 @@ from daemon.task import CompileTask, RunTask
 import protobufs.slog_pb2_grpc as slog_pb2_grpc
 
 class ExceptionToStatusInterceptor(ServerInterceptor):
+    """
+    this a a error handler to expose all error in server, because otherwise
+    grpc server will eat all error silently make server too hard to debug
+    """
     def intercept(
         self,
         method,
@@ -27,25 +30,6 @@ class ExceptionToStatusInterceptor(ServerInterceptor):
         context: grpc.ServicerContext,
         method_name: str,
     ):
-        """Override this method to implement a custom interceptor.
-
-         You should call method(request, context) to invoke the
-         next handler (either the RPC method implementation, or the
-         next interceptor in the list).
-
-         Args:
-             method: The next interceptor, or method implementation.
-             request: The RPC request, as a protobuf message.
-             context: The ServicerContext pass by gRPC to the service.
-             method_name: A string of the form
-                 "/protobuf.package.Service/Method"
-
-         Returns:
-             This should generally return the result of
-             method(request, context), which is typically the RPC
-             method response, as a protobuf message. The interceptor
-             is free to modify this in some way, however.
-         """
         try:
             return method(request, context)
         except Exception as e:

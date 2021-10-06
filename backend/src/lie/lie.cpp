@@ -181,9 +181,9 @@ void LIE::write_checkpoint_dump(int loop_counter, std::vector<int> executed_scc_
     {
         //std::cout << "Name " << lie_relations[i]->get_filename() << std::endl;
         //if(lie_relations[i]->get_debug_id() == "rel_path_2_1_2")
-        lie_relations[i]->parallel_IO(dir_name);
+        if (lie_relations[i]->get_is_canonical())
+            lie_relations[i]->parallel_IO(dir_name);
     }
-
 }
 
 

@@ -10,8 +10,8 @@ Yihao Sun
 
 import sqlite3
 
-from daemon.manifest import Manifest
 from daemon.const import STATUS_PENDING, STATUS_RESOLVED, STATUS_FAILED
+from daemon.util import get_relation_info
 
 
 class MetaDatabase:
@@ -62,28 +62,6 @@ class MetaDatabase:
         conn = sqlite3.Connection(self.db_path)
         cur = conn.cursor()
         cur.execute(sql, args)
-        conn.commit()
-        conn.close()
-
-    def load_manifest(self, db_id, manifest_file):
-        """ load a manifest file into sqlite using slog database id and given path """
-        conn = sqlite3.connect(self.db_path)
-        cur = conn.cursor()
-        manifest = Manifest(manifest_file)
-        for relation in manifest.relations:
-            # Ignore non-canonical relations, we don't need to record data for those
-            name = relation[0].value()
-            arity = relation[1]
-            tag = relation[2]
-            data_file = relation[5]
-            size_file = relation[6]
-            # read size file to get number of tuples
-            with open(size_file, 'r') as size_f:
-                num_tuples = int(size_f.readlines()[1])
-            cur.execute('INSERT INTO relations'
-                        ' (database_id,name,arity,tag,num_tuples,data_file)'
-                        ' VALUES (?,?,?,?,?,?)',
-                      (db_id, name, arity, tag, num_tuples, data_file))
         conn.commit()
         conn.close()
 
@@ -208,6 +186,19 @@ class MetaDatabase:
         conn.commit()
         conn.close()
         return saved_dict
+
+    def create_relation_by_datapath(self, database_id, datapath):
+        """
+        create a relation info row in sqlite with given database_id
+        and relation data file path
+        """
+        rel = get_relation_info(datapath)
+        self._db_add(
+            'INSERT INTO relations'
+            ' (database_id,name,arity,tag,num_tuples,data_file)'
+            ' VALUES (?,?,?,?,?,?)',
+            (database_id, rel['name'], rel['arity'], rel['tag'], rel['num_tuples'],
+             rel['data_file']))
 
     def create_db_promise(self, target_db):
         """ create a new database promise and return the id of inserted row """
