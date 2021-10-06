@@ -19,9 +19,8 @@ from six import MAXSIZE
 from slog.daemon.const import DATA_PATH, DATABASE_PATH, CMDSVC_LOG, DB_PATH, SOURCES_PATH, TSV2BIN_PATH
 from slog.daemon.const import STATUS_RESOLVED, STATUS_NOSUCHPROMISE, MAX_BUCKETS, MIN_BUCKETS \
                          , MAX_CHUNK_DATA
-from slog.daemon.db import MetaDatabase
-from slog.daemon.manifest import Manifest
-from slog.daemon.util import join_hashes, generate_db_hash, compute_hash_file, read_intern_file
+from daemon.db import MetaDatabase
+from daemon.util import join_hashes, generate_db_hash, compute_hash_file, read_intern_file
 
 import slog.protobufs.slog_pb2 as slog_pb2
 import slog.protobufs.slog_pb2_grpc as slog_pb2_grpc
@@ -106,11 +105,10 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
                     tmp_csv.seek(0)
                     fst_line = tmp_csv.readline()
                     arity = len(fst_line.decode('utf-8').strip().split('\t'))
-                    out_path = os.path.join(tmp_db_path, f'{rel_name}_{arity}')
                     index = ",".join([str(i) for i in range(1, arity+1)])
                     tag = self._db.get_relation_tag(in_db, rel_name, arity)
-                    shutil.copy(os.path.join(in_db_path, f'{rel_name}_{arity}'), out_path)
-                    shutil.copy(os.path.join(in_db_path, f'{rel_name}_{arity}.size'), out_path+'.size')
+                    out_path = os.path.join(tmp_db_path, f'{tag}_{rel_name}_{arity}.table')
+                    shutil.copy(os.path.join(in_db_path, f'{tag}_{rel_name}_{arity}.table'), out_path)
                     changed_relations.append(rel_name)
                     with subprocess.Popen([TSV2BIN_PATH, tmp_csv.name, str(arity), out_path, index,
                                            str(buckets), str(tag), tmp_db_path],
@@ -136,14 +134,10 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
                        os.symlink(os.path.join(DATABASE_PATH, in_db, fname),
                                   os.path.join(new_database_path, fname))
                 # update meta db
-                # read and update manifest
-                mf_path = os.path.join(new_database_path, 'manifest')
-                new_mf_s = Manifest(mf_path).generate_mf(new_database_path)
-                with open(mf_path, 'w') as _mf:
-                    _mf.truncate()
-                    _mf.seek(0)
-                    _mf.write(new_mf_s)
-                self._db.load_manifest(new_db_id, mf_path)
+                for fname in os.listdir(new_database_path):
+                    if fname.endswith('.table'):
+                        self._db.create_relation_by_datapath(
+                            new_db_id, os.path.join(new_database_path, fname))
                 ret.new_database = new_db_id
                 self._db.create_database_info(new_db_id, "", "", in_db)
         ret.error_msg = ", ". join(failed_files)
@@ -230,7 +224,6 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
         row = self._db.get_relations_by_db_and_tag(
             request.database_id,
             request.tag)
-        print()
         try:
             arity = int(row[1])
             data_file = row[3]

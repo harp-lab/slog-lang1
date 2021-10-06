@@ -46,7 +46,6 @@ unsigned index_length = 0;
 unordered_set<u64> tuple_ids;
 unsigned buckets;
 string string_intern_file_path;
-string size_file_path;
 string mode = "slog";
 
 // hash a tuple n values long using our hashing algorithm
@@ -172,27 +171,6 @@ void read_strings(string filename)
 	}
 }
 
-// read size file if already exists
-// set current_tuple_id to
-void read_size(string filename)
-{
-	ifstream size_in(filename, ios_base::in);
-	int col_size;
-	if (size_in.fail())
-	{
-		cout << "warning: could not open size file" << filename << "file. Will create it.\n";
-	}
-	size_in >> current_tuple_id >> col_size;
-	if (col_size != (arity + 1))
-	{
-		cerr << "error: arity in size file" << filename << " mismatch with input arity ! expect "
-			 << arity + 1 << " in file but get" << col_size << endl;
-		size_in.close();
-		exit(1);
-	}
-	size_in.close();
-}
-
 // fill in $strings.csv, ...
 void write_interned_pools()
 {
@@ -205,20 +183,6 @@ void write_interned_pools()
 	}
 }
 
-void write_size_file(string filename)
-{
-	cout << "updating size file ... \n";
-	fstream size_file(filename);
-	if (filesystem::exists(filename))
-	{
-		filesystem::resize_file(filename, 0);
-		size_file.seekp(0);
-	}
-	size_file << current_tuple_id << '\n'
-			  << arity + 1 << '\n';
-	size_file.close();
-}
-
 #define BUF_SIZE 4096
 
 // void parsing_type
@@ -226,7 +190,6 @@ void write_size_file(string filename)
 void stream_file_to_slog(char *input_file, char *output_file,
 						 vector<unsigned> &column_order, unsigned rel_tag)
 {
-	// string size_file = (string)output_file + ".size";
 	int fp_in = open(input_file, O_CREAT | O_RDONLY, S_IRUSR | S_IRGRP | S_IROTH);
 	int fp_out = open(output_file, O_CREAT | O_RDWR | O_APPEND, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 	// initialize state machine
@@ -400,10 +363,8 @@ void stream_file_to_slog(char *input_file, char *output_file,
 					u64 tid = rel_tag;
 					tid <<= (TUPLE_MASK_LENGTH + BUCKET_MASK_LENGTH);
 					tid |= ((hash_tuple(tuple_buffer, arity) % buckets)) << TUPLE_MASK_LENGTH;
-					tid |= hash_tuple(tuple_buffer, arity);
-					current_tuple_id++;
+					tid |= current_tuple_id++;
 					tuple_buffer[inverse_column_order[0]] = tid;
-
 					// write data
 					write(fp_out, tuple_buffer, 8 * (arity + 1));
 					tuple_counts++;
@@ -414,7 +375,6 @@ void stream_file_to_slog(char *input_file, char *output_file,
 			}
 		}
 	} while (true);
-	write_size_file(size_file_path);
 	write_interned_pools();
 	close(fp_in);
 	close(fp_out);
@@ -490,14 +450,21 @@ int main(int argc, char **argv)
 	}
 	rel_tag = (unsigned)i;
 	
+		// if output file exists check file size
+	if (filesystem::exists(output_file))
+	{
+		current_tuple_id = filesystem::file_size(output_file) / ((arity + 1) * 8);
+	}
+	else
+	{
+		current_tuple_id =0;
+	}
+
 	// read strings
 	string_intern_file_path = interned_prims_dir + "/$strings.csv";
 	read_strings(string_intern_file_path);
 
-	// read size
 	string output_file_name = output_file;
-	size_file_path = output_file_name + ".size";
-	read_size(size_file_path);
 	// stream this CSV output to slog
 	stream_file_to_slog(input_file, output_file, column_ordering, rel_tag);
 
