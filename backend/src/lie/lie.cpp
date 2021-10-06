@@ -133,7 +133,7 @@ void LIE::print_all_relation_size()
     {
         relation* curr_relation = lie_relations[i];
         local_facts[i] = curr_relation->get_full_element_count();
-        local_facts[i] = local_facts[i] + curr_relation->get_delta_element_count();
+        //local_facts[i] = local_facts[i] + curr_relation->get_delta_element_count();
     }
 
     u64 global_total_facts[lie_relation_count];
@@ -189,7 +189,7 @@ void LIE::write_checkpoint_dump(int loop_counter, std::vector<int> executed_scc_
 
 void LIE::write_final_checkpoint_dump()
 {
-#if 0
+#if 1
     std::string dir_name;
     dir_name = output_dir + "/checkpoint-final";
     if (mcomm.get_local_rank() == 0)
@@ -229,12 +229,13 @@ bool LIE::execute ()
         std::cout << "Using Google maps"  << std::endl;
 #else
     if (mcomm.get_local_rank() == 0)
-        std::cout << "Using Tom's Shmap" << std::endl;
+        std::cout << "Using Tom's Shmap " << lie_relation_count <<  std::endl;
 #endif
 
     /// Initialize all relations
     for (u32 i = 0 ; i < lie_relation_count; i++)
     {
+        std::cout << "Reaching here XXXXXXXXXXX " << i << std::endl;
         lie_relations[i]->set_restart_flag(restart_flag);
         lie_relations[i]->set_share_io(share_io);
         lie_relations[i]->set_separate_io(separate_io);
@@ -245,6 +246,8 @@ bool LIE::execute ()
         //lie_relations[i]->print();
 #endif
     }
+
+    std::cout << "Reaching here " << std::endl;
 
     /// create output directory for checkpoint dumps
     if (enable_io == true && mcomm.get_local_rank() == 0)
@@ -506,7 +509,7 @@ bool LIE::execute ()
             //executable_task->execute_in_batches_comm_compaction(app_name, batch_size, history, intern_map, running_time, running_intra_bucket_comm, running_buffer_allocate, running_local_compute, running_all_to_all, running_buffer_free, running_insert_newt, running_insert_in_full, running_fp, running_a2a_find_count_time, running_a2a_create_rindex_time, running_a2a_total_find_blocks_time, running_a2a_total_pre_time, running_a2a_total_send_meda_time, running_a2a_total_comm_time, running_a2a_total_replace_time, running_a2a_exchange_time, running_a2a_filter_time, &loop_counter, executable_task->get_id(), output_dir, all_to_all_meta_data_dump, /*all_to_all_buffer_size*/NULL, compute_size1, compute_size2, sloav_mode, rotate_index_array, send_indexes, sendb_num);
 
             executed_scc_id.push_back(executable_task->get_id());
-#if 1
+#if 0
             //int tlc = loop_counter - 1;
             if (enable_data_io == true && (loop_counter - 1) % cp_iteration == 0)
             {
@@ -553,7 +556,7 @@ bool LIE::execute ()
                 delta_in_scc = history[history.size()-2];
                 if (delta_in_scc == 0)
                     executed_scc_id.push_back(executable_task->get_id());
-#if 1
+#if 0
                 if (enable_data_io == true && loop_counter % cp_iteration == 0)
                 {
                     double writing_checkpoint_dump_time = 0;

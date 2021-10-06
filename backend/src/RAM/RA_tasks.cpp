@@ -421,7 +421,8 @@ u32 RAM::local_compute(int* offset, int loop_counter, int task_id, int** compute
             fact* current_ra = (fact*) *it;
             relation* fact_relation = current_ra->get_relation();
             std::vector<u64> data = current_ra->get_init_data();
-            current_ra->init_with_fact(get_bucket_count(),
+            if (mcomm.get_rank()==0)
+                current_ra->init_with_fact(get_bucket_count(),
                                        fact_relation->get_sub_bucket_per_bucket_count(),
                                        fact_relation->get_sub_bucket_rank(),
                                        fact_relation->get_arity(),
@@ -430,8 +431,6 @@ u32 RAM::local_compute(int* offset, int loop_counter, int task_id, int** compute
                                        data,
                                        compute_buffer,
                                        counter);
-
-
         }
 
 
@@ -1096,6 +1095,7 @@ void RAM::execute_in_batches_comm_compaction(std::string name, int batch_size, s
         double intra_start = MPI_Wtime();
         intra_bucket_comm_execute();
         double intra_end = MPI_Wtime();
+        //std::cout << "LCCCCCCCCCCCCCc " << *loop_counter << std::endl;
         running_intra_bucket_comm[task_id][*loop_counter] = (intra_end - intra_start);
 
         bool local_join_status = false;
