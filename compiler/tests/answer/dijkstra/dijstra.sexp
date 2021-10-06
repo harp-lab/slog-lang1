@@ -1,0 +1,100 @@
+(pair "F" "B")
+(pair "E" "F")
+(pair "D" 8)
+(pair "F" 2)
+(pair "B" 5)
+(pair "A" "D")
+(pair "D" 2)
+(pair "D" "C")
+(pair "E" 20)
+(pair "E" "D")
+(pair "C" 8)
+(pair "F" 1)
+(pair "F" 0)
+(pair "A" 24)
+(pair "B" 1)
+(pair "B" "A")
+(pair "C" 7)
+(pair "A" 4)
+(pair "D" 3)
+(pair "B" 0)
+(pair "E" 2)
+(pair "F" 6)
+(pair "E" 6)
+(pair "E" "C")
+(pair "A" 0)
+(pair "C" "B")
+(pair "F" 8)
+(pair "C" "A")
+(pair "C" 0)
+(pair "A" "E")
+(pair "C" 3)
+(pair "E" 22)
+(pair "D" 4)
+(pair "B" 25)
+(pair "E" 21)
+(pair "B" 7)
+(pair "D" 0)
+(pair "D" "B")
+(pair "E" 0)
+(pair "E" 5)
+(pair "A" 6)
+(pair "E" 3)
+(pair "C" 27)
+(pair "A" 7)
+(pair "D" 28)
+
+(shortest-distances
+ "B"
+ (LIST (pair "C" 8) (pair "D" 3) (pair "F" 1) (pair "E" 6) (pair "A" 7))
+ (LIST
+  (pair "C" "B")
+  (pair "D" "B")
+  (pair "F" "B")
+  (pair "E" "D")
+  (pair "A" "D")))
+(shortest-distances
+ "E"
+ (LIST (pair "A" 4) (pair "B" 5) (pair "C" 7) (pair "D" 8) (pair "F" 6))
+ (LIST
+  (pair "A" "E")
+  (pair "B" "A")
+  (pair "C" "A")
+  (pair "D" "B")
+  (pair "F" "B")))
+(shortest-distances
+ "A"
+ (LIST (pair "B" 1) (pair "C" 3) (pair "D" 4) (pair "F" 2) (pair "E" 5))
+ (LIST
+  (pair "B" "A")
+  (pair "C" "A")
+  (pair "D" "B")
+  (pair "F" "B")
+  (pair "E" "C")))
+(shortest-distances
+ "F"
+ (LIST (pair "E" 20) (pair "A" 24) (pair "B" 25) (pair "C" 27) (pair "D" 28))
+ (LIST
+  (pair "E" "F")
+  (pair "A" "E")
+  (pair "B" "A")
+  (pair "C" "A")
+  (pair "D" "B")))
+(shortest-distances
+ "D"
+ (LIST (pair "A" 4) (pair "E" 3) (pair "B" 5) (pair "C" 7) (pair "F" 6))
+ (LIST
+  (pair "A" "D")
+  (pair "E" "D")
+  (pair "B" "A")
+  (pair "C" "A")
+  (pair "F" "B")))
+(shortest-distances
+ "C"
+ (LIST (pair "D" 2) (pair "E" 2) (pair "A" 6) (pair "B" 7) (pair "F" 8))
+ (LIST
+  (pair "D" "C")
+  (pair "E" "C")
+  (pair "A" "D")
+  (pair "B" "A")
+  (pair "F" "B")))

@@ -1,0 +1,7 @@
+(foo 1)
+(bar 1)
+(foo 2)
+(bar 2)
+
+(baz (foobar 2))
+(baz (foobar 1))

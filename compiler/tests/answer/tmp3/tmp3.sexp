@@ -1,0 +1,6 @@
+(discovered (path 1 5))
+(discovered (path 4 8))
+(discovered (path 0 4))
+(discovered (path 2 6))
+(discovered (path 5 9))
+(discovered (path 3 7))

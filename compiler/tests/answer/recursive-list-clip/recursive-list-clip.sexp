@@ -1,0 +1,6 @@
+(clip (do-clip (LIST 4 5 6) 0) (LIST))
+(clip (do-clip (LIST) 2) (LIST))
+(clip (do-clip (LIST 2 3 4 5 6) 2) (LIST 2 3))
+(clip (do-clip (LIST 1) 3) (LIST 1))
+(clip (do-clip (LIST 1 2 3 4 5 6) 3) (LIST 1 2 3))
+(clip (do-clip (LIST 3 4 5 6) 1) (LIST 3))

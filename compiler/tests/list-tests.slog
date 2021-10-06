@@ -6,8 +6,3 @@
  <--
  (= _ [x lst ...])
  (reverse lst rlst)]
-
-
-
-
-
