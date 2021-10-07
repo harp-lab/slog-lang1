@@ -138,12 +138,13 @@ void parallel_io::parallel_read_input_relation_from_file_to_local_buffer(u32 ari
     uintmax_t size_data_file = std::filesystem::file_size(file_name);
     if (size_data_file % (8 * (arity + 1)) != 0)
     {
-        std::cerr << "Input file :" << file_name
-                  << " Wrong input format, size of input can't be moded by (8 * (arity + 1))"
+        std::cout << "Input file :" << file_name << " "
+                  << arity << "  " << size_data_file % (8 * (arity + 1)) << "  "
+                //   << " Wrong input format, size of input can't be moded by (8 * (arity + 1))"
                   << std::endl;
         MPI_Abort(lcomm, -1);
     }
-    assert(size_data_file % (8 * (arity + 1)) != 0);
+    // assert(size_data_file % (8 * (arity + 1)) != 0);
     global_row_count = size_data_file / (8 * (arity + 1));
     col_count = arity + 1;
 

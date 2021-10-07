@@ -201,7 +201,10 @@ class RunTask(Task):
                 glob.glob(os.path.join(DATABASE_PATH, out_db, "checkpoint-*"))))
             self.log("try latest checkpoint ...")
             return False
-        checkpoint_dir = sorted(dirs, key=checkpoint_ord, reverse=True)[0]
+        if os.path.exists(os.path.join(DATABASE_PATH, out_db, "checkpoint-final")):
+            checkpoint_dir = os.path.join(DATABASE_PATH, out_db, "checkpoint-final")
+        else:
+            checkpoint_dir = sorted(dirs, key=checkpoint_ord, reverse=True)[0]
         self.log("Indexing directory {}".format(checkpoint_dir))
         # copy strings.csv
         # find the corresponed input database
