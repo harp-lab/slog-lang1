@@ -124,8 +124,8 @@
                                     rid
                                     (rel->name rel-sel)
                                     (if (and (not (member 0 (rel->sel rel-sel))) (= (length (rel->sel rel-sel)) (rel->arity rel-sel)))
-                                        (format "~a_~a" rel-name rel-arity)
-                                        (format "~a_nc_~a" rel-name rel-arity))
+                                        (format "~a_~a" (rel->name rel-sel) rel-arity)
+                                        (format "~a_nc_~a" (rel->name rel-sel) rel-arity))
                                     )))
            ""
            (set->list all-rel-selects)))
