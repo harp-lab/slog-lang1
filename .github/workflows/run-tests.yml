@@ -23,6 +23,7 @@ jobs:
           context: ./
           file: ./Dockerfile
           push: false
+          load: true
           tags: slog-ci-test
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache
@@ -37,7 +38,7 @@ jobs:
           key: ${{ runner.os }}-buildx-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-buildx-
-            
+
       # - name: Build docker image
       #   run: docker build -t slog-ci-test .
 
