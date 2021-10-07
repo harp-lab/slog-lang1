@@ -5,9 +5,7 @@ Kris Micinski
 Yihao Sun
 '''
 
-import os
 import sys
-import time
 
 import timeit
 import grpc
@@ -17,17 +15,9 @@ from prompt_toolkit.history import FileHistory
 from prompt_toolkit.completion import NestedCompleter, FuzzyWordCompleter
 from prompt_toolkit.formatted_text import HTML
 from pyfiglet import Figlet
-from six import MAXSIZE
 from yaspin import yaspin
-
-from slog.common import (STATUS_PENDING, STATUS_FAILED, STATUS_RESOLVED, STATUS_NOSUCHPROMISE,
-                         rel_name_from_file, make_stub)
-from slog.common.elaborator import Elaborator
 from slog.common.client import SlogClient, ConsoleWriter, FileWriter
-import slog.protobufs.slog_pb2 as slog_pb2
-import slog.protobufs.slog_pb2_grpc as slog_pb2_grpc
 from slog.repl.completer import SequencialCompleter, StringPathCompeleter, PrefixWordCompleter
-from slog.repl.commands import exec_command, CMD
 
 # thanks to Daniel found this great lib
 BANNER_LOGO = Figlet(font="slant").renderText("   Slog")
@@ -36,6 +26,125 @@ BANNER = '''
     Type `help` to see help information.
 
 '''
+
+HELP = '''
+    Command:
+    NOTE: `(...)` means optionanl argument, `/` means alternative argument, `<...>` is meta name
+
+    help                                Print help
+
+    showdb                              Show all committed databases
+
+    compile "<file>"                    Load and compile a slog source file.
+
+    run "<file>" (<db>) (<core>)        Load a slog source file into background, will create a database
+                                        with file name, and then compile and run it, if db is not provide
+                                        will run with current db, core is how many core mpirun use.
+
+    dump <hash>/"<tag>" ("<file>")      Dump all data in a relation into stdout, if optional file argument
+                                        is provided, result will be printed to file 
+
+    connect "<server>"                  Connect to a slog server
+
+    load "<csv_file/folder>"            Upload a csv file/folder into input database, file must ends with
+                                        `.fact`, name of target relation will be same as file name
+
+    tag <hash> "<tag>"                  Give a database hash a taged name
+
+    switch <db>                         Switch to a given DB
+'''
+
+CMD = ['help', 'run', 'connect', 'dump', 'showdb',
+       'load', 'commit', 'compile', 'tag', 'switch']
+
+
+def invalid_alert(message):
+    """ print alert for command exectution """
+    print(f"Invalid command: {message}")
+
+def exec_command(client: SlogClient , raw_input: str):
+    """
+    A naive valiadator and processer for command
+    """
+    raw_input = raw_input.strip()
+    if raw_input == '':
+        # bypass empty command
+        return
+    # check if it a query
+    if raw_input.startswith('?(') and raw_input.endswith(')'):
+        return
+    # normal command
+    cmd = raw_input.split(' ')[0].strip()
+    args = [r.strip() for r in raw_input.split(' ')[1:] if r.strip() != '']
+    if cmd == 'help':
+        print(HELP)
+    elif cmd == 'showdb':
+        dbs = client.update_dbs()
+        headers = [["tag", "id", "parent"]]
+        for db_info in headers + dbs:
+            print(f'{db_info[1]:<6} {db_info[0][:10]:<10} {db_info[2][:6]:<6}')
+    elif cmd == 'connect':
+        if len(args) == 1:
+            client.connect(args[0])
+        else:
+            invalid_alert(f'{cmd} expect 1 arg, but get {len(args)}')
+    elif cmd == 'dump':
+        if len(args) == 1:
+            client.pretty_dump_relation(args[0], ConsoleWriter())
+        elif len(args) == 2:
+            if args[1].startswith('"') and args[1].endswith('"'):
+                with open(args[1][1:-1], 'w') as out_f:
+                    client.pretty_dump_relation(args[0], FileWriter(out_f))
+            else:
+                invalid_alert(f'{cmd} expect a string at postion 2 as arg')
+        else:
+            invalid_alert(f'{cmd} expect 1/2 arg, but get {len(args)}')
+    elif cmd == 'load':
+        if len(args) == 1:
+            if args[0].startswith('"') and args[0].endswith('"'):
+                with yaspin(text='uploading csv facts ...') as spinner:
+                    client.upload_csv(args[0][1:-1], writer=spinner)
+            else:
+                invalid_alert(f'{cmd} expect a string at postion 1 as arg')
+        else:
+            invalid_alert(f'{cmd} expect 1 arg, but get {len(args)}')
+    elif cmd == 'compile':
+        if len(args) == 1:
+            if args[0].startswith('"') and args[0].endswith('"'):
+                with yaspin(text="Compiling...") as spinner:
+                    client.load_slog_file(args[0][1:-1], spinner)
+            else:
+                invalid_alert(f'{cmd} expect a string at postion 1 as arg')
+        else:
+            invalid_alert(f'{cmd} expect 1 arg, but get {len(args)}')
+    elif cmd == 'run':
+        if len(args) > 1 and (not args[0].startswith('"') or not args[0].endswith('"')):
+            client.invalid_alert(f'{cmd} expect a string at postion 1 as arg')
+            return
+        with yaspin(text="Running...") as spinner:
+            if len(args) == 2 and len(args[1]) < 5 and args[1].isnumeric():
+                client.run_with_db(args[0][1:-1], cores=int(args[1]), writer=spinner)
+            elif len(args) == 2:
+                client.run_with_db(args[0][1:-1], args[1], writer=spinner)
+            elif len(args) == 3 and args[2].isnumeric():
+                client.run_with_db(args[0][1:-1], args[1], int(args[2]), writer=spinner)
+            else:
+                invalid_alert(f'{cmd} has wrong args, please see help')
+    elif cmd == 'tag':
+        if len(args) == 2:
+            if args[1].startswith('"') and args[1].endswith('"'):
+                client.tag_db(args[0], args[1][1:-1])
+            else:
+                invalid_alert(f'{cmd} expect a string at postion 1 as arg')
+        else:
+            invalid_alert(f'{cmd} expect 2 arg, but get {len(args)}')  
+    elif cmd == 'switch':
+        if len(args) == 1:
+            client.switchto_db(args[0])
+        else:
+            invalid_alert(f'{cmd} expected 1 argument, got {len(args)}.')
+    else:
+        invalid_alert(f'{cmd} is not a valid command, type `help to see help`')
 
 class Repl:
     """ Slog REPL """
@@ -47,49 +156,10 @@ class Repl:
         print(BANNER_LOGO)
         print(BANNER)
 
-    def showdbs(self):
-        """ print all databases """
-        dbs = self.client.update_dbs()
-        headers = [["tag", "id", "parent"]]
-        for db_info in (headers + dbs):
-            print(f'{db_info[1]:<6} {db_info[0][:10]:<10} {db_info[2][:6]:<6}')
-
-    def connect(self, server):
-        self.client.reconnect(server)
-
-    def dump_relations(self, name, out_file=None):
-        if out_file:
-            with open(out_file, 'w') as f:
-                self.client.pretty_dump_relation(name, FileWriter(f))
-        else:
-            self.client.pretty_dump_relation(name, ConsoleWriter())
-
-    def upload_csv(self, location):
-        with yaspin(text='uploading csv facts ...') as spinner:
-            self.client.upload_csv(location, writer=spinner)
-
-    def load_slog_file(self, location):
-        with yaspin(text="Compiling...") as spinner:
-            self.client.load_slog_file(location, writer=spinner)
-
-    def run_with_db(self, location, dbid=None, cores=2):
-        with yaspin(text="Running...") as spinner:
-            self.client.run_with_db(location, dbid, cores, spinner)
-
-    def tag_db(self, old, new):
-        self.client.tag_db(old, new)
-
-    def switch_db(self, to):
-        self.client.switchto_db(to)
-
     def exit(self):
         """ exit REPL """
         print('Goodbye.')
         sys.exit(0)
-
-    def invalid_alert(self, message):
-        """ print alert for command exectution """
-        print(f"Invalid command: {message}")
 
     def calc_ping(self):
         """ calculate ping time to slog rpc server """
@@ -153,7 +223,7 @@ class Repl:
                     completer=completer)
                 if text.strip() == '':
                     continue
-                exec_command(self, text)
+                exec_command(self.client, text)
             except EOFError:
                 self.exit()
             except AssertionError:
@@ -165,7 +235,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         repl = Repl(sys.argv[1])
     else:
-        repl = Repl()
+        repl = Repl("localhost")
     try:
         while True:
             repl.loop()
