@@ -235,7 +235,6 @@ bool LIE::execute ()
     /// Initialize all relations
     for (u32 i = 0 ; i < lie_relation_count; i++)
     {
-        std::cout << "Reaching here XXXXXXXXXXX " << i << std::endl;
         lie_relations[i]->set_restart_flag(restart_flag);
         lie_relations[i]->set_share_io(share_io);
         lie_relations[i]->set_separate_io(separate_io);
@@ -247,7 +246,6 @@ bool LIE::execute ()
 #endif
     }
 
-    std::cout << "Reaching here " << std::endl;
 
     /// create output directory for checkpoint dumps
     if (enable_io == true && mcomm.get_local_rank() == 0)
@@ -598,7 +596,7 @@ bool LIE::execute ()
         executable_task = one_runnable_tasks();
     }
 
-    //write_final_checkpoint_dump();
+    write_final_checkpoint_dump();
 
 #if 1
     if (all_to_all_meta_data_dump == true)

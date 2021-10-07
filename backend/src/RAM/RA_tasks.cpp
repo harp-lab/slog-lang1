@@ -653,7 +653,7 @@ void RAM::local_insert_in_newt_comm_compaction(std::map<u64, u64>& intern_map)
         {
             u32 width = output->get_arity();
             u64 tuple[width + 1];
-
+#if 0
             if (output->get_arity() == 0)
             {
                 tuple[width] = 0;
@@ -681,7 +681,7 @@ void RAM::local_insert_in_newt_comm_compaction(std::map<u64, u64>& intern_map)
                 }
 
             }
-
+#endif
             for (u32 x = starting; x < starting + elements_to_read; x = x + width)
             {
                 if (output->find_in_full(cumulative_all_to_allv_buffer + x, width) == false &&
