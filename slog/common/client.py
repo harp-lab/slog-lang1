@@ -4,6 +4,7 @@ These are common 'verbs' for things to do
 
 import copy
 import os
+import sys
 import time
 
 import grpc
@@ -69,7 +70,7 @@ class SlogClient:
         self._channel = None
         self._stub = None
         try:
-            self.reconnect(server)
+            self.connect(server)
         except grpc.RpcError:
             print("Can't connect to slog daemon server")
             sys.exit(1)
@@ -82,7 +83,7 @@ class SlogClient:
         self.updated_tuples = {}
         self.all_db = []
 
-    def reconnect(self, server):
+    def connect(self, server):
         """ Reconnect to the rpc server """
         self.server = server
         self._channel, self._stub = make_stub('{}:5108'.format(server))
@@ -109,7 +110,7 @@ class SlogClient:
         def csv_request_generator(csv_file_paths: list):
             ''' a generator to create gRPC stream from a list of facts file '''
             for csv_fname in csv_file_paths:
-                rel_name = get_rel_name_souffle_fact(csv_fname)
+                rel_name = rel_name_from_file(csv_fname)
                 req = slog_pb2.PutCSVFactsRequest()
                 req.using_database = self.cur_db
                 req.relation_name = rel_name
@@ -254,7 +255,7 @@ class SlogClient:
         req = slog_pb2.DatabaseRequest()
         req.database_id = db_id
         res = self._stub.GetRelations(req)
-        self.relations = [rel.name, rel.arity, rel.tag for rel in res.relations]
+        self.relations = [[rel.name, rel.arity, rel.tag] for rel in res.relations]
 
     def lookup_db_by_id(self, db_id):
         """ check if a db info record is in cache """

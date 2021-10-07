@@ -22,7 +22,7 @@ def rel_name_from_file(fpath):
     Currently this is the name of the file itself.
     """
     base = os.path.basename(fpath)
-    return base[:base.find('.')]
+    return base[:base.rfind('.')]
 
 # TODO: seems unused, get rid of?
 def get_arity_souffle_facts(souffle_fpath):
