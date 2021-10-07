@@ -62,7 +62,7 @@ def invalid_alert(message):
     """ print alert for command exectution """
     print(f"Invalid command: {message}")
 
-def exec_command(client: SlogClient , raw_input: str):
+def exec_command(client: SlogClient, raw_input: str):
     """
     A naive valiadator and processer for command
     """
@@ -112,7 +112,7 @@ def exec_command(client: SlogClient , raw_input: str):
         if len(args) == 1:
             if args[0].startswith('"') and args[0].endswith('"'):
                 with yaspin(text="Compiling...") as spinner:
-                    client.load_slog_file(args[0][1:-1], spinner)
+                    client.compile_slog(args[0][1:-1], spinner)
             else:
                 invalid_alert(f'{cmd} expect a string at postion 1 as arg')
         else:
@@ -235,7 +235,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         repl = Repl(sys.argv[1])
     else:
-        repl = Repl("localhost")
+        repl = Repl("localhost:5108")
     try:
         while True:
             repl.loop()

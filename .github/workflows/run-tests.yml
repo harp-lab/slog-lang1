@@ -1,7 +1,7 @@
 name: Slog CI Testing
 on:
   push:
-    branches: [ master, github-actions-test]
+    branches: [ master, dy]
   pull_request:
     branches: [ master ]
 jobs:
