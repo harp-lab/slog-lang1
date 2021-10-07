@@ -5,6 +5,7 @@ Kris Micinski
 Yihao Sun
 """
 
+import os
 import re
 import hashlib
 
@@ -70,3 +71,26 @@ def checkpoint_ord(check_dir):
         return [0, 0]
     else:
         return [int(check_stamp[0][1]), int(check_stamp[0][0])]
+
+def compute_relation_row_size(datafile, arity):
+    """ compute the row size of a relation datafile """
+    return int(os.path.getsize(datafile) / (8 * (arity + 1)))
+
+def get_relation_info(datapath):
+    """ get the basic infomation of a relation form it's path """
+    fname = os.path.basename(datapath)
+    print(fname)
+    if not fname.endswith('.table'):
+        return False
+    else:
+        fname = fname[:-6]
+    tag_s = fname.split('_')[0]
+    arity_s = fname.split('_')[-1]
+    rel_name = fname[len(tag_s)+1:-len(arity_s)-1]
+    return {
+        "name": rel_name,
+        "arity": int(arity_s),
+        "tag": int(tag_s),
+        "num_tuples" : compute_relation_row_size(datapath, int(arity_s)),
+        "data_file": datapath
+    }

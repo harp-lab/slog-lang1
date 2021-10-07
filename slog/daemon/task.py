@@ -19,7 +19,6 @@ from sexpdata import Symbol
 from slog.daemon.db import MetaDatabase
 from slog.daemon.const import DB_PATH, COMPILESVC_LOG, SLOG_COMPILER_PROCESS, SOURCES_PATH, \
                          DATABASE_PATH, SLOG_COMPILER_ROOT, BINS_PATH, CMAKE_FILE, RUNSVC_LOG
-from slog.daemon.manifest import Manifest
 from slog.daemon.util import generate_db_hash, split_hashes, rel_name_covert, checkpoint_ord
 
 
@@ -101,17 +100,15 @@ class CompileTask(Task):
             self.log("Slog->C++ compilation failed!")
             self._db.fail_compiled_job(promise_id, output[1])
         elif output[0] == Symbol('success'):
+            # Add the promise for the database association
             self.set_promise_comment(
                 promise_id, "Slog -> C++ compilation successful. Now compiling C++...")
             self.log("Slog->C++ compilation successful. Compiling to MPI")
-            # Add the promise for the database association
-            manifest_file = os.path.join(indata_directory, "manifest")
-            # Copy the manifest from in to out
-            shutil.copy2(manifest_file, os.path.join(
-                outdata_directory, "manifest"))
-            # In/out db use same manifest, index them now
-            self._db.load_manifest(in_db, manifest_file)
-            # self._db.load_manifest(out_db, os.path.join(outdata_directory, "manifest"))
+            # go over created input dir, update matdabase
+            for fname in os.listdir(indata_directory):
+                if fname.endswith('.table'):
+                    self._db.create_relation_by_datapath(
+                        in_db, os.path.join(indata_directory,fname))
             # persist input database info
             self._db.create_database_info(in_db, "init", "", "")
             return self.compile_cpp(in_db, cpp_file, promise_id)
@@ -175,11 +172,6 @@ class CompileTask(Task):
                 self.compile_to_mpi(in_database_id, out_database_id,
                                     split_hashes(hashes), buckets, promise)
 
-#
-# Run task
-#
-
-
 class RunTask(Task):
     """ running slog program task """
 
@@ -195,8 +187,7 @@ class RunTask(Task):
         rows = self._db.get_all_relations_in_db(database_id)
         self.relations = []
         for row in rows:
-            self.relations.append([row[0], row[1], row[2],
-                                   list(map(int, row[3].split(",")))])
+            self.relations.append([row[0], row[1], row[2]])
 
     def finalize_run(self, in_db, out_db):
         """
@@ -210,7 +201,10 @@ class RunTask(Task):
                 glob.glob(os.path.join(DATABASE_PATH, out_db, "checkpoint-*"))))
             self.log("try latest checkpoint ...")
             return False
-        checkpoint_dir = sorted(dirs, key=checkpoint_ord, reverse=True)[0]
+        if os.path.exists(os.path.join(DATABASE_PATH, out_db, "checkpoint-final")):
+            checkpoint_dir = os.path.join(DATABASE_PATH, out_db, "checkpoint-final")
+        else:
+            checkpoint_dir = sorted(dirs, key=checkpoint_ord, reverse=True)[0]
         self.log("Indexing directory {}".format(checkpoint_dir))
         # copy strings.csv
         # find the corresponed input database
@@ -223,43 +217,33 @@ class RunTask(Task):
         for relation in relations:
             rel_file_name = "rel__{}__{}__{}_full".format(
                 rel_name_covert(relation[0]), relation[1],
-                "__".join(map(str, [i for i in range(1, relation[1]+1)]))
-            )
+                "__".join(map(str, range(1,relation[1]+1))))
             checkpoint_data_file = os.path.join(checkpoint_dir, rel_file_name)
-            checkpoint_size_file = "{}.size".format(checkpoint_data_file)
-            new_data_file = os.path.join(DATABASE_PATH, out_db, f'{relation[0]}_{relation[1]}')
-            new_size_file = os.path.join(DATABASE_PATH, out_db, f'{relation[0]}_{relation[1]}.size')
-            if (not os.path.exists(checkpoint_data_file)) or \
-               (not os.path.exists(checkpoint_size_file)):
+            new_data_file = os.path.join(
+                DATABASE_PATH, out_db,
+                f'{relation[2]}_{relation[0]}_{relation[1]}.table')
+            if not os.path.exists(checkpoint_data_file):
                 # touch file
                 with open(new_data_file, 'w+') as _:
                     pass
-                with open(new_size_file, 'w+') as size_f:
-                    size_f.write(f'0\n{relation[1]}\n')
-                self.log(
-                    f"Output files {checkpoint_data_file} or {checkpoint_size_file}"
-                    " do not exists as expected, maybe the output relation has no tuple?")
+                self.log(f"Output files {checkpoint_data_file} do not exists as expected,"
+                          " maybe the output relation has no tuple?")
                 # rule maybe empty
                 self._db.update_relation_data_info(new_data_file, 0, out_db,
                                                    relation[0], relation[1])
                 continue
             # copy file out of checkpoint
-            shutil.copy(checkpoint_data_file, new_data_file)
-            shutil.copy(checkpoint_size_file, new_size_file)
-            with open(checkpoint_size_file, 'r') as size_f:
-                lines = size_f.readlines()
-            rows = int(lines[0])
-            print(rows)
+            shutil.copy2(checkpoint_data_file, new_data_file)
+            # read file size to compute row
+            rows = int(os.path.getsize(new_data_file) / ((relation[1] + 1) * 8))
             self._db.update_relation_data_info(checkpoint_data_file, rows, out_db,
                                                relation[0], relation[1])
             self.log(f"Found {rows} rows for relation {relation[0]}.")
-        # generate manifest for out
-        old_manifest = Manifest(os.path.join(DATABASE_PATH, in_db, "manifest"))
-        new_manifest_path = os.path.join(DATABASE_PATH, out_db, "manifest")
-        with open(new_manifest_path, "w") as new_mf:
-            new_mf.write(old_manifest.generate_mf(os.path.join(DATABASE_PATH, out_db)))
-        self._db.load_manifest(out_db, new_manifest_path)
-        print(self._db.get_all_relations_in_db(out_db))
+        out_db_path = os.path.join(DATABASE_PATH, out_db)
+        for fname in os.listdir(out_db_path):
+            if fname.endswith('.table'):
+                self._db.create_relation_by_datapath(
+                    out_db, os.path.join(out_db_path, fname))
         return True
 
     def run_mpi(self, promise, hsh, in_db, out_db, cores):

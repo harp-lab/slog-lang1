@@ -189,11 +189,11 @@ class SlogClient:
         edb = self.run_until_promised(response.promise_id, PING_INTERVAL, writer)
         if not edb:
             writer.write("Compilation failed!")
+        self.update_dbs()
         return edb
 
     def run_with_db(self, filename, db_id=None, cores=2, writer=NoneWriter()):
         ''' run a program with input database '''
-        self.update_dbs()
         if not db_id:
             db_id = self.cur_db
         path = os.path.join(os.getcwd(), filename)
@@ -231,6 +231,7 @@ class SlogClient:
         idb = self.run_until_promised(response.promise_id, PING_INTERVAL, writer)
         if not idb:
             writer.write("Execution failed!")
+        self.update_dbs()
         return idb
 
     def _update_intern_strings(self):
@@ -242,6 +243,13 @@ class SlogClient:
 
     def switchto_db(self, db_id):
         """ switch to a database """
+        if self.lookup_db_by_tag(db_id):
+            db_id = self.lookup_db_by_tag(db_id)[0]
+        elif self.lookup_db_by_id(db_id):
+            db_id = self.lookup_db_by_id(db_id)[0]
+        else:
+            print(f"database {db_id} not exists!")
+            return
         self._cur_time += 1
         self.cur_db = db_id
         new_ts = self._cur_time

@@ -43,9 +43,9 @@
     (slog-merge-builtins #t)]
    [("--mb-off" "--merge-builtins-off") "DO NOT merge multiple builtins in rule bodies into one synthetic computational relation"
     (slog-merge-builtins #f)]
-   [("--input-db") input-db "Input database (directory, must contain manifest)"
+   [("--input-db") input-db "Input database (directory, file name must follow relation file name rule)"
     (set! input-database input-db)]
-   [("--output-db") output-db "Output database (facts / updated manifest written here)"
+   [("--output-db") output-db "Output database (facts written here)"
     (set! output-database output-db)]
    [("-f") "Be fast! (disable contract checking)"
     (check-cond-contracts #f)]
