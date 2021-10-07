@@ -20,8 +20,7 @@ import time
 import grpc
 from yaspin import yaspin
 
-from slog.common import make_stub
-from slog.common.verbs import compile_slog, upload_csvs, run_hashes
+from slog.common.client import SlogClient, ConsoleWriter, NoneWriter
 import slog.protobufs.slog_pb2_grpc as slog_pb2_grpc
 
 def main():
@@ -40,33 +39,35 @@ def main():
         factdir = None
     cores = 2 # TODO: make this a CLI argument!
 
-    _, stub = make_stub(server)
+    client = SlogClient(server)
 
     cur_db = ""
-    with yaspin(text="Compiling slog file.") as spinner:
-
-        out = compile_slog(stub, cur_db, slogfile, spinner)
+    with yaspin(text="Compiling slog file") as spinner:
+        out = client.compile_slog(slogfile, spinner)
         if out:
             cur_db, program_hashes = out
         else:
             spinner.write("Error compiling slog")
             return
-        spinner.text = "Compiled file, uploading facts..."
 
         if factdir:
-            cur_db = upload_csvs(stub, cur_db, factdir, spinner)
+            cur_db = client.upload_csvs(factdir, spinner)
             if not cur_db:
-                spinner.write("Error uploading facts.")
+                spinner.write("Error uploading facts")
                 return
         else:
             spinner.write("No input facts, continuing...")
 
-        spinner.text = "Running program"
-        cur_db = run_hashes(stub, cur_db, program_hashes, cores, spinner)
+        spinner.write(f"DB: {cur_db}")
+        spinner.text = "Running program..."
+        cur_db = client.run_with_db(slogfile, cur_db, cores, spinner)
         if not cur_db:
-            spinner.write("Error running the file.")
+            spinner.write("Error running file")
 
-    print(f"Finished ID:\n{cur_db}")
+        client.pretty_dump_relation("path", spinner)
+
+        client.text = "FINISHED!"
+
 
 if __name__ == '__main__':
     main()

@@ -86,7 +86,7 @@ class SlogClient:
     def connect(self, server):
         """ Reconnect to the rpc server """
         self.server = server
-        self._channel, self._stub = make_stub('{}:5108'.format(server))
+        self._channel, self._stub = make_stub(server)
         self._cur_time = -1
         # Hash from timestamps to database hashes
         self._times = {}
@@ -149,20 +149,25 @@ class SlogClient:
             writer.fail("💥")
             writer.write(f" {response.error_msg} fail to update!")
 
-    def load_slog_file(self, filename, writer=NoneWriter()):
-        ''' load a slog file, and set current file as that one '''
+    def compile_slog(self, filename, writer=NoneWriter()):
+        '''
+        compile a slog file, and set current DB as the resultant DB.
+        Returns a 2-tuple of new-db-id and program hashes
+        '''
         path = os.path.join(os.getcwd(), filename)
         elaborator = Elaborator()
         try:
             elaborator.elaborate(path)
         except FileNotFoundError as file_not_found:
             writer.write(f"Error processing preambles:\n{file_not_found}")
-            return
+            return None
+
         self._load(elaborator)
         inited_db = self._compile(elaborator.hashes.keys(), writer)
         if not inited_db:
-            return
+            return None
         self.switchto_db(inited_db)
+        return inited_db, elaborator.hashes.keys()
 
     def _load(self, eloborated_file: Elaborator):
         ''' load a eloborated slog file into backend '''
@@ -215,6 +220,7 @@ class SlogClient:
             return
         if output_db:
             self.switchto_db(output_db)
+        return output_db
 
     def _run(self, program_hashes, input_database, cores=2, writer=NoneWriter()):
         ''' run a program list (hashes) with given EDB hash and return updated idb'''
@@ -227,7 +233,7 @@ class SlogClient:
         writer.write(f"running promise is {response.promise_id}")
         if response.promise_id == MAXSIZE:
             writer.write("running a file never loaded!")
-            return
+            return None
         idb = self.run_until_promised(response.promise_id, PING_INTERVAL, writer)
         if not idb:
             writer.write("Execution failed!")
