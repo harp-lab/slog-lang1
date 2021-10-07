@@ -13,6 +13,9 @@ from slog.daemon.const import STATUS_PENDING, STATUS_FAILED, STATUS_RESOLVED, ST
 import slog.protobufs.slog_pb2 as slog_pb2
 import slog.protobufs.slog_pb2_grpc as slog_pb2_grpc
 
+# How often to wait between pinging the server
+PING_INTERVAL = .1
+
 def rel_name_from_file(fpath):
     """
     Gets the relation name from a fact file
@@ -30,37 +33,6 @@ def get_arity_souffle_facts(souffle_fpath):
         return -1
     else:
         return len(fst_line.strip().split('\t'))
-
-def run_until_promised(stub, promise_id, spinner=None, ping_interval=1):
-    '''
-    run promise query until promised value returned, if spinner is provide
-    intermidiate message will be printed
-    '''
-    cmmt = ""
-    while True:
-        time.sleep(ping_interval)
-        promise_response = slog_pb2.PromiseRequest()
-        promise_response.promise_id = promise_id
-        res = stub.QueryPromise(promise_response)
-        if (cmmt is None and res.err_or_db != "") or cmmt != res.err_or_db:
-            cmmt = res.err_or_db
-            if spinner:
-                spinner.write("✔ {}".format(cmmt))
-        elif res.status == STATUS_PENDING:
-            continue
-        elif res.status == STATUS_FAILED:
-            if spinner:
-                spinner.fail("💥")
-            print(res.err_or_db)
-            return False
-        elif res.status == STATUS_RESOLVED:
-            if spinner:
-                spinner.ok("✅ ")
-            return res.err_or_db
-        elif res.status == STATUS_NOSUCHPROMISE:
-            spinner.fail("💥")
-            print(f"promise id {promise_id} does not exist!")
-            return
 
 
 def make_stub(server_address, max_attempts=5):

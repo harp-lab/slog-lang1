@@ -60,10 +60,10 @@ def exec_command(repl, raw_input: str):
             repl.invalid_alert(f'{cmd} expect 1 arg, but get {len(args)}')
     elif cmd == 'dump':
         if len(args) == 1:
-            repl.pretty_dump_relation(args[0])
+            repl.dump_relations(args[0])
         elif len(args) == 2:
             if args[1].startswith('"') and args[1].endswith('"'):
-                repl.pretty_dump_relation(args[0], args[1][1:-1])
+                repl.dump_relations(args[0], args[1][1:-1])
             else:
                 repl.invalid_alert(f'{cmd} expect a string at postion 2 as arg')
         else:
@@ -106,7 +106,7 @@ def exec_command(repl, raw_input: str):
             repl.invalid_alert(f'{cmd} expect 2 arg, but get {len(args)}')  
     elif cmd == 'switch':
         if len(args) == 1:
-            repl.switchto_db(args[0])
+            repl.switch_db(args[0])
         else:
             repl.invalid_alert(f'{cmd} expected 1 argument, got {len(args)}.')
     else:

@@ -1,3 +1,6 @@
 #!/usr/bin/env bash
 
-python3 -m slog.repl.repl
+# takes server location as an optional argument
+# defaults to 'localhost' if not provided.
+
+python3 -m slog.repl.repl $1
