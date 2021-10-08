@@ -12,7 +12,7 @@
 
 #include "../../src/builtins.cpp"
 
-#define u64 unsigned long long
+#define u64 uint64_t
 
 using namespace std;
 
