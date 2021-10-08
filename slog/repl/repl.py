@@ -52,6 +52,11 @@ HELP = '''
     tag <hash> "<tag>"                  Give a database hash a taged name
 
     switch <db>                         Switch to a given DB
+
+    ?(<rel> _/<arg> ...)                run a slog query find all related facts like `?(foo "bar" _)`,
+                                        `_` is wildcard
+    
+    <slog code>                         execute a line of slog code
 '''
 
 CMD = ['help', 'run', 'connect', 'dump', 'showdb',
@@ -71,7 +76,12 @@ def exec_command(client: SlogClient, raw_input: str):
         # bypass empty command
         return
     # check if it a query
+    if (raw_input.startswith('(') and raw_input.endswith(')')) or \
+       (raw_input.startswith('[') and raw_input.endswith(']')):
+        client.slog_add_rule(raw_input[1:], ConsoleWriter())
+        return
     if raw_input.startswith('?(') and raw_input.endswith(')'):
+        client.run_slog_query(raw_input, ConsoleWriter())
         return
     # normal command
     cmd = raw_input.split(' ')[0].strip()
@@ -196,11 +206,12 @@ class Repl:
         while True:
             try:
                 front = self.get_front()
-                relation_names = map(lambda x: x[0], self.client.relations)
+                # ignore internal relation in autocomplete
+                relation_names = [r[0] for r in self.client.relations if not r[0].startswith('$')]
                 # completer = WordCompleter(relation_names)
                 self.client.update_dbs()
                 completer_map = {cmd: None for cmd in CMD}
-                completer_map['dump'] = FuzzyWordCompleter(list(relation_names))
+                completer_map['dump'] = FuzzyWordCompleter(relation_names)
                 possible_db_hash = [db[0][:6] for db in self.client.all_db]
                 possible_db_tag = []
                 for db_info in self.client.all_db:
@@ -215,6 +226,7 @@ class Repl:
                 completer_map['load'] = StringPathCompeleter()
                 completer_map['compile'] = StringPathCompeleter()
                 completer_map['switch'] = FuzzyWordCompleter(possible_db_hash + possible_db_tag)
+                completer_map['?('] = FuzzyWordCompleter(list(relation_names))
                 completer = NestedCompleter(completer_map)
                 text = self.prompt_session.prompt(
                     'σλoγ [{}] » '.format(front),
