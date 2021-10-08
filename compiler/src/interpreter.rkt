@@ -493,7 +493,7 @@
   (define (touch-empty-files rel-arity relation-id)
     (match-define `(rel-arity ,rel ,arity ,kind) rel-arity)
     ;; touch empty output/size files
-    (define output-file (format "~a/~a_~a_~a.table" directory relation-id rel arity))
+    (define output-file (format "~a/~a.~a.~a.table" directory relation-id rel arity))
     (define out (open-output-file output-file #:exists 'replace))
     (close-output-port out)
     output-file)

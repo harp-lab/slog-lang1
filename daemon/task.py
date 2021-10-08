@@ -221,7 +221,7 @@ class RunTask(Task):
             checkpoint_data_file = os.path.join(checkpoint_dir, rel_file_name)
             new_data_file = os.path.join(
                 DATABASE_PATH, out_db,
-                f'{relation[2]}_{relation[0]}_{relation[1]}.table')
+                f'{relation[2]}.{relation[0]}.{relation[1]}.table')
             if not os.path.exists(checkpoint_data_file):
                 # touch file
                 with open(new_data_file, 'w+') as _:

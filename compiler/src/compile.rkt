@@ -79,8 +79,8 @@
              (define fname (path->string (file-name-from-path fpath)))
              (if (string-suffix? fname ".table")
                  (let* ([fname-nosuffix (string-replace fname ".table" "")]
-                        [rel-tag-s (first (string-split fname-nosuffix "_"))]
-                        [rel-arity-s (last (string-split fname-nosuffix "_"))]
+                        [rel-tag-s (first (string-split fname-nosuffix "."))]
+                        [rel-arity-s (last (string-split fname-nosuffix "."))]
                         [rel-arity (string->number rel-arity-s)]
                         [rel-tag (string->number rel-tag-s)]
                         [rel-name (string->symbol
@@ -144,7 +144,7 @@
                                     rid
                                     (rel->name rel-sel)
                                     (if (and (not (member 0 (rel->sel rel-sel))) (= (length (rel->sel rel-sel)) (rel->arity rel-sel)))
-                                        (format "slog_input_dir + \"/~a_~a_~a.table\"," rid rel-name rel-arity)
+                                        (format "slog_input_dir + \"/~a.~a.~a.table\"," rid rel-name rel-arity)
                                         ; TODO: how to get rid of this space?????
                                         " ")
                                     )))
