@@ -901,9 +901,6 @@
     (hash-ref scc-map this-scc))
   (define rules (hash-keys rule-map))
 
-  (displayln (format "At SCC ~a" this-scc))
-  (set! iterations -1)
-  
   ;; To form the initial IR (just for the first time through this
   ;; SCC), we copy the indices map from total to detal for every
   ;; relation that is used within this SCC. Otherwise, we end up in
@@ -935,18 +932,18 @@
   (define (subtract-this-scc ir)
   (copy-ir-interp ir [scc-order (cdr (Ir-interp-scc-order ir))]))
 
-  (define (print-fact-sizes ir)
+  #;(define (print-fact-sizes ir)
     (match-define `(db-instance ,relation-map ,indices-map ,tag-counts ,intern-map ,added-facts)
       (Ir-interp-db-instance ir-interp))
-    (for ([rel-version (hash-keys indices-map)])
-      (when (equal? (second rel-version) 'E)
+    ;(for ([rel-version (hash-keys indices-map)])
+      #;(when (equal? (second rel-version) 'E)
         (pretty-print rel-version)
-        (displayln (rel-version-facts-count ir rel-version)))))
+        (displayln (rel-version-facts-count ir rel-version))))
   
   (define (iterate ir)
     (set! iterations (add1 iterations))
     (displayln (format "Iteration ~a" iterations))
-    (print-fact-sizes ir)
+    ;;(print-fact-sizes ir)
     ;; Interpret each individual rule in order
     (reset-added-any-new-facts)
     (let* ([next-ir
