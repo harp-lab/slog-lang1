@@ -416,7 +416,7 @@
   (define output-indices (filter (λ (i) (not (member i indices))) (range 0 arity)))
 
   (string-replace-all 
-    "[](const u64* data, u64* const output) -> int{
+    "[](const u64* const data, u64* const output) -> int{
       auto args_for_old_bi = std::array<u64, [old-indices-size]> {[populate-args-for-old-bi-code]};
       using TState = std::tuple<const u64*,u64*>;
       TState state = {data, output};
