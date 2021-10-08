@@ -86,8 +86,7 @@
           ((rel-select factorial 2 (1) comp) x-1 _ x-1fac)
           ((rel-select * 3 (1 2) comp) x x-1fac _ res))
        
-       (crule ((rel-select factorial 2 (1) comp) x _ 1)
-          ((rel-select = 2 (1 2) comp) x 0 _))}
+       (crule ((rel-select factorial 2 (1) comp) 0 _ 1))}
       (hash '(rel-select factorial 2 (1) comp) "cpp_factorial"))]
   [cpp-file-contents-filled-in 
     (string-replace-all cpp-file-contents 
