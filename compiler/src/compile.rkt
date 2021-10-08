@@ -440,7 +440,7 @@
     "[](const u64* const data, u64* const output) -> int{
       auto args_for_old_bi = std::array<u64, [old-indices-size]> {[populate-args-for-old-bi-code]};
       using TState = std::tuple<const u64*,u64*>;
-      TState state = {data, output};
+      TState state = std::make_tuple(data, output);
       auto callback = []([callback-params] TState state) -> TState{
         auto [data, output] = state;
         bool compatible = [check-compatibility-code];
@@ -448,7 +448,7 @@
 
         auto head_tuple = output;
         [head-tuple-populating-code]
-        return {data, output + [head-tuple-size]};
+        return std::make_tuple(data, output + [head-tuple-size]);
       };
       auto [_,new_ptr] = [cpp-func-name]<TState>(args_for_old_bi.data(), state, callback);
       auto tuples_count = (new_ptr - output) / [head-tuple-size];
