@@ -3,6 +3,7 @@ These are common 'verbs' for things to do
 """
 
 import copy
+import hashlib
 import os
 import sys
 import time
@@ -25,7 +26,7 @@ STRING_TAG = 2
 SYMBOL_TAG = 3
 
 
-class NoneWriter:
+class Writer:
     """
     Does nothing when given a write command.
     """
@@ -38,7 +39,7 @@ class NoneWriter:
     def fail(self, _):
         ...
 
-class ConsoleWriter:
+class ConsoleWriter(Writer):
     """
     Simple class to print when given a write command
     """
@@ -51,7 +52,7 @@ class ConsoleWriter:
     def fail(self, out):
         print(out)
 
-class FileWriter:
+class FileWriter(Writer):
     def __init__(self, f):
         self.f = f
     def write(self, out):
@@ -105,7 +106,7 @@ class SlogClient:
         req = slog_pb2.PingRequest()
         self._stub.Ping(req)
 
-    def upload_csv(self, csv_dir, writer=NoneWriter()):
+    def upload_csv(self, csv_dir, writer=Writer()):
         ''' upload csv to current EDB using tsv_bin tool '''
         def csv_request_generator(csv_file_paths: list):
             ''' a generator to create gRPC stream from a list of facts file '''
@@ -149,7 +150,7 @@ class SlogClient:
             writer.fail("💥")
             writer.write(f" {response.error_msg} fail to update!")
 
-    def compile_slog(self, filename, writer=NoneWriter()):
+    def compile_slog(self, filename, writer=Writer()):
         '''
         compile a slog file, and set current DB as the resultant DB.
         Returns a 2-tuple of new-db-id and program hashes
@@ -162,27 +163,40 @@ class SlogClient:
             writer.write(f"Error processing preambles:\n{file_not_found}")
             return None
 
-        self._load(elaborator)
+        self._load(elaborator.hashes)
         inited_db = self._compile(elaborator.hashes.keys(), writer)
         if not inited_db:
             return None
         self.switchto_db(inited_db)
         return inited_db, elaborator.hashes.keys()
 
-    def _load(self, eloborated_file: Elaborator):
-        ''' load a eloborated slog file into backend '''
+    def slog_add_rule(self, slog_str, writer:Writer=Writer()):
+        """ run a single line of slog query, return the generated database """
+        hash_func = hashlib.sha256()
+        slog_code = slog_str.encode('utf-8')
+        hash_func.update(slog_code)
+        slog_hash = hash_func.hexdigest()
+        self._load({slog_hash: slog_str})
+        inited_db = self._compile([slog_hash], writer)
+        if not inited_db:
+            return
+        new_db = self._run([slog_hash], self.cur_db, writer=writer)
+        return new_db
+
+    def _load(self, hsh_map: dict):
+        ''' load a slog file into backend, input is hash map contain file_hash ↦ file_body '''
         # Exchange hashes
         req = slog_pb2.HashesRequest()
         req.session_key = "empty"
-        req.hashes.extend(eloborated_file.hashes.keys())
+        req.hashes.extend(hsh_map.keys())
         response = self._stub.ExchangeHashes(req)
         req = slog_pb2.PutHashesRequest()
         req.session_key = "empty"
         for hsh in response.hashes:
-            req.bodies.extend([eloborated_file.hashes[hsh]])
+            req.bodies.extend([hsh_map[hsh]])
         self._stub.PutHashes(req)
 
-    def _compile(self, program_hashes, writer=NoneWriter()):
+    def _compile(self, program_hashes, writer=Writer()):
         ''' compile a slog program list (hashes) and return corresponded EDB '''
         req = slog_pb2.CompileHashesRequest()
         req.buckets = 16
@@ -197,7 +211,7 @@ class SlogClient:
         self.update_dbs()
         return edb
 
-    def run_with_db(self, filename, db_id=None, cores=2, writer=NoneWriter()):
+    def run_with_db(self, filename, db_id=None, cores=2, writer=Writer()):
         ''' run a program with input database '''
         if not db_id:
             db_id = self.cur_db
@@ -222,7 +236,7 @@ class SlogClient:
             self.switchto_db(output_db)
         return output_db
 
-    def _run(self, program_hashes, input_database, cores=2, writer=NoneWriter()):
+    def _run(self, program_hashes:list, input_database:str, cores=2, writer=Writer()):
         ''' run a program list (hashes) with given EDB hash and return updated idb'''
         req = slog_pb2.RunProgramRequest()
         req.using_database = input_database
@@ -234,11 +248,11 @@ class SlogClient:
         if response.promise_id == MAXSIZE:
             writer.write("running a file never loaded!")
             return None
-        idb = self.run_until_promised(response.promise_id, PING_INTERVAL, writer)
-        if not idb:
+        out_db = self.run_until_promised(response.promise_id, PING_INTERVAL, writer)
+        if not out_db:
             writer.write("Execution failed!")
         self.update_dbs()
-        return idb
+        return out_db
 
     def _update_intern_strings(self):
         """ update cached string.csv data """
@@ -390,7 +404,7 @@ class SlogClient:
         for fact_row in sorted(self.updated_tuples[rel[0]], key=lambda t: int(t[0][2])):
             writer.write(f"#{fact_row[0][2]}:  {rel_to_str(fact_row[1:])}")
 
-    def pretty_dump_relation(self, name, writer=NoneWriter()):
+    def pretty_dump_relation(self, name, writer=Writer()):
         """ recursive print all tuples of a relation """
         if len(self.lookup_rels(name)) == 0:
             writer.write("No relation named {} in the current database".format(name))
@@ -408,7 +422,7 @@ class SlogClient:
         request.tag_name = tag_name
         self._stub.TagDB(request)
 
-    def run_until_promised(self, promise_id, ping_interval=1, writer=NoneWriter()):
+    def run_until_promised(self, promise_id, ping_interval=1, writer=Writer()):
         '''
         run promise query until promised value returned,
         if writer is provided intermidiate message will be printed
@@ -435,3 +449,67 @@ class SlogClient:
                 writer.fail("💥")
                 writer.write(f"promise does not exist!")
                 return
+
+    def query_to_slog(self, query_name, query: str, writer: Writer):
+        '''
+        turn a query language into a slog code
+        `query_name` is the name of query in generated slog code
+        query is query string it self, like `?(foo _ 1)`
+        '''
+        if not (query.startswith('?(') and query.endswith(')')):
+            writer.fail("query must looks like with ?(<rel_name> ...)")
+            return
+        query_splited = [x.strip() for x in query[2:-1].strip().split(' ') if x.strip() != '']
+        rel_name = query_splited[0]
+        rels = self.lookup_rels(rel_name)
+        found_rel = None
+        if rels == []:
+            writer.fail(f"{rel_name} is not a relation in current database")
+            return
+        for rel in rels:
+            if int(rel[1]) == len(query_splited[1:]):
+                found_rel = rel
+        if not found_rel:
+            writer.fail(f"not arity {len(query_splited[1:])} {rel_name}  "
+                        f"only have arity {','.join([r[2] for r in rels])}")
+            return
+        unknown_arg_num = len([x for x in query_splited if x == '_'])
+        if unknown_arg_num == 0:
+            unknown_arg_num = int(found_rel[2])
+        header = f'({query_name} {" ".join([f"arg_{str(i)}" for i in range(unknown_arg_num)])})'
+        body = f'({found_rel[0]} '
+        cnt = 0
+        for var in query_splited[1:]:
+            if var == '_':
+                body = body + f"arg_{str(cnt)} "
+                cnt += 1
+            else:
+                body = body + var + ' '
+        body = body + ')'
+        slog_code = f'[{header} <-- {body}]'
+        return slog_code
+
+    def run_slog_query(self, query, writer:Writer):
+        """
+        run a query to database
+        NOTE: this function won't generate new database
+        """
+        old_db = self.cur_db
+        hash_func = hashlib.sha256()
+        query_encoded = query.encode('utf-8')
+        hash_func.update(query_encoded)
+        query_hash = hash_func.hexdigest()
+        query_name = f"query_{query_hash[:10]}"
+        slog_code = self.query_to_slog(query_name, query, writer)
+        print(slog_code)
+        if not slog_code:
+            return
+        query_db = self.slog_add_rule(slog_code, writer)
+        if not query_db:
+            return
+        self.switchto_db(query_db)
+        self.pretty_dump_relation(query_name, writer)
+        # after dump query relation, delete intermediate database, switch back to old db
+        # self.switchto_db(old_db)
+        # req = slog_pb2.DropDBRequest(database_id=query_db)
+        # self._stub.DropDB(req)

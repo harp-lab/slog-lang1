@@ -715,7 +715,7 @@ void relation::initialize_relation(mpi_comm& mcomm, std::map<u64, u64>& intern_m
 
     // if no input file stop reading, just return
     // TODO: ww
-    if (not this->is_canonical)
+    if ((!this->is_canonical) || (!std::filesystem::exists(this->filename)))
     {
         return;
     }

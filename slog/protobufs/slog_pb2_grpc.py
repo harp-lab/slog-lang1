@@ -2,7 +2,7 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-import slog_pb2 as slog__pb2
+import slog.protobufs.slog_pb2 as slog__pb2
 
 
 class CommandServiceStub(object):
@@ -72,6 +72,11 @@ class CommandServiceStub(object):
         self.TagDB = channel.unary_stream(
                 '/CommandService/TagDB',
                 request_serializer=slog__pb2.TagDBRequest.SerializeToString,
+                response_deserializer=slog__pb2.ErrorResponse.FromString,
+                )
+        self.DropDB = channel.unary_unary(
+                '/CommandService/DropDB',
+                request_serializer=slog__pb2.DropDBRequest.SerializeToString,
                 response_deserializer=slog__pb2.ErrorResponse.FromString,
                 )
 
@@ -157,6 +162,12 @@ class CommandServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def DropDB(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_CommandServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -218,6 +229,11 @@ def add_CommandServiceServicer_to_server(servicer, server):
             'TagDB': grpc.unary_stream_rpc_method_handler(
                     servicer.TagDB,
                     request_deserializer=slog__pb2.TagDBRequest.FromString,
+                    response_serializer=slog__pb2.ErrorResponse.SerializeToString,
+            ),
+            'DropDB': grpc.unary_unary_rpc_method_handler(
+                    servicer.DropDB,
+                    request_deserializer=slog__pb2.DropDBRequest.FromString,
                     response_serializer=slog__pb2.ErrorResponse.SerializeToString,
             ),
     }
@@ -430,6 +446,23 @@ class CommandService(object):
             metadata=None):
         return grpc.experimental.unary_stream(request, target, '/CommandService/TagDB',
             slog__pb2.TagDBRequest.SerializeToString,
+            slog__pb2.ErrorResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def DropDB(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/CommandService/DropDB',
+            slog__pb2.DropDBRequest.SerializeToString,
             slog__pb2.ErrorResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

@@ -93,7 +93,12 @@ class CompileTask(Task):
         self._proc.stdin.write((sexpr + "\n").encode('utf-8'))
         self._proc.stdin.flush()
         line = self._proc.stdout.readline().decode('utf-8')
-        output = sexpdata.loads(line)
+        try:
+            output = sexpdata.loads(line)
+        except AssertionError:
+            self.log("Slog->C++ compilation failed!")
+            self._db.fail_compiled_job(promise_id, line)
+            return
         # If compilation failed...
         if output[0] == Symbol('failure'):
             # Log failure

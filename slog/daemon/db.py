@@ -326,3 +326,14 @@ class MetaDatabase:
         self._db_update(
             'UPDATE databases SET tag_name=? WHERE database_id=?',
             (database_id, tag))
+
+    def drop_database(self, database_id):
+        """ delete a persisted slog database """
+        conn = sqlite3.Connection(self.db_path)
+        cur = conn.cursor()
+        # delete datbase itself
+        cur.execute('DELETE FROM databases WHERE database_id=?', (database_id,))
+        # delete related relations
+        cur.execute('DELETE FROM relations WHERE database_id=?', (database_id,))
+        conn.commit()
+        conn.close()

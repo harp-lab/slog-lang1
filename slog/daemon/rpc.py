@@ -305,3 +305,10 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
         response = slog_pb2.ErrorResponse()
         response.success = True
         return response
+
+    def DropDB(self, request, context):
+        database_id = request.database_id
+        self._db.drop_database(database_id)
+        response = slog_pb2.ErrorResponse()
+        response.success = True
+        return response
