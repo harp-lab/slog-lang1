@@ -108,9 +108,8 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
                     arity = len(fst_line.decode('utf-8').strip().split('\t'))
                     index = ",".join([str(i) for i in range(1, arity+1)])
                     tag = self._db.get_relation_tag(in_db, rel_name, arity)
-                    out_path = os.path.join(tmp_db_path, f'{tag}_{rel_name}_{arity}.table')
-                    shutil.copy(os.path.join(in_db_path, f'{tag}_{rel_name}_{arity}.table'),
-                                out_path)
+                    out_path = os.path.join(tmp_db_path, f'{tag}.{rel_name}.{arity}.table')
+                    shutil.copy(os.path.join(in_db_path, f'{tag}.{rel_name}.{arity}.table'), out_path)
                     changed_relations.append(rel_name)
                     with subprocess.Popen([TSV2BIN_PATH, tmp_csv.name, str(arity), out_path, index,
                                            str(buckets), str(tag), tmp_db_path],

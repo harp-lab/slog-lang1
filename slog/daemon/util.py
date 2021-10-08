@@ -84,8 +84,8 @@ def get_relation_info(datapath):
         return False
     else:
         fname = fname[:-6]
-    tag_s = fname.split('_')[0]
-    arity_s = fname.split('_')[-1]
+    tag_s = fname.split('.')[0]
+    arity_s = fname.split('.')[-1]
     rel_name = fname[len(tag_s)+1:-len(arity_s)-1]
     return {
         "name": rel_name,
