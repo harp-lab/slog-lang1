@@ -54,9 +54,9 @@
 
 ;; Injection
 
-[(E e [(null) (null) (null)] (kaddr e [(null) (null) (null)]))
- (peek_ctx e [(null) (null) (null)] [e (null) (null)])
- (store (kaddr e [(null) (null) (null)]) (mt))
+[(E e [(null 0) (null 0) (null 0)] (kaddr e [(null 0) (null 0) (null 0)]))
+ (peek_ctx e [(null 0) (null 0) (null 0)] [e (null 0) (null 0)])
+ (store (kaddr e [(null 0) (null 0) (null 0)]) (mt 0))
  <--
  (top_exp e)]
 
@@ -69,10 +69,9 @@
 ;; Copy contexts
 [(store (vaddr fv to) v)
  <--
- (copy_ctx from to e)
  (store (vaddr fv from) v)
- --
- (free fv e)]
+ (free fv e)
+ (copy_ctx from to e)]
 
 ;;;;;;;; Step functions
 
@@ -94,7 +93,6 @@
  <--
  (E e ctx ak)
  (peek_ctx e ctx ectx)
- --
  (callcc e elam)]
 
 ;; set! expression
@@ -110,10 +108,10 @@
  (store (kaddr efunc ctx) (argk eargs ctx ectx ak))
  (flow_ee e efunc)
  <--
- (E e ctx ak)
- (peek_ctx e ctx ectx)
+ (call e efunc eargs)
  --
- (call e efunc eargs)]
+ (E e ctx ak)
+ (peek_ctx e ctx ectx)]
 
 ;; let-binding expression
 [(E ebnd ctx (kaddr ebnd ctx))
@@ -124,8 +122,8 @@
  (E e ctx ak)
  (peek_ctx e ctx ectx)
  --
- (let e ll ebody)
- (let_list ll x ebnd)]
+ (let_list ll x ebnd)
+ (let e ll ebody)]
 
 ;; binary primitive operation expression
 [(E earg0 ctx (kaddr earg0 ctx))
@@ -166,9 +164,9 @@
 [(A v ak)
  (flow_ea e v)
  <--
- (E e ctx ak)
  (store (vaddr x ctx) v)
- (var e x)]
+ (var e x)
+ (E e ctx ak)]
 
 ;; A application forms
 
@@ -177,33 +175,35 @@
  (flow_ae (boolv 1) et)
  <-- 
  (store ak (ifk et _ ctx_k next_ak))
- (or (A (boolv 1) ak) (A (closure _ _) ak)
-     (A (number _) ak) (A (kont _) ak))] ;; todo: any truthy (non-0?)
+ --
+ (or (A (boolv 1) ak) 
+     (A (closure _ _) ak)
+     (A (number _) ak) 
+     (A (kont _) ak))] ;; todo: any truthy (non-0?)
 
 ;; return conditional false
 [(E et ctx_k next_ak)
  (flow_ae (boolv 0) et)
  <-- 
- (A (boolv 0) ak)  ;; todo bad type (num)
- (store ak (ifk et _ ctx_k next_ak))]
+ (store ak (ifk et _ ctx_k next_ak))
+ (A (boolv 0) ak)]  ;; todo bad type (num)
 
 ;; cc calling a continuation instead of a lambda
 ;; such as (call/cc (call/cc (λ (k) k)))
 [(A (kont ak) bk)
  (flow_aa (kont bk) (kont ak))
  <--
- (A (kont bk) ak)
- (store ak (callcc _ _))]
+ (store ak (callcc _ _))
+ (A (kont bk) ak)]
 
 ;; processed fn, now to process argument.
 [(E earg ctx (kaddr earg ctx))
  (store (kaddr earg ctx) (fn v pos ectx next_ak))
  (flow_ae v earg)
  <--
- (A v ak)
+ (call_arg_list eargs pos earg)
  (store ak (argk eargs ctx ectx next_ak))
- --
- (call_arg_list eargs pos earg)]
+ (A v ak)]
 
 ;; processed arg, call closure
 [(E ebody ectx next_ak)
@@ -212,46 +212,46 @@
  (flow_ae v ebody)
  (here ebody pos x v ectx)
  <--
- (A v ak)
- (store ak (fn (closure elam ctx_clo) pos ectx next_ak))
- --
+ (lambda_arg_list params pos x)
  (lambda elam params ebody)
- (lambda_arg_list params pos x)]
+ (store ak (fn (closure elam ctx_clo) pos ectx next_ak))
+ (A v ak)]
 
 ;; processed arg, call continuation
 [(A v callcck)
  (flow_aa v v)
  <--
- (A v ak)
- (store ak (fn (kont callcck) 0 _ _))]
+ (store ak (fn (kont callcck) 0 _ _))
+ (A v ak)]
 
 ;; Processed Let bindings, evaluating body.
 [(E ebody ctx next_ak)
  (store av v)
  (flow_ae v ebody)
  <--
- (A v ak)
- (store ak (letk av ebody ctx next_ak))]
+ (store ak (letk av ebody ctx next_ak))
+ (A v ak)]
 
 ;; Processed arg0 of prim, now process arg1.
 [(E earg1 ctx (kaddr earg1 ctx))
  (store (kaddr earg1 ctx) (prim2 op v next_ak))
  (flow_ae v earg1)
  <--
- (A v ak)
- (store ak (prim1 op earg1 ctx next_ak))]
+ (store ak (prim1 op earg1 ctx next_ak))
+ (A v ak)]
 
 ;; Processed prim args, return prim val.
 [(A (primval op v1 v2) next_ak)
  (flow_aa v2 (primval op v1 v2))
  <--
- (A v2 ak)
- (store ak (prim2 op v1 next_ak))]
+ (store ak (prim2 op v1 next_ak))
+ (A v2 ak)]
 
 ;; set! (we return a sentinel here, but it can be anything!)
 [(A (number 1) next_ak)
  (store loc v)
  (flow_aa v (num 1))
  <--
- (A v ak)
- (store ak (setk loc next_ak))]
+ (store ak (setk loc next_ak))
+ (A v ak)]
+

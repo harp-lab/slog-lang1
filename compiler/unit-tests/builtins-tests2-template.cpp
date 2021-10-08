@@ -12,7 +12,7 @@
 
 #include "../../src/builtins.cpp"
 
-#define u64 unsigned long long
+#define u64 uint64_t
 
 using namespace std;
 
@@ -135,7 +135,9 @@ int main(){
     cpp_factorial<vector<u64>*>(data, &vec, [](u64 res, vector<u64>* state){state->push_back(res); return state;});
     vector<u64> expected = {n2d(120)};
     // cout << "vec.size(): " << vec.size() << "\n";
-    // cout << "vec[0]: " << d2n(vec[0]) << "\n";
+    // cout << "fac output: ";
+    // for (u64 i : vec) cout << i << ", ";
+    // cout << "\n";
     assert(vec == expected);
 
   }
