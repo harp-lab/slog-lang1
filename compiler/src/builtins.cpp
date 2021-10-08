@@ -8,8 +8,8 @@
 #include <tuple>
 
 using namespace std;
-#define u64  unsigned long long
-using i64 = long long;
+#define u64  uint64_t
+using i64 = int64_t;
 
 const u64 tag_mask = 0xffffc00000000000;
 const u64 tag_position = 46;

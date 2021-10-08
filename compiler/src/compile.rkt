@@ -416,10 +416,10 @@
   (define output-indices (filter (λ (i) (not (member i indices))) (range 0 arity)))
 
   (string-replace-all 
-    "[](const u64* data, u64* const output) -> int{
+    "[](const u64* const data, u64* const output) -> int{
       auto args_for_old_bi = std::array<u64, [old-indices-size]> {[populate-args-for-old-bi-code]};
       using TState = std::tuple<const u64*,u64*>;
-      TState state = {data, output};
+      TState state = std::make_tuple(data, output);
       auto callback = []([callback-params] TState state) -> TState{
         auto [data, output] = state;
         bool compatible = [check-compatibility-code];
@@ -427,7 +427,7 @@
 
         auto head_tuple = output;
         [head-tuple-populating-code]
-        return {data, output + [head-tuple-size]};
+        return std::make_tuple(data, output + [head-tuple-size]);
       };
       auto [_,new_ptr] = [cpp-func-name]<TState>(args_for_old_bi.data(), state, callback);
       auto tuples_count = (new_ptr - output) / [head-tuple-size];
@@ -650,6 +650,7 @@
    "[](const u64* data, auto init_state, decltype(init_state) (*callback) ([callback-args] decltype(init_state) state)) -> decltype(init_state){
       
       typedef decltype(init_state) (*original_callback_t) ([callback-args] decltype(init_state) state);
+      if (! ([check-input-compatibility] true)) return init_state;
       u64 bclfunc_input[] = {[bclfunc-input]};
       BCLCB_State bclcb_init_state = {(void*) callback, &init_state, data};
       typedef BCLCB_State (*bclcb_t) ([bclcb-params] BCLCB_State bclcb_state);
@@ -669,12 +670,20 @@
                                           [(? symbol?) (format "data[~a]" (index-of (cl-input-args hcl) arg))])) 
                                         (cl-input-args bcl)))
    "[bclcb-params]" (intercalate2 ", " (map (λ (x) (format "u64 arg~a" x)) (range 0 (length (cl-output-args bcl)))))
+   "[check-input-compatibility]"
+   (intercalate2 "&&"
+    (filter-map (λ (i)
+                  (define arg (list-ref input-args i))
+                  (cond 
+                    [(lit? arg) (format "data[~a] == ~a" i (lit->cpp-datum arg))]
+                    [else #f]))
+                (range 0 (length input-args))))
    "[check-compatibility-code]"
    (intercalate2 "&&" 
     (filter-map (λ (i) 
                   (define arg (list-ref (cl-output-args bcl) i))
                   (match arg
-                    [(? number? n) (format "arg~a == number_to_datum(~a)" i n)]
+                    [(? number? n) (format "arg~a == ~a" i (lit->cpp-datum arg))]
                     [else #f]))
                 (range 0 (length (cl-output-args bcl)))))
    "[original-callback-args]" (intercalate2 ", "
@@ -686,6 +695,12 @@
                                                 (format "arg~a" (index-of (cl-output-args bcl) arg))])) 
                                     output-args))
   ))
+
+(define (generate-cpp-lambda-for-computational-head-cl hcl)
+  (define dummy-bi-func-name (get-func-for-comp-rel '(rel-select = 2 (1 2) comp) (hash)))
+  (define dummy-bcl '((rel-select = 2 (1 2) comp) 0 0 _))
+  (generate-cpp-lambda-for-computational-copy dummy-bcl dummy-bi-func-name hcl))
+
 
 ;; TODO this is trash
 (define (get-func-for-comp-rel bi cr-names)
@@ -711,6 +726,8 @@
   (define bcls-ordered bcls) ; TODO can we assume bcls are ordered?
   
   (match (length bcls-ordered)
+    [0 
+     (generate-cpp-lambda-for-computational-head-cl hcl)]
     [1
      (define bcl (car bcls-ordered))
      (match-define `(,cl-rel ,args ...) bcl)
@@ -763,3 +780,8 @@
         "[lambda]" (generate-lambda-for-computational-relation-rule rule cr-names)))
       rules))
    ))
+
+(define (lit->cpp-datum lit)
+  (match lit
+    [(? number?) (format "n2d(~a)" lit)]
+    [(? string?) (format "throw \"cannot handle string literals yet! literal: ~a\"" lit)]))
