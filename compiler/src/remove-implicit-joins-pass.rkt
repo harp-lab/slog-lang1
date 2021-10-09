@@ -119,6 +119,13 @@
           (if (set-member? all-comp-rels rel) 
               cl
               (rename-arg cl const (strip-prov const-var))))
+        
+        ;; this does not work ...
+        #;(define (update-head-clause cl) 
+          (match-define (list _ rel args) (ir-flat-clause-rel-args cl))
+          (if (andmap lit? args)
+            cl
+            (rename-arg cl const (strip-prov const-var))))
         (define new-rule `(rule ,(list->set (set-map heads update-clause))
                                 ,(list->set (append (set-map bodys update-clause)
                                                     (if const-existing-var (list) (list equals-clause))))))
