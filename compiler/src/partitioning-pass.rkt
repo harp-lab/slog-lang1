@@ -253,9 +253,12 @@
    #:when (and (> (set-count bodys) 0) 
                (andmap comp/agg-clause? (set->list bodys)))
     (define pos (prov->pos (set-first bodys)))
-    (define unit-clause (give-clause-id `(prov ((prov (rel-arity $unit 0 db) ,pos)) ,pos)))
+    ;; TODO revert to (unit) once the backend is fixed
+    ; (define unit-clause (give-clause-id `(prov ((prov (rel-arity $unit 0 db) ,pos)) ,pos)))
+    (define unit-clause (give-clause-id `(prov ((prov (rel-arity $unit 1 db) ,pos) (prov ,(gensymb '$__dummy) ,pos)) ,pos)))
+    (define unit-fact (give-clause-id `(prov ((prov (rel-arity $unit 1 db) ,pos) (prov 0 ,pos)) ,pos)))
     (set-union (partition-rule `(rule ,heads ,(set-add bodys unit-clause)) comp-rules)
-               (partition-rule `(rule ,(set unit-clause) ,(set)) comp-rules))]
+               (partition-rule `(rule ,(set unit-fact) ,(set)) comp-rules))]
    [`(rule ,heads ,bodys)
    #:when (and (= 1 (set-count heads))
               (>= 2 (set-count bodys)))
