@@ -59,8 +59,15 @@
           ((rel-version < 2 (2 1) comp) x 100 _1))]
   [lam8 (generate-cpp-lambda-for-rule-with-callback-builtin rule8 '(1 2) "builtin_less")]
 
+  [rule9 '(srule
+         ((rel-select $inter-body4 3 (1 2 3) db) $id1 $id2 e)
+         ((rel-version $inter-body3 3 (1) total) $id1 $_14 $id2 e)
+         ((rel-version = 2 (1 2) comp) $id1 $id1 $_8))]
+  [lam9 (generate-cpp-lambda-for-rule-with-callback-builtin rule9 '(1 2) "builtin_eq")]
+
+
   [builtins-test-template-file (file->string (get-path "./builtins-tests-template.cpp"))]
-  [output-file (format builtins-test-template-file lam1 lam2 lam3 lam4 lam5 lam6 lam7 lam8)])
+  [output-file (format builtins-test-template-file lam1 lam2 lam3 lam4 lam5 lam6 lam7 lam8 lam9)])
   (display-to-file output-file (get-path "./output/builtins-tests-generated.cpp") 	#:exists 'replace))
 
 (let* 
