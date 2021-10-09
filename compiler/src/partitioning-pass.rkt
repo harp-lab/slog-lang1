@@ -20,6 +20,7 @@
 (require "builtins.rkt")
 (require "lang-utils.rkt")
 (require "slog-params.rkt")
+(require "remove-implicit-joins-pass.rkt")
 
 ;; Optimizes the flat IR by iterating unification of variables and clauses to a fixed point 
 (define/contract-cond (partitioning-pass ir)
@@ -253,9 +254,12 @@
    #:when (and (> (set-count bodys) 0) 
                (andmap comp/agg-clause? (set->list bodys)))
     (define pos (prov->pos (set-first bodys)))
-    (define unit-clause (give-clause-id `(prov ((prov (rel-arity $unit 0 db) ,pos)) ,pos)))
+    ;; TODO revert to (unit) once the backend is fixed
+    ; (define unit-clause (give-clause-id `(prov ((prov (rel-arity $unit 0 db) ,pos)) ,pos)))
+    (define unit-clause (give-clause-id `(prov ((prov (rel-arity $unit 1 db) ,pos) (prov ,(gensymb '$__dummy) ,pos)) ,pos)))
+    (define unit-fact (give-clause-id `(prov ((prov (rel-arity $unit 1 db) ,pos) (prov 0 ,pos)) ,pos)))
     (set-union (partition-rule `(rule ,heads ,(set-add bodys unit-clause)) comp-rules)
-               (partition-rule `(rule ,(set unit-clause) ,(set)) comp-rules))]
+               (partition-rule `(rule ,(set unit-fact) ,(set)) comp-rules))]
    [`(rule ,heads ,bodys)
    #:when (and (= 1 (set-count heads))
               (>= 2 (set-count bodys)))
@@ -478,7 +482,8 @@
         (give-clause-id `(prov ((prov (rel-arity ,(gensymb '$head-stratified) ,(length args) db) ,dummy-pos) ,@args) ,dummy-pos)))
       
       (define rule-for-replacement-clause
-        `(rule ,(set first-stratum-replacement-clause) ,(set-union bodys first-stratum-set)))
+        (ir-fixed-replace-repeated-vars-in-body-clauses
+          `(rule ,(set first-stratum-replacement-clause) ,(set-union bodys first-stratum-set))))
       (define rule-for-remaining-heads
         `(rule ,rest-heads-set ,(set first-stratum-replacement-clause)))
       
@@ -487,56 +492,6 @@
                                     (if (not (set-empty? rest-heads-set))
                                       (list rule-for-remaining-heads  rule-for-replacement-clause) (list)) 
                                     first-stratum-rules)))])]
-   ;; TODO remove:
-   #;[`(rule ,heads ,bodys)
-   #:when (and (< 1 (set-count heads))
-              (>= 1 (set-count bodys)))
-    (define dep-graph
-      (foldl (lambda (head-cl gr)
-              (match head-cl
-                      [`(prov ((prov = ,(? pos?))
-                              (prov ,(? var? id) ,(? pos?))
-                              (prov ((prov ,(? rel-arity?) ,(? pos?))
-                                      (prov ,(? arg? xs) ,(? pos?))
-                                      ...)
-                                    ,(? pos?)))
-                              ,(? pos?))
-                      (foldl (lambda (head-cl+ gr)
-                              (match head-cl+
-                                      [`(prov ((prov = ,(? pos?))
-                                              (prov ,(? var? id+) ,(? pos?))
-                                              (prov ((prov ,(? rel-arity?) ,(? pos?))
-                                                      (prov ,(? arg? xs+) ,(? pos?))
-                                                      ...)
-                                                    ,(? pos?)))
-                                              ,(? pos?))
-                                      (if (member id xs+)
-                                          (hash-set gr head-cl (set-add (hash-ref gr head-cl) head-cl+))
-                                        gr)]))
-                            (hash-set gr head-cl (hash-ref gr head-cl set))
-                            (set->list heads))]))
-            (hash)
-            (set->list heads)))
-    (define (get-deps cl)
-      (foldl (lambda (cl+ deps)
-              (if (set-member? (hash-ref dep-graph cl+) cl)
-                  (set-add deps cl+)
-                deps))
-            (set)
-            (hash-keys dep-graph)))
-    ; Check for cycles in the dep-graph and issue an error?
-    (define ordered-heads (topological-sort dep-graph))
-    (define rules
-      (map (lambda (head-cl)
-            (define head-cl-deps ((transitive-closure get-deps) head-cl))
-            (when (set-member? head-cl-deps head-cl)
-              (pretty-error-current (prov->pos head-cl) 
-                                    "Circular dependencies among head cluases" #:exit #t))
-            (partition-rule `(rule ,(set head-cl)
-                                    ,(set-union head-cl-deps bodys))
-                              comp-rules))
-          ordered-heads))
-    (foldl set-union (set) rules)]
    ; Multiple bodies and heads
    [`(rule ,heads ,bodys)
     (match (set-first heads)

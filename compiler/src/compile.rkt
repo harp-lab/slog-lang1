@@ -427,9 +427,10 @@
   ))
 
 (define (generate-cpp-lambda-for-rule-with-callback-builtin r indices cpp-func-name)
+  ; (printf "(generate-cpp-lambda-for-rule-with-callback-builtin r indices cpp-func-name) args: ~a\n ~a ~a\n" (strip-prov r) indices cpp-func-name)
   (match-define `(srule (,rel-sel ,hvars ...)
                         (,rel-ver0 ,bvars0 ...)
-                        ((rel-version ,(? builtin? bi-op) ,arity ,new-indices ,ver) ,bvars1 ...)) (strip-prov r))
+                        ((rel-version ,(? builtin? bi-op) ,arity ,new-indices comp) ,bvars1 ...)) (strip-prov r))
   
   (define new-tuple-index-to-old-tuple-index-mapping (map-new-tuple-index-to-old-tuple-index arity new-indices indices))
   (set! indices (map sub1 indices))
@@ -459,7 +460,13 @@
     "[old-indices-size]" (~a (length indices))
     "[cpp-func-name]" cpp-func-name
     "[populate-args-for-old-bi-code]"
-    (intercalate ", " (map (λ (i) (format "data[~a]" (index-of new-indices (list-ref indices i)))) (range 0 (length indices))))
+    (intercalate ", " (map (λ (i) 
+                            (define arg-pos-in-bvars1 (index-of new-indices (list-ref indices i)))
+                            (define arg (list-ref bvars1 arg-pos-in-bvars1))
+                            (match arg
+                              [(? lit?) (format "n2d(~a)" arg)]
+                              [else (format "data[~a]" arg-pos-in-bvars1)])) 
+                        (range 0 (length indices))))
     "[callback-params]"
     (intercalate "" (map (λ (i) (format "u64 res_~a, " i)) (range 0 (length output-indices))))
     "[check-compatibility-code]"
