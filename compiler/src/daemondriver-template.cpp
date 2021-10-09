@@ -6,10 +6,12 @@
 // global definitions:
 ~a
 
-std::vector<int> used_tags;
+int max_rel = 255;
+std::map<std::string, int> rel_tag_map;
 
-int get_tag_for_rel(std::string relation_name, std::string db_dir, int arity) {
-  used_tags.push_back(255);
+// load all relation inside input database
+void load_input_relation(std::string db_dir)
+{
   for (const auto & entry : std::filesystem::directory_iterator(db_dir))
   {
     // check if ends with table
@@ -23,21 +25,25 @@ int get_tag_for_rel(std::string relation_name, std::string db_dir, int arity) {
       continue;
     }
     std::string filename_s = entry.path().stem().string();
-    std::cout << "filename >>>>>>>>>>> " << filename_s << std::endl;
-    std::string rel_name = filename_s.substr(filename_s.find(".")+1, filename_s.rfind(".")-filename_s.find(".")-1);
-    std::string arity_s = filename_s.substr(filename_s.rfind(".")+1, filename_s.size()-filename_s.rfind(".")-1);
-    std::string tag_s = filename_s.substr(0, filename_s.find("."));
-    std::cout << "relation1 >>>>>>>>>> " << rel_name << std::endl;
-    std::cout << "relation2 >>>>>>>>>> " << relation_name << std::endl;
-    if (rel_name == relation_name && arity == std::stoi(arity_s))
-    {
-      std::cout << "relation " << tag_s << " " << arity_s << std::endl;
-      return std::stoi(tag_s);
-    }
-    used_tags.push_back(std::stoi(tag_s));
+    int tag = std::stoi(filename_s.substr(0, filename_s.find(".")));
+    std::string name_arity = filename_s.substr(filename_s.find(".")+1, filename_s.size()-filename_s.find(".")-1);
+    if (tag > max_rel)
+      max_rel = tag;
+    rel_tag_map[name_arity] = tag;
   }
-  std::sort(used_tags.begin(), used_tags.end(), std::greater<int>());
-  return used_tags[0]+1;
+}
+
+int get_tag_for_rel(std::string relation_name, int arity) {
+  std::string name_arity = relation_name + "." + std::to_string(arity);
+  if (rel_tag_map.find(name_arity) != rel_tag_map.end())
+  {
+    std::cout << "rel: " << name_arity << rel_tag_map[name_arity] << std::endl;
+    return rel_tag_map[name_arity];
+  }
+  max_rel++;
+  rel_tag_map[name_arity] = max_rel;
+  std::cout << "rel: " << name_arity << " " << max_rel << std::endl;
+  return max_rel;
 }
 
 int main(int argc, char **argv)
@@ -50,6 +56,7 @@ int main(int argc, char **argv)
     slog_input_dir = argv[1];
     slog_output_dir = argv[2];
   }
+  load_input_relation(slog_input_dir);
   mpi_comm mcomm;
   mcomm.create(argc, argv);
 

@@ -505,12 +505,12 @@ class SlogClient:
         print(slog_code)
         if not slog_code:
             return
-        query_db = self.slog_add_rule(slog_code, writer)
+        query_db = self.slog_add_rule(slog_code)
         if not query_db:
             return
         self.switchto_db(query_db)
         self.pretty_dump_relation(query_name, writer)
         # after dump query relation, delete intermediate database, switch back to old db
-        # self.switchto_db(old_db)
-        # req = slog_pb2.DropDBRequest(database_id=query_db)
-        # self._stub.DropDB(req)
+        self.switchto_db(old_db)
+        req = slog_pb2.DropDBRequest(database_id=query_db)
+        self._stub.DropDB(req)

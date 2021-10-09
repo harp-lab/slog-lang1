@@ -135,17 +135,17 @@
                (error (format "Could not find an appropriate relation ~a with arity ~a (need 1 candidate, got ~a)" rel-name rel-arity (length maybe-relation))))
              (define relation (first maybe-relation))
              (match-define `(relation ,_ ,_ ,rid ,index ,data) relation)
+             (define tag-func (format "get_tag_for_rel(\"~a\",~a)" rel-name (rel->arity rel-sel)))
              (string-append rel-txt
-                            (format "relation* ~a = new relation(~a, ~a, ~a, get_tag_for_rel(\"~a\",slog_input_dir,~a), \"~a\", ~a FULL);\n"
+                            (format "relation* ~a = new relation(~a, ~a, ~a, ~a, ~a, ~a FULL);\n"
                                     (rel->name rel-sel)
                                     (length (rel->sel rel-sel))
                                     (if (and (not (member 0 (rel->sel rel-sel))) (= (length (rel->sel rel-sel)) (rel->arity rel-sel))) "true" "false")
                                     (rel->arity rel-sel)
-                                    rel-name
-                                    (rel->arity rel-sel)
-                                    (rel->name rel-sel)
+                                    tag-func
+                                    (format "std::to_string(~a) + \".~a.~a.table\"" tag-func rel-name rel-arity)
                                     (if (and (not (member 0 (rel->sel rel-sel))) (= (length (rel->sel rel-sel)) (rel->arity rel-sel)))
-                                        (format "slog_input_dir + \"/~a.~a.~a.table\"," rid rel-name rel-arity)
+                                        (format "slog_input_dir + \"/\" + std::to_string(~a) + \".~a.~a.table\"," tag-func rel-name rel-arity)
                                         ; TODO: how to get rid of this space?????
                                         " ")
                                     )))
