@@ -20,6 +20,7 @@
 (require "builtins.rkt")
 (require "lang-utils.rkt")
 (require "slog-params.rkt")
+(require "remove-implicit-joins-pass.rkt")
 
 ;; Optimizes the flat IR by iterating unification of variables and clauses to a fixed point 
 (define/contract-cond (partitioning-pass ir)
@@ -481,7 +482,8 @@
         (give-clause-id `(prov ((prov (rel-arity ,(gensymb '$head-stratified) ,(length args) db) ,dummy-pos) ,@args) ,dummy-pos)))
       
       (define rule-for-replacement-clause
-        `(rule ,(set first-stratum-replacement-clause) ,(set-union bodys first-stratum-set)))
+        (ir-fixed-replace-repeated-vars-in-body-clauses
+          `(rule ,(set first-stratum-replacement-clause) ,(set-union bodys first-stratum-set))))
       (define rule-for-remaining-heads
         `(rule ,rest-heads-set ,(set first-stratum-replacement-clause)))
       
