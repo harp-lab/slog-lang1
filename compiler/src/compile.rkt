@@ -136,12 +136,12 @@
              (define relation (first maybe-relation))
              (match-define `(relation ,_ ,_ ,rid ,index ,data) relation)
              (string-append rel-txt
-                            (format "relation* ~a = new relation(~a, ~a, ~a, ~a, \"~a\", ~a FULL);\n"
+                            (format "relation* ~a = new relation(~a, ~a, ~a, get_tag_for_rel(\"~a\",slog_input_dir), \"~a\", ~a FULL);\n"
                                     (rel->name rel-sel)
                                     (length (rel->sel rel-sel))
                                     (if (and (not (member 0 (rel->sel rel-sel))) (= (length (rel->sel rel-sel)) (rel->arity rel-sel))) "true" "false")
                                     (rel->arity rel-sel)
-                                    rid
+                                    rel-name
                                     (rel->name rel-sel)
                                     (if (and (not (member 0 (rel->sel rel-sel))) (= (length (rel->sel rel-sel)) (rel->arity rel-sel)))
                                         (format "slog_input_dir + \"/~a.~a.~a.table\"," rid rel-name rel-arity)

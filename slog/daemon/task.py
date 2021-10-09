@@ -284,7 +284,7 @@ class RunTask(Task):
                 # EOF
                 if not line:
                     break
-                stdout_f.write(str(line))
+                stdout_f.write(str(line, 'utf-8'))
         # Done executing mpirun
         _proc.terminate()
         try:

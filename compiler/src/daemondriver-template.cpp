@@ -6,6 +6,39 @@
 // global definitions:
 ~a
 
+std::vector<int> used_tags;
+
+int get_tag_for_rel(std::string relation_name, std::string db_dir) {
+  used_tags.push_back(255);
+  for (const auto & entry : std::filesystem::directory_iterator(db_dir))
+  {
+    // check if ends with table
+    std::string filename_ss = entry.path().filename().string();
+    std::string suffix = ".table";
+    int ft = filename_ss.size()-suffix.size();
+    if (ft < 0)
+      ft = 0;
+    if (filename_ss.rfind(suffix) != ft)
+    {
+      continue;
+    }
+    std::string filename_s = entry.path().stem().string();
+    std::cout << "filename >>>>>>>>>>> " << filename_s << std::endl;
+    std::string rel_name = filename_s.substr(filename_s.find(".")+1, filename_s.rfind(".")-filename_s.find(".")-1);
+    std::string tag_s = filename_s.substr(0, filename_s.find("."));
+    std::cout << "relation1 >>>>>>>>>> " << rel_name << std::endl;
+    std::cout << "relation2 >>>>>>>>>> " << relation_name << std::endl;
+    if (rel_name == relation_name)
+    {
+      std::cout << "relation " << std::stoi(tag_s) << std::endl;
+      return std::stoi(tag_s);
+    }
+    used_tags.push_back(std::stoi(tag_s));
+  }
+  std::sort(used_tags.begin(), used_tags.end(), std::greater<int>());
+  return used_tags[0]+1;
+}
+
 int main(int argc, char **argv)
 {
   // input dir from compiler
@@ -15,8 +48,6 @@ int main(int argc, char **argv)
   if (argc == 3) {
     slog_input_dir = argv[1];
     slog_output_dir = argv[2];
-    std::cout << "using input " << slog_input_dir << std::endl;
-    std::cout << "using output " << slog_output_dir << std::endl;
   }
   mpi_comm mcomm;
   mcomm.create(argc, argv);
