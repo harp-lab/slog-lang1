@@ -409,7 +409,7 @@
   ; (printf "(generate-cpp-lambda-for-rule-with-callback-builtin r indices cpp-func-name) args: ~a\n ~a ~a\n" (strip-prov r) indices cpp-func-name)
   (match-define `(srule (,rel-sel ,hvars ...)
                         (,rel-ver0 ,bvars0 ...)
-                        ((rel-version ,(? builtin? bi-op) ,arity ,new-indices ,ver) ,bvars1 ...)) (strip-prov r))
+                        ((rel-version ,(? builtin? bi-op) ,arity ,new-indices comp) ,bvars1 ...)) (strip-prov r))
   
   (define new-tuple-index-to-old-tuple-index-mapping (map-new-tuple-index-to-old-tuple-index arity new-indices indices))
   (set! indices (map sub1 indices))

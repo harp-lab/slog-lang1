@@ -16,6 +16,7 @@
           ((rel-version foo 3 (2 1) total) y x w _2)
           ((rel-version + 3 (2 1) comp) y x _1 y+x))]
   [lam1 (generate-cpp-lambda-for-rule-with-builtin rule1)]
+
   [rule2 '(srule
           ((rel-select bar 2 (1 2) db) w ans)
           ((rel-version foo 3 (1 2) total) x y _2 w)
@@ -34,8 +35,32 @@
             ((rel-version =/= 2 (1 2) comp) x y))]
   [lam4 (generate-cpp-lambda-for-rule-with-builtin rule4)]
 
+  [rule5 '(srule
+          ((rel-select bar 4 (1 2 3 4) db) z w x y)
+          ((rel-version foo 4 (1 3) total) x y _2 w z)
+          ((rel-version > 2 (2 1) comp) x y _1))]
+  [lam5 (generate-cpp-lambda-for-rule-with-callback-builtin rule5 '(1 2) "builtin_greater")]
+
+  [rule6 '(srule
+          ((rel-select bar 4 (1 2 3 4) db) z w x y)
+          ((rel-version foo 4 (1 3) total) x y _2 w z)
+          ((rel-version > 2 (2 1) comp) 101 102 _1))]
+  [lam6 (generate-cpp-lambda-for-rule-with-callback-builtin rule6 '(1 2) "builtin_greater")]
+  
+  [rule7 '(srule
+          ((rel-select bar 4 (1 2 3 4) db) x ans y w ans z)
+          ((rel-version foo 4 (1 3) total) x y _2 w z)
+          ((rel-version = 2 (1) comp) 42 _1 ans))]
+  [lam7 (generate-cpp-lambda-for-rule-with-callback-builtin rule7 '(1) "builtin_eq_1")]
+
+  [rule8 '(srule
+          ((rel-select bar 4 (1 2 3 4) db) 1001 x 1002 y 1003 z)
+          ((rel-version foo 3 (1) total) x _2 y z)
+          ((rel-version < 2 (2 1) comp) x 100 _1))]
+  [lam8 (generate-cpp-lambda-for-rule-with-callback-builtin rule8 '(1 2) "builtin_less")]
+
   [builtins-test-template-file (file->string (get-path "./builtins-tests-template.cpp"))]
-  [output-file (format builtins-test-template-file lam1 lam2 lam3 lam4)])
+  [output-file (format builtins-test-template-file lam1 lam2 lam3 lam4 lam5 lam6 lam7 lam8)])
   (display-to-file output-file (get-path "./output/builtins-tests-generated.cpp") 	#:exists 'replace))
 
 (let* 

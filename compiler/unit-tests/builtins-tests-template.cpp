@@ -86,5 +86,86 @@ int main(){
       assert(res == 0);
     }
   }
+
+  {
+    //[rule5 '(srule
+    //         ((rel-select bar 4 (1 2 3 4) db) z w x y)
+    //         ((rel-version foo 4 (1 3) total) x y _2 w z)
+    //         ((rel-version > 2 (2 1) comp) x y _1))]
+    //[lam5 (generate-cpp-lambda-for-rule-with-callback-builtin rule2 '(1 2) "builtin_greater")]
+
+    auto lam = ~a;
+    {
+      u64 x = n2d(101), y = n2d(102), w= n2d(1000), z = n2d(1001);
+      auto input = vector<u64> {x, y, 0, w, z};
+      u64 out[1000];
+      auto res = lam(input.data(), out);
+      assert(res == 1);
+      // cout << " out[0]: " << out[0] << ", out[1]: " << out[1] << ", out[2]: " << out[2] << " out[3]: " << out[3] << "\n";
+      assert(out[0] == z && out[1] == w && out[2] == x && out[3] == y);
+    }
+    {
+      u64 x = n2d(101), y = n2d(100), w= n2d(1000), z = n2d(1001);
+      auto input = vector<u64> {x, y, 0, w, z};
+      u64 out[1000];
+      auto res = lam(input.data(), out);
+      assert(res == 0);
+    }
+  }
+
+  {
+    // [rule6 '(srule
+    //         ((rel-select bar 4 (1 2 3 4) db) z w x y)
+    //         ((rel-version foo 4 (1 3) total) x y _2 w z)
+    //         ((rel-version > 2 (2 1) comp) 101 102 _1))]
+    // [lam6 (generate-cpp-lambda-for-rule-with-callback-builtin rule6 '(1 2) "builtin_greater")]
+    auto lam = ~a;
+    {
+      u64 x = n2d(101), y = n2d(102), w= n2d(1000), z = n2d(1001);
+      auto input = vector<u64> {x, y, 0, w, z};
+      u64 out[1000];
+      auto res = lam(input.data(), out);
+      assert(res == 1);
+      // cout << " out[0]: " << out[0] << ", out[1]: " << out[1] << ", out[2]: " << out[2] << " out[3]: " << out[3] << "\n";
+      assert(out[0] == z && out[1] == w && out[2] == x && out[3] == y);
+    }
+  }
+
+  {
+    // [rule7 '(srule
+    //         ((rel-select bar 4 (1 2 3 4) db) x ans y w ans z)
+    //         ((rel-version foo 4 (1 3) total) x y _2 w z)
+    //         ((rel-version = 2 (1) comp) 42 ans _1))]
+    // [lam7 (generate-cpp-lambda-for-rule-with-callback-builtin rule7 '(1 2) "builtin_eq_1")]
+    auto lam = ~a;
+    {
+      u64 x = n2d(101), y = n2d(102), w= n2d(1000), z = n2d(1001);
+      u64 ans = n2d(42);
+      auto input = vector<u64> {x, y, 111111, w, z};
+      u64 out[1000];
+      auto res = lam(input.data(), out);
+      assert(res == 1);
+      // for (int i =0; i<6; i++) cout << "out["<<i<<"]: " << out[i] << ", "; cout << "\n";
+      assert(out[0] == x && out[1] == ans && out[2] == y && out[3] == w && out[4] == ans && out[5] == z);
+    }
+  }
+
+  {
+    // [rule8 '(srule
+    //         ((rel-select bar 4 (1 2 3 4) db) 1001 x 1002 y 1003 z)
+    //         ((rel-version foo 3 (1) total) x _2 y z)
+    //         ((rel-version < 2 (2 1) comp) x 100 _1))]
+    // [lam8 (generate-cpp-lambda-for-rule-with-callback-builtin rule8 '(1 2) "builtin_less")]
+    auto lam = ~a;
+    {
+      u64 x = n2d(200), y = n2d(211), z= n2d(212);
+      auto input = vector<u64> {x, 400000, y, z};
+      u64 out[1000];
+      auto res = lam(input.data(), out);
+      assert(res == 1);
+      // for (int i =0; i<6; i++) cout << "out["<<i<<"]: " << out[i] << ", "; cout << "\n";
+      assert(out[0] == n2d(1001) && out[1] == x && out[2] == n2d(1002) && out[3] == y && out[4] == n2d(1003) && out[5] == z);
+    }
+  }
   return 0;
 }
