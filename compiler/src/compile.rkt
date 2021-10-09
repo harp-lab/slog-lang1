@@ -444,7 +444,9 @@
                             (define arg (list-ref bvars1 arg-pos-in-bvars1))
                             (match arg
                               [(? lit?) (format "n2d(~a)" arg)]
-                              [else (format "data[~a]" arg-pos-in-bvars1)])) 
+                              [else 
+                                (define arg-pos-in-bvars0 (index-of bvars0 arg))
+                                (format "data[~a]" arg-pos-in-bvars0)])) 
                         (range 0 (length indices))))
     "[callback-params]"
     (intercalate "" (map (λ (i) (format "u64 res_~a, " i)) (range 0 (length output-indices))))
