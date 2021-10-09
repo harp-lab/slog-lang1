@@ -129,7 +129,7 @@ def exec_command(client: SlogClient, raw_input: str):
             invalid_alert(f'{cmd} expect 1 arg, but get {len(args)}')
     elif cmd == 'run':
         if len(args) > 1 and (not args[0].startswith('"') or not args[0].endswith('"')):
-            client.invalid_alert(f'{cmd} expect a string at postion 1 as arg')
+            invalid_alert(f'{cmd} expect a string at postion 1 as arg')
             return
         with yaspin(text="Running...") as spinner:
             if len(args) == 2 and len(args[1]) < 5 and args[1].isnumeric():

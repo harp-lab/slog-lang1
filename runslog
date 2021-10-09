@@ -1,73 +1,147 @@
 #!/usr/bin/env python3
 
 """
-Runs a slog file on a specifed server
+Runs a slog file on server or locally.
 
-USAGE: `./runslog <server-address IP> <slogfile> <outrelname> [<factdir>]`
-e.g. `./runslog localhost  ./entrypoint.slog ./my/factdir`
-     `./runslog localhost ./someentry.slog ./some/knowledge.facts`
-     `./runslog localhost ./anotherentry.slog`
+USAGE: `./runslog -s <server-address IP> <slogfile> <out-dir> -f <factdir>`
 
 fact directory is optional.
 However, the output will be stored on the server, and `dumpslog` needs to be used
 to get the output... dumpslog does not exist at the moment.
 """
 
+import argparse
 import os
+from pathlib import Path
+import shutil
+import subprocess
 import sys
 import time
+import uuid
 
 import grpc
 from yaspin import yaspin
 
-from slog.common.client import SlogClient, ConsoleWriter, NoneWriter
+from slog.common.client import SlogClient
 import slog.protobufs.slog_pb2_grpc as slog_pb2_grpc
 
-def main():
-    """
-    Does what main does, collect arguments and run top-level functions.
-    """
-    if len(sys.argv) not in {3, 4}:
-        print("3 or 4 arguments required! See usage at top of file!")
-        sys.exit()
-    server = sys.argv[1] + ":5108" # add gRPC port
-    slogfile = os.path.join(os.getcwd(), sys.argv[2]) # make absolute path
-    #outrel = sys.argv[3] # TODO!
-    if len(sys.argv) == 4:
-        factdir = sys.argv[3] # optional!
-    else:
-        factdir = None
-    cores = 2 # TODO: make this a CLI argument!
 
+def run_local(file, outloc, factloc, cores):
+    """
+    Calls local utilities to compile and run a slog file locally.
+    """
+    #1: shell out to slog compiler to compile file to C++
+    # brittle! Get the name of the binary (just strip the `.slog` out)
+    if not file.endswith('.slog'):
+        print(f"Not given a slog file! given: {file}")
+        return
+    bin_name = os.path.basename(file[:file.rfind('.')])
+    # CURRENTLY VERY BRITTLE! The build directory (where the compiled .cpp is)
+    # needs to be next to the runslog file.
+    inputloc = os.path.normpath(os.path.join(outloc, "input-data"))
+    checkpointloc = os.path.normpath(os.path.join(outloc, "checkpoints"))
+    os.makedirs(outloc, exist_ok=True)
+    os.makedirs(inputloc, exist_ok=True)
+    os.makedirs(checkpointloc, exist_ok=True)
+
+    try:
+        subprocess.check_output(["racket", "compiler/slog.rkt", "-c",
+                                 "--output-code", outloc, "--output-db", checkpointloc,
+                                 "--input-db", inputloc, file],
+                                stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        print(f"Slog->C++ compilation failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
+        return
+    #2: Shell out to cmake to compile tsv_to_bin
+    os.chdir("backend")
+    try:
+        shutil.rmtree("build")
+        subprocess.check_output(["cmake", "-B", "build", "."],
+                                stderr=subprocess.STDOUT)
+        os.chdir("build")
+        subprocess.check_output(["make", "-j", f"{cores}"],
+                                stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        print(f"Compiling tsv->bin failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
+    #3: Shell out to tsv_to_bin to convert fact directory to bin
+    os.chdir("../..") # return to top-level dir.
+    # -- go through every .table file in the input data
+    # -- extract tag, relation name and arity.
+
+    #4: Shell out to cmake to compile C++
+    os.chdir(outloc)
+    try:
+        subprocess.check_output(["cmake", "-B", "build", "."],
+                                stderr=subprocess.STDOUT)
+        os.chdir("build")
+        subprocess.check_output(["make", "-j", f"{cores}"],
+                                stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        print(f"C++->bin failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
+        return
+    #5: Shell out to mpirun to run compiled slog binary with in and out args.
+    os.chdir("../..")
+    try:
+        binary_loc = os.path.realpath(os.path.join(outloc, "build", bin_name))
+        out = subprocess.check_output(["mpirun", "-n", f"{cores}", binary_loc],
+                                      stderr=subprocess.STDOUT)
+        print(out.decode())
+    except subprocess.CalledProcessError as e:
+        print(f"Program failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
+
+def run_server(file, outloc, factloc, server, cores):
+    """
+    Runs the file on the server using the SlogClient interface
+    """
     client = SlogClient(server)
 
     cur_db = ""
     with yaspin(text="Compiling slog file") as spinner:
-        out = client.compile_slog(slogfile, spinner)
+        out = client.compile_slog(file, spinner)
         if out:
             cur_db, program_hashes = out
         else:
             spinner.write("Error compiling slog")
             return
 
-        if factdir:
-            cur_db = client.upload_csvs(factdir, spinner)
+        if factloc:
+            cur_db = client.upload_csvs(factloc, spinner)
             if not cur_db:
                 spinner.write("Error uploading facts")
                 return
         else:
             spinner.write("No input facts, continuing...")
 
-        spinner.write(f"DB: {cur_db}")
         spinner.text = "Running program..."
-        cur_db = client.run_with_db(slogfile, cur_db, cores, spinner)
+        cur_db = client.run_with_db(file, cur_db, cores, spinner)
         if not cur_db:
             spinner.write("Error running file")
 
-        client.pretty_dump_relation("path", spinner)
-
-        client.text = "FINISHED!"
-
+        # TODO: what should the semantics be here
+        #       just print the final ID so we can inspect in REPL?
+        # client.pretty_dump_relation("path", spinner)
+        spinner.write(f"Final DB:\n{cur_db}")
+        spinner.text = "FINISHED!"
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("slogfile", help="The file to be compiled and ran.")
+    parser.add_argument("out_dir",
+                        help="Where output information should be put. "
+                        "This includes compiled files, build files, input data, and output data."
+                        "FOR NOW THIS MUST BE A DIR NEXT TO THIS SCRIPT!!")
+    parser.add_argument("-f", "--facts", help="The location of the input facts file/directory.")
+    parser.add_argument("-s", "--server",
+                        help="The location of the server. If this is used, server mode is used.")
+    parser.add_argument("-c", "--cores",
+                        help="The number of cores to compute with",
+                        type=int, default=1)
+    args = parser.parse_args()
+
+    slogfile = os.path.realpath(args.slogfile)
+    os.makedirs(args.out_dir, exist_ok=True)
+
+    if args.server:
+        run_server(slogfile, args.out_dir, args.facts, args.server + ":5108", args.cores)
+    else:
+        run_local(slogfile, args.out_dir, args.facts, args.cores)

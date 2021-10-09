@@ -25,3 +25,6 @@
  <--
  (direct_call EA EA_pc_thunk)
  (get_pc_thunk EA_pc_thunk Reg)]
+
+[(query_6f3f02e63c arg_0 arg_1 arg_2 arg_3 arg_4 arg_5 arg_6 arg_7) <-- (instruction 2 4 arg_0 arg_1 arg_2 arg_3 arg_4 arg_5 arg_6 arg_7 )]
+

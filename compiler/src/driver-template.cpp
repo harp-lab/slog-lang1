@@ -1,4 +1,5 @@
-#include "../src/parallel_RA_inc.h"
+// location of `parallel_RA_inc.h` here
+#include "~a"
 
 // builtins.cpp goes here!
 ~a

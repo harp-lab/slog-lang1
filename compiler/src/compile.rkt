@@ -132,16 +132,17 @@
                  [_ #f]))
              (define maybe-relation (filter matches relations))
              (when (not (= (length maybe-relation) 1))
-               (error (format "Could not find an appropriate relation ~a ~a (either 0 or >1 possible candidates)" rel-name rel-arity)))
+               (error (format "Could not find an appropriate relation ~a with arity ~a (need 1 candidate, got ~a)" rel-name rel-arity (length maybe-relation))))
              (define relation (first maybe-relation))
              (match-define `(relation ,_ ,_ ,rid ,index ,data) relation)
              (string-append rel-txt
-                            (format "relation* ~a = new relation(~a, ~a, ~a, get_tag_for_rel(\"~a\",slog_input_dir), \"~a\", ~a FULL);\n"
+                            (format "relation* ~a = new relation(~a, ~a, ~a, get_tag_for_rel(\"~a\",slog_input_dir,~a), \"~a\", ~a FULL);\n"
                                     (rel->name rel-sel)
                                     (length (rel->sel rel-sel))
                                     (if (and (not (member 0 (rel->sel rel-sel))) (= (length (rel->sel rel-sel)) (rel->arity rel-sel))) "true" "false")
                                     (rel->arity rel-sel)
                                     rel-name
+                                    (rel->arity rel-sel)
                                     (rel->name rel-sel)
                                     (if (and (not (member 0 (rel->sel rel-sel))) (= (length (rel->sel rel-sel)) (rel->arity rel-sel)))
                                         (format "slog_input_dir + \"/~a.~a.~a.table\"," rid rel-name rel-arity)

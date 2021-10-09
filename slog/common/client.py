@@ -213,6 +213,7 @@ class SlogClient:
 
     def run_with_db(self, filename, db_id=None, cores=2, writer=Writer()):
         ''' run a program with input database '''
+        self.update_dbs()
         if not db_id:
             db_id = self.cur_db
         path = os.path.join(os.getcwd(), filename)

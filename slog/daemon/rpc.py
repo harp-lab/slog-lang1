@@ -82,7 +82,7 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
         self._db.save_file_hashes(fdict)
         return ret
 
-    def PutCSVFacts(self, requests, _context):
+    def PutCSVFacts(self, requests, context):
         # write csv to tmp
         failed_files = []
         ret = slog_pb2.FactResponse()

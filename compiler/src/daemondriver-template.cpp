@@ -8,7 +8,7 @@
 
 std::vector<int> used_tags;
 
-int get_tag_for_rel(std::string relation_name, std::string db_dir) {
+int get_tag_for_rel(std::string relation_name, std::string db_dir, int arity) {
   used_tags.push_back(255);
   for (const auto & entry : std::filesystem::directory_iterator(db_dir))
   {
@@ -25,12 +25,13 @@ int get_tag_for_rel(std::string relation_name, std::string db_dir) {
     std::string filename_s = entry.path().stem().string();
     std::cout << "filename >>>>>>>>>>> " << filename_s << std::endl;
     std::string rel_name = filename_s.substr(filename_s.find(".")+1, filename_s.rfind(".")-filename_s.find(".")-1);
+    std::string arity_s = filename_s.substr(filename_s.rfind(".")+1, filename_s.size()-filename_s.rfind(".")-1);
     std::string tag_s = filename_s.substr(0, filename_s.find("."));
     std::cout << "relation1 >>>>>>>>>> " << rel_name << std::endl;
     std::cout << "relation2 >>>>>>>>>> " << relation_name << std::endl;
-    if (rel_name == relation_name)
+    if (rel_name == relation_name && arity == std::stoi(arity_s))
     {
-      std::cout << "relation " << std::stoi(tag_s) << std::endl;
+      std::cout << "relation " << tag_s << " " << arity_s << std::endl;
       return std::stoi(tag_s);
     }
     used_tags.push_back(std::stoi(tag_s));
