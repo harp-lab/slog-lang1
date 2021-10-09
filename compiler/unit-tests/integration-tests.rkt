@@ -218,6 +218,14 @@
      -->
      (foo res)]"
     '(foo _) (list->set (map (λ (lst) `(foo ,(to-desugared-slog-list lst))) (permutations '(1 2 3 4)))))
+
+   (slog-behavior-test-case
+    "repeated vars in head clauses"
+    "[(foo e (ctx (null 0) (null 0) (null 0)) (ctx e (null 0) (null 0)))
+      <--
+      (bar e)]
+     (bar 1234)"
+    '(foo _ _ _) (set '(foo 1234 (ctx (null 0) (null 0) (null 0)) (ctx 1234 (null 0) (null 0)))))
     
     (slog-behavior-test-case
     "multi-splicing-lists.slog"
