@@ -132,7 +132,7 @@
                  [_ #f]))
              (define maybe-relation (filter matches relations))
              (when (not (= (length maybe-relation) 1))
-               (error (format "Could not find an appropriate relation ~a ~a (either 0 or >1 possible candidates)" rel-name rel-arity)))
+               (error (format "Could not find an appropriate relation ~a with arity ~a (need 1 candidate, got ~a)" rel-name rel-arity (length maybe-relation))))
              (define relation (first maybe-relation))
              (match-define `(relation ,_ ,_ ,rid ,index ,data) relation)
              (string-append rel-txt
