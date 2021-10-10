@@ -130,17 +130,17 @@
  (flow_ee e ebnd)
  <--
  (E e ctx ak)
- (tmp1 e ctx ectx x ebnd ebody)]
-
-[(tmp1 e ctx ectx x ebnd ebody)
- <--
  (peek_ctx e ctx ectx)
- (tmp0 e x ebnd ebody)]
-
-[(tmp0 e x ebnd ebody)
- <--
  (let_list ll x ebnd)
  (let e ll ebody)]
+
+;; [(tmp1 e ctx ectx x ebnd ebody)
+;;  <--
+;; ]
+
+;; [(tmp0 e x ebnd ebody)
+;;  <--
+;; ]
 
 ;; binary primitive operation expression
 [(E earg0 ctx (kaddr earg0 ctx))
@@ -225,10 +225,8 @@
 ;; processed arg, call closure
 [(E ebody ectx next_ak)
  (store (vaddr x ectx) v)
- (here2 ctx_clo ectx elam)
  (copy_ctx ctx_clo ectx elam)
  (flow_ae v ebody)
- (here ebody pos x v ectx)
  <--
  (lambda_arg_list params pos x)
  (lambda elam params ebody)
