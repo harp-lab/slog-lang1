@@ -7,6 +7,7 @@
 
 (define slog-print-ir (make-parameter #f))
 (define slog-print-ir-flat (make-parameter #f))
+(define slog-print-ir-small (make-parameter #f))
 (define slog-version-major 0)
 (define slog-version-minor 0)
 (define slog-version-revision 0)

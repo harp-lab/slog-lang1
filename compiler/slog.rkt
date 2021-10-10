@@ -35,6 +35,8 @@
     (slog-bucket-count (string->number n))]
    [("--pf" "--print-final-ir") "Print the final ir"
     (slog-print-ir #t)]
+   [("--ps" "--print-ir-small") "Print ir-small"
+    (slog-print-ir-small #t)]
    [("-p" "--print-ir-flat") "Print ir-flat"
     (slog-print-ir-flat #t)]
    [("--debug-smt") "Print debug informations about smt calls"
@@ -106,6 +108,12 @@
 (when (slog-print-ir-flat)
   (void (print-ir-flat (ir->ir-flat program))))
 
+(match-define `(ir-scc ,ir-select ,scc-dag ,scc-h ,_comp-rules-h) ir-scc)
+(match-define `(ir-select ,ir-small ,rel-h ,rules-h ,__comp-rules-h) ir-select)
+
+(when (slog-print-ir-small)
+  (void (print-ir-small ir-small)))
+
 (define all-rules (flat-map (λ (scc) (hash-keys (fourth scc))) (hash-values scc-map)))
 (define all-rule-types (map rule-type all-rules))
 (printf "\nAll rules: ~a, arules: ~a, copy rules: ~a, join rules: ~a, facts: ~a\n"
@@ -117,9 +125,6 @@
 
 (when (> (hash-count comp-rules-h) 0)
   (printf "comp rules: ~a\n" (hash-count comp-rules-h)))
-
-(match-define `(ir-scc ,ir-select ,scc-dag ,scc-h ,_comp-rules-h) ir-scc)
-(match-define `(ir-select ,ir-old ,rel-h ,rules-h ,__comp-rules-h) ir-select)
 
 (printf "rels: ~a, sccs: ~a\n" (hash-count rel-h) (hash-count scc-h))
 

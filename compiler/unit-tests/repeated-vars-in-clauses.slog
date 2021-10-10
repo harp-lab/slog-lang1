@@ -1,0 +1,12 @@
+[(a-foo e (a-ctx (a-null 0) (a-null 0) (a-null 0)) (a-ctx e (a-null 0) (a-null 0)))
+ <--
+ (a-bar e)]
+(a-bar 1234)
+
+;;B -------------------------------------------------------
+
+[(b-baz (b-bar e (b-null 0) (b-null 0)))
+ <--
+ (b-foo e)]
+(b-foo 1)
+

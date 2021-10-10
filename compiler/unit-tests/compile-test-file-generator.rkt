@@ -59,8 +59,15 @@
           ((rel-version < 2 (2 1) comp) x 100 _1))]
   [lam8 (generate-cpp-lambda-for-rule-with-callback-builtin rule8 '(1 2) "builtin_less")]
 
+  [rule9 '(srule
+         ((rel-select $inter-body4 3 (1 2 3) db) $id1 $id2 e)
+         ((rel-version $inter-body3 3 (1) total) $id1 $_14 $id2 e)
+         ((rel-version = 2 (1 2) comp) $id1 $id1 $_8))]
+  [lam9 (generate-cpp-lambda-for-rule-with-callback-builtin rule9 '(1 2) "builtin_eq")]
+
+
   [builtins-test-template-file (file->string (get-path "./builtins-tests-template.cpp"))]
-  [output-file (format builtins-test-template-file lam1 lam2 lam3 lam4 lam5 lam6 lam7 lam8)])
+  [output-file (format builtins-test-template-file lam1 lam2 lam3 lam4 lam5 lam6 lam7 lam8 lam9)])
   (display-to-file output-file (get-path "./output/builtins-tests-generated.cpp") 	#:exists 'replace))
 
 (let* 
@@ -113,6 +120,24 @@
        
        (crule ((rel-select factorial 2 (1) comp) 0 _ 1))}
       (hash '(rel-select factorial 2 (1) comp) "cpp_factorial"))]
+  
+  [func3
+    (generate-cpp-func-for-computational-relation-rules
+      '{
+        (crule ((rel-select comp_rel3 3 (1 2) comp) 42 inp _ res)
+              ((rel-select + 3 (1 2) comp) inp 1 _ inp+1)
+              ((rel-select > 2 (1 2) comp) inp+1 inp _)
+              ((rel-select < 2 (2 1) comp) inp+1 inp _)
+              ((rel-select * 3 (1 2) comp) inp+1 2 _ res))}
+      (hash '(rel-select comp_rel3 3 (1 2) comp) "comp_rel3"))]
+  
+  [func4
+    (generate-cpp-func-for-computational-relation-rules
+      '{
+        (crule ((rel-select comp_rel4 3 (1 2) comp) x y _ 100)
+              ((rel-select < 2 (2 1) comp) y x _))}
+      (hash '(rel-select comp_rel4 3 (1 2) comp) "comp_rel4"))]
+
   [cpp-file-contents-filled-in 
     (string-replace-all cpp-file-contents 
                         "[BI_EXTENDED_LAM]" bi-extended-lam
@@ -122,6 +147,8 @@
                         "[COPY_LAM2]" copy-lam2
                         "[COMPUTATIONAL_RELATION_FUNC]" computational-relation-func
                         "[FACTORIAL_FUNC]" factorial-func
+                        "[FUNC3]" func3
+                        "[FUNC4]" func4
                         )])
 
   (display-to-file cpp-file-contents-filled-in (get-path "./output/builtins-tests2-generated.cpp") #:exists 'replace))
