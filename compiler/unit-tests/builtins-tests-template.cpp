@@ -167,5 +167,24 @@ int main(){
       assert(out[0] == n2d(1001) && out[1] == x && out[2] == n2d(1002) && out[3] == y && out[4] == n2d(1003) && out[5] == z);
     }
   }
+
+  {
+    // [rule9 '(srule
+    //      ((rel-select $inter-body4 3 (1 2 3) db) $id1 $id2 e)
+    //      ((rel-version $inter-body3 3 (1) total) $id1 $_14 $id2 e)
+    //      ((rel-version = 2 (1 2) comp) $id1 $id1 $_8))]
+    // [lam9 (generate-cpp-lambda-for-rule-with-callback-builtin rule9 '(1 2) "builtin_eq")]
+    auto lam = ~a;
+    {
+      u64 id1 = n2d(42), id2 = n2d(123), e = n2d(1000);
+      auto input = vector<u64> {id1, 9999, id2, e};
+      u64 out[1000];
+      auto res = lam(input.data(), out);
+      // cout << "res: " << res << "\n";
+      assert( res == 1);
+      // for (int i =0; i<3; i++) cout << "out["<<i<<"]: " << out[i] << ", "; cout << "\n";
+      assert(out[0] = id1 && out[1] == id2 && out[2] == e);
+    }
+  }
   return 0;
 }

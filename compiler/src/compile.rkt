@@ -466,7 +466,9 @@
                             (define arg (list-ref bvars1 arg-pos-in-bvars1))
                             (match arg
                               [(? lit?) (format "n2d(~a)" arg)]
-                              [else (format "data[~a]" arg-pos-in-bvars1)])) 
+                              [else 
+                                (define arg-pos-in-bvars0 (index-of bvars0 arg))
+                                (format "data[~a]" arg-pos-in-bvars0)])) 
                         (range 0 (length indices))))
     "[callback-params]"
     (intercalate "" (map (λ (i) (format "u64 res_~a, " i)) (range 0 (length output-indices))))
@@ -622,7 +624,8 @@
 (define (generate-cpp-lambda-for-computational-join cl1 cl1func cl2 cl2func input-args output-args)
   
   (string-replace-all
-   "[](const u64* data, auto init_state, decltype(init_state) (*callback) ([callback-args] decltype(init_state) state)) -> decltype(init_state){
+   "/* [comment] */
+    [](const u64* data, auto init_state, decltype(init_state) (*callback) ([callback-args] decltype(init_state) state)) -> decltype(init_state){
      typedef decltype(init_state) (*original_callback_t) ([callback-args] decltype(init_state) state);
      typedef CL2CB_State (*cl1cb_t) ([cl1cb-params] CL2CB_State cl1cb_state);
     
@@ -641,9 +644,10 @@
      });
      return *((decltype(init_state)*) res.original_state); 
     }"
+    "[comment]" (format "lam for comp join ~a with ~a" cl1 cl2)
     "[callback-args]" (intercalate2 ", " (map (λ (x) (format "u64 arg~a" x)) (range 0 (length output-args))))
-    "[cl1func]" cl1func ; TODO ...
-    "[cl2func]" cl2func ; TODO ...
+    "[cl1func]" cl1func
+    "[cl2func]" cl2func
     "[cl1func-input]" (intercalate ", " (map (λ (arg) (match arg
                                           [(? number? n) (format "number_to_datum(~a)" n)]
                                           [(? symbol?) (format "data[~a]" (index-of input-args arg))])) 
@@ -672,11 +676,24 @@
     
     ))
 
+(define (get-cpp-func-for-comp-rel-with-extended-args available-rel-select available-func target-indices)
+  (match-define `(,rel-select ,name ,arity ,available-indices comp) available-rel-select)
+  (cond
+   [(equal? available-indices target-indices) available-func]
+   [else
+    (define arg-sym (λ (i) (string->symbol (format "arg~a" i))))
+    (define src-args (map arg-sym (append available-indices (remove* available-indices (range 0 (add1 arity))))))
+    (define target-args (map arg-sym (append target-indices (remove* target-indices (range 0 (add1 arity))))))
+    (define src-cl `((rel-version ,name ,arity ,available-indices comp) ,@src-args))
+    (define target-cl `((rel-version ,name ,arity ,target-indices comp) ,@target-args))
+    (generate-cpp-lambda-for-computational-copy src-cl available-func target-cl)]))
+
 (define (generate-cpp-lambda-for-computational-copy bcl bfunc hcl)
   (define input-args (cl-input-args hcl))
   (define output-args (cl-output-args hcl))
   (string-replace-all
-   "[](const u64* data, auto init_state, decltype(init_state) (*callback) ([callback-args] decltype(init_state) state)) -> decltype(init_state){
+   "/* [comment] */
+    [](const u64* data, auto init_state, decltype(init_state) (*callback) ([callback-args] decltype(init_state) state)) -> decltype(init_state){
       
       typedef decltype(init_state) (*original_callback_t) ([callback-args] decltype(init_state) state);
       if (! ([check-input-compatibility] true)) return init_state;
@@ -692,6 +709,7 @@
       });
       return *((decltype(init_state)*) res.original_state);
     }"
+   "[comment]" (format "lam for [~a --> ~a]" bcl hcl)
    "[callback-args]" (intercalate2 ", " (map (λ (x) (format "u64 arg~a" x)) (range 0 (length (cl-output-args hcl)))))
    "[bclfunc]" bfunc
    "[bclfunc-input]" (intercalate ", " (map (λ (arg) (match arg
@@ -731,7 +749,7 @@
   (generate-cpp-lambda-for-computational-copy dummy-bcl dummy-bi-func-name hcl))
 
 
-;; TODO this is trash
+;; TODO this is trash::
 (define (get-func-for-comp-rel bi cr-names)
   ; (printf "get-func-for-comp-rel bi : ~a, cr-names: ~a\n" bi cr-names)
   (match-define `(rel-version ,rel-name ,rel-arity ,rel-indices ,_) (->rel-version bi))
@@ -739,20 +757,29 @@
     [(hash-has-key? cr-names bi) 
       (hash-ref cr-names bi)]
     [else
-      (define matching-spec 
-        (findf (λ (bi-spec)
+      (define matching-specs 
+        (filter (λ (bi-spec)
                 (match-define `(,name ,arity ,indices ,cpp-func-name) bi-spec)
                 (and (equal? rel-name name)
                     (equal? rel-arity arity)
-                    (equal? rel-indices indices))) callback-builtins))
-      (match-define `(,name ,arity ,indices ,cpp-func-name) matching-spec)
-      cpp-func-name]))
+                    (subset? (list->set indices) (list->set rel-indices)))) callback-builtins))
+      (define best-match
+        (argmin (λ (bi-spec)
+                  (match-define `(,name ,arity ,indices ,cpp-func-name) bi-spec)
+                  (set-count (set-subtract (list->set rel-indices) (list->set indices))))
+                matching-specs))
+         (match-define `(,name ,arity ,indices ,cpp-func-name) best-match)
+         (cond
+          [(equal? indices rel-indices)
+            cpp-func-name]
+          [else
+            (get-cpp-func-for-comp-rel-with-extended-args `(rel-select ,name ,arity ,indices comp) cpp-func-name rel-indices)])]))
 
 ; cr-names: a hash from computational relation rel-versions to the function names implementing them
 (define (generate-lambda-for-computational-relation-rule rule cr-names)
   (match-define `(crule ,(and hcl `((rel-select ,rel-name ,rel-arity ,rel-indices comp) ,hvars ...))
                         ,bcls ...) (strip-prov rule))
-  (define bcls-ordered bcls) ; TODO can we assume bcls are ordered?
+  (define bcls-ordered bcls)
   
   (match (length bcls-ordered)
     [0 
