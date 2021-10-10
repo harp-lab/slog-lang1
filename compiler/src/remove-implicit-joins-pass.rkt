@@ -8,6 +8,7 @@
 (require "utils.rkt")
 (require "lang-utils.rkt")
 (require "slog-params.rkt")
+(require "static-unification-pass.rkt")
 
 
 (define/contract-cond (remove-implicit-joins-pass ir)
@@ -16,8 +17,9 @@
   (define all-comp-rels (set-union all-builtin-names (ir-flat-rules-h->head-rels comp-rules-h)))
   `(ir-flat
     ,source-tree
-    ,(hash-map-keys (compose (app replace-constants-with-equals-clauses _ all-comp-rels)
-                             replace-repeated-vars-in-body-clauses) 
+    ,(hash-map-keys (compose remove-silly-clauses
+                             replace-repeated-vars-in-body-clauses 
+                             (app replace-constants-with-equals-clauses _ all-comp-rels)) 
                     rules-h)
     ,comp-rules-h))
 
