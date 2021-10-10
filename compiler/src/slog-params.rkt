@@ -32,3 +32,4 @@
 (define slog-debug-smt (make-parameter #f))
 (define slog-merge-builtins (make-parameter #f))
 (define check-cond-contracts (make-parameter #t))
+(define print-relations (make-parameter 'none))

@@ -16,20 +16,6 @@
 // #define OLD_CTX $Context()
 // #define NEW_CTX $Context()
 
-// 1-CFA
-// #define CONTEXT_TYPE Context{ctx0:id}
-// #define EMPTY_CTX $Context("")
-// #define INIT_CTX $Context(e)
-// #define OLD_CTX $Context(ctx0)
-// #define NEW_CTX $Context(e)
-
-// 2-CFA
-// #define CONTEXT_TYPE Context{ctx0:id,ctx1:id}
-// #define EMPTY_CTX $Context("","")
-// #define INIT_CTX $Context(e,"")
-// #define OLD_CTX $Context(ctx1,ctx0)
-// #define NEW_CTX $Context(e,ctx1)
-
 // 3-CFA
 #define CONTEXT_TYPE Context{ctx0:id,ctx1:id,ctx2:id}
 #define EMPTY_CTX $Context("","","")
@@ -37,12 +23,12 @@
 #define OLD_CTX $Context(ctx2,ctx1,ctx0)
 #define NEW_CTX $Context(e,ctx2,ctx1)
 
-// 4-CFA
-// #define CONTEXT_TYPE Context{ctx0:id,ctx1:id,ctx2:id,ctx3:id}
-// #define EMPTY_CTX $Context("","","","")
-// #define INIT_CTX $Context(e,"","","")
-// #define OLD_CTX $Context(ctx0,ctx1,ctx2,ctx3)
-// #define NEW_CTX $Context(e,ctx0,ctx1,ctx2)
+// 5-CFA
+// #define CONTEXT_TYPE Context{ctx0:id,ctx1:id,ctx2:id,ctx3:id,ctx4:id,ctx5:id}
+// #define EMPTY_CTX $Context("","","","","","")
+// #define INIT_CTX $Context(e,"","","","","")
+// #define OLD_CTX $Context(ctx0,ctx1,ctx2,ctx3,ctx4,ctx5)
+// #define NEW_CTX $Context(e,ctx0,ctx1,ctx2,ctx3,ctx4)
 
 .type context = CONTEXT_TYPE
 

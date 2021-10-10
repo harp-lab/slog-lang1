@@ -51,6 +51,8 @@
     (set! default-input-dir input-db)]
    [("--output-db") output-db "Output database (facts / updated manifest written here)"
     (set! output-database output-db)]
+   [("--printrels") rels "Print relation sizes (each iteration)"
+    (print-relations (file->lines rels))]
    [("-f") "Be fast! (disable contract checking)"
     (check-cond-contracts #f)]
    #:once-any
