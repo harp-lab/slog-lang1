@@ -29,7 +29,7 @@ private:
     u32 lie_sccs_count;
     std::vector<RAM*> lie_sccs;
     //RAM *lie_sccs[2048];
-    int iteration_count[2048];
+    //int iteration_count[2048];
 
     //u32 lie_sccs_key;
     //std::map<u32, RAM*> lie_sccs;                                 /// List of all tasks

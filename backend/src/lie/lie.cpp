@@ -143,9 +143,9 @@ void LIE::print_all_relation_size()
 #if 1
     for (u32 i = 0 ; i < lie_relation_count; i++)
     {
-        //relation* curr_relation = lie_relations[i];
-        //if (mcomm.get_local_rank() == 0)
-        //    std::cout << curr_relation->get_debug_id() << ": {" << curr_relation->get_arity() << "}. (" << global_total_facts[i] << " total facts)" << std::endl;
+        relation* curr_relation = lie_relations[i];
+        if (mcomm.get_local_rank() == 0)
+            std::cout << curr_relation->get_debug_id() << ": {" << curr_relation->get_arity() << "}. (" << global_total_facts[i] << " total facts)" << std::endl;
         total_facts = total_facts + global_total_facts[i];
     }
 #endif
@@ -230,8 +230,8 @@ bool LIE::execute ()
     if (mcomm.get_local_rank() == 0)
         std::cout << "Using Google maps"  << std::endl;
 #else
-    if (mcomm.get_local_rank() == 0)
-        std::cout << "Using Tom's Shmap " << lie_relation_count <<  std::endl;
+    //if (mcomm.get_local_rank() == 0)
+    //    std::cout << "Using Tom's Shmap " << lie_relation_count <<  std::endl;
 #endif
 
     /// Initialize all relations
@@ -248,8 +248,8 @@ bool LIE::execute ()
 #endif
     }
 
-    if (mcomm.get_local_rank() == 0)
-        std::cout << "Done initializing " << lie_relation_count <<  std::endl;
+    //if (mcomm.get_local_rank() == 0)
+    //    std::cout << "Done initializing " << lie_relation_count <<  std::endl;
 
 #if 0
     /// create output directory for checkpoint dumps
@@ -364,7 +364,8 @@ bool LIE::execute ()
         /// Initialize all relations
         //relation** scc_relation = executable_task->get_RAM_relations();
         std::vector<relation*> scc_relation = executable_task->get_RAM_relations();
-        bool* scc_relation_status = executable_task->get_RAM_relations_status();;
+        //bool* scc_relation_status = executable_task->get_RAM_relations_status();;
+        std::vector<bool> scc_relation_status = executable_task->get_RAM_relations_status();;
         u32 scc_relation_count = executable_task->get_ram_relation_count();
         if (restart_flag == false)
         {
@@ -446,20 +447,20 @@ bool LIE::execute ()
             }
 #endif
             //loop_counter++;
-            iteration_count[executable_task->get_id()] = loop_counter;
+            //iteration_count[executable_task->get_id()] = loop_counter;
 
 #if DEBUG_OUTPUT
             //for (u32 i = 0 ; i < scc_relation_count; i++)
             //    scc_relation[i]->print();
             print_all_relation_size();
 #endif
-            print_all_relation_size();
+            //print_all_relation_size();
         }
         /// For SCCs that runs till fixed point is reached
         else
         {
-            if (mcomm.get_rank() == 0)
-                std::cout << "name\tnprocs\tmin\tmax\tmean\tIteration#\tBuffer_creation_time\tComputation_time\tAll_to_all_time\tBuffer_free_time\tInsert_in_newt_time\tIntra_comm_time\tInsert_in_full_time\tTotal_time" << std::endl;
+            //if (mcomm.get_rank() == 0)
+            //    std::cout << "name\tnprocs\tmin\tmax\tmean\tIteration#\tBuffer_creation_time\tComputation_time\tAll_to_all_time\tBuffer_free_time\tInsert_in_newt_time\tIntra_comm_time\tInsert_in_full_time\tTotal_time" << std::endl;
             u64 delta_in_scc = 0;
             do
             {
@@ -493,7 +494,7 @@ bool LIE::execute ()
                 }
 #endif
                 //loop_counter++;
-                iteration_count[executable_task->get_id()] = loop_counter;
+                //iteration_count[executable_task->get_id()] = loop_counter;
 
 
 #if DEBUG_OUTPUT
@@ -501,7 +502,7 @@ bool LIE::execute ()
                 //    scc_relation[i]->print();
                 print_all_relation_size();
 #endif
-                print_all_relation_size();
+                //print_all_relation_size();
             }
             while (delta_in_scc != 0);
         }
@@ -518,6 +519,7 @@ bool LIE::execute ()
         /// loads new runnable task
         executable_task = one_runnable_tasks();
     }
+    print_all_relation_size();
 
     write_final_checkpoint_dump();
 
