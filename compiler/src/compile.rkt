@@ -741,6 +741,8 @@
                 (and (equal? rel-name name)
                     (equal? rel-arity arity)
                     (subset? (list->set indices) (list->set rel-indices)))) callback-builtins))
+      (when (empty? matching-specs)
+        (error (format "no suitable implementation exists for builtin ~a" bi)))
       (define best-match
         (argmin (λ (bi-spec)
                   (match-define `(,name ,arity ,indices ,cpp-func-name) bi-spec)
