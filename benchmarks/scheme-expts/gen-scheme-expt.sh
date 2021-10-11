@@ -11,16 +11,16 @@ mkdir $fact_dir &>/dev/null
 output=$here/../souffle-compiled-$program
 cat scheme-mcfa.slog >$program.slog
 racket scheme-fact-gen.rkt $2 $fact_dir >>$program.slog
-echo "-- Compiling Souffle sources --"
-echo "-- Output in parent directory --"
-for cores in 1 2 4 8 16
-do
-    "-- Compiling Souffle $cores cores --"
-    echo "souffle -g -j$cores -o $output-$cores-cores scheme_mcfa.dl -F $fact_dir"
-    time souffle -g -j$cores -o $output-$cores-cores scheme_mcfa.dl -F $fact_dir 
-done
-# echo "-- Compiling Slog source (output db in $slog_dir) --"
+# echo "-- Compiling Souffle sources --"
 # echo "-- Output in parent directory --"
-# cd $here/..
-# cp $here/$program.slog $here/..
-# bash build-mpi.sh $program $program.slog
+# for cores in 1 2 4 8 16
+# do
+#     "-- Compiling Souffle $cores cores --"
+#     echo "souffle -g -j$cores -o $output-$cores-cores scheme_mcfa.dl -F $fact_dir"
+#     time souffle -g -j$cores -o $output-$cores-cores scheme_mcfa.dl -F $fact_dir 
+# done
+echo "-- Compiling Slog source (output db in $slog_dir) --"
+echo "-- Output in parent directory --"
+cd $here/..
+cp $here/$program.slog $here/..
+bash build-mpi.sh $program $program.slog
