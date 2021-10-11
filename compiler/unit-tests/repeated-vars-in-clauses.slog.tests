@@ -1,0 +1,8 @@
+(a-foo _ _ _)
+{(a-foo
+ 1234
+ (a-ctx (a-null 0) (a-null 0) (a-null 0))
+ (a-ctx 1234 (a-null 0) (a-null 0)))}
+
+(b-baz _)
+{(b-baz (b-bar 1 (b-null 0) (b-null 0)))}

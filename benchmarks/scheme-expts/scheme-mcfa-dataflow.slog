@@ -1,0 +1,282 @@
+;; Written by Davis Silverman and Yihao Sun!!!
+;; Rewritten in Slog by Kris Micinski
+
+;; Hacked to attempt to accelerate transitive flows --T
+
+;; Scheme free variables
+[(free x e) <-- (var e x)]
+
+[(free x e)
+ <--
+ (lambda e vars body)
+ (free x body)
+ (lambda_arg_list vars _ y)
+ (=/= x y)]
+
+[(free x e)
+ <--
+ (call e func args)
+ (or (free x func) (free x args))]
+
+[(free x e)
+ <--
+ (prim_call e _ args)
+ (free x args)]
+
+[(free x e)
+ <--
+ (call_arg_list e pos arg)
+ (free x arg)]
+
+[(free x e)
+ <--
+ (if e eguard et ef)
+ (or (free x eguard) (free x et) (free x ef))]
+
+[(free y e)
+ <-- 
+ (setb e _ ev)
+ (free y ev)]
+
+[(free x e)
+ <--
+ (callcc e ev)
+ (free x ev)]
+
+[(free x e)
+ <--
+ (let e binders body)
+ (or (free x binders) (free x body))]
+
+[(free x e)
+ <--
+ (let_list e a binder)
+ (free x binder)
+ (=/= x a)]
+
+;; Injection
+
+[(E e [(null 0) (null 0) (null 0)] (kaddr e [(null 0) (null 0) (null 0)]))
+ (peek_ctx e [(null 0) (null 0) (null 0)] [e (null 0) (null 0)])
+ (store (kaddr e [(null 0) (null 0) (null 0)]) (mt 0))
+ <--
+ (top_exp e)]
+
+;; Context propagation
+[(peek_ctx e [c0 c1 c2] [e c0 c1])
+ <-- 
+ (E e [c0 c1 c2] _)
+ (or (callcc e _) (call e _ _) (let e _ _) (lambda e _ _))]
+
+;; Copy contexts
+[(store_flow (vaddr fv from) (vaddr fv to))
+ <--
+ (free fv e)
+ (trans_copy_ctx from to e)]
+
+; Perhaps accelerates transitive ctx flow?
+[(trans_copy_ctx from to e)
+ <--
+ (copy_ctx from to e)]
+[(trans_copy_ctx from to e)
+ <--
+ (trans_copy_ctx from int e)
+ (trans_copy_ctx int to e)]
+
+;;;;;;;; Step functions
+
+;;;; Evaluation
+;;;;  E states produce values returned in A states.
+
+;; conditional
+[(E eguard ctx (kaddr eguard ctx))
+ (store (kaddr eguard ctx) (ifk et ef ctx ak))
+ (flow_ee e eguard)
+ <--
+ (E e ctx ak)
+ (if e eguard et ef)]
+
+;; call/cc expression
+[(E elam ctx (kaddr elam ctx))
+ (store (kaddr elam ctx) (callcck ectx ak))
+ (flow_ee e elam)
+ <--
+ (E e ctx ak)
+ (peek_ctx e ctx ectx)
+ (callcc e elam)]
+
+;; set! expression
+[(E esetto ctx (kaddr esetto ctx))
+ (store (kaddr esetto ctx) (setk (vaddr x ctx)))
+ (flow_ee e esetto)
+ <--
+ (E e ctx ak)
+ (setb e x esetto)]
+
+;; untagged application
+[(E efunc ctx (kaddr efunc ctx))
+ (store (kaddr efunc ctx) (argk eargs ctx ectx ak))
+ (flow_ee e efunc)
+ <--
+ (call e efunc eargs)
+ --
+ (E e ctx ak)
+ (peek_ctx e ctx ectx)]
+
+;; let-binding expression
+[(E ebnd ctx (kaddr ebnd ctx))
+ (store (kaddr ebnd ctx) (letk (vaddr x ectx) ebody ectx ak))
+ (copy_ctx ctx ectx e)
+ (flow_ee e ebnd)
+ <--
+ (E e ctx ak)
+ (peek_ctx e ctx ectx)
+ --
+ (let_list ll x ebnd)
+ (let e ll ebody)]
+
+;; binary primitive operation expression
+[(E earg0 ctx (kaddr earg0 ctx))
+ (store (kaddr earg0 ctx) (prim1 op earg1 ctx ak))
+ (flow_ee e earg0)
+ <--
+ (E e ctx ak)
+ --
+ (prim_call e op pl)
+ (call_arg_list pl 0 earg0)
+ (call_arg_list pl 1 earg1)]
+
+;; Store transitive flows
+
+[(trans_store_flow addr_from addr_to)
+ <--
+ (store_flow addr_from addr_to)]
+[(trans_store_flow addr_from addr_to)
+ <--
+ (trans_store_flow addr_from int)
+ (trans_store_flow int addr_to)]
+[(store addr_to v)
+ <--
+ (trans_store_flow addr_from addr_to)
+ (store addr_from v)]
+
+;;;;;;;; Atomic evaluation
+;;;;;;;; ⟨E ... ⟩ → ⟨A ...⟩ → ⟨E ... ⟩ ...
+
+;; numbers
+[(A (number n) ak)
+ (flow_ea e (number n))
+ <--
+ (E e ctx ak)
+ (num e n)]
+
+;; booleans
+[(A (boolv b) ak)
+ (flow_ea e (boolv b))
+ <--
+ (E e ctx ak)
+ (bool e b)]
+
+;; closures
+[(A (closure e ctx) ak)
+ (flow_ea e (closure e ctx))
+ <--
+ (E e ctx ak)
+ (lambda e _ _)]
+
+;; variable ref
+[(A v ak)
+ (flow_ea e v)
+ <--
+ (store (vaddr x ctx) v)
+ (var e x)
+ (E e ctx ak)]
+
+;; A application forms
+
+;; return conditional true
+[(E et ctx_k next_ak)
+ (flow_ae (boolv 1) et)
+ <-- 
+ (store ak (ifk et _ ctx_k next_ak))
+ --
+ (or (A (boolv 1) ak) 
+     (A (closure _ _) ak)
+     (A (number _) ak) 
+     (A (kont _) ak))] ;; todo: any truthy (non-0?)
+
+;; return conditional false
+[(E et ctx_k next_ak)
+ (flow_ae (boolv 0) et)
+ <-- 
+ (store ak (ifk et _ ctx_k next_ak))
+ (A (boolv 0) ak)]  ;; todo bad type (num)
+
+;; cc calling a continuation instead of a lambda
+;; such as (call/cc (call/cc (λ (k) k)))
+[(A (kont ak) bk)
+ (flow_aa (kont bk) (kont ak))
+ <--
+ (store ak (callcc _ _))
+ (A (kont bk) ak)]
+
+;; processed fn, now to process argument.
+[(E earg ctx (kaddr earg ctx))
+ (store (kaddr earg ctx) (fn v pos ectx next_ak))
+ (flow_ae v earg)
+ <--
+ (call_arg_list eargs pos earg)
+ (store ak (argk eargs ctx ectx next_ak))
+ (A v ak)]
+
+;; processed arg, call closure
+[(E ebody ectx next_ak)
+ (store (vaddr x ectx) v)
+ (copy_ctx ctx_clo ectx elam)
+ (flow_ae v ebody)
+ <--
+ (lambda_arg_list params pos x)
+ (lambda elam params ebody)
+ --
+ (store ak (fn (closure elam ctx_clo) pos ectx next_ak))
+ --
+ (A v ak)]
+
+;; processed arg, call continuation
+[(A v callcck)
+ (flow_aa v v)
+ <--
+ (store ak (fn (kont callcck) 0 _ _))
+ (A v ak)]
+
+;; Processed Let bindings, evaluating body.
+[(E ebody ctx next_ak)
+ (store av v)
+ (flow_ae v ebody)
+ <--
+ (store ak (letk av ebody ctx next_ak))
+ (A v ak)]
+
+;; Processed arg0 of prim, now process arg1.
+[(E earg1 ctx (kaddr earg1 ctx))
+ (store (kaddr earg1 ctx) (prim2 op v next_ak))
+ (flow_ae v earg1)
+ <--
+ (store ak (prim1 op earg1 ctx next_ak))
+ (A v ak)]
+
+;; Processed prim args, return prim val.
+[(A (primval op v1 v2) next_ak)
+ (flow_aa v2 (primval op v1 v2))
+ <--
+ (store ak (prim2 op v1 next_ak))
+ (A v2 ak)]
+
+;; set! (we return a sentinel here, but it can be anything!)
+[(A (number 1) next_ak)
+ (store loc v)
+ (flow_aa v (num 1))
+ <--
+ (store ak (setk loc next_ak))
+ (A v ak)]
+

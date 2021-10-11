@@ -6,7 +6,8 @@
 ;; This pass removes duplicate variables and clauses, simplifying & optimizing rules
 
 (provide static-unification-pass
-         static-unification-rules-h)
+         static-unification-rules-h
+         remove-silly-clauses)
 
 (require "lang-predicates.rkt")
 (require "builtins.rkt")

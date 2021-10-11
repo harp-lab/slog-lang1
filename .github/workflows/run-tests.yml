@@ -5,7 +5,7 @@ name: CI
 # events but only for the master branch
 on:
   push:
-    branches: [ master, github-actions-test, cpp-builtins, comp-rels, aggregators]
+    branches: [ master, github-actions-test, cpp-builtins, comp-rels, aggregators, fix/0arity]
   pull_request:
     branches: [ master ]
 

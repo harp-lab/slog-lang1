@@ -473,7 +473,8 @@
      [(and (= 1 (length first-stratum))
            (andmap (λ (head) (subset? (get-deps head) first-stratum-set)) (set->list rest-heads-set)))
         (define rule-for-remaining-heads
-          `(rule ,rest-heads-set ,(set-union bodys first-stratum-set)))
+          (ir-fixed-replace-repeated-vars-in-body-clauses
+            `(rule ,rest-heads-set ,(set-union bodys first-stratum-set))))
         (foldl set-union (set) (map (app partition-rule _ comp-rules) 
                                 (cons rule-for-remaining-heads first-stratum-rules)))]
      [else 

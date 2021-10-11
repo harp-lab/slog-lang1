@@ -14,6 +14,8 @@
 (require "src/slog-debug.rkt")
 
 (random-seed 0)
+
+(define default-input-dir 'none)
 (define input-database 'none)
 (define output-database 'none)
 
@@ -47,8 +49,12 @@
     (slog-merge-builtins #f)]
    [("--input-db") input-db "Input database (directory, file name must follow relation file name rule)"
     (set! input-database input-db)]
-   [("--output-db") output-db "Output database (facts written here)"
+   [("--build-input-db") input-db "New input database (directory, must be empty)"
+    (set! default-input-dir input-db)]
+   [("--output-db") output-db "Output database (facts / updated manifest written here)"
     (set! output-database output-db)]
+   [("--printrels") rels "Print relation sizes (each iteration)"
+    (print-relations (file->lines rels))]
    [("-f") "Be fast! (disable contract checking)"
     (check-cond-contracts #f)]
    #:once-any
@@ -122,13 +128,13 @@
 
 (printf "rels: ~a, sccs: ~a\n" (hash-count rel-h) (hash-count scc-h))
 
-; Run the REPL+Debugger or finish compiling
 (define basename (first (string-split (last (string-split file-path "/")) ".")))
+(when (equal? default-input-dir 'none)
+  (set! default-input-dir (format "../data/~a-input" basename)))
 (define o-dir (if (equal? output-database 'none) (format "../data/~a" basename) output-database))
 (define extn (if (slog-souffle-mode) "dl" "cpp"))
 (define o-path (format "~a/~a.~a" o-dir basename extn))
 (define cmake-path (format "~a/CMakeLists.txt" o-dir))
-(define default-input-dir (format "../data/~a-input" basename))
 
 (cond
   [(slog-souffle-mode)
