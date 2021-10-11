@@ -135,7 +135,6 @@
 ; as its probably best theyre relative to this file.
 (define base-dir (path-only (path->complete-path (find-system-path 'run-file))))
 
-; Run the REPL+Debugger or finish compiling
 (define basename (first (string-split (last (string-split file-path "/")) ".")))
 (when (equal? default-input-dir 'none)
   (set! default-input-dir (format "../data/~a-input" basename)))
