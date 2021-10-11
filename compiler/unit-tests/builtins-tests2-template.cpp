@@ -26,6 +26,9 @@ vector<vector<u64>> test_bi_func(const u64* const data){
 
 [COMPUTATIONAL_RELATION_FUNC]
 
+[FUNC3]
+
+[FUNC4]
 
 // for comparison
 u64 hand_written_factorial(u64 x) {
@@ -140,6 +143,43 @@ int main(){
     // cout << "\n";
     assert(vec == expected);
 
+  }
+
+  auto push_res_to_vec = [](u64 res, vector<u64>* state) -> vector<u64>* {state->push_back(res); return state;};
+  {
+    // (crule ((rel-select comp_rel3 3 (1 2) comp) 42 inp _ res)
+    //       ((rel-select + 3 (1 2) comp) inp 1 _ inp+1)
+    //       ((rel-select > 2 (1 2) comp) inp+1 inp _)
+    //       ((rel-select < 2 (2 1) comp) inp+1 inp _)
+    //       ((rel-select * 3 (1 2) comp) inp+1 2 _ res))
+    {
+      u64 data[] = {n2d(42), n2d(2)};
+      vector<u64> vec;
+      comp_rel3<vector<u64>*>(data, &vec, push_res_to_vec);
+      // cout << "vec: "; for (auto x : vec) cout << x << ", "; cout << "\n";
+      vector<u64> expected = {n2d(6)};
+      assert(vec == expected);
+    }
+
+    {
+      u64 data[] = {n2d(4200), n2d(2)};
+      vector<u64> vec;
+      comp_rel3<vector<u64>*>(data, &vec, push_res_to_vec);
+      vector<u64> expected = {};
+      assert(vec == expected);
+    }
+  }
+
+  {
+    // (crule ((rel-select comp_rel4 3 (1 2) comp) x y _ 100)
+    //        ((rel-select < 2 (2 1) comp) y x _))}
+    {
+      u64 data[] = {n2d(10), n2d(11)};
+      vector<u64> vec;
+      comp_rel4<vector<u64>*>(data, &vec, push_res_to_vec);
+      vector<u64> expected = {n2d(100)};
+      assert(vec == expected);
+    }
   }
 
   {

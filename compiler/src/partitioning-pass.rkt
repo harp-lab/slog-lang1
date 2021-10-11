@@ -20,6 +20,7 @@
 (require "builtins.rkt")
 (require "lang-utils.rkt")
 (require "slog-params.rkt")
+(require "remove-implicit-joins-pass.rkt")
 
 ;; Optimizes the flat IR by iterating unification of variables and clauses to a fixed point 
 (define/contract-cond (partitioning-pass ir)
@@ -472,7 +473,8 @@
      [(and (= 1 (length first-stratum))
            (andmap (λ (head) (subset? (get-deps head) first-stratum-set)) (set->list rest-heads-set)))
         (define rule-for-remaining-heads
-          `(rule ,rest-heads-set ,(set-union bodys first-stratum-set)))
+          (ir-fixed-replace-repeated-vars-in-body-clauses
+            `(rule ,rest-heads-set ,(set-union bodys first-stratum-set))))
         (foldl set-union (set) (map (app partition-rule _ comp-rules) 
                                 (cons rule-for-remaining-heads first-stratum-rules)))]
      [else 
@@ -481,7 +483,8 @@
         (give-clause-id `(prov ((prov (rel-arity ,(gensymb '$head-stratified) ,(length args) db) ,dummy-pos) ,@args) ,dummy-pos)))
       
       (define rule-for-replacement-clause
-        `(rule ,(set first-stratum-replacement-clause) ,(set-union bodys first-stratum-set)))
+        (ir-fixed-replace-repeated-vars-in-body-clauses
+          `(rule ,(set first-stratum-replacement-clause) ,(set-union bodys first-stratum-set))))
       (define rule-for-remaining-heads
         `(rule ,rest-heads-set ,(set first-stratum-replacement-clause)))
       
@@ -490,56 +493,6 @@
                                     (if (not (set-empty? rest-heads-set))
                                       (list rule-for-remaining-heads  rule-for-replacement-clause) (list)) 
                                     first-stratum-rules)))])]
-   ;; TODO remove:
-   #;[`(rule ,heads ,bodys)
-   #:when (and (< 1 (set-count heads))
-              (>= 1 (set-count bodys)))
-    (define dep-graph
-      (foldl (lambda (head-cl gr)
-              (match head-cl
-                      [`(prov ((prov = ,(? pos?))
-                              (prov ,(? var? id) ,(? pos?))
-                              (prov ((prov ,(? rel-arity?) ,(? pos?))
-                                      (prov ,(? arg? xs) ,(? pos?))
-                                      ...)
-                                    ,(? pos?)))
-                              ,(? pos?))
-                      (foldl (lambda (head-cl+ gr)
-                              (match head-cl+
-                                      [`(prov ((prov = ,(? pos?))
-                                              (prov ,(? var? id+) ,(? pos?))
-                                              (prov ((prov ,(? rel-arity?) ,(? pos?))
-                                                      (prov ,(? arg? xs+) ,(? pos?))
-                                                      ...)
-                                                    ,(? pos?)))
-                                              ,(? pos?))
-                                      (if (member id xs+)
-                                          (hash-set gr head-cl (set-add (hash-ref gr head-cl) head-cl+))
-                                        gr)]))
-                            (hash-set gr head-cl (hash-ref gr head-cl set))
-                            (set->list heads))]))
-            (hash)
-            (set->list heads)))
-    (define (get-deps cl)
-      (foldl (lambda (cl+ deps)
-              (if (set-member? (hash-ref dep-graph cl+) cl)
-                  (set-add deps cl+)
-                deps))
-            (set)
-            (hash-keys dep-graph)))
-    ; Check for cycles in the dep-graph and issue an error?
-    (define ordered-heads (topological-sort dep-graph))
-    (define rules
-      (map (lambda (head-cl)
-            (define head-cl-deps ((transitive-closure get-deps) head-cl))
-            (when (set-member? head-cl-deps head-cl)
-              (pretty-error-current (prov->pos head-cl) 
-                                    "Circular dependencies among head cluases" #:exit #t))
-            (partition-rule `(rule ,(set head-cl)
-                                    ,(set-union head-cl-deps bodys))
-                              comp-rules))
-          ordered-heads))
-    (foldl set-union (set) rules)]
    ; Multiple bodies and heads
    [`(rule ,heads ,bodys)
     (match (set-first heads)

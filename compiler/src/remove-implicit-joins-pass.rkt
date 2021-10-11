@@ -1,12 +1,14 @@
 #lang racket
 
-(provide remove-implicit-joins-pass)
+(provide remove-implicit-joins-pass
+         ir-fixed-replace-repeated-vars-in-body-clauses)
 
 (require "lang-predicates.rkt")
 (require "builtins.rkt")
 (require "utils.rkt")
 (require "lang-utils.rkt")
 (require "slog-params.rkt")
+(require "static-unification-pass.rkt")
 
 
 (define/contract-cond (remove-implicit-joins-pass ir)
@@ -15,18 +17,37 @@
   (define all-comp-rels (set-union all-builtin-names (ir-flat-rules-h->head-rels comp-rules-h)))
   `(ir-flat
     ,source-tree
-    ,(hash-map-keys (compose (app replace-constants-with-equals-clauses _ all-comp-rels)
-                             replace-repeated-vars-in-body-clauses) 
+    ,(hash-map-keys (compose remove-silly-clauses
+                             replace-repeated-vars-in-body-clauses 
+                             (app replace-constants-with-equals-clauses _ all-comp-rels)) 
                     rules-h)
     ,comp-rules-h))
 
-;; turns rules like [(foo x x) --> (bar x)] into [(foo x x') (= x x') --> (bar x)]
+
+(define/contract-cond (ir-fixed-replace-repeated-vars-in-body-clauses rule)
+  (ir-fixed-rule? . -> . ir-fixed-rule?)
+  (_replace-repeated-vars-in-body-clauses rule 'ir-fixed))
+
 (define/contract-cond (replace-repeated-vars-in-body-clauses rule)
-  (ir-flat-rule? . -> . ir-flat-rule?)
+    (ir-flat-rule? . -> . ir-flat-rule?)
+    (_replace-repeated-vars-in-body-clauses rule 'ir-flat))
+
+;; turns rules like [(foo x x) --> (bar x)] into [(foo x x') (= x x') --> (bar x)]
+(define (_replace-repeated-vars-in-body-clauses rule ir-kind)
+  (define rel? (match ir-kind ['ir-flat ir-flat-rel?] 
+                              ['ir-fixed (prov-of rel-arity?)]))
+  (define agg? (match ir-kind ['ir-flat ir-flat-agg-rel?] 
+                              ['ir-fixed (λ (rel) (agg-rel-kind? (rel-arity->kind (strip-prov rel))))]))
+  (define rel->name (match ir-kind 
+    ['ir-flat strip-prov] 
+    ['ir-fixed (λ (rel) (match-define `(rel-arity ,name ,ar ,kind) (strip-prov rel)) name)]))
+  (define eq-rel (match ir-kind
+    ['ir-flat '=]
+    ['ir-fixed '(rel-arity = 2 comp)]))
   (define (replace-repeated-var-step cl)
     (match-define `(prov ((prov = ,=pos)
                             (prov ,(? var? x) ,xpos)
-                            (prov (,(? ir-flat-rel? rel)
+                            (prov (,(? rel? rel)
                                    ,(and vcls `(prov ,(? arg? vs) ,vposs)) ...)
                                   ,factpos))
                            ,pos) cl)
@@ -41,7 +62,7 @@
         (return #f))))
     (cond 
         ;; TODO what about comp-rels?
-      [(and repeated-var-indices (not (builtin? (strip-prov rel))) (not (ir-flat-agg-rel? rel)))
+      [(and repeated-var-indices (not (builtin? (rel->name rel))) (not (agg? rel)))
         (match-define (cons i j) repeated-var-indices)
         (match-define (cons var1 var2) (cons (list-ref vcls i) (list-ref vcls j)))
         (match-define `(prov ,var-name ,var2pos) var2)
@@ -54,7 +75,7 @@
                           ,@vcls+)
                         ,factpos))
             ,pos))
-        (define new-side `(prov ((prov = ,var2pos) ,var2 ,var2-replacement) ,var2pos))
+        (define new-side `(prov ((prov ,eq-rel ,var2pos) ,var2 ,var2-replacement) ,var2pos))
         (cons cl+ (set new-side))]
       [else (cons cl (set))]))
   (define (replace-repeated-var cl) 
@@ -74,6 +95,7 @@
       (cons '() (set))
       (set->list bodys)))
   `(rule ,heads ,(list->set (append bodys-list+ (set-map new-sides give-clause-id)))))
+
 
 (define/contract-cond (replace-constants-with-equals-clauses rule all-comp-rels)
   (ir-flat-rule? set? . -> . ir-flat-rule?)
@@ -119,6 +141,13 @@
           (if (set-member? all-comp-rels rel) 
               cl
               (rename-arg cl const (strip-prov const-var))))
+        
+        ;; this does not work ...
+        #;(define (update-head-clause cl) 
+          (match-define (list _ rel args) (ir-flat-clause-rel-args cl))
+          (if (andmap lit? args)
+            cl
+            (rename-arg cl const (strip-prov const-var))))
         (define new-rule `(rule ,(list->set (set-map heads update-clause))
                                 ,(list->set (append (set-map bodys update-clause)
                                                     (if const-existing-var (list) (list equals-clause))))))

@@ -218,6 +218,11 @@
      -->
      (foo res)]"
     '(foo _) (list->set (map (λ (lst) `(foo ,(to-desugared-slog-list lst))) (permutations '(1 2 3 4)))))
+
+   (slog-behavior-test-case
+    "repeated-vars-in-clauses.slog"
+    '(file "repeated-vars-in-clauses.slog")
+    '(file "repeated-vars-in-clauses.slog.tests"))
     
     (slog-behavior-test-case
     "multi-splicing-lists.slog"

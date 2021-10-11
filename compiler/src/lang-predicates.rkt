@@ -304,7 +304,14 @@
          [else #f]))
 
 (define (ir-small-clause? cl)
-  (ir-fixed-clause? cl))
+  (and (ir-fixed-clause? cl)
+       ;; db ir-small body clauses can't contain repeated vars
+       (match cl 
+        [`(prov ((prov = ,=pos) ,id (prov (,rel ,args ...) ,(? pos?)))
+                ,(? pos?)) #:when (db-rel-arity? (strip-prov rel))
+          (define args-stripped (map strip-prov args))
+          (equal? (remove-duplicates args-stripped) args-stripped)]
+        [else #t])))
 
 ; predicates for ir-select (post selection splitting)
 (define (assert-ir-select? ir)

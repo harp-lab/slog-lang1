@@ -16,6 +16,7 @@
           ((rel-version foo 3 (2 1) total) y x w _2)
           ((rel-version + 3 (2 1) comp) y x _1 y+x))]
   [lam1 (generate-cpp-lambda-for-rule-with-builtin rule1)]
+
   [rule2 '(srule
           ((rel-select bar 2 (1 2) db) w ans)
           ((rel-version foo 3 (1 2) total) x y _2 w)
@@ -34,8 +35,39 @@
             ((rel-version =/= 2 (1 2) comp) x y))]
   [lam4 (generate-cpp-lambda-for-rule-with-builtin rule4)]
 
+  [rule5 '(srule
+          ((rel-select bar 4 (1 2 3 4) db) z w x y)
+          ((rel-version foo 4 (1 3) total) x y _2 w z)
+          ((rel-version > 2 (2 1) comp) x y _1))]
+  [lam5 (generate-cpp-lambda-for-rule-with-callback-builtin rule5 '(1 2) "builtin_greater")]
+
+  [rule6 '(srule
+          ((rel-select bar 4 (1 2 3 4) db) z w x y)
+          ((rel-version foo 4 (1 3) total) x y _2 w z)
+          ((rel-version > 2 (2 1) comp) 101 102 _1))]
+  [lam6 (generate-cpp-lambda-for-rule-with-callback-builtin rule6 '(1 2) "builtin_greater")]
+  
+  [rule7 '(srule
+          ((rel-select bar 4 (1 2 3 4) db) x ans y w ans z)
+          ((rel-version foo 4 (1 3) total) x y _2 w z)
+          ((rel-version = 2 (1) comp) 42 _1 ans))]
+  [lam7 (generate-cpp-lambda-for-rule-with-callback-builtin rule7 '(1) "builtin_eq_1")]
+
+  [rule8 '(srule
+          ((rel-select bar 4 (1 2 3 4) db) 1001 x 1002 y 1003 z)
+          ((rel-version foo 3 (1) total) x _2 y z)
+          ((rel-version < 2 (2 1) comp) x 100 _1))]
+  [lam8 (generate-cpp-lambda-for-rule-with-callback-builtin rule8 '(1 2) "builtin_less")]
+
+  [rule9 '(srule
+         ((rel-select $inter-body4 3 (1 2 3) db) $id1 $id2 e)
+         ((rel-version $inter-body3 3 (1) total) $id1 $_14 $id2 e)
+         ((rel-version = 2 (1 2) comp) $id1 $id1 $_8))]
+  [lam9 (generate-cpp-lambda-for-rule-with-callback-builtin rule9 '(1 2) "builtin_eq")]
+
+
   [builtins-test-template-file (file->string (get-path "./builtins-tests-template.cpp"))]
-  [output-file (format builtins-test-template-file lam1 lam2 lam3 lam4)])
+  [output-file (format builtins-test-template-file lam1 lam2 lam3 lam4 lam5 lam6 lam7 lam8 lam9)])
   (display-to-file output-file (get-path "./output/builtins-tests-generated.cpp") 	#:exists 'replace))
 
 (let* 
@@ -88,6 +120,24 @@
        
        (crule ((rel-select factorial 2 (1) comp) 0 _ 1))}
       (hash '(rel-select factorial 2 (1) comp) "cpp_factorial"))]
+  
+  [func3
+    (generate-cpp-func-for-computational-relation-rules
+      '{
+        (crule ((rel-select comp_rel3 3 (1 2) comp) 42 inp _ res)
+              ((rel-select + 3 (1 2) comp) inp 1 _ inp+1)
+              ((rel-select > 2 (1 2) comp) inp+1 inp _)
+              ((rel-select < 2 (2 1) comp) inp+1 inp _)
+              ((rel-select * 3 (1 2) comp) inp+1 2 _ res))}
+      (hash '(rel-select comp_rel3 3 (1 2) comp) "comp_rel3"))]
+  
+  [func4
+    (generate-cpp-func-for-computational-relation-rules
+      '{
+        (crule ((rel-select comp_rel4 3 (1 2) comp) x y _ 100)
+              ((rel-select < 2 (2 1) comp) y x _))}
+      (hash '(rel-select comp_rel4 3 (1 2) comp) "comp_rel4"))]
+
   [cpp-file-contents-filled-in 
     (string-replace-all cpp-file-contents 
                         "[BI_EXTENDED_LAM]" bi-extended-lam
@@ -97,6 +147,8 @@
                         "[COPY_LAM2]" copy-lam2
                         "[COMPUTATIONAL_RELATION_FUNC]" computational-relation-func
                         "[FACTORIAL_FUNC]" factorial-func
+                        "[FUNC3]" func3
+                        "[FUNC4]" func4
                         )])
 
   (display-to-file cpp-file-contents-filled-in (get-path "./output/builtins-tests2-generated.cpp") #:exists 'replace))
