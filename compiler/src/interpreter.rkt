@@ -951,7 +951,7 @@
   
   (define (iterate ir)
     (set! iterations (add1 iterations))
-    (displayln (format "Iteration ~a" iterations))
+    ; (displayln (format "Iteration ~a" iterations))
     (print-fact-sizes ir)
     
     ;; Interpret each individual rule in order
