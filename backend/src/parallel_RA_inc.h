@@ -13,12 +13,8 @@
 //#include "shmap/shmap.h"
 #include "shmap/shmap_goog.h"
 
-
-// #define DEBUG_OUTPUT 1
-
-
-//#define MAX_LOOP_COUNT 120000
-
+//#define DEBUG_OUTPUT 1
+#define MAX_LOOP_COUNT 120000
 
 #include "log/logger.h"
 #include "hash/hash.h"

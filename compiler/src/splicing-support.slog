@@ -15,7 +15,7 @@
 
 [(split-at-input 0 xs)
  -->
- (split-at (split-at-input 0 xs) ($nil) xs)]
+ (split-at (split-at-input 0 xs) ($nil 0) xs)]
 
 [(= inp (split-at-end-input n lst))
  (length !(length-input lst) len)
@@ -34,12 +34,12 @@
  -->
  (length inp n+1)]
 
-(length (length-input ($nil)) 0)
+(length (length-input ($nil 0)) 0)
 
 
-[($lst-append-input ($nil) lst2)
+[($lst-append-input ($nil 0) lst2)
  -->
- ($lst-append ($lst-append-input ($nil) lst2) lst2)]
+ ($lst-append ($lst-append-input ($nil 0) lst2) lst2)]
 
 [($lst-append-input ($lst x xs) lst2)
  ($lst-append !($lst-append-input xs lst2) xs-lst2)
@@ -49,7 +49,7 @@
 
 [(= inp ($lst-split-input lst))
  -->
- ($lst-split inp ($nil) lst)]
+ ($lst-split inp ($nil 0) lst)]
 
 [(= inp ($lst-split-input lst))
  (= lst ($lst head tail))
@@ -58,16 +58,16 @@
  ($lst-split inp ($lst head tail-l) tail-r)]
  
 ; [(breaks-into !(breaks-into-input 2 3 [1 2 3 4 5 6 7]) l m r)
-;  ($nil)
+;  ($nil 0)
 ;  -->
 ;  (foo0 l m r)]
 
 ; [(split-at !(split-at-input 4 [1 2 3 4 5]) l1 l2)
-;  ($nil)
+;  ($nil 0)
 ;  -->
 ;  (foo1 l1 l2)]
 
 ; [(split-at-end !(split-at-end-input 2 [1 2 3 4 5 6 7]) l1 l2)
-;  ($nil)
+;  ($nil 0)
 ;  -->
 ;  (foo2 l1 l2)]

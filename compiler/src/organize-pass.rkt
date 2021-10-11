@@ -1034,7 +1034,8 @@
 
 ;; creates a builtin slog list with the args
 (define (gather-into-slog-list args pos)
-  (gather-into-slog-list-with-tail args `(prov ((prov $nil ,pos)) ,pos) pos))
+  (gather-into-slog-list-with-tail args `(prov ((prov $nil ,pos) (prov 0 ,pos)) ,pos) pos))
+
 ;; crates the builtin slog list [arg1 arg2 ... tail ...]
 (define (gather-into-slog-list-with-tail args tail pos)
   (foldr (λ (arg accu) `(prov ((prov $lst ,pos) ,arg ,accu) ,pos)) tail args))  
