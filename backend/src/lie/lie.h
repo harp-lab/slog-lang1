@@ -20,14 +20,16 @@ private:
 
     std::string app_name;
     u32 lie_relation_count;
-    relation *lie_relations[1024];
+    std::vector<relation*> lie_relations;
+    //relation *lie_relations[2048];
 
     //u32 lie_relations_key;
     //std::map<u32, relation*> lie_relations;                    /// List of all relations
 
     u32 lie_sccs_count;
-    RAM *lie_sccs[1024];
-    int iteration_count[1024];
+    std::vector<RAM*> lie_sccs;
+    //RAM *lie_sccs[2048];
+    //int iteration_count[2048];
 
     //u32 lie_sccs_key;
     //std::map<u32, RAM*> lie_sccs;                                 /// List of all tasks
@@ -55,9 +57,6 @@ private:
     bool all_to_all_meta_data_dump;
 
     //int ***all_to_all_buffer_size;
-
-    int **compute_size1;
-    int **compute_size2;
 
     int loop_counter;
 

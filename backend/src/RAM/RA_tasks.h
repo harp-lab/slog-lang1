@@ -26,8 +26,10 @@ private:
 
 
     u32 ram_relation_count;
-    relation *ram_relations[1024];
-    bool ram_relation_status[1024];
+    std::vector<relation*> ram_relations;
+    //relation *ram_relations[1024];
+    std::vector<bool> ram_relation_status;
+    //bool ram_relation_status[1024];
 
 
     std::vector<parallel_RA*> RA_list;                      /// All relations of this SCC
@@ -70,8 +72,10 @@ public:
 
 
     //std::map<u32, std::map<relation*, bool>> get_RAM_relations()   {return ram_relations;}
-    relation** get_RAM_relations()   {return ram_relations;}
-    bool* get_RAM_relations_status()   {return ram_relation_status;}
+    //relation** get_RAM_relations()   {return ram_relations;}
+    std::vector<relation*> get_RAM_relations()   {return ram_relations;}
+    std::vector<bool> get_RAM_relations_status()   {return ram_relation_status;}
+    //bool* get_RAM_relations_status()   {return ram_relation_status;}
 
 
     /// add relations pertaining to this SCC
@@ -123,7 +127,7 @@ public:
 
 
     /// Join/compy/acopy
-    u32 local_compute(int* offset, int loop_counter, int task_id, int** compute_size1, int** compute_size2);
+    u32 local_compute(int* offset);
 
     void local_comm();
 
@@ -149,9 +153,9 @@ public:
 
 
     /// Start running this SCC (task) for "batck_size" iterations
-    void execute_in_batches(std::string name, int batch_size, std::vector<u32>& history, std::map<u64, u64>& intern_map, double **running_time, double **running_intra_bucket_comm, double **running_buffer_allocate, double **running_local_compute, double **running_all_to_all, double **running_buffer_free, double **running_insert_newt, double **running_insert_in_full, double **running_fp, double **running_a2a_find_count_time, double **running_a2a_create_rindex_time, double **running_a2a_total_find_blocks_time, double **running_a2a_total_pre_time, double **running_a2a_total_send_meda_time, double **running_a2a_total_comm_time, double **running_a2a_total_replace_time, double **running_a2a_exchange_time, double **running_a2a_filter_time, int *loop_counter,int task_id, std::string output_dir, bool all_to_all_record, int*** all_to_all_buffer_size, int** compute_size1, int** compute_size2, int sloav_mode, int* rotate_index_array, int** send_indexes, int *sendb_num);
+    void execute_in_batches(std::string name, int batch_size, std::vector<u32>& history, std::map<u64, u64>& intern_map, int *loop_counter,int task_id, std::string output_dir, bool all_to_all_record, int sloav_mode, int* rotate_index_array, int** send_indexes, int *sendb_num);
 
-    void execute_in_batches_comm_compaction(std::string name, int batch_size, std::vector<u32>& history, std::map<u64, u64>& intern_map, double **running_time, double **running_intra_bucket_comm, double **running_buffer_allocate, double **running_local_compute, double **running_all_to_all, double **running_buffer_free, double **running_insert_newt, double **running_insert_in_full, double **running_fp, double **running_a2a_find_count_time, double **running_a2a_create_rindex_time, double **running_a2a_total_find_blocks_time, double **running_a2a_total_pre_time, double **running_a2a_total_send_meda_time, double **running_a2a_total_comm_time, double **running_a2a_total_replace_time, double **running_a2a_exchange_time, double **running_a2a_filter_time,  int* loop_counter, int task_id, std::string output_dir, bool all_to_all_record, int*** all_to_all_buffer_size, int** compute_size1, int** compute_size2, int sloav_mode, int* rotate_index_array, int** send_indexes, int *sendb_num);
+    void execute_in_batches_comm_compaction(std::string name, int batch_size, std::vector<u32>& history, std::map<u64, u64>& intern_map, int* loop_counter, int task_id, std::string output_dir, bool all_to_all_record, int sloav_mode, int* rotate_index_array, int** send_indexes, int *sendb_num);
 };
 
 #endif
