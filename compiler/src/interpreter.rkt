@@ -24,6 +24,9 @@
   "slog-params.rkt"
   "builtins.rkt")
 
+;; XXX debugging code here
+(define iterations 0)
+
 ;;
 ;; Top-level prompt tag for interpreter
 ;;
@@ -907,8 +910,29 @@
   
   (define (subtract-this-scc ir)
   (copy-ir-interp ir [scc-order (cdr (Ir-interp-scc-order ir))]))
+
+  (define sizes (make-hash))
+
+  (define (lookup sizes rel-version)
+    (if (hash-has-key? sizes rel-version) (hash-ref sizes rel-version) (hash-set! sizes rel-version 0)))
+  
+  (define (print-fact-sizes ir)
+    (match-define `(db-instance ,relation-map ,indices-map ,tag-counts ,intern-map ,added-facts)
+      (Ir-interp-db-instance ir-interp))
+    (for ([rel-version (hash-keys indices-map)])
+      ;(pretty-print (print-relations))
+      ;(pretty-print (symbol->string (second rel-version)))
+      (when (and (list? (print-relations)) #t #;(member (symbol->string (second rel-version)) (print-relations))
+                 (> (rel-version-facts-count ir rel-version) 0)
+                 (not (equal? (rel-version-facts-count ir rel-version) (lookup sizes rel-version))))
+        (hash-set! sizes rel-version (rel-version-facts-count ir rel-version))
+        (displayln (format "~a: ~a" (pretty-format rel-version) (rel-version-facts-count ir rel-version))))))
   
   (define (iterate ir)
+    (set! iterations (add1 iterations))
+    (displayln (format "Iteration ~a" iterations))
+    (print-fact-sizes ir)
+    
     ;; Interpret each individual rule in order
     (reset-added-any-new-facts)
     (let* ([next-ir

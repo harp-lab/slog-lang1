@@ -209,7 +209,7 @@ void LIE::write_final_checkpoint_dump()
 
 void LIE::create_checkpoint_dump(int loop_counter, int scc_id)
 {
-#if 1
+#if 0
     std::string dir_name;
     dir_name = output_dir + "/checkpoint-" + std::to_string(scc_id) + "-" + std::to_string(loop_counter);
 
@@ -423,8 +423,8 @@ bool LIE::execute ()
         /// For SCCs that runs for only one iteration
         if (executable_task->get_iteration_count() == 1)
         {
-            //if (enable_data_io == true && loop_counter % cp_iteration == 0)
-            //    create_checkpoint_dump(loop_counter, executable_task->get_id());
+            if (enable_data_io == true && loop_counter % cp_iteration == 0)
+                create_checkpoint_dump(loop_counter, executable_task->get_id());
 
             if (comm_compaction == 0)
                 executable_task->execute_in_batches(app_name, batch_size, history, intern_map, &loop_counter, executable_task->get_id(), output_dir, all_to_all_meta_data_dump, sloav_mode, rotate_index_array, send_indexes, sendb_num);
@@ -467,8 +467,8 @@ bool LIE::execute ()
             u64 delta_in_scc = 0;
             do
             {
-                //if (enable_data_io == true && (loop_counter - 1) % cp_iteration == 0)
-                //    create_checkpoint_dump(loop_counter, executable_task->get_id());
+                if (enable_data_io == true && (loop_counter - 1) % cp_iteration == 0)
+                    create_checkpoint_dump(loop_counter, executable_task->get_id());
 
                 if (comm_compaction == 0)
                     executable_task->execute_in_batches(app_name, batch_size, history, intern_map, &loop_counter, executable_task->get_id(), output_dir, all_to_all_meta_data_dump, sloav_mode, rotate_index_array, send_indexes, sendb_num);

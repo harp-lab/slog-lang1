@@ -1,7 +1,7 @@
 name: Slog CI Testing
 on:
   push:
-    branches: [ master, dy, github-actions-test, ci-perf]
+    branches: [ master, github-actions-test, cpp-builtins, comp-rels, aggregators, fix/0arity]
   pull_request:
     branches: [ master ]
 jobs:
