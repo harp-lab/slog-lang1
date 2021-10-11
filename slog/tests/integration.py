@@ -36,15 +36,16 @@ def test_slog(client: SlogClient, testcase_fpath, result_fpath, out_file):
     out_file.write(testcase_fpath+'\n')
     expected_res = parse_test_result(result_fpath)
     # compile and rule the slog file
-    compile_res = client.compile_slog(testcase_fpath, ConsoleWriter())
+    compile_res = client.compile_slog(testcase_fpath)
     if compile_res is None:
         out_file.write("Comiplation failed!\n")
         return
     inited_db = compile_res[0]
     client.run_with_db(testcase_fpath, inited_db)
     for query, ans in expected_res.items():
-        server_res = client.run_slog_query(query, ConsoleWriter())
+        server_res = client.run_slog_query('?'+query, ConsoleWriter())
         if server_res != ans:
+            out_file.write(f"query: {query}\n")
             out_file.write(f"expect: {expected_res}\n")
             out_file.write(f"but get: {server_res}\n")
         else:
