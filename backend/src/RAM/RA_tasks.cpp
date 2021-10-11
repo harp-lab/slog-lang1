@@ -35,7 +35,8 @@ void RAM::add_relation(relation*& G, bool i_status)
 {
     //ram_relations[ram_relation_count] = G;
     ram_relations.push_back(G);
-    ram_relation_status[ram_relation_count] = i_status;
+    ram_relation_status.push_back(i_status);
+    //ram_relation_status[ram_relation_count] = i_status;
     ram_relation_count++;
 }
 
