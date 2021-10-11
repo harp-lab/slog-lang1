@@ -204,7 +204,7 @@ void LIE::write_final_checkpoint_dump()
 
 void LIE::create_checkpoint_dump(int loop_counter, int scc_id)
 {
-#if 1
+#if 0
     std::string dir_name;
     dir_name = output_dir + "/checkpoint-" + std::to_string(scc_id) + "-" + std::to_string(loop_counter);
 

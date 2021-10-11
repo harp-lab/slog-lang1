@@ -15,7 +15,7 @@
 
 //#define DEBUG_OUTPUT 1
 
-#define MAX_LOOP_COUNT 40000
+#define MAX_LOOP_COUNT 100000
 
 
 #include "log/logger.h"
