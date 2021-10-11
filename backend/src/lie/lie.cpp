@@ -339,12 +339,12 @@ bool LIE::execute ()
         }
     }
 
-    int c = 0;
+    //int c = 0;
     /// Running one task at a time
     while (executable_task != NULL)
     {
-        std::cout << "Loop: " << c << std::endl;
-        c++;
+        //std::cout << "Loop: " << c << std::endl;
+        //c++;
         int loop_counter = 0;
 
 #if 1
