@@ -44,8 +44,7 @@ def start_mpirun_task():
     RunTask().loop()
 
 
-# Start the server
-if __name__ == "__main__":
+def run():
     interceptors = [ExceptionToStatusInterceptor()]
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10), interceptors=interceptors)
     slog_pb2_grpc.add_CommandServiceServicer_to_server(
@@ -65,3 +64,7 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         server.stop(0)
         print('Server is exiting.')
+
+# Start the server
+if __name__ == "__main__":
+    run()

@@ -402,8 +402,11 @@ class SlogClient:
         self.fetch_tuples(rel[0])
         # writer.write(self.updated_tuples)
         _resolve(rel[0])
+        query_res = []
         for fact_row in sorted(self.updated_tuples[rel[0]], key=lambda t: int(t[0][2])):
             writer.write(f"#{fact_row[0][2]}:  {rel_to_str(fact_row[1:])}")
+            query_res.append(rel_to_str(fact_row[1:]))
+        return query_res
 
     def pretty_dump_relation(self, name, writer=Writer()):
         """ recursive print all tuples of a relation """
@@ -414,7 +417,7 @@ class SlogClient:
             writer.write(f"More than one arity for {name}, not currently"
                   " supporting printing for multi-arity relations")
             return
-        self.recursive_dump_tuples(self.lookup_rels(name)[0], writer)
+        return self.recursive_dump_tuples(self.lookup_rels(name)[0], writer)
 
     def tag_db(self, db_id, tag_name):
         """ tag a database with some name """
@@ -509,8 +512,9 @@ class SlogClient:
         if not query_db:
             return
         self.switchto_db(query_db)
-        self.pretty_dump_relation(query_name, writer)
+        query_res = self.pretty_dump_relation(query_name, writer)
         # after dump query relation, delete intermediate database, switch back to old db
         self.switchto_db(old_db)
         req = slog_pb2.DropDBRequest(database_id=query_db)
         self._stub.DropDB(req)
+        return query_res
