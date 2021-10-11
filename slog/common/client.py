@@ -13,17 +13,9 @@ from six import MAXSIZE
 
 from slog.common import rel_name_from_file, make_stub, PING_INTERVAL
 from slog.common.elaborator import Elaborator
+from slog.common.format import binary_to_sexpr
 from slog.daemon.const import STATUS_PENDING, STATUS_FAILED, STATUS_RESOLVED, STATUS_NOSUCHPROMISE
 import slog.protobufs.slog_pb2 as slog_pb2
-
-
-TAG_MASK = 0xFFFFC00000000000
-BUCKET_MASK = 0x00003FFFF0000000
-TUPLE_ID_MASK = 0xFFFFFFFFF0000000
-VAL_MASK = ~ TAG_MASK
-INT_TAG = 0
-STRING_TAG = 2
-SYMBOL_TAG = 3
 
 
 class Writer:
@@ -314,96 +306,41 @@ class SlogClient:
             if rel[2] == tag:
                 return rel
 
-    def fetch_tuples(self, name):
-        """ print all tulple of a relation """
+    def _recusive_fetch_tuples(self, tag, tuples_map:dict):
+        """ recursively fecth all tuples of a given relation name """
+        if tag in tuples_map.keys():
+            return tuples_map
+        tuples_map[tag] = []
         req = slog_pb2.RelationRequest()
         req.database_id = self.cur_db
-        arity = self.lookup_rels(name)[0][1]
-        req.tag = self.lookup_rels(name)[0][2]
-        row_count = 0
-        col_count = 0
-        tuples = []
-        buf = [-1 for _ in range(0, arity+1)]
+        req.tag = tag
         for response in self._stub.GetTuples(req):
-            if response.num_tuples == 0:
-                continue
             for u64 in response.data:
-                if col_count == 0:
-                    # index col
-                    # rel_tag = u64 >> 46
-                    bucket_id = (u64 & BUCKET_MASK) >> 28
-                    tuple_id = u64 & (~TUPLE_ID_MASK)
-                    buf[0] = (bucket_id, tuple_id, row_count)
-                    col_count += 1
-                    continue
                 val_tag = u64 >> 46
-                if val_tag == INT_TAG:
-                    attr_val = u64 & VAL_MASK
-                elif val_tag == STRING_TAG:
-                    attr_val = self.intern_string_dict[u64 & VAL_MASK]
-                else:
+                if val_tag > 254:
                     # relation
-                    rel_name = self.lookup_rel_by_tag(val_tag)[0]
-                    # attr_val = f'rel_{rel_name}_{u64 & (~TUPLE_ID_MASK)}'
-                    if name != rel_name and rel_name not in self.updated_tuples.keys():
-                        self.fetch_tuples(rel_name)
-                    bucket_id = (u64 & BUCKET_MASK) >> 28
-                    tuple_id = u64 & (~TUPLE_ID_MASK)
-                    attr_val = ['NESTED', rel_name, (bucket_id, tuple_id)]
-                buf[col_count] = attr_val
-                col_count += 1
-                if col_count == arity + 1:
-                    # don't print id col
-                    # rel name at last
-                    tuples.append(copy.copy(buf)+[name])
-                    col_count = 0
-                    row_count += 1
-            assert row_count == response.num_tuples
-        self.updated_tuples[name] = tuples
-        return tuples
+                    if val_tag not in tuples_map.keys():
+                        tuples_map = self._recusive_fetch_tuples(val_tag, tuples_map)
+                tuples_map[tag].append(u64)
+        return tuples_map
 
-    def recursive_dump_tuples(self, rel, writer):
-        """ recursive print all tuples of a relation """
-        # reset all tuples to non-updated
-        def find_val_by_id(name, row_id):
-            for row in self.updated_tuples[name]:
-                if row[0][:-1] == row_id:
-                    return row
-        def rel_to_str(rel):
-            res = []
-            for col in rel[:-1]:
-                if isinstance(col, list):
-                    if col[0] == 'NESTED':
-                        nested_name = col[1]
-                        nested_id = col[2]
-                        val = find_val_by_id(nested_name, nested_id)
-                        if val is None:
-                            val = f'"{nested_name} has no fact with id {nested_id} !"'
-                        res.append(rel_to_str(val[1:]))
-                    else:
-                        res.append(rel_to_str(col))
-                else:
-                    res.append(str(col))
-            return f"({rel[-1]} {' '.join(res)})"
-        self.fetch_tuples(rel[0])
-        writer.write(self.updated_tuples)
-
-        query_res = []
-        for fact_row in sorted(self.updated_tuples[rel[0]], key=lambda t: int(t[0][2])):
-            writer.write(f"#{fact_row[0][2]}:  {rel_to_str(fact_row[1:])}")
-            query_res.append(rel_to_str(fact_row[1:]))
-        return query_res
-
-    def pretty_dump_relation(self, name, writer=Writer()):
+    def pretty_dump_relation(self, name, writer:Writer=Writer()):
         """ recursive print all tuples of a relation """
         if len(self.lookup_rels(name)) == 0:
             writer.write("No relation named {} in the current database".format(name))
             return
-        elif len(self.lookup_rels(name)) > 1:
-            writer.write(f"More than one arity for {name}, not currently"
-                  " supporting printing for multi-arity relations")
-            return
-        return self.recursive_dump_tuples(self.lookup_rels(name)[0], writer)
+        tuples_map = {}
+        for rel in self.lookup_rels(name):
+            tag = rel[2]
+            self._recusive_fetch_tuples(tag, tuples_map)
+        tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
+        sexpr_dict = binary_to_sexpr(tuples_map, tag_map, self.intern_string_dict)
+        for rel in self.lookup_rels(name):
+            tag = rel[2]
+            for idx, row in enumerate(sexpr_dict[tag]):
+                writer.write(f"#{idx}\t{row}")
+        return sexpr_dict
+
 
     def tag_db(self, db_id, tag_name):
         """ tag a database with some name """
