@@ -755,7 +755,7 @@ void relation::initialize_relation(mpi_comm& mcomm, std::map<u64, u64>& intern_m
     }
     /// Main : Execute : init : buffer_init : end
     file_io.set_share_io(share_io);
-
+#if 0
     /// read data from file
     if (restart_flag == true)
     {
@@ -771,7 +771,7 @@ void relation::initialize_relation(mpi_comm& mcomm, std::map<u64, u64>& intern_m
     }
     else
     	load_data_from_file();
-
+#endif
     //std::cout << filename << " " << fact_load << std::endl;
     //if (fact_load == true)
         //if (init_val.size() != 0)
