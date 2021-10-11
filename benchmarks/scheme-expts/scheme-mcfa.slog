@@ -1,7 +1,10 @@
-;; Written by Davis Silverman and Yihao Sun!!!
-;; Rewritten in Slog by Kris Micinski
+;; Original Souffle written by Davis Silverman and Yihao
+;; Sun. Rewritten in Slog by Kris Micinski, Arash Sahebolamri, and
+;; Thomas Gilray.
 
-;; Scheme free variables
+;;;; N = 3-m-CFA
+
+;;;; Scheme free variables
 [(free x e) <-- (var e x)]
 
 [(free x e)
@@ -52,18 +55,25 @@
  (free x binder)
  (=/= x a)]
 
-;; Injection
+;;;; Injection
 
-[(E e [(null 0) (null 0) (null 0)] (kaddr e [(null 0) (null 0) (null 0)]))
- (peek_ctx e [(null 0) (null 0) (null 0)] [e (null 0) (null 0)])
- (store (kaddr e [(null 0) (null 0) (null 0)]) (mt 0))
+;; [(E e (ctx (null 0) (null 0) (null 0) (null 0) (null 0)) (kaddr e (ctx (null 0) (null 0) (null 0) (null 0) (null 0))))
+;;  (peek_ctx e (ctx (null 0) (null 0) (null 0) (null 0) (null 0)) (ctx e (null 0) (null 0) (null 0) (null 0)))
+;;  (store (kaddr e (ctx (null 0) (null 0) (null 0) (null 0) (null 0))) (mt 0))
+;;  <--
+;;  (top_exp e)]
+
+[(E e (ctx (null 0) (null 0) (null 0)) (kaddr e (ctx (null 0) (null 0) (null 0))))
+ (peek_ctx e (ctx (null 0) (null 0) (null 0)) (ctx e (null 0) (null 0)))
+ (store (kaddr e (ctx (null 0) (null 0) (null 0))) (mt 0))
  <--
  (top_exp e)]
 
+
 ;; Context propagation
-[(peek_ctx e [c0 c1 c2] [e c0 c1])
+[(peek_ctx e (ctx c0 c1 c2) (ctx e c0 c1))
  <-- 
- (E e [c0 c1 c2] _)
+ (E e (ctx c0 c1 c2) _)
  (or (callcc e _) (call e _ _) (let e _ _) (lambda e _ _))]
 
 ;; Copy contexts
@@ -121,9 +131,16 @@
  <--
  (E e ctx ak)
  (peek_ctx e ctx ectx)
- --
  (let_list ll x ebnd)
  (let e ll ebody)]
+
+;; [(tmp1 e ctx ectx x ebnd ebody)
+;;  <--
+;; ]
+
+;; [(tmp0 e x ebnd ebody)
+;;  <--
+;; ]
 
 ;; binary primitive operation expression
 [(E earg0 ctx (kaddr earg0 ctx))
@@ -210,7 +227,6 @@
  (store (vaddr x ectx) v)
  (copy_ctx ctx_clo ectx elam)
  (flow_ae v ebody)
- (here ebody pos x v ectx)
  <--
  (lambda_arg_list params pos x)
  (lambda elam params ebody)
@@ -254,4 +270,3 @@
  <--
  (store ak (setk loc next_ak))
  (A v ak)]
-
