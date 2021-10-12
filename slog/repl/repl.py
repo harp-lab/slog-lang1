@@ -57,10 +57,15 @@ HELP = '''
                                         `_` is wildcard
     
     <slog code>                         execute a line of slog code
+    
+    fact-depth                          set the maximum unroll depth in facts printing
+
+    fact-cardi                          set the group cardinality of facts printing
 '''
 
 CMD = ['help', 'run', 'connect', 'dump', 'showdb',
-       'load', 'compile', 'tag', 'switch']
+       'load', 'compile', 'tag', 'switch', 'fact-depth',
+       'fact-cardi']
 
 
 def invalid_alert(message):
@@ -109,6 +114,18 @@ def exec_command(client: SlogClient, raw_input: str):
                 invalid_alert(f'{cmd} expect a string at postion 2 as arg')
         else:
             invalid_alert(f'{cmd} expect 1/2 arg, but get {len(args)}')
+    elif cmd == 'fact-depth':
+        if len(args) == 1 and args[0].isnumeric():
+            client.unroll_depth = int(args[0])
+            print(f'max nested fact unrolling depth is set to {int(args[0])}')
+        else:
+            invalid_alert(f'{cmd} expect at least 1 arg!')
+    elif cmd == 'fact-cardi':
+        if len(args) == 1 and args[0].isnumeric():
+            client.group_cardinality = int(args[0])
+            print(f'max nested fact unrolling depth is set to {int(args[0])}')
+        else:
+            invalid_alert(f'{cmd} expect at least 1 arg!')
     elif cmd == 'load':
         if len(args) == 1:
             if args[0].startswith('"') and args[0].endswith('"'):

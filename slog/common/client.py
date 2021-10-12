@@ -13,7 +13,7 @@ from six import MAXSIZE
 
 from slog.common import rel_name_from_file, make_stub, PING_INTERVAL
 from slog.common.elaborator import Elaborator
-from slog.common.format import binary_to_sexpr
+from slog.common.format import binary_table_to_sexpr
 from slog.daemon.const import STATUS_PENDING, STATUS_FAILED, STATUS_RESOLVED, STATUS_NOSUCHPROMISE
 import slog.protobufs.slog_pb2 as slog_pb2
 
@@ -82,7 +82,8 @@ class SlogClient:
             sys.exit(1)
         self.lasterr = None
         self.relations = []
-        self.unroll_depth = 3
+        self.unroll_depth = 5
+        self.group_cardinality = 5
         self.cur_db = ''
         self._cur_program_hashes = None
         self.intern_string_dict = {}
@@ -185,6 +186,7 @@ class SlogClient:
         self.switchto_db(inited_db)
         return inited_db, elaborator.hashes.keys()
 
+    @lru_cache(maxsize=None)
     def slog_add_rule(self, slog_str, db_id, writer:Writer=Writer()):
         """ add a single line of slog query to some database, return the generated database """
         hash_func = hashlib.sha256()
@@ -271,10 +273,10 @@ class SlogClient:
         self.update_dbs()
         return out_db
 
-    def _update_intern_strings(self):
+    def _update_intern_strings(self, db_id):
         """ update cached string.csv data """
         req = slog_pb2.StringRequest()
-        req.database_id = self.cur_db
+        req.database_id = db_id
         for sres in self._stub.GetStrings(req):
             self.intern_string_dict[sres.id] = sres.text
 
@@ -292,7 +294,7 @@ class SlogClient:
         new_ts = self._cur_time
         self._times[new_ts] = db_id
         self.load_relations(db_id)
-        self._update_intern_strings()
+        self._update_intern_strings(self.cur_db)
         self.updated_tuples = {}
 
     def load_relations(self, db_id):
@@ -349,30 +351,26 @@ class SlogClient:
         return tuples_map
 
     @lru_cache(maxsize=None)
-    def _recurisve_dump(self, name, db_id):
-        """ real dump function """
+    def _dump_tuples(self, name, db_id):
+        """ real dump function, this can help use using cahce """
         tuples_map = {}
         for rel in self.lookup_rels(name):
             tag = rel[2]
             self._recusive_fetch_tuples(tag, tuples_map, db_id)
-        tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
-        sexpr_dict = binary_to_sexpr(tuples_map, tag_map, self.intern_string_dict)
-        return sexpr_dict
+        return tuples_map
 
     def dump_relation_by_name(self, name, writer:Writer=Writer()):
         """ recursive print all tuples of a relation """
         if len(self.lookup_rels(name)) == 0:
             writer.write("No relation named {} in the current database".format(name))
             return
-        sexpr_dict = self._recurisve_dump(name, self.cur_db)
-        return_res = []
-        for rel in self.lookup_rels(name):
-            tag = rel[2]
-            for idx, row in enumerate(sexpr_dict[tag]):
-                writer.write(f"#{idx}\t{row}")
-                return_res.append(row)
-        return return_res
-
+        tuples_map = self._dump_tuples(name, self.cur_db)
+        tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
+        sexpr_list = binary_table_to_sexpr(name, tuples_map, tag_map, self.intern_string_dict,
+                                           self.unroll_depth, self.group_cardinality)
+        for idx, row in enumerate(sexpr_list):
+            writer.write(f"#{idx}\t{row}")
+        return sexpr_list
 
     def tag_db(self, db_id, tag_name):
         """ tag a database with some name """
@@ -418,7 +416,6 @@ class SlogClient:
         slog_code = f'[({query_name} x) <-- (= x {query[1:]})]'
         return slog_code
 
-    @lru_cache(maxsize=None)
     def run_slog_query(self, query, db_id):
         """ run a query on some database  """
         hash_func = hashlib.sha256()
@@ -448,8 +445,8 @@ class SlogClient:
             writer.write(f"#{idx}\t{fact}")
         # after dump query relation, delete intermediate database, switch back to old db
         if self.cur_db != old_db:
-            query_db = self.cur_db
+            # query_db = self.cur_db
             self.switchto_db(old_db)
-            req = slog_pb2.DropDBRequest(database_id=query_db)
-            self._stub.DropDB(req)
+            # req = slog_pb2.DropDBRequest(database_id=query_db)
+            # self._stub.DropDB(req)
         return query_res
