@@ -2,7 +2,7 @@
 These are common 'verbs' for things to do
 """
 
-from functools import cache
+from functools import lru_cache
 import hashlib
 import os
 import sys
@@ -111,7 +111,7 @@ class SlogClient:
         req = slog_pb2.PingRequest()
         self._stub.Ping(req)
 
-    @cache
+    @lru_cache(maxsize=None)
     def upload_csv(self, csv_dir, db_id, writer=Writer()):
         ''' upload csv to current EDB to some database using tsv_bin tool '''
         def csv_request_generator(csv_file_paths: list):
@@ -164,7 +164,7 @@ class SlogClient:
             writer.fail("💥")
             writer.write(f" {response.error_msg} fail to update!")
 
-    @cache
+    @lru_cache(maxsize=None)
     def compile_slog(self, filename, writer=Writer()):
         '''
         compile a slog file, and set current DB as the resultant DB.
@@ -226,7 +226,7 @@ class SlogClient:
         self.update_dbs()
         return edb
 
-    @cache
+    @lru_cache(maxsize=None)
     def run_with_db(self, filename, db_id=None, cores=2, writer=Writer()):
         ''' run a program with input database '''
         self.update_dbs()
@@ -348,7 +348,7 @@ class SlogClient:
                 tuples_map[tag].append(u64)
         return tuples_map
 
-    @cache
+    @lru_cache(maxsize=None)
     def _recurisve_dump(self, name, db_id):
         """ real dump function """
         tuples_map = {}
@@ -418,7 +418,7 @@ class SlogClient:
         slog_code = f'[({query_name} x) <-- (= x {query[1:]})]'
         return slog_code
 
-    @cache
+    @lru_cache(maxsize=None)
     def run_slog_query(self, query, db_id):
         """ run a query on some database  """
         hash_func = hashlib.sha256()
