@@ -123,20 +123,31 @@
   
   [func3
     (generate-cpp-func-for-computational-relation-rules
-      '{
-        (crule ((rel-select comp_rel3 3 (1 2) comp) 42 inp _ res)
-              ((rel-select + 3 (1 2) comp) inp 1 _ inp+1)
-              ((rel-select > 2 (1 2) comp) inp+1 inp _)
-              ((rel-select < 2 (2 1) comp) inp+1 inp _)
-              ((rel-select * 3 (1 2) comp) inp+1 2 _ res))}
+      '{(crule ((rel-select comp_rel3 3 (1 2) comp) 42 inp _ res)
+               ((rel-select + 3 (1 2) comp) inp 1 _ inp+1)
+               ((rel-select > 2 (1 2) comp) inp+1 inp _)
+               ((rel-select < 2 (2 1) comp) inp+1 inp _)
+               ((rel-select * 3 (1 2) comp) inp+1 2 _ res))}
       (hash '(rel-select comp_rel3 3 (1 2) comp) "comp_rel3"))]
   
   [func4
     (generate-cpp-func-for-computational-relation-rules
-      '{
-        (crule ((rel-select comp_rel4 3 (1 2) comp) x y _ 100)
-              ((rel-select < 2 (2 1) comp) y x _))}
+      '{(crule ((rel-select comp_rel4 3 (1 2) comp) x y _ 100)
+               ((rel-select < 2 (2 1) comp) y x _))}
       (hash '(rel-select comp_rel4 3 (1 2) comp) "comp_rel4"))]
+
+  [func5
+    (generate-cpp-func-for-computational-relation-rules
+      '{(crule ((rel-select comp_rel5 3 (1 2) comp) x y _ z)
+               ((rel-select - 3 (2 1) comp) y x _ z)
+               ((rel-select = 2 (1 2) comp) x 100 _))}
+       (hash '(rel-select comp_rel5 3 (1 2) comp) "comp_rel5"))]
+
+  [in_range-func
+    (generate-cpp-func-for-computational-relation-rules
+      '{(crule ((rel-select in_range 3 (1 2 3) comp) x y z _)
+               ((rel-select range 3 (1 2) comp) x y _ z))}
+      (hash '(rel-select in_range 3 (1 2 3) comp) "in_range"))]
 
   [cpp-file-contents-filled-in 
     (string-replace-all cpp-file-contents 
@@ -149,6 +160,8 @@
                         "[FACTORIAL_FUNC]" factorial-func
                         "[FUNC3]" func3
                         "[FUNC4]" func4
+                        "[FUNC5]" func5
+                        "[IN_RANGE]" in_range-func
                         )])
 
   (display-to-file cpp-file-contents-filled-in (get-path "./output/builtins-tests2-generated.cpp") #:exists 'replace))

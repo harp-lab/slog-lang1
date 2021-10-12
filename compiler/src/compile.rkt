@@ -551,7 +551,7 @@
 
 (define direct-builtins
   `((div-rem 4 (1 2) "builtin_div_rem")
-    (range 3 (1 2) "builtin_range")))
+    #;(range 3 (1 2) "builtin_range")))
 
 (define callback-builtins
   `((< 2 (1 2) "builtin_less")
@@ -561,10 +561,11 @@
     
     (=/= 2 (1 2) "builtin_neq")
     (/= 2 (1 2) "builtin_neq")
-    (= 2 (1 2) "builtin_eq")
+    ; (= 2 (1 2) "builtin_eq") ;; TODO commented out for testing, uncomment
     (= 2 (1) "builtin_eq_1")
     (= 2 (2) "builtin_eq_1")
 
+    ($nop 0 () "builtin_nop")
 
     (range 3 (1 2) "callback_builtin_range")
 
@@ -580,8 +581,6 @@
     
     (number? 1 (1) "builtin_number_huh")
     (not-number? 1 (1) "builtin_not_number_huh")))
-
-;; EXPERIMENTAL CODE
 
 
 (define (cl-input-args cl)
@@ -604,7 +603,7 @@
   (string-replace-all
    "/* [comment] */
     [](const u64* data, auto init_state, decltype(init_state) (*callback) ([callback-args] decltype(init_state) state)) -> decltype(init_state){
-     typedef decltype(init_state) (*original_callback_t) ([callback-args] decltype(init_state) state);
+     typedef decltype(callback) original_callback_t;
      typedef CL2CB_State (*cl1cb_t) ([cl1cb-params] CL2CB_State cl1cb_state);
     
      CL2CB_State cl1cb_init_state = {(void*) callback, &init_state, data, nullptr};
@@ -627,14 +626,14 @@
     "[cl1func]" cl1func
     "[cl2func]" cl2func
     "[cl1func-input]" (intercalate ", " (map (λ (arg) (match arg
-                                          [(? number? n) (format "number_to_datum(~a)" n)]
+                                          [(? number? n) (format "n2d(~a)" n)]
                                           [(? symbol?) (format "data[~a]" (index-of input-args arg))])) 
                                         (cl-input-args cl1)))
     "[cl1cb-params]" (intercalate2 ", " (map (app format "u64 arg~a" _) (range 0 (length (cl-output-args cl1)))))
     "[cl1cb-args-arr]" (intercalate ", " (map (app format "arg~a" _) (range 0 (length (cl-output-args cl1))))) 
     "[cl2func-input]" (intercalate ", "
                       (map (λ (arg) (match arg
-                                      [(? number? n) (format "number_to_datum(~a)" n)]
+                                      [(? number? n) (format "n2d(~a)" n)]
                                       [(? symbol?) #:when (member arg input-args) 
                                         (format "cl1cb_state.original_data[~a]" (index-of input-args arg))]
                                       [(? symbol?) #:when (member arg (cl-output-args cl1)) 
@@ -655,6 +654,7 @@
     ))
 
 (define (get-cpp-func-for-comp-rel-with-extended-args available-rel-select available-func target-indices)
+  (printf "get-cpp-func-for-comp-rel-with-extended-args called: ~a, ~a, ~a\n" available-rel-select available-func target-indices)
   (match-define `(,rel-select ,name ,arity ,available-indices comp) available-rel-select)
   (cond
    [(equal? available-indices target-indices) available-func]
@@ -672,8 +672,7 @@
   (string-replace-all
    "/* [comment] */
     [](const u64* data, auto init_state, decltype(init_state) (*callback) ([callback-args] decltype(init_state) state)) -> decltype(init_state){
-      
-      typedef decltype(init_state) (*original_callback_t) ([callback-args] decltype(init_state) state);
+      typedef decltype(callback) original_callback_t;
       if (! ([check-input-compatibility] true)) return init_state;
       u64 bclfunc_input[] = {[bclfunc-input]};
       BCLCB_State bclcb_init_state = {(void*) callback, &init_state, data};
@@ -691,7 +690,7 @@
    "[callback-args]" (intercalate2 ", " (map (λ (x) (format "u64 arg~a" x)) (range 0 (length (cl-output-args hcl)))))
    "[bclfunc]" bfunc
    "[bclfunc-input]" (intercalate ", " (map (λ (arg) (match arg
-                                          [(? number? n) (format "number_to_datum(~a)" n)]
+                                          [(? number? n) (format "n2d(~a)" n)]
                                           [(? symbol?) (format "data[~a]" (index-of (cl-input-args hcl) arg))])) 
                                         (cl-input-args bcl)))
    "[bclcb-params]" (intercalate2 ", " (map (λ (x) (format "u64 arg~a" x)) (range 0 (length (cl-output-args bcl)))))
@@ -708,12 +707,13 @@
     (filter-map (λ (i) 
                   (define arg (list-ref (cl-output-args bcl) i))
                   (match arg
-                    [(? number? n) (format "arg~a == ~a" i (lit->cpp-datum arg))]
+                    [(? lit? n) (format "arg~a == ~a" i (lit->cpp-datum arg))]
+                    [(? var?) #:when (member arg input-args) (format "arg~a == bclcb_state.original_data[~a]" i (index-of input-args arg))]
                     [else #f]))
                 (range 0 (length (cl-output-args bcl)))))
    "[original-callback-args]" (intercalate2 ", "
                                (map (λ (arg) (match arg
-                                              [(? number? n) (format "number_to_datum(~a)" n)]
+                                              [(? number? n) (format "n2d(~a)" n)]
                                               [(? symbol?) #:when (member arg (cl-input-args hcl)) 
                                                 (format "bclcb_state.original_data[~a]" (index-of input-args arg))]
                                               [(? symbol?) #:when (member arg (cl-output-args bcl)) 
@@ -722,12 +722,11 @@
   ))
 
 (define (generate-cpp-lambda-for-computational-head-cl hcl)
-  (define dummy-bi-func-name (get-func-for-comp-rel '(rel-select = 2 (1 2) comp) (hash)))
-  (define dummy-bcl '((rel-select = 2 (1 2) comp) 0 0 _))
+  (define dummy-bi-func-name (get-func-for-comp-rel '(rel-select $nop 0 () comp) (hash)))
+  (define dummy-bcl '((rel-select $nop 0 () comp) _))
   (generate-cpp-lambda-for-computational-copy dummy-bcl dummy-bi-func-name hcl))
 
 
-;; TODO this is trash::
 (define (get-func-for-comp-rel bi cr-names)
   ; (printf "get-func-for-comp-rel bi : ~a, cr-names: ~a\n" bi cr-names)
   (match-define `(rel-version ,rel-name ,rel-arity ,rel-indices ,_) (->rel-version bi))
