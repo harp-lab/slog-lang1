@@ -5,14 +5,12 @@
 
 (provide slog-compile
          slog-compile-cpp
-         extend-direct-cpp-builtin-to-new-args
          generate-cpp-lambda-for-rule-with-builtin
          generate-cpp-lambda-for-rule-with-callback-builtin
          generate-cpp-lambda-for-computational-join
          generate-cpp-lambda-for-computational-copy
          generate-lambda-for-computational-relation-rule
-         generate-cpp-func-for-computational-relation-rules
-         generate-cpp-lambda-for-rule-with-direct-builtin)
+         generate-cpp-func-for-computational-relation-rules)
 
 (require
  "lang-predicates.rkt"
@@ -325,85 +323,10 @@
   (match-define `(srule (,rel-sel ,hvars ...)
                         (,rel-ver0 ,bvars0 ...)
                         ((rel-version ,bi-op ,op-arity ,new-indices ,ver) ,bvars1 ...)) (strip-prov r))
-  (define all-builtins (append (map (app append _ '(direct)) direct-builtins)
-                               (map (app append _ '(callback)) callback-builtins)))
-  (define matching 
-    (filter (λ (bi-md) 
-            (match-define `(,name ,arity ,indices ,cpp-func-name ,kind) bi-md)
-            (and (equal? name bi-op) 
-                 (equal? op-arity arity)
-                 (subset? (list->set indices) (list->set new-indices))))
-           all-builtins))
-  (cond 
-    [(empty? matching) (error (format "no suitable implementation exists for builtin ~a" bi-op))]
-    [else
-      (define best-match 
-        (argmax (λ (bi-md)
-                  (match-define `(,name ,arity ,indices ,cpp-func-name ,kind) bi-md)
-                  (length indices))
-                 matching))
-      (match best-match
-        [`(,name ,arity ,indices ,cpp-func-name direct)
-          (generate-cpp-lambda-for-rule-with-direct-builtin r indices cpp-func-name)]
-        [`(,name ,arity ,indices ,cpp-func-name callback)
-          (generate-cpp-lambda-for-rule-with-callback-builtin r indices cpp-func-name)])])) 
-    
+  (define best-match (get-matching-builtin-spec `(rel-version ,bi-op ,op-arity ,new-indices ,ver)))
+  (match-define `(,name ,arity ,indices ,cpp-func-name) best-match)
+  (generate-cpp-lambda-for-rule-with-callback-builtin r indices cpp-func-name)) 
 
-(define (generate-cpp-lambda-for-rule-with-direct-builtin r indices cpp-func-name)
-  (match-define `(srule (,rel-sel ,hvars ...)
-                        (,rel-ver0 ,bvars0 ...)
-                        ((rel-version ,(? builtin? bi-op) ,arity ,new-indices ,ver) ,bvars1 ...)) (strip-prov r))
-  
-  (define new-tuple-index-to-old-tuple-index-mapping (map-new-tuple-index-to-old-tuple-index arity new-indices indices))
-  (set! indices (map sub1 indices))
-  (set! new-indices (map sub1 new-indices))
-  (define output-indices (filter (λ (i) (not (member i indices))) (range 0 arity)))
-
-  (string-replace-all 
-    "[](const u64* data, u64* output) -> int{
-      auto args_for_old_bi = std::array<u64, [old-indices-size]> {[populate-args-for-old-bi-code]};
-      auto old_bi_res = [cpp-func-name](args_for_old_bi.data());
-
-      auto tuples_count = 0;
-      for (auto bi_output_tuple: old_bi_res) {
-        bool compatible = [check-compatibility-code];
-        if (! compatible) continue;
-        
-        auto head_tuple = output;
-        [head-tuple-populating-code]
-        tuples_count++;
-        output += [head-tuple-size];
-      }
-      return tuples_count;
-    }"
-
-    "[head-tuple-size]" (~a (length hvars))
-    "[old-indices-size]" (~a (length indices))
-    "[cpp-func-name]" cpp-func-name
-    "[populate-args-for-old-bi-code]"
-    (intercalate ", " (map (λ (i) (format "data[~a]" (index-of new-indices (list-ref indices i)))) (range 0 (length indices))))
-    "[check-compatibility-code]"
-    (intercalate " && " 
-      (cons "true" (filter-map (λ (i) (let ([mapped-ind (index-of new-indices (list-ref output-indices i))]) 
-                          (and mapped-ind (format "bi_output_tuple[~a] == data[~a]" i mapped-ind)))) 
-                  (range 0 (length output-indices)))))
-    "[head-tuple-populating-code]"
-    (intercalate "\n" (map 
-      (λ (i)
-        (define rhs (match (list-ref hvars i)
-          [(? number? x) (format "number_to_datum(~a)" x)]
-          [(? string? str) (error (format "string literals in cpp compiler not supported yet!")) ] ;TODO
-          [(? symbol? var) #:when (member var bvars0)
-            (format "data[~a]" (index-of bvars0 var))]
-          [(? symbol? var) #:when (member var bvars1)
-            (define bi-arg-index (index-of bvars1 var))
-            (define index-in-old-bi-tuple (list-ref new-tuple-index-to-old-tuple-index-mapping bi-arg-index))
-            (define index-in-old-bi-return-tuple (- index-in-old-bi-tuple (length indices) 1))
-            (format "bi_output_tuple[~a]" index-in-old-bi-return-tuple)]
-          [bad-arg (error (format "bad rule: ~a\nbad arg: ~a" (strip-prov r) bad-arg))]))
-        (format "head_tuple[~a] = ~a;" i rhs)) 
-    (range 0 (length hvars))))
-  ))
 
 (define (generate-cpp-lambda-for-rule-with-callback-builtin r indices cpp-func-name)
   ; (printf "(generate-cpp-lambda-for-rule-with-callback-builtin r indices cpp-func-name) args: ~a\n ~a ~a\n" (strip-prov r) indices cpp-func-name)
@@ -479,79 +402,6 @@
   (define old-indices-extended (extend-indices old-indices arity))
   (map (λ (i) (index-of old-indices-extended (list-ref new-indices-extended i))) (range 0 (add1 arity))))
 
-;; TODO not used
-(define (extend-direct-cpp-builtin-to-new-args arity indices new-indices cpp-func-name)
-  (set! indices (map sub1 indices))
-  (set! new-indices (map sub1 new-indices))
-  (define output-indices (filter (λ (i) (not (member i indices))) (range 0 arity)))
-  (define new-output-indices (filter (λ (i) (not (member i new-indices))) (range 0 arity)))
-
-  (string-replace-all 
-  "[](const u64* const data) -> vector<array<u64, [tuple-size]>>{
-    const auto old_indices_size = [old-indices-size];
-    auto old_bi_func = *[cpp-func-name];
-    
-    auto args_for_old_bi = std::array<u64, old_indices_size> {[populate-args-for-old-bi-code]};
-
-    auto old_bi_res = old_bi_func(args_for_old_bi.data());
-    auto res = vector<array<u64, [tuple-size]>>();
-    for (auto tuple: old_bi_res) {
-      bool compatible = [check-compatibility-code];
-      if (! compatible) continue;
-      
-      auto new_tuple = array<u64, [tuple-size]> {[populate-new-tuple-code]};
-      
-      res.push_back(new_tuple);
-    }
-    return res;
-  }"
-    "[tuple-size]" (~a (- arity (length new-indices)))
-    "[old-indices-size]" (~a (length indices))
-    "[old_indices]"(int-list->cpp-array indices)
-    "[new_indices]" (int-list->cpp-array new-indices)
-    "[cpp-func-name]" cpp-func-name
-    "[map_old_input_tuple_index_to_new_input_tuple_index]" (int-list->cpp-array (map (λ (ind) (index-of new-indices ind)) indices))
-    "[map_new_return_tuple_index_to_old_return_tuple_index]" (int-list->cpp-array (map (λ (ind) (index-of output-indices ind)) new-output-indices))
-    "[map_old_return_tuple_index_to_new_input_tuple_index]" (int-list->cpp-array (map (λ (ind) (or (index-of new-indices ind) -1)) output-indices))
-    "[populate-args-for-old-bi-code]"
-    (intercalate ", " (map (λ (i) (format "data[~a]" (index-of new-indices (list-ref indices i)))) (range 0 (length indices))))
-    "[check-compatibility-code]"
-    (intercalate " && " 
-      (cons "true" (filter-map (λ (i) (let ([mapped-ind (index-of new-indices (list-ref output-indices i))]) 
-                          (and mapped-ind (format "tuple[~a] == data[~a]" i mapped-ind)))) 
-                  (range 0 (length output-indices)))))
-    "[populate-new-tuple-code]"
-    (intercalate ", " (map (λ (i) (format "tuple[~a]" (index-of output-indices (list-ref new-output-indices i)))) (range 0 (length new-output-indices))))
-  ))
-
-;; TODO not used
-(define (extend-cpp-filtering-builtin-to-permuted-args arity indices new-indices cpp-func-name)
-  (set! indices (map sub1 indices))
-  (set! new-indices (map sub1 new-indices))
-
-  (format 
-  "[](const u64* const data) -> bool{
-    auto old_indices = ~a;
-    auto new_indices = ~a;
-    auto old_bi_func = *~a;
-    auto map_old_input_tuple_index_to_new_input_tuple_index = ~a;
-    auto args_for_old_bi = vector<u64>();
-    args_for_old_bi.reserve(old_indices.size()); //TODO perf!
-    for (auto i: old_indices) {
-      auto index_in_new_indices = map_old_input_tuple_index_to_new_input_tuple_index[i];
-      args_for_old_bi.push_back(data[index_in_new_indices]);
-    }
-    return old_bi_func(args_for_old_bi.data());
-  }"
-    (int-list->cpp-array indices)
-    (int-list->cpp-array new-indices)
-    cpp-func-name
-    (int-list->cpp-array (map (λ (ind) (index-of new-indices ind)) indices)) ;map_old_input_tuple_index_to_new_input_tuple_index
-  ))
-
-(define direct-builtins
-  `((div-rem 4 (1 2) "builtin_div_rem")
-    #;(range 3 (1 2) "builtin_range")))
 
 (define callback-builtins
   `((< 2 (1 2) "builtin_less")
@@ -654,7 +504,7 @@
     ))
 
 (define (get-cpp-func-for-comp-rel-with-extended-args available-rel-select available-func target-indices)
-  (printf "get-cpp-func-for-comp-rel-with-extended-args called: ~a, ~a, ~a\n" available-rel-select available-func target-indices)
+  ; (printf "get-cpp-func-for-comp-rel-with-extended-args called: ~a, ~a, ~a\n" available-rel-select available-func target-indices)
   (match-define `(,rel-select ,name ,arity ,available-indices comp) available-rel-select)
   (cond
    [(equal? available-indices target-indices) available-func]
@@ -727,32 +577,36 @@
   (generate-cpp-lambda-for-computational-copy dummy-bcl dummy-bi-func-name hcl))
 
 
-(define (get-func-for-comp-rel bi cr-names)
-  ; (printf "get-func-for-comp-rel bi : ~a, cr-names: ~a\n" bi cr-names)
+(define (get-matching-builtin-spec bi)
   (match-define `(rel-version ,rel-name ,rel-arity ,rel-indices ,_) (->rel-version bi))
-  (cond 
-    [(hash-has-key? cr-names bi) 
-      (hash-ref cr-names bi)]
-    [else
-      (define matching-specs 
+  (define matching-specs 
         (filter (λ (bi-spec)
                 (match-define `(,name ,arity ,indices ,cpp-func-name) bi-spec)
                 (and (equal? rel-name name)
                     (equal? rel-arity arity)
                     (subset? (list->set indices) (list->set rel-indices)))) callback-builtins))
-      (when (empty? matching-specs)
+  (when (empty? matching-specs)
         (error (format "no suitable implementation exists for builtin ~a" bi)))
-      (define best-match
+  (define best-match
         (argmin (λ (bi-spec)
                   (match-define `(,name ,arity ,indices ,cpp-func-name) bi-spec)
                   (set-count (set-subtract (list->set rel-indices) (list->set indices))))
                 matching-specs))
-         (match-define `(,name ,arity ,indices ,cpp-func-name) best-match)
-         (cond
-          [(equal? indices rel-indices)
-            cpp-func-name]
-          [else
-            (get-cpp-func-for-comp-rel-with-extended-args `(rel-select ,name ,arity ,indices comp) cpp-func-name rel-indices)])]))
+  best-match)
+
+(define (get-func-for-comp-rel bi cr-names)
+  (match-define `(rel-version ,rel-name ,rel-arity ,rel-indices ,_) (->rel-version bi))
+  (cond 
+    [(hash-has-key? cr-names bi) 
+      (hash-ref cr-names bi)]
+    [else
+      (define best-match (get-matching-builtin-spec bi))
+      (match-define `(,name ,arity ,indices ,cpp-func-name) best-match)
+      (cond
+        [(equal? indices rel-indices)
+          cpp-func-name]
+        [else
+          (get-cpp-func-for-comp-rel-with-extended-args `(rel-select ,name ,arity ,indices comp) cpp-func-name rel-indices)])]))
 
 ; cr-names: a hash from computational relation rel-versions to the function names implementing them
 (define (generate-lambda-for-computational-relation-rule rule cr-names)

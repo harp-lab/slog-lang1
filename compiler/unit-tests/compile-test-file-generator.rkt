@@ -23,12 +23,6 @@
           ((rel-version range 3 (1 2) comp) x y _1 ans))]
   [lam2 (generate-cpp-lambda-for-rule-with-callback-builtin rule2 '(1 2) "callback_builtin_range")]
 
-  [rule3 '(srule
-            ((rel-select bar 5 (1 2) db) y x 42 rem div)
-            ((rel-version foo 5 (1 2 3) total) x y rem _2 w1 w2)
-            ((rel-version div-rem 4 (1 2 4) comp) x y rem _1 div))]
-  [lam3 (generate-cpp-lambda-for-rule-with-builtin rule3)]
-
   [rule4 '(srule
             ((rel-select bar 3 (1 2) db) y z 42)
             ((rel-version foo 3 (1 2 3) total) x y z)
@@ -65,15 +59,20 @@
          ((rel-version = 2 (1 2) comp) $id1 $id1 $_8))]
   [lam9 (generate-cpp-lambda-for-rule-with-callback-builtin rule9 '(1 2) "builtin_eq")]
 
+  [rule10 '(srule
+         ((rel-select $inter-body4 3 (1 2 3) db) a b c)
+         ((rel-version foo 3 (1 2 3) total) a b c $_1)
+         ((rel-version range 3 (3 2 1) comp) c b a $_2))]
+  [lam10 (generate-cpp-lambda-for-rule-with-builtin rule10)]
 
   [builtins-test-template-file (file->string (get-path "./builtins-tests-template.cpp"))]
-  [output-file (format builtins-test-template-file lam1 lam2 lam3 lam4 lam5 lam6 lam7 lam8 lam9)])
+  [output-file (format builtins-test-template-file lam1 lam2 lam4 lam5 lam6 lam7 lam8 lam9 lam10)])
   (display-to-file output-file (get-path "./output/builtins-tests-generated.cpp") 	#:exists 'replace))
+
+
 
 (let* 
  ([cpp-file-contents (file->string (get-path "./builtins-tests2-template.cpp"))]
-  [bi-extended-lam (extend-direct-cpp-builtin-to-new-args 3 '(1 2) '(1 2 3) "test_bi_func")]
-  [bi-extended-lam2 (extend-direct-cpp-builtin-to-new-args 4 '(1 2) '(4 2 1) "builtin_div_rem")]
   [join-lam (generate-cpp-lambda-for-computational-join
               '((rel-select > 2 (1 2) comp) x 0 _) "builtin_greater"
               '((rel-select + 3 (1 2) comp) x 10 _ y) "builtin_add"
@@ -151,8 +150,6 @@
 
   [cpp-file-contents-filled-in 
     (string-replace-all cpp-file-contents 
-                        "[BI_EXTENDED_LAM]" bi-extended-lam
-                        "[BI_EXTENDED_LAM2]" bi-extended-lam2
                         "[JOIN_LAM]" join-lam
                         "[COPY_LAM]" copy-lam
                         "[COPY_LAM2]" copy-lam2
