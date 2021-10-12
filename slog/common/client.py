@@ -2,7 +2,7 @@
 These are common 'verbs' for things to do
 """
 
-import copy
+from functools import cache
 import hashlib
 import os
 import sys
@@ -31,6 +31,12 @@ class Writer:
     def fail(self, _):
         ...
 
+    def __eq__(self, o: object) -> bool:
+        return True
+
+    def __hash__(self) -> int:
+        return 0
+
 class ConsoleWriter(Writer):
     """
     Simple class to print when given a write command
@@ -53,6 +59,12 @@ class FileWriter(Writer):
         self.f.write(f'{out}\n')
     def fail(self, out):
         self.f.write(f'{out}\n')
+
+    def __eq__(self, o: object) -> bool:
+        return self.f.name == o.name
+
+    def __hash__(self) -> int:
+        return hash(self.f.name)
 
 class SlogClient:
     """
@@ -98,14 +110,15 @@ class SlogClient:
         req = slog_pb2.PingRequest()
         self._stub.Ping(req)
 
-    def upload_csv(self, csv_dir, writer=Writer()):
-        ''' upload csv to current EDB using tsv_bin tool '''
+    @cache
+    def upload_csv(self, csv_dir, db_id, writer=Writer()):
+        ''' upload csv to current EDB to some database using tsv_bin tool '''
         def csv_request_generator(csv_file_paths: list):
             ''' a generator to create gRPC stream from a list of facts file '''
             for csv_fname in csv_file_paths:
                 rel_name = rel_name_from_file(csv_fname)
                 req = slog_pb2.PutCSVFactsRequest()
-                req.using_database = self.cur_db
+                req.using_database = db_id
                 req.relation_name = rel_name
                 req.buckets = 16
                 with open(csv_fname, 'r') as csv_f:
@@ -142,6 +155,7 @@ class SlogClient:
             writer.fail("💥")
             writer.write(f" {response.error_msg} fail to update!")
 
+    @cache
     def compile_slog(self, filename, writer=Writer()):
         '''
         compile a slog file, and set current DB as the resultant DB.
@@ -162,8 +176,8 @@ class SlogClient:
         self.switchto_db(inited_db)
         return inited_db, elaborator.hashes.keys()
 
-    def slog_add_rule(self, slog_str, writer:Writer=Writer()):
-        """ run a single line of slog query, return the generated database """
+    def slog_add_rule(self, slog_str, db_id, writer:Writer=Writer()):
+        """ add a single line of slog query to some database, return the generated database """
         hash_func = hashlib.sha256()
         slog_code = slog_str.encode('utf-8')
         hash_func.update(slog_code)
@@ -172,7 +186,7 @@ class SlogClient:
         inited_db = self._compile([slog_hash], writer)
         if not inited_db:
             return
-        new_db = self._run([slog_hash], self.cur_db, writer=writer)
+        new_db = self._run(program_hashes=[slog_hash], input_database=db_id, writer=writer)
         return new_db
 
     def _load(self, hsh_map: dict):
@@ -203,6 +217,7 @@ class SlogClient:
         self.update_dbs()
         return edb
 
+    @cache
     def run_with_db(self, filename, db_id=None, cores=2, writer=Writer()):
         ''' run a program with input database '''
         self.update_dbs()
@@ -306,13 +321,13 @@ class SlogClient:
             if rel[2] == tag:
                 return rel
 
-    def _recusive_fetch_tuples(self, tag, tuples_map:dict):
+    def _recusive_fetch_tuples(self, tag, tuples_map:dict, db_id):
         """ recursively fecth all tuples of a given relation name """
         if tag in tuples_map.keys():
             return tuples_map
         tuples_map[tag] = []
         req = slog_pb2.RelationRequest()
-        req.database_id = self.cur_db
+        req.database_id = db_id
         req.tag = tag
         for response in self._stub.GetTuples(req):
             for u64 in response.data:
@@ -320,26 +335,34 @@ class SlogClient:
                 if val_tag > 254:
                     # relation
                     if val_tag not in tuples_map.keys():
-                        tuples_map = self._recusive_fetch_tuples(val_tag, tuples_map)
+                        tuples_map = self._recusive_fetch_tuples(val_tag, tuples_map, db_id)
                 tuples_map[tag].append(u64)
         return tuples_map
 
-    def pretty_dump_relation(self, name, writer:Writer=Writer()):
+    @cache
+    def _recurisve_dump(self, name, db_id):
+        """ real dump function """
+        tuples_map = {}
+        for rel in self.lookup_rels(name):
+            tag = rel[2]
+            self._recusive_fetch_tuples(tag, tuples_map, db_id)
+        tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
+        sexpr_dict = binary_to_sexpr(tuples_map, tag_map, self.intern_string_dict)
+        return sexpr_dict
+
+    def dump_relation_by_name(self, name, writer:Writer=Writer()):
         """ recursive print all tuples of a relation """
         if len(self.lookup_rels(name)) == 0:
             writer.write("No relation named {} in the current database".format(name))
             return
-        tuples_map = {}
-        for rel in self.lookup_rels(name):
-            tag = rel[2]
-            self._recusive_fetch_tuples(tag, tuples_map)
-        tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
-        sexpr_dict = binary_to_sexpr(tuples_map, tag_map, self.intern_string_dict)
+        sexpr_dict = self._recurisve_dump(name, self.cur_db)
+        return_res = []
         for rel in self.lookup_rels(name):
             tag = rel[2]
             for idx, row in enumerate(sexpr_dict[tag]):
                 writer.write(f"#{idx}\t{row}")
-        return sexpr_dict
+                return_res.append(row)
+        return return_res
 
 
     def tag_db(self, db_id, tag_name):
@@ -374,70 +397,50 @@ class SlogClient:
                 return res.err_or_db
             elif res.status == STATUS_NOSUCHPROMISE:
                 writer.fail("💥")
-                writer.write(f"promise does not exist!")
+                writer.write("promise does not exist!")
                 return
 
-    def query_to_slog(self, query_name, query: str, writer: Writer):
+    def desugar_query(self, query_name, query: str):
         '''
         turn a query language into a slog code
         `query_name` is the name of query in generated slog code
         query is query string it self, like `?(foo _ 1)`
         '''
-        if not (query.startswith('?(') and query.endswith(')')):
-            writer.fail("query must looks like with ?(<rel_name> ...)")
-            return
-        query_splited = [x.strip() for x in query[2:-1].strip().split(' ') if x.strip() != '']
-        rel_name = query_splited[0]
-        rels = self.lookup_rels(rel_name)
-        found_rel = None
-        if rels == []:
-            writer.fail(f"{rel_name} is not a relation in current database")
-            return
-        for rel in rels:
-            if int(rel[1]) == len(query_splited[1:]):
-                found_rel = rel
-        if not found_rel:
-            writer.fail(f"not arity {len(query_splited[1:])} {rel_name}  "
-                        f"only have arity {','.join([r[2] for r in rels])}")
-            return
-        unknown_arg_num = len([x for x in query_splited if x == '_'])
-        if unknown_arg_num == 0:
-            unknown_arg_num = int(found_rel[2])
-        header = f'({query_name} {" ".join([f"arg_{str(i)}" for i in range(unknown_arg_num)])})'
-        body = f'({found_rel[0]} '
-        cnt = 0
-        for var in query_splited[1:]:
-            if var == '_':
-                body = body + f"arg_{str(cnt)} "
-                cnt += 1
-            else:
-                body = body + var + ' '
-        body = body + ')'
-        slog_code = f'[{header} <-- {body}]'
+        slog_code = f'[({query_name} x) <-- (= x {query[1:]})]'
         return slog_code
 
-    def run_slog_query(self, query, writer:Writer):
-        """
-        run a query to database
-        NOTE: this function won't generate new database
-        """
-        old_db = self.cur_db
+    @cache
+    def run_slog_query(self, query, db_id):
+        """ run a query on some database  """
         hash_func = hashlib.sha256()
         query_encoded = query.encode('utf-8')
         hash_func.update(query_encoded)
         query_hash = hash_func.hexdigest()
         query_name = f"query_{query_hash[:10]}"
-        slog_code = self.query_to_slog(query_name, query, writer)
+        slog_code = self.desugar_query(query_name, query)
         print(slog_code)
         if not slog_code:
             return
-        query_db = self.slog_add_rule(slog_code)
+        query_db = self.slog_add_rule(slog_code, db_id)
         if not query_db:
             return
         self.switchto_db(query_db)
-        query_res = self.pretty_dump_relation(query_name, writer)
+        query_res = self.dump_relation_by_name(query_name)
+        return [f[len(query_name)+1:-1] for f in query_res]
+
+    def pretty_print_slog_query(self, query, writer:Writer):
+        """
+        run a query on current database and print result
+        TODO: should we add new database here?
+        """
+        old_db = self.cur_db
+        query_res = self.run_slog_query(query, self.cur_db)
+        for idx, fact in enumerate(query_res):
+            writer.write(f"#{idx}\t{fact}")
         # after dump query relation, delete intermediate database, switch back to old db
-        self.switchto_db(old_db)
-        req = slog_pb2.DropDBRequest(database_id=query_db)
-        self._stub.DropDB(req)
+        if self.cur_db != old_db:
+            query_db = self.cur_db
+            self.switchto_db(old_db)
+            req = slog_pb2.DropDBRequest(database_id=query_db)
+            self._stub.DropDB(req)
         return query_res

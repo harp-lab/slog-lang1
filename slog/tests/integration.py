@@ -14,6 +14,7 @@ from time import sleep
 from slog.common.client import ConsoleWriter, SlogClient
 import slog.daemon.server as server
 
+
 def parse_test_result(test_file_path):
     """ parse a slog.test file return a map of query to result list """
     with open(test_file_path, 'r') as test_file:
@@ -43,13 +44,14 @@ def test_slog(client: SlogClient, testcase_fpath, result_fpath, out_file):
     inited_db = compile_res[0]
     client.run_with_db(testcase_fpath, inited_db)
     for query, ans in expected_res.items():
-        server_res = client.run_slog_query('?'+query, ConsoleWriter())
-        if server_res != ans:
+        server_res = client.pretty_print_slog_query('?'+query, ConsoleWriter())
+        if server_res is None or set(server_res) != set(ans):
             out_file.write(f"query: {query}\n")
-            out_file.write(f"expect: {expected_res}\n")
+            out_file.write(f"expect: {ans}\n")
             out_file.write(f"but get: {server_res}\n")
         else:
             out_file.write(f"testcase {query} passed!\n")
+
 
 def run_test(client: SlogClient, test_folder, out_fpath):
     with open(out_fpath, "w") as out_file:

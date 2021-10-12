@@ -60,7 +60,7 @@ HELP = '''
 '''
 
 CMD = ['help', 'run', 'connect', 'dump', 'showdb',
-       'load', 'commit', 'compile', 'tag', 'switch']
+       'load', 'compile', 'tag', 'switch']
 
 
 def invalid_alert(message):
@@ -78,10 +78,10 @@ def exec_command(client: SlogClient, raw_input: str):
     # check if it a query
     if (raw_input.startswith('(') and raw_input.endswith(')')) or \
        (raw_input.startswith('[') and raw_input.endswith(']')):
-        client.slog_add_rule(raw_input[1:], ConsoleWriter())
+        client.slog_add_rule(raw_input[1:], client.cur_db, ConsoleWriter())
         return
     if raw_input.startswith('?(') and raw_input.endswith(')'):
-        client.run_slog_query(raw_input, ConsoleWriter())
+        client.pretty_print_slog_query(raw_input, ConsoleWriter())
         return
     # normal command
     cmd = raw_input.split(' ')[0].strip()
@@ -100,11 +100,11 @@ def exec_command(client: SlogClient, raw_input: str):
             invalid_alert(f'{cmd} expect 1 arg, but get {len(args)}')
     elif cmd == 'dump':
         if len(args) == 1:
-            client.pretty_dump_relation(args[0], ConsoleWriter())
+            client.dump_relation_by_name(args[0], ConsoleWriter())
         elif len(args) == 2:
             if args[1].startswith('"') and args[1].endswith('"'):
                 with open(args[1][1:-1], 'w') as out_f:
-                    client.pretty_dump_relation(args[0], FileWriter(out_f))
+                    client.dump_relation_by_name(args[0], FileWriter(out_f))
             else:
                 invalid_alert(f'{cmd} expect a string at postion 2 as arg')
         else:
@@ -113,7 +113,7 @@ def exec_command(client: SlogClient, raw_input: str):
         if len(args) == 1:
             if args[0].startswith('"') and args[0].endswith('"'):
                 with yaspin(text='uploading csv facts ...') as spinner:
-                    client.upload_csv(args[0][1:-1], writer=spinner)
+                    client.upload_csv(args[0][1:-1], client.cur_db, writer=spinner)
             else:
                 invalid_alert(f'{cmd} expect a string at postion 1 as arg')
         else:
@@ -128,12 +128,14 @@ def exec_command(client: SlogClient, raw_input: str):
         else:
             invalid_alert(f'{cmd} expect 1 arg, but get {len(args)}')
     elif cmd == 'run':
-        if len(args) > 1 and (not args[0].startswith('"') or not args[0].endswith('"')):
+        if len(args) >= 1 and (not args[0].startswith('"') or not args[0].endswith('"')):
             invalid_alert(f'{cmd} expect a string at postion 1 as arg')
             return
         with yaspin(text="Running...") as spinner:
-            if len(args) == 2 and len(args[1]) < 5 and args[1].isnumeric():
-                client.run_with_db(args[0][1:-1], cores=int(args[1]), writer=spinner)
+            if len(args) == 1:
+                client.run_with_db(args[0][1:-1], client.cur_db, writer=spinner)
+            elif len(args) == 2 and len(args[1]) < 5 and args[1].isnumeric():
+                client.run_with_db(args[0][1:-1], client.cur_db, cores=int(args[1]), writer=spinner)
             elif len(args) == 2:
                 client.run_with_db(args[0][1:-1], args[1], writer=spinner)
             elif len(args) == 3 and args[2].isnumeric():
@@ -147,7 +149,7 @@ def exec_command(client: SlogClient, raw_input: str):
             else:
                 invalid_alert(f'{cmd} expect a string at postion 1 as arg')
         else:
-            invalid_alert(f'{cmd} expect 2 arg, but get {len(args)}')  
+            invalid_alert(f'{cmd} expect 2 arg, but get {len(args)}')
     elif cmd == 'switch':
         if len(args) == 1:
             client.switchto_db(args[0])

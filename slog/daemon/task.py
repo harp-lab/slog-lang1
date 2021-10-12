@@ -19,7 +19,7 @@ from sexpdata import Symbol
 from slog.daemon.db import MetaDatabase
 from slog.daemon.const import DB_PATH, COMPILESVC_LOG, SLOG_COMPILER_PROCESS, SOURCES_PATH, \
                          DATABASE_PATH, SLOG_COMPILER_ROOT, BINS_PATH, CMAKE_FILE, RUNSVC_LOG
-from slog.daemon.util import generate_db_hash, get_relation_info, split_hashes, rel_name_covert, checkpoint_ord
+from slog.daemon.util import generate_db_hash, split_hashes, checkpoint_ord
 
 
 class Task:
