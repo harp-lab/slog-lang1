@@ -17,6 +17,7 @@ from slog.common.format import binary_to_sexpr
 from slog.daemon.const import STATUS_PENDING, STATUS_FAILED, STATUS_RESOLVED, STATUS_NOSUCHPROMISE
 import slog.protobufs.slog_pb2 as slog_pb2
 
+CSV_CHUNK_SIZE = 1024
 
 class Writer:
     """
@@ -117,14 +118,22 @@ class SlogClient:
             ''' a generator to create gRPC stream from a list of facts file '''
             for csv_fname in csv_file_paths:
                 rel_name = rel_name_from_file(csv_fname)
-                req = slog_pb2.PutCSVFactsRequest()
-                req.using_database = db_id
-                req.relation_name = rel_name
-                req.buckets = 16
                 with open(csv_fname, 'r') as csv_f:
-                    csv_text = csv_f.read()
-                    req.bodies.extend([csv_text])
-                yield req
+                    cnt = 0
+                    buf = ""
+                    for line in csv_f:
+                        if cnt < CSV_CHUNK_SIZE:
+                            buf += line
+                            cnt += 1
+                        else:
+                            req = slog_pb2.PutCSVFactsRequest()
+                            req.using_database = db_id
+                            req.relation_name = rel_name
+                            req.buckets = 16
+                            req.bodies.extend([buf])
+                            yield req
+                            cnt = 0
+                            buf = ""
         csv_file_paths = []
         if not os.path.exists(csv_dir):
             writer.write("facts location does not exist!")

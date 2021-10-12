@@ -109,8 +109,10 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
                     index = ",".join([str(i) for i in range(1, arity+1)])
                     tag = self._db.get_relation_tag(in_db, rel_name, arity)
                     out_path = os.path.join(tmp_db_path, f'{tag}.{rel_name}.{arity}.table')
-                    shutil.copy(os.path.join(in_db_path, f'{tag}.{rel_name}.{arity}.table'), out_path)
-                    changed_relations.append(rel_name)
+                    if not os.path.exists(out_path):
+                        shutil.copy(os.path.join(in_db_path, f'{tag}.{rel_name}.{arity}.table'),
+                                    out_path)
+                        changed_relations.append(rel_name)
                     with subprocess.Popen([TSV2BIN_PATH, tmp_csv.name, str(arity), out_path, index,
                                            str(buckets), str(tag), tmp_db_path],
                                           stdout=subprocess.PIPE, stderr=subprocess.PIPE) as proc:
