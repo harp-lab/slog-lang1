@@ -363,7 +363,7 @@ class SlogClient:
         """ recursive print all tuples of a relation """
         if len(self.lookup_rels(name)) == 0:
             writer.write("No relation named {} in the current database".format(name))
-            return
+            return []
         tuples_map = self._dump_tuples(name, self.cur_db)
         tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
         sexpr_list = binary_table_to_sexpr(name, tuples_map, tag_map, self.intern_string_dict,
@@ -429,6 +429,7 @@ class SlogClient:
             return
         query_db = self.slog_add_rule(slog_code, db_id)
         if not query_db:
+            print(f"query {query} on {db_id} fail!")
             return
         self.switchto_db(query_db)
         query_res = self.dump_relation_by_name(query_name)
@@ -441,6 +442,8 @@ class SlogClient:
         """
         old_db = self.cur_db
         query_res = self.run_slog_query(query, self.cur_db)
+        if not query_res:
+            return
         for idx, fact in enumerate(query_res):
             writer.write(f"#{idx}\t{fact}")
         # after dump query relation, delete intermediate database, switch back to old db
