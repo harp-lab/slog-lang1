@@ -169,4 +169,9 @@ bool builtin_binary_number_pred(const u64* data){
 bool _less(u64 x, u64 y) { return x < y;}
 auto builtin_less2 = builtin_binary_number_pred<_less>;
 
+
+template<typename TState> inline TState builtin_nop(const u64* data, TState init_state, TState (*callback) (TState state)){ 
+    return callback(init_state);
+}
+
 // end of builtins.cpp
