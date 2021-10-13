@@ -36,8 +36,7 @@ def parse_tuple_row(u64_list, intern_string_dict):
     return parsed_row
 
 
-def binary_table_to_sexpr(name, bdatabase: dict[int, list[int]],
-                          tag_map: dict[int, tuple[str, int]], intern_string_dict,
+def binary_table_to_sexpr(name, bdatabase, tag_map, intern_string_dict,
                           max_nested_depth=10, cardinality=5):
     """
     convert a bianry database  into a list of sexpression string
