@@ -30,6 +30,10 @@ vector<vector<u64>> test_bi_func(const u64* const data){
 
 [FUNC4]
 
+[FUNC5]
+
+[IN_RANGE]
+
 // for comparison
 u64 hand_written_factorial(u64 x) {
   if (x == 0) return 1;
@@ -39,28 +43,6 @@ int main(){
 
   assert(d2n(n2d(-1)) == -1);
   assert(d2n(n2d(42)) == 42);
-
-  {
-    // [extended-func (extend-cpp-builtin-to-new-args 3 '(1 2) '(1 2 3) "test_bi_func")]
-    auto extended_func = [BI_EXTENDED_LAM];
-    
-    auto test_case = vector<u64> {1, 2, 3};
-    auto expected = vector<array<u64,0>> { array<u64,0> {}};
-    auto res = extended_func(test_case.data());
-
-    assert(res == expected);
-  }
-
-  {
-    // [extended-func2 (extend-cpp-builtin-to-new-args 4 '(1 2) '(4 2 1) "builtin_div_rem")]
-    auto extended_func2 = [BI_EXTENDED_LAM2];
-
-    auto test_case = vector<u64>{ number_to_datum(3), number_to_datum(10), number_to_datum(23)};
-    auto expected = vector<array<u64, 1>> {{number_to_datum(2)}};
-    auto res = extended_func2(test_case.data());
-
-    assert(res == expected);
-  }
 
   {
     // (generate-cpp-lambda-for-computational-join
@@ -146,6 +128,7 @@ int main(){
   }
 
   auto push_res_to_vec = [](u64 res, vector<u64>* state) -> vector<u64>* {state->push_back(res); return state;};
+  auto inc_counter = [](u64* state) -> u64* {(*state) ++; return state;};
   {
     // (crule ((rel-select comp_rel3 3 (1 2) comp) 42 inp _ res)
     //       ((rel-select + 3 (1 2) comp) inp 1 _ inp+1)
@@ -182,6 +165,48 @@ int main(){
     }
   }
 
+  {
+    // (crule ((rel-select comp_rel5 3 (1 2) comp) x y _ z)
+    //        ((rel-select - 3 (2 1) comp) y x _ z)
+    //        ((rel-select = 2 (1 2) comp) x 100 _))
+    {
+      u64 data[] = {n2d(100), n2d(30)};
+      vector<u64> vec;
+      comp_rel5<vector<u64>*>(data, &vec, push_res_to_vec);
+      vector<u64> expected = {n2d(70)};
+      assert(vec == expected);
+    }
+    {
+      u64 data[] = {n2d(101), n2d(30)};
+      vector<u64> vec;
+      comp_rel5<vector<u64>*>(data, &vec, push_res_to_vec);
+      // cout << "!vec: "; for (auto x : vec) cout << x << ", "; cout << "\n";
+      vector<u64> expected = {};
+      assert(vec == expected);
+    }
+  }
+
+  {
+    // (crule ((rel-select in_range 3 (1 2 3) comp) x y z _)
+    //        ((rel-select range 3 (1 2) comp) x y _ z)
+    {
+      u64 data[] = {n2d(10), n2d(30), n2d(20)};
+      u64 counter = 0;
+      in_range<u64*>(data, &counter, inc_counter);
+      u64 expected = 1;
+      assert(counter == expected);
+    }
+    {
+      u64 data[] = {n2d(10), n2d(30), n2d(40)};
+      u64 counter = 0;
+      in_range<u64*>(data, &counter, inc_counter);
+      u64 expected = 0;
+      assert(counter == expected);
+    }
+
+  }
+
+  // BENCHMARK:
   {
     int iterations = 2000000;
 
