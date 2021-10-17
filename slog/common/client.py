@@ -486,6 +486,6 @@ class SlogClient:
         slog_tuple = self.tuple_printed_id_map[printed_id]
         pp_str = pretty_str_tuples([slog_tuple], self.unroll_depth, self.group_cardinality,
                                    tag_map, self.tuple_printed_id_map)
-        writer.write(pp_str)
+        writer.write(pp_str[0])
         return self.tuple_printed_id_map[printed_id]
         
