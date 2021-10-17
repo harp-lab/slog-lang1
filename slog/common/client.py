@@ -13,7 +13,7 @@ from six import MAXSIZE
 
 from slog.common import rel_name_from_file, make_stub, PING_INTERVAL
 from slog.common.elaborator import Elaborator
-from slog.common.format import binary_table_to_sexpr
+from slog.common.tuple import parse_query_result, pretty_str_tuples, tuple_to_str
 from slog.daemon.const import STATUS_PENDING, STATUS_FAILED, STATUS_RESOLVED, STATUS_NOSUCHPROMISE
 import slog.protobufs.slog_pb2 as slog_pb2
 
@@ -89,6 +89,8 @@ class SlogClient:
         self.intern_string_dict = {}
         self.updated_tuples = {}
         self.all_db = []
+        # map of tuple with it's print name
+        self.tuple_printed_id_map = {}
 
     def connect(self, server):
         """ Reconnect to the rpc server """
@@ -366,11 +368,13 @@ class SlogClient:
             return []
         tuples_map = self._dump_tuples(name, self.cur_db)
         tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
-        sexpr_list = binary_table_to_sexpr(name, tuples_map, tag_map, self.intern_string_dict,
-                                           self.unroll_depth, self.group_cardinality)
-        for idx, row in enumerate(sexpr_list):
-            writer.write(f"#{idx}\t{row}")
-        return sexpr_list
+        slog_tuples = parse_query_result(tuples_map, tag_map, self.intern_string_dict,
+                                         self.tuple_printed_id_map)
+        pp_strs = pretty_str_tuples(slog_tuples, self.unroll_depth, self.group_cardinality,
+                                    tag_map, self.tuple_printed_id_map)
+        for pp_str in pp_strs:
+            writer.write(pp_str)
+        return slog_tuples
 
     def tag_db(self, db_id, tag_name):
         """ tag a database with some name """
@@ -416,7 +420,7 @@ class SlogClient:
         slog_code = f'[({query_name} x) <-- (= x {query[1:]})]'
         return slog_code
 
-    def run_slog_query(self, query, db_id):
+    def run_slog_query(self, query, db_id, writer: Writer):
         """ run a query on some database  """
         hash_func = hashlib.sha256()
         query_encoded = query.encode('utf-8')
@@ -425,15 +429,28 @@ class SlogClient:
         query_name = f"query_{query_hash[:10]}"
         slog_code = self.desugar_query(query_name, query)
         print(slog_code)
-        if not slog_code:
-            return
         query_db = self.slog_add_rule(slog_code, db_id)
         if not query_db:
-            print(f"query {query} on {db_id} fail!")
+            writer.fail(f"query {query} on {db_id} fail!")
             return
         self.switchto_db(query_db)
-        query_res = self.dump_relation_by_name(query_name)
-        return [f[len(query_name)+1:-1] for f in query_res]
+        tuples_map = self._dump_tuples(query_name, self.cur_db)
+        tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
+        slog_tuples = parse_query_result(tuples_map, tag_map, self.intern_string_dict,
+                                         self.tuple_printed_id_map)
+        id_print_name_map = {}
+        for p_id, p_val in self.tuple_printed_id_map.items():
+            id_print_name_map[p_val.tuple_id] = p_id
+        actual_ids = []
+        for slog_tuple in slog_tuples:
+            if slog_tuple.rel_name == query_name:
+                actual_ids.append(slog_tuple.col[1][1:])
+        actual_tuples = []
+        for _t in self.tuple_printed_id_map.values():
+            # query add layer of helper relation, which will increase the
+            if _t.tuple_id in actual_ids:
+                actual_tuples.append(_t)
+        return actual_tuples
 
     def pretty_print_slog_query(self, query, writer:Writer):
         """
@@ -441,11 +458,14 @@ class SlogClient:
         TODO: should we add new database here?
         """
         old_db = self.cur_db
-        query_res = self.run_slog_query(query, self.cur_db)
+        query_res = self.run_slog_query(query, self.cur_db, Writer())
         if not query_res:
             return
-        for idx, fact in enumerate(query_res):
-            writer.write(f"#{idx}\t{fact}")
+        tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
+        pp_strs = pretty_str_tuples(query_res, self.unroll_depth, self.group_cardinality,
+                                    tag_map, self.tuple_printed_id_map)
+        for pp_str in pp_strs:
+            writer.write(pp_str)
         # after dump query relation, delete intermediate database, switch back to old db
         if self.cur_db != old_db:
             # query_db = self.cur_db
@@ -453,3 +473,19 @@ class SlogClient:
             # req = slog_pb2.DropDBRequest(database_id=query_db)
             # self._stub.DropDB(req)
         return query_res
+
+    def print_cached_tuple(self, printed_id, writer:Writer):
+        """
+        fetch  a tuple by it's printed name in query history and print it
+        """
+        if self.tuple_printed_id_map is None or \
+           printed_id not in self.tuple_printed_id_map:
+            writer.fail(f'requested tuple id {printed_id} is not in query history cache!')
+            return
+        tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
+        slog_tuple = self.tuple_printed_id_map[printed_id]
+        pp_str = pretty_str_tuples([slog_tuple], self.unroll_depth, self.group_cardinality,
+                                   tag_map, self.tuple_printed_id_map)
+        writer.write(pp_str)
+        return self.tuple_printed_id_map[printed_id]
+        

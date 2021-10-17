@@ -5,6 +5,7 @@ Kris Micinski
 Yihao Sun
 '''
 
+import re
 import sys
 
 import timeit
@@ -55,6 +56,10 @@ HELP = '''
 
     ?(<rel> _/<arg> ...)                run a slog query find all related facts like `?(foo "bar" _)`,
                                         `_` is wildcard
+
+    #<id>                               print a tuple in query history
+
+    clear                               clear the query history
     
     <slog code>                         execute a line of slog code
     
@@ -65,7 +70,7 @@ HELP = '''
 
 CMD = ['help', 'run', 'connect', 'dump', 'showdb',
        'load', 'compile', 'tag', 'switch', 'fact-depth',
-       'fact-cardi']
+       'fact-cardi', 'clear']
 
 
 def invalid_alert(message):
@@ -88,6 +93,11 @@ def exec_command(client: SlogClient, raw_input: str):
     if raw_input.startswith('?(') and raw_input.endswith(')'):
         client.pretty_print_slog_query(raw_input, ConsoleWriter())
         return
+    # fact printing
+    if re.findall(r'^#(\d+)$', raw_input) != []:
+        printed_id = int(re.findall(r'^#(\d+)$', raw_input)[0])
+        client.print_cached_tuple(printed_id, ConsoleWriter())
+        return
     # normal command
     cmd = raw_input.split(' ')[0].strip()
     args = [r.strip() for r in raw_input.split(' ')[1:] if r.strip() != '']
@@ -98,6 +108,8 @@ def exec_command(client: SlogClient, raw_input: str):
         headers = [["tag", "id", "parent"]]
         for db_info in headers + dbs:
             print(f'{db_info[1]:<6} {db_info[0][:10]:<10} {db_info[2][:6]:<6}')
+    elif cmd == 'clear':
+        client.tuple_printed_id_map = {}
     elif cmd == 'connect':
         if len(args) == 1:
             client.connect(args[0])
