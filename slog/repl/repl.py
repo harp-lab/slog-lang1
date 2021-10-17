@@ -13,8 +13,9 @@ import grpc
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion.base import merge_completers
 from prompt_toolkit.history import FileHistory
-from prompt_toolkit.completion import NestedCompleter, FuzzyWordCompleter
+from prompt_toolkit.completion import NestedCompleter, FuzzyWordCompleter, WordCompleter
 from prompt_toolkit.formatted_text import HTML
+from prompt_toolkit.key_binding import KeyBindings
 from pyfiglet import Figlet
 from yaspin import yaspin
 from slog.common.client import SlogClient, ConsoleWriter, FileWriter
@@ -73,9 +74,23 @@ CMD = ['help', 'run', 'connect', 'dump', 'showdb',
        'fact-cardi', 'clear']
 
 
+kb = KeyBindings()
+
+@kb.add('escape', 'enter')
+def _(event):
+    event.current_buffer.insert_text('\n')
+
+@kb.add('enter')
+def _(event):
+    event.current_buffer.validate_and_handle()
+
 def invalid_alert(message):
     """ print alert for command exectution """
     print(f"Invalid command: {message}")
+
+def prompt_continuation(width, line_number, is_soft_wrap):
+    return '.' * width
+    # Or: return [('', '.' * width)]
 
 def exec_command(client: SlogClient, raw_input: str):
     """
@@ -257,13 +272,19 @@ class Repl:
                 completer_map['load'] = StringPathCompeleter()
                 completer_map['compile'] = StringPathCompeleter()
                 completer_map['switch'] = FuzzyWordCompleter(possible_db_hash + possible_db_tag)
-                completer_map['?('] = FuzzyWordCompleter(list(relation_names))
+                relname_par_completer = WordCompleter([f"({n}" for n in relation_names])
+                for rname in relation_names:
+                    completer_map[f'?({rname}'] = relname_par_completer
+                    completer_map[f'({rname}'] = relname_par_completer
+                    completer_map[f'[({rname}'] = relname_par_completer
                 completer = NestedCompleter(completer_map)
                 text = self.prompt_session.prompt(
                     'σλoγ [{}] » '.format(front),
                     bottom_toolbar=self.bottom_toolbar(),
-                    complete_while_typing=True,
-                    completer=completer)
+                    completer=completer,
+                    key_bindings=kb,
+                    prompt_continuation=prompt_continuation,
+                    multiline=True)
                 if text.strip() == '':
                     continue
                 exec_command(self.client, text)
