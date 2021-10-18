@@ -107,7 +107,7 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
                     arity = len(fst_line.decode('utf-8').strip().split('\t'))
                     index = ",".join([str(i) for i in range(1, arity+1)])
                     tag = self._db.get_relation_tag(in_db, rel_name, arity)
-                    tablename = f'{tag}_{rel_name}_{arity}.table'
+                    tablename = f'{tag}.{rel_name}.{arity}.table'
                     out_path = os.path.join(tmp_db_path, tablename)
                     shutil.copy(os.path.join(in_db_path, tablename), out_path)
                     changed_relations.append(rel_name)

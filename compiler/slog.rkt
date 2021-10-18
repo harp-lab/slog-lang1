@@ -144,7 +144,6 @@
 (define extn (if (slog-souffle-mode) "dl" "cpp"))
 (define o-path (format "~a/~a.~a" code-loc basename extn))
 (define cmake-path (format "~a/CMakeLists.txt" code-loc))
-(define default-input-dir (format "../data/~a-input" basename))
 (define parallel-ra-h-loc (path->string (build-path base-dir "../backend/src/parallel_RA_inc.h")))
 
 (cond
