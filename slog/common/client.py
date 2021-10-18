@@ -363,11 +363,15 @@ class SlogClient:
 
     def dump_relation_by_name(self, name, writer:Writer=Writer()):
         """ recursive print all tuples of a relation """
-        if len(self.lookup_rels(name)) == 0:
+        rels = self.lookup_rels(name)
+        if len(rels) == 0:
             writer.write("No relation named {} in the current database".format(name))
             return []
-        tuples_map = self._dump_tuples(name, self.cur_db)
+        tuples_map = self._dump_tuples(name, self.cur_db)          
         tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
+        for rel in rels:
+            r_tuple_size = len(tuples_map[rel[2]]) / (rel[1] + 1)
+            writer.write(f"Relation name {name}, tag {rel[2]} has {int(r_tuple_size)} tuples")
         slog_tuples = parse_query_result(tuples_map, tag_map, self.intern_string_dict,
                                          self.tuple_printed_id_map)
         pp_strs = pretty_str_tuples(slog_tuples, self.unroll_depth, self.group_cardinality,
@@ -459,6 +463,7 @@ class SlogClient:
         """
         old_db = self.cur_db
         query_res = self.run_slog_query(query, self.cur_db, Writer())
+        writer.write(f"Total {len(query_res)} tuple in results!")
         if not query_res:
             return
         tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
