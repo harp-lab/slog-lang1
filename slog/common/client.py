@@ -142,12 +142,13 @@ class SlogClient:
             return
         response = self._stub.PutCSVFacts(csv_request_generator(csv_file_paths))
         if response.success:
-            self.cur_db = response.new_database
+            self.switchto_db(response.new_database)
             writer.ok("✅ ")
             writer.write(f"All relation uploaded. now in database {self.cur_db}")
         else:
             writer.fail("💥")
             writer.write(f" {response.error_msg} fail to update!")
+        return response.new_database
 
     def compile_slog(self, filename, writer=NoneWriter()):
         '''

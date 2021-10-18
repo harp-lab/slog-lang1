@@ -169,7 +169,7 @@ def run_server(file, outloc, factloc, server, cores):
             return
 
         if factloc:
-            cur_db = client.upload_csvs(factloc, spinner)
+            cur_db = client.upload_csv(factloc, spinner)
             if not cur_db:
                 spinner.write("Error uploading facts")
                 return
