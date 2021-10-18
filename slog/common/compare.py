@@ -36,6 +36,8 @@ def compare_folder_size(slog_folder, csv_folder):
     res = True
     csv_fnames = os.listdir(csv_folder)
     for slog_name in os.listdir(slog_folder):
+        if not slog_name.endswith('.table'):
+            continue
         base_name = slog_name[:-len(".table")]
         rel_name = base_name[base_name.find('.'):base_name.rfind('.')]
         if f'{rel_name}.csv' in csv_fnames:
