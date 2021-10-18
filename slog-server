@@ -1,4 +1,6 @@
-rm metadatabase/database.sqlite3;
+#!/usr/bin/env bash
+
+rm -f metadatabase/database.sqlite3
 rm -rf data/databases && mkdir data/databases
-sqlite3 metadatabase/database.sqlite3 <metadatabase/schema.sql;
-python3 -m daemon.server
+sqlite3 metadatabase/database.sqlite3 < metadatabase/schema.sql
+python3 -m slog.daemon.server

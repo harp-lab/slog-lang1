@@ -16,14 +16,14 @@ import tempfile
 
 from six import MAXSIZE
 
-from daemon.const import DATA_PATH, DATABASE_PATH, CMDSVC_LOG, DB_PATH, SOURCES_PATH, TSV2BIN_PATH
-from daemon.const import STATUS_RESOLVED, STATUS_NOSUCHPROMISE, MAX_BUCKETS, MIN_BUCKETS \
+from slog.daemon.const import DATA_PATH, DATABASE_PATH, CMDSVC_LOG, DB_PATH, SOURCES_PATH, TSV2BIN_PATH
+from slog.daemon.const import STATUS_RESOLVED, STATUS_NOSUCHPROMISE, MAX_BUCKETS, MIN_BUCKETS \
                          , MAX_CHUNK_DATA
-from daemon.db import MetaDatabase
-from daemon.util import join_hashes, generate_db_hash, compute_hash_file, read_intern_file
+from slog.daemon.db import MetaDatabase
+from slog.daemon.util import join_hashes, generate_db_hash, compute_hash_file, read_intern_file
 
-import protobufs.slog_pb2 as slog_pb2
-import protobufs.slog_pb2_grpc as slog_pb2_grpc
+import slog.protobufs.slog_pb2 as slog_pb2
+import slog.protobufs.slog_pb2_grpc as slog_pb2_grpc
 
 
 class CommandService(slog_pb2_grpc.CommandServiceServicer):
@@ -81,7 +81,7 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
         self._db.save_file_hashes(fdict)
         return ret
 
-    def PutCSVFacts(self, requests, _context):
+    def PutCSVFacts(self, requests, context):
         # write csv to tmp
         failed_files = []
         ret = slog_pb2.FactResponse()
@@ -107,8 +107,9 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
                     arity = len(fst_line.decode('utf-8').strip().split('\t'))
                     index = ",".join([str(i) for i in range(1, arity+1)])
                     tag = self._db.get_relation_tag(in_db, rel_name, arity)
-                    out_path = os.path.join(tmp_db_path, f'{tag}.{rel_name}.{arity}.table')
-                    shutil.copy(os.path.join(in_db_path, f'{tag}.{rel_name}.{arity}.table'), out_path)
+                    tablename = f'{tag}_{rel_name}_{arity}.table'
+                    out_path = os.path.join(tmp_db_path, tablename)
+                    shutil.copy(os.path.join(in_db_path, tablename), out_path)
                     changed_relations.append(rel_name)
                     with subprocess.Popen([TSV2BIN_PATH, tmp_csv.name, str(arity), out_path, index,
                                            str(buckets), str(tag), tmp_db_path],
