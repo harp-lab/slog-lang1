@@ -143,10 +143,10 @@ class SlogClient:
             return
         if os.path.isdir(csv_dir):
             for fname in os.listdir(csv_dir):
-                if not fname.endswith('.facts'):
+                if not fname.endswith('.facts') or fname.endswith('.csv'):
                     continue
                 csv_file_paths.append(f'{csv_dir}/{fname}')
-        elif csv_dir.strip().endswith('.facts'):
+        elif csv_dir.strip().endswith('.facts') or csv_dir.strip().endswith('.csv'):
             base = os.path.basename(csv_dir)
             rel_name = base[:base.rfind('.')]
             if rel_name not in {r[0] for r in self.relations}:
