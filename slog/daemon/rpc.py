@@ -96,34 +96,38 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
                 body = request.bodies[0].encode('utf-8')
                 buckets = request.buckets
                 rel_name = request.relation_name
+                print(rel_name)
+                # print(body)
                 in_db = request.using_database              # TODO: check all in_db are same
                 in_db_path = os.path.join(DATABASE_PATH, in_db)
                 if not os.path.exists(tmp_db_path):
                     # fork input database
                     os.mkdir(tmp_db_path)
+                    shutil.copy2(os.path.join(in_db_path, '$strings.csv'),
+                                 os.path.join(tmp_db_path, '$strings.csv'))
                 with tempfile.NamedTemporaryFile() as tmp_csv:
                     tmp_csv.write(body)
                     tmp_csv.seek(0)
                     fst_line = tmp_csv.readline()
                     arity = len(fst_line.decode('utf-8').strip().split('\t'))
-                    index = ",".join([str(i) for i in range(1, arity+1)])
                     tag = self._db.get_relation_tag(in_db, rel_name, arity)
                     out_path = os.path.join(tmp_db_path, f'{tag}.{rel_name}.{arity}.table')
                     if not os.path.exists(out_path):
                         shutil.copy(os.path.join(in_db_path, f'{tag}.{rel_name}.{arity}.table'),
                                     out_path)
                         changed_relations.append(rel_name)
-                    with subprocess.Popen([TSV2BIN_PATH, tmp_csv.name, str(arity), out_path, index,
+                    with subprocess.Popen([TSV2BIN_PATH, tmp_csv.name, str(arity), out_path,
                                            str(buckets), str(tag), tmp_db_path],
                                           stdout=subprocess.PIPE, stderr=subprocess.PIPE) as proc:
                         std_o, err = proc.communicate()
                         if err:
                             ret.success = False
                             failed_files.append(rel_name)
+                            print(std_o.decode('utf-8'))
                             print(err)
                         else:
+                            print(std_o.decode('utf-8'))
                             ret.success = True
-                            print(std_o)
                             csv_hashes.append(compute_hash_file(body))
             if ret.success:
                 # persist tmp database

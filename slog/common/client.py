@@ -13,7 +13,7 @@ from six import MAXSIZE
 
 from slog.common import rel_name_from_file, make_stub, PING_INTERVAL
 from slog.common.elaborator import Elaborator
-from slog.common.tuple import parse_query_result, pretty_str_tuples, tuple_to_str
+from slog.common.tuple import parse_query_result, pretty_str_tuples
 from slog.daemon.const import STATUS_PENDING, STATUS_FAILED, STATUS_RESOLVED, STATUS_NOSUCHPROMISE
 import slog.protobufs.slog_pb2 as slog_pb2
 
@@ -137,13 +137,20 @@ class SlogClient:
                             yield req
                             cnt = 0
                             buf = ""
+                    if buf != "":
+                        req = slog_pb2.PutCSVFactsRequest()
+                        req.using_database = db_id
+                        req.relation_name = rel_name
+                        req.buckets = 16
+                        req.bodies.extend([buf])
+                        yield req
         csv_file_paths = []
         if not os.path.exists(csv_dir):
             writer.write("facts location does not exist!")
             return
         if os.path.isdir(csv_dir):
             for fname in os.listdir(csv_dir):
-                if not fname.endswith('.facts') or fname.endswith('.csv'):
+                if not fname.endswith('.facts') and not fname.endswith('.csv'):
                     continue
                 csv_file_paths.append(f'{csv_dir}/{fname}')
         elif csv_dir.strip().endswith('.facts') or csv_dir.strip().endswith('.csv'):
@@ -160,7 +167,7 @@ class SlogClient:
             return
         response = self._stub.PutCSVFacts(csv_request_generator(csv_file_paths))
         if response.success:
-            self.cur_db = response.new_database
+            self.switchto_db(response.new_database)
             writer.ok("✅ ")
             writer.write(f"All relation uploaded. now in database {self.cur_db}")
         else:
@@ -284,6 +291,7 @@ class SlogClient:
 
     def switchto_db(self, db_id):
         """ switch to a database """
+        self.update_dbs()
         if self.lookup_db_by_tag(db_id):
             db_id = self.lookup_db_by_tag(db_id)[0]
         elif self.lookup_db_by_id(db_id):

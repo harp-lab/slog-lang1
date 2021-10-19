@@ -1,6 +1,7 @@
 '''
 Preprocesser of slog code
 
+TODO: make this class hashable, so it can be used in cache
 
 '''
 
