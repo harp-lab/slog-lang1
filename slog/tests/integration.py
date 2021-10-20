@@ -68,7 +68,7 @@ if __name__ == "__main__":
     server_t = Process(target=server.run)
     server_t.start()
     sleep(2)
-    sclient= SlogClient("localhost:5108")
+    sclient= SlogClient()
     run_test(sclient, "compiler/unit-tests", "./TESTOUT")
     print("\n>>>>>>>>>>>>>>>>>>>>>>>> TEST FINISH >>>>>>>>>>>>>>>>>>>>>\n")
     server_t.terminate()

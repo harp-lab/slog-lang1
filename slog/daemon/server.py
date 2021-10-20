@@ -13,7 +13,8 @@ import traceback
 import grpc
 from grpc_interceptor import ServerInterceptor
 
-from slog.daemon.const import PORT
+from slog.daemon.const import DATA_PATH, FTP_DATA_PATH, PORT
+from slog.daemon.ftp import SlogFtpSever
 from slog.daemon.rpc import CommandService
 from slog.daemon.task import CompileTask, RunTask
 import slog.protobufs.slog_pb2_grpc as slog_pb2_grpc
@@ -45,10 +46,15 @@ def start_mpirun_task():
 
 
 def run():
+    """ main entrance """
+    # boot ftp
+    ftp_server = SlogFtpSever(FTP_DATA_PATH)
+    ftp_thread = threading.Thread(target=ftp_server.start, daemon=True)
+    ftp_thread.start()
+    # boot rpc
     interceptors = [ExceptionToStatusInterceptor()]
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10), interceptors=interceptors)
-    slog_pb2_grpc.add_CommandServiceServicer_to_server(
-        CommandService(), server)
+    slog_pb2_grpc.add_CommandServiceServicer_to_server(CommandService(), server)
     print('Slog server starting. Listening on port {}'.format(PORT))
     server.add_insecure_port('[::]:{}'.format(PORT))
     server.start()

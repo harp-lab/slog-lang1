@@ -3,6 +3,7 @@ These are common 'verbs' for things to do
 """
 
 from functools import lru_cache
+from ftplib import FTP
 import hashlib
 import os
 import sys
@@ -14,10 +15,21 @@ from six import MAXSIZE
 from slog.common import rel_name_from_file, make_stub, PING_INTERVAL
 from slog.common.elaborator import Elaborator
 from slog.common.tuple import parse_query_result, pretty_str_tuples
-from slog.daemon.const import STATUS_PENDING, STATUS_FAILED, STATUS_RESOLVED, STATUS_NOSUCHPROMISE
+from slog.daemon.const import FTP_DEFAULT_PWD, FTP_DEFAULT_USER, STATUS_PENDING, STATUS_FAILED, STATUS_RESOLVED, STATUS_NOSUCHPROMISE
 import slog.protobufs.slog_pb2 as slog_pb2
 
 CSV_CHUNK_SIZE = 1024
+
+def digest_file(fpath):
+    """ md5 digest of a large file """
+    hash_func = hashlib.md5()
+    with open(fpath, 'rb') as large_f:
+        while True:
+            chunk = large_f.read(2**20)
+            if not chunk:
+                break
+            hash_func.update(chunk)
+    return hash_func.hexdigest()
 
 class Writer:
     """
@@ -72,11 +84,13 @@ class SlogClient:
     Client to a slog server.
     """
 
-    def __init__(self, server="localhost"):
+    def __init__(self, server="localhost", rpc_port=5108, ftp_port=2121):
         self._channel = None
         self._stub = None
+        self.server_addr = server
+        self.ftp_port = ftp_port
         try:
-            self.connect(server)
+            self.connect(f"{server}:{rpc_port}")
         except grpc.RpcError:
             print("Can't connect to slog daemon server")
             sys.exit(1)
@@ -114,36 +128,28 @@ class SlogClient:
         req = slog_pb2.PingRequest()
         self._stub.Ping(req)
 
+    # def _csv_request_generator()
+
     @lru_cache(maxsize=None)
     def upload_csv(self, csv_dir, db_id, writer=Writer()):
-        ''' upload csv to current EDB to some database using tsv_bin tool '''
-        def csv_request_generator(csv_file_paths: list):
+        '''
+        upload csv to current EDB to some database using tsv_bin tool
+        this will upload.
+        '''
+        # upload to ftp first
+        ftp_conn = FTP()
+        ftp_conn.connect(self.server_addr, self.ftp_port)
+        ftp_conn.login(FTP_DEFAULT_USER, FTP_DEFAULT_PWD)
+        def csv_request_generator(csv_hash_map):
             ''' a generator to create gRPC stream from a list of facts file '''
-            for csv_fname in csv_file_paths:
+            for csv_fname, file_md5 in csv_hash_map.items():
                 rel_name = rel_name_from_file(csv_fname)
-                with open(csv_fname, 'r') as csv_f:
-                    cnt = 0
-                    buf = ""
-                    for line in csv_f:
-                        if cnt < CSV_CHUNK_SIZE:
-                            buf += line
-                            cnt += 1
-                        else:
-                            req = slog_pb2.PutCSVFactsRequest()
-                            req.using_database = db_id
-                            req.relation_name = rel_name
-                            req.buckets = 16
-                            req.bodies.extend([buf])
-                            yield req
-                            cnt = 0
-                            buf = ""
-                    if buf != "":
-                        req = slog_pb2.PutCSVFactsRequest()
-                        req.using_database = db_id
-                        req.relation_name = rel_name
-                        req.buckets = 16
-                        req.bodies.extend([buf])
-                        yield req
+                req = slog_pb2.PutCSVFactsRequest()
+                req.using_database = db_id
+                req.relation_name = rel_name
+                req.buckets = 16
+                req.bodies.extend([file_md5])
+                yield req
         csv_file_paths = []
         if not os.path.exists(csv_dir):
             writer.write("facts location does not exist!")
@@ -165,7 +171,15 @@ class SlogClient:
             writer.write("no valid facts file found! NOTICE: all csv facts"
                          " file must has extension `.facts`")
             return
-        response = self._stub.PutCSVFacts(csv_request_generator(csv_file_paths))
+        file_hashes_map = {}
+        # upload file first
+        for csv_fname in csv_file_paths:
+            rel_name = rel_name_from_file(csv_fname)
+            file_md5 = digest_file(csv_fname)
+            with open(csv_fname, 'rb') as csv_f:
+                ftp_conn.storbinary(f'STOR {file_md5}', csv_f)
+            file_hashes_map[csv_fname] = file_md5
+        response = self._stub.PutCSVFacts(csv_request_generator(file_hashes_map))
         if response.success:
             self.switchto_db(response.new_database)
             writer.ok("✅ ")
@@ -173,6 +187,7 @@ class SlogClient:
         else:
             writer.fail("💥")
             writer.write(f" {response.error_msg} fail to update!")
+        ftp_conn.close()
 
     @lru_cache(maxsize=None)
     def compile_slog(self, filename, writer=Writer()):
@@ -306,6 +321,13 @@ class SlogClient:
         self.load_relations(db_id)
         self._update_intern_strings(self.cur_db)
         self.updated_tuples = {}
+
+    def fresh(self):
+        """ go back to ⊥ """
+        self.cur_db = ""
+        self.relations = []
+        self.intern_string_dict = {}
+        self.tuple_printed_id_map = {}
 
     def load_relations(self, db_id):
         """ get all relation inside a database """

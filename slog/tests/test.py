@@ -31,7 +31,7 @@ class Test:
     def __init__(self, server, txt):
         self.test_text = txt
         self.spin_text = DynText(self.test_text)
-        self.client = SlogClient('{}:5108'.format(server))
+        self.client = SlogClient()
 
     def success(self):
         """

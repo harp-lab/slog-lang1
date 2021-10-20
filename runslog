@@ -93,7 +93,7 @@ def run_server(file, outloc, factloc, server, cores):
     """
     Runs the file on the server using the SlogClient interface
     """
-    client = SlogClient(server)
+    client = SlogClient()
 
     cur_db = ""
     with yaspin(text="Compiling slog file") as spinner:

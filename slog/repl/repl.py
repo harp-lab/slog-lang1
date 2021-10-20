@@ -5,6 +5,7 @@ Kris Micinski
 Yihao Sun
 '''
 
+import argparse
 import re
 import sys
 
@@ -67,11 +68,13 @@ HELP = '''
     fact-depth                          set the maximum unroll depth in facts printing
 
     fact-cardi                          set the group cardinality of facts printing
+
+    fresh                               go back to empty database
 '''
 
 CMD = ['help', 'run', 'connect', 'dump', 'showdb',
        'load', 'compile', 'tag', 'switch', 'fact-depth',
-       'fact-cardi', 'clear']
+       'fact-cardi', 'clear', 'fresh']
 
 
 kb = KeyBindings()
@@ -118,6 +121,8 @@ def exec_command(client: SlogClient, raw_input: str):
     args = [r.strip() for r in raw_input.split(' ')[1:] if r.strip() != '']
     if cmd == 'help':
         print(HELP)
+    elif cmd == 'fresh':
+        client.fresh()
     elif cmd == 'showdb':
         dbs = client.update_dbs()
         headers = [["tag", "id", "parent"]]
@@ -205,9 +210,10 @@ def exec_command(client: SlogClient, raw_input: str):
 class Repl:
     """ Slog REPL """
 
-    def __init__(self, server=None):
+    def __init__(self, server, rpc_port, ftp_port):
         # TODO: init the SlogClient
-        self.client = SlogClient(server)
+        self.client = SlogClient(server, rpc_port, ftp_port)
+        self.ftp_port = ftp_port
         self.prompt_session = PromptSession(history=FileHistory("./.slog-history"))
         print(BANNER_LOGO)
         print(BANNER)
@@ -296,10 +302,15 @@ class Repl:
 
 if __name__ == "__main__":
     # Take server as an optional argument to the repl.
-    if len(sys.argv) > 1:
-        repl = Repl(sys.argv[1])
-    else:
-        repl = Repl("localhost:5108")
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument('--server', dest='server_addr', default='localhost',
+                            help="IP address of slog server")
+    arg_parser.add_argument('--rpc_port', dest='rpc_port', type=int, default=5108,
+                            help="rpc port on <server_addr>")
+    arg_parser.add_argument('--ftp_port', dest='ftp_port', type=int, default=2121,
+                            help="ftp port on <server_addr>")
+    args = arg_parser.parse_args()
+    repl = Repl(args.server_addr, args.rpc_port, args.ftp_port)
     try:
         while True:
             repl.loop()
