@@ -8,6 +8,7 @@ Yihao Sun
 import argparse
 import re
 import sys
+import time
 
 import timeit
 import grpc
@@ -293,7 +294,10 @@ class Repl:
                     multiline=True)
                 if text.strip() == '':
                     continue
+                prev_time = time.time()
                 exec_command(self.client, text)
+                after_time = time.time()
+                print("\033[93mCommand cost {:10.2f} sec.\033[4m".format(after_time - prev_time)) 
             except EOFError:
                 self.exit()
             except AssertionError:
