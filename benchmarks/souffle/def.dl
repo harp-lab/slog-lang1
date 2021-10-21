@@ -30,6 +30,8 @@ function_non_maintained_reg("EDX").
 .input op_regdirect_contains_reg
 
 .decl instruction_get_operation(ea:address,operation:symbol) inline
+instruction_get_operation(EA,Operation):-
+    instruction(EA,_,_,Operation,_,_,_,_,_,_).
 
 .decl direct_call(src:address, dest:address)
 .input direct_call
