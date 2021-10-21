@@ -20,7 +20,7 @@ ENV CXX=mpicxx
 COPY . /slog
 
 # build backend
-RUN cd /slog/backend ; rm -rf build ; cmake -Bbuild . && cd build ; make -j8;
+RUN cd /slog/backend ; rm -rf build ; cmake -Bbuild -DCMAKE_BUILD_TYPE=Release . && cd build ; make -j8;
 
 WORKDIR /slog
 RUN pip3 install -r requirements.txt

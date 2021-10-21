@@ -135,7 +135,7 @@ class CompileTask(Task):
         print("running cmake now.")
         # Now run cmake
         try:
-            cmake = ["cmake", "-Bbuild", "."]
+            cmake = ["cmake", "-Bbuild", "-DCMAKE_BUILD_TYPE=Release", "."]
             result = subprocess.run(
                 cmake, cwd=build_dir, stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE, check=True)
