@@ -26,4 +26,4 @@ WORKDIR /slog
 RUN pip3 install -r requirements.txt
 EXPOSE 5108
 
-ENTRYPOINT ["/slog/slog-server"]
+ENTRYPOINT ["tail", "-f", "/dev/null"]

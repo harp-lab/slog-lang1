@@ -174,7 +174,7 @@ void write_interned_pools()
 	}
 }
 
-#define BUF_SIZE 4096
+#define BUF_SIZE 40960
 
 void file_to_slog(char *input_file, char *output_file,
 				  vector<unsigned> &column_order, unsigned rel_tag)
@@ -195,74 +195,94 @@ void file_to_slog(char *input_file, char *output_file,
 	ifstream fp_in(input_file);
 	int fp_out = open(output_file, O_CREAT | O_RDWR | O_APPEND, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 	size_t lineno = 0;
+	char buf[BUF_SIZE];
 
 	while (fp_in)
 	{
 		string row;
-		getline(fp_in, row);
-		istringstream row_stream(row);
-		string col;
-		int col_count = 0;
-		if (row == "")
+		fp_in.read(buf, sizeof(buf));
+		string str_buf;
+		str_buf += buf;
+		string prev_left;
+		istringstream buf_stream(str_buf);
+		while (buf_stream)
 		{
-			// empty line at the end of file
-			continue;
-		}
-		while (row_stream)
-		{
-			getline(row_stream, col, '\t');
-			if (col_count > column_order.size())
+			getline(fp_in, row);
+			if (prev_left != "")
+			{
+				row = prev_left + row;
+				prev_left = "";
+			}
+			istringstream row_stream(row);
+			string col;
+			int col_count = 0;
+			if (row == "")
+			{
+				// empty line at the end of file
+				continue;
+			}
+			while (row_stream)
+			{
+				getline(row_stream, col, '\t');
+				if (col_count > column_order.size())
+				{
+					cerr << "should have " << column_order.size() - 1
+						<< " columns, but found " << col_count << " cols on first row.\n";
+					cerr << "note: make sure to include the 0 column for new fact IDs.\n";
+					exit(1);
+				}
+				try
+				{
+					// TODO: support float later
+					// FIXME: detect empty space here!
+					u64 u64_v = stoull(col);
+					tuple_buffer[col_count] = u64_v;
+				}
+				catch (...)
+				{
+					// if not number all goes to string
+					auto itr = strings_map.find(col);
+					u64 u64_v = STRING_TAG;
+					u64_v <<= TUPLE_MASK_LENGTH + BUCKET_MASK_LENGTH;
+					if (itr == strings_map.end())
+					{
+						long new_id = max_string_id + 1;
+						strings_map[col] = new_id;
+						max_string_id = new_id;
+						u64_v |= new_id;
+					}
+					else
+					{
+						u64_v |= strings_map[col];
+					}
+					tuple_buffer[inverse_column_order[col_count + 1]] = u64_v;
+				}
+				col_count++;
+			}
+			if (col_count != column_order.size())
+			{
+				// incomplete line
+				prev_left = row;
+				continue;
+			}
+			if (col_count != column_order.size())
 			{
 				cerr << "should have " << column_order.size() - 1
-					 << " columns, but found " << col_count << " cols on first row.\n";
+					<< " columns, but found " << col_count << " cols on first row.\n";
 				cerr << "note: make sure to include the 0 column for new fact IDs.\n";
 				exit(1);
 			}
-			try
-			{
-				// TODO: support float later
-				// FIXME: detect empty space here!
-				u64 u64_v = stoull(col);
-				tuple_buffer[col_count] = u64_v;
-			}
-			catch (...)
-			{
-				// if not number all goes to string
-				auto itr = strings_map.find(col);
-				u64 u64_v = STRING_TAG;
-				u64_v <<= TUPLE_MASK_LENGTH + BUCKET_MASK_LENGTH;
-				if (itr == strings_map.end())
-				{
-					long new_id = max_string_id + 1;
-					strings_map[col] = new_id;
-					max_string_id = new_id;
-					u64_v |= new_id;
-				}
-				else
-				{
-					u64_v |= strings_map[col];
-				}
-				tuple_buffer[inverse_column_order[col_count + 1]] = u64_v;
-			}
-			col_count++;
-		}
-		if (col_count != column_order.size())
-		{
-			cerr << "should have " << column_order.size() - 1
-				 << " columns, but found " << col_count << " cols on first row.\n";
-			cerr << "note: make sure to include the 0 column for new fact IDs.\n";
-			exit(1);
-		}
 
-		u64 tid = rel_tag;
-		tid <<= (TUPLE_MASK_LENGTH + BUCKET_MASK_LENGTH);
-		tid |= ((hash_tuple(tuple_buffer, arity) % buckets)) << TUPLE_MASK_LENGTH;
-		tid |= current_tuple_id++;
-		tuple_buffer[inverse_column_order[0]] = tid;
-		// write data
-		write(fp_out, tuple_buffer, 8 * (arity + 1));
-		col_count = 1;
-		lineno++;
+			u64 tid = rel_tag;
+			tid <<= (TUPLE_MASK_LENGTH + BUCKET_MASK_LENGTH);
+			tid |= ((hash_tuple(tuple_buffer, arity) % buckets)) << TUPLE_MASK_LENGTH;
+			tid |= current_tuple_id++;
+			tuple_buffer[inverse_column_order[0]] = tid;
+			// write data
+			write(fp_out, tuple_buffer, 8 * (arity + 1));
+			col_count = 1;
+			lineno++;
+		}
 	}
 	write_interned_pools();
 	close(fp_out);
