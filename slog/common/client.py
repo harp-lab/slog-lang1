@@ -302,7 +302,7 @@ class SlogClient:
         req = slog_pb2.StringRequest()
         req.database_id = db_id
         for sres in self._stub.GetStrings(req):
-            self.intern_string_dict[sres.id] = sres.text
+            self.intern_string_dict[sres.id] = f'"{sres.text}"'
 
     def switchto_db(self, db_id):
         """ switch to a database """

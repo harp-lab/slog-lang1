@@ -6,11 +6,11 @@ database, and when done again it should return the same hash.
 import os
 import time
 
-from repl.elaborator import Elaborator
-import protobufs.slog_pb2 as slog_pb2
-import protobufs.slog_pb2_grpc as slog_pb2_grpc
+from slog.common.elaborator import Elaborator
+import slog.protobufs.slog_pb2 as slog_pb2
+import slog.protobufs.slog_pb2_grpc as slog_pb2_grpc
 
-from tests.test import Test
+from slog.tests.test import Test
 
 FILE = "tc.slog"
 

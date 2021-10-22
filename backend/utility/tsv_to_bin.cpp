@@ -137,25 +137,28 @@ void read_strings(string filename)
 	}
 	while (fp_in.good())
 	{
+		string row;
+		getline(fp_in, row);
+		if (row == "")
+			continue;
+		istringstream row_stream(row);
 		try
 		{
-			fp_in >> string_id;
-			if (!fp_in.good())
-				break;
-			fp_in >> quoted(string_value);
+			getline(row_stream, string_id, '\t');
+			getline(row_stream, string_value, '\t');
 			long id = stoi(string_id);
 			if (id < 0)
 			{
 				cerr << "error: ID < 0 is not allowed" << endl;
 				exit(1);
 			}
-			strings_map["\"" + string_value + "\""] = id;
+			strings_map[string_value] = id;
 			max_string_id = max(max_string_id, id);
 		}
 		catch (const exception &exc)
 		{
 			cerr << "error reading strings (line " << lineno << ")\n";
-			cerr << exc.what() << "  " << string_id << endl;
+			cerr << exc.what() << "  " << string_id << " " << string_value << endl;
 			exit(1);
 		}
 		lineno++;
@@ -195,19 +198,20 @@ void file_to_slog(char *input_file, char *output_file,
 	ifstream fp_in(input_file);
 	int fp_out = open(output_file, O_CREAT | O_RDWR | O_APPEND, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 	size_t lineno = 0;
-	char buf[BUF_SIZE];
+	char buf[BUF_SIZE+1];
 
 	while (fp_in)
 	{
 		string row;
 		fp_in.read(buf, sizeof(buf));
+		buf[BUF_SIZE] = '\0';
 		string str_buf;
 		str_buf += buf;
 		string prev_left;
 		istringstream buf_stream(str_buf);
 		while (buf_stream)
 		{
-			getline(fp_in, row);
+			getline(buf_stream, row);
 			if (prev_left != "")
 			{
 				row = prev_left + row;
