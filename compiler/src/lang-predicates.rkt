@@ -664,6 +664,9 @@
     [`(agg ,_ ...) #t]
     [else #f]))
 
+(define (comp-rel-kind? kind)
+  (equal? kind 'comp))
+
 (define (agg-rel-kind? kind)
   (match kind
     [`(agg ,_ ...) #t]

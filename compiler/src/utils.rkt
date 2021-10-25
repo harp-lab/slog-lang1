@@ -37,7 +37,6 @@
          peel-back-nested-fact-one-layer
          prov-of
          ->rel-select
-         ->rel-version
          ->cpp-ident
          format-source-tree-rule
          format-ir-rule
@@ -623,15 +622,12 @@
   (match prov
     [`(prov ,x ,pos) x]))
 
-;; TODO this is bad:
-(define (->rel-version rel-select [version 'total])
-  (match rel-select
-    [`(rel-select ,name ,arity ,indices ,kind) `(rel-version ,name ,arity ,indices ,version)]
-    [`(rel-version ,_ ...) rel-select]))
-
 (define (->rel-select rel-version)
   (match rel-version
-    [`(rel-version ,name ,arity ,indices ,ver) `(rel-select ,name ,arity ,indices)]
+    [`(rel-version ,name ,arity ,indices ,ver)
+      (define kind
+        (if (comp-or-agg-rel-kind? ver) ver 'db)) 
+     `(rel-select ,name ,arity ,indices ,kind)]
     [`(rel-select ,_ ...) rel-version]))
 
 (define/contract (->cpp-ident name)
