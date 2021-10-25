@@ -2,7 +2,7 @@ FROM ubuntu:latest
 
 RUN apt-get update && apt-get install -y wget gnupg software-properties-common
 
-RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key| apt-key add -
+RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
 RUN add-apt-repository ppa:plt/racket
 RUN apt-get update -y
 RUN apt-get install -y clang-format clang-tidy clang-tools clang clangd libc++-dev libc++1 libc++abi-dev \
@@ -11,20 +11,6 @@ RUN apt-get install -y clang-format clang-tidy clang-tools clang clangd libc++-d
             git python3-pip sqlite3
 RUN raco setup --doc-index --force-user-docs
 RUN raco pkg install --batch --deps search-auto binaryio graph
-
-RUN apt-get install -y git
-
-# setup grpc
-RUN git clone https://github.com/grpc/grpc /var/local/git/grpc --recurse-submodules && \
-    cd /var/local/git/grpc && \
-    git submodule update --init && \
-    mkdir -p cmake/build && \
-    cd cmake/build && \
-    cmake ../.. && \
-    make -j8 && make install
-
-RUN apt-get update
-RUN apt-get install -y python3-pip sqlite3
 
 ENV OMPI_ALLOW_RUN_AS_ROOT=1
 ENV OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
