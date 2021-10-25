@@ -9,6 +9,10 @@ RUN apt-get install -y clang-format clang-tidy clang-tools clang clangd libc++-d
             libc++abi1 libclang-dev libclang1 liblldb-dev libomp-dev libomp5 lld lldb \
             llvm-dev llvm-runtime llvm python-clang mcpp cmake racket build-essential mpich z3 \
             git python3-pip sqlite3
+<<<<<<< HEAD
+=======
+
+>>>>>>> c2318ebb35fa49e260b16ef9e4f4c3cfca8a2b1c
 RUN raco setup --doc-index --force-user-docs
 RUN raco pkg install --batch --deps search-auto binaryio graph
 
