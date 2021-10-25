@@ -1,4 +1,8 @@
 set -e
+
+# go to this scripts location to run tests.
+cd $(dirname $(realpath $0))
+
 rm -rf ./output
 mkdir ./output
 echo "generating c++ test files ..."
