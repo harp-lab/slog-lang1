@@ -21,7 +21,7 @@
           ((rel-select bar 2 (1 2) db) w ans)
           ((rel-version foo 3 (1 2) total) x y _2 w)
           ((rel-version range 3 (1 2) comp) x y _1 ans))]
-  [lam2 (generate-cpp-lambda-for-rule-with-callback-builtin rule2 '(1 2) "callback_builtin_range")]
+  [lam2 (generate-cpp-lambda-for-rule-with-builtin-impl rule2 '(1 2) "callback_builtin_range")]
 
   [rule4 '(srule
             ((rel-select bar 3 (1 2) db) y z 42)
@@ -33,31 +33,31 @@
           ((rel-select bar 4 (1 2 3 4) db) z w x y)
           ((rel-version foo 4 (1 3) total) x y _2 w z)
           ((rel-version > 2 (2 1) comp) x y _1))]
-  [lam5 (generate-cpp-lambda-for-rule-with-callback-builtin rule5 '(1 2) "builtin_greater")]
+  [lam5 (generate-cpp-lambda-for-rule-with-builtin-impl rule5 '(1 2) "builtin_greater")]
 
   [rule6 '(srule
           ((rel-select bar 4 (1 2 3 4) db) z w x y)
           ((rel-version foo 4 (1 3) total) x y _2 w z)
           ((rel-version > 2 (2 1) comp) 101 102 _1))]
-  [lam6 (generate-cpp-lambda-for-rule-with-callback-builtin rule6 '(1 2) "builtin_greater")]
+  [lam6 (generate-cpp-lambda-for-rule-with-builtin-impl rule6 '(1 2) "builtin_greater")]
   
   [rule7 '(srule
           ((rel-select bar 4 (1 2 3 4) db) x ans y w ans z)
           ((rel-version foo 4 (1 3) total) x y _2 w z)
           ((rel-version = 2 (1) comp) 42 _1 ans))]
-  [lam7 (generate-cpp-lambda-for-rule-with-callback-builtin rule7 '(1) "builtin_eq_1")]
+  [lam7 (generate-cpp-lambda-for-rule-with-builtin-impl rule7 '(1) "builtin_eq_1")]
 
   [rule8 '(srule
           ((rel-select bar 4 (1 2 3 4) db) 1001 x 1002 y 1003 z)
           ((rel-version foo 3 (1) total) x _2 y z)
           ((rel-version < 2 (2 1) comp) x 100 _1))]
-  [lam8 (generate-cpp-lambda-for-rule-with-callback-builtin rule8 '(1 2) "builtin_less")]
+  [lam8 (generate-cpp-lambda-for-rule-with-builtin-impl rule8 '(1 2) "builtin_less")]
 
   [rule9 '(srule
          ((rel-select $inter-body4 3 (1 2 3) db) $id1 $id2 e)
          ((rel-version $inter-body3 3 (1) total) $id1 $_14 $id2 e)
          ((rel-version = 2 (1 2) comp) $id1 $id1 $_8))]
-  [lam9 (generate-cpp-lambda-for-rule-with-callback-builtin rule9 '(1 2) "builtin_eq")]
+  [lam9 (generate-cpp-lambda-for-rule-with-builtin-impl rule9 '(1 2) "builtin_eq")]
 
   [rule10 '(srule
          ((rel-select $inter-body4 3 (1 2 3) db) a b c)
@@ -162,3 +162,22 @@
                         )])
 
   (display-to-file cpp-file-contents-filled-in (get-path "./output/builtins-tests2-generated.cpp") #:exists 'replace))
+
+(match-let* 
+ ([rule1 '(srule
+          ((rel-select bar 2 (1 2) db) x y)
+          ((rel-version foo 2 (1 2) total) x y $_id)
+          ((rel-version ~ 2 (1 2) (agg (rel-version aggregated 2 (1 2) total))) x 100 $_1))]
+  [(list local-lam1 _ global-lam1) (generate-cpp-lambdas-for-rule-with-aggregator rule1)]
+
+  [rule2 '(srule
+          ((rel-select bar 2 (1 2) db) 1000 y x 10000 y)
+          ((rel-version foo 2 (1 2) total) x y $_id)
+          ((rel-version ~ 2 (1 2) (agg (rel-version aggregated 2 (1 2) total))) x 100 $_1))]
+  [(list local-lam2 _ global-lam2) (generate-cpp-lambdas-for-rule-with-aggregator rule2)]
+
+  [aggregators-test-template-file (file->string (get-path "./aggregators-tests-template.cpp"))]
+  [output-file (format aggregators-test-template-file 
+                       local-lam1 global-lam1
+                       local-lam2 global-lam2)])
+  (display-to-file output-file (get-path "./output/aggregators-tests-generated.cpp") 	#:exists 'replace))

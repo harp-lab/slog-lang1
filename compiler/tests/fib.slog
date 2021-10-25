@@ -1,0 +1,12 @@
+
+(fib ?do(0) 0)
+(fib ?do(1) 1)
+[(> n 1)
+ -->
+ (fib ?do(n) {+ {fib !do({- n 1})} {fib !do({- n 2})}})]
+
+(fib2 {fib !do(2)})
+(fib3 {fib !do(3)})
+(fib4 {fib !do(4)})
+(fib5 {fib !do(5)})
+(fib10 {fib !do(10)})

@@ -171,7 +171,46 @@ auto builtin_less2 = builtin_binary_number_pred<_less>;
 
 
 template<typename TState> inline TState builtin_nop(const u64* data, TState init_state, TState (*callback) (TState state)){ 
+  return callback(init_state);
+}
+
+
+//////////////////// AGGREGATORS ////////////////////
+
+using local_agg_res_t = u64;
+struct _BTree {
+  virtual bool has_key(const u64* key) = 0;
+};
+
+typedef local_agg_res_t *local_agg_func_t (_BTree* agg_rel, const u64* data);
+
+typedef local_agg_res_t *reduce_agg_func_t (local_agg_res_t x, local_agg_res_t y);
+
+typedef int *global_agg_func_t (u64* data, local_agg_res_t agg_data, int agg_data_count, u64* output); 
+
+// void parallel_copy_aggregate(relation rel, relation agg_rel, relation target_rel, 
+//                              local_agg_func_t local_agg_func, reduce_agg_func_t reduce_agg_func, global_agg_func_t global_agg_fun);
+
+local_agg_res_t agg_not_reduce(local_agg_res_t x, local_agg_res_t y) {
+  return x | y;
+}
+
+local_agg_res_t agg_not_1_local(_BTree* rel, const u64* data){
+  return rel->has_key(data)? (u64) true : (u64) false;
+}
+
+local_agg_res_t agg_not_2_local(_BTree* rel, const u64* data){
+  return rel->has_key(data)? (u64) true : (u64) false;
+}
+
+template<typename TState> TState agg_not_global(u64* data, local_agg_res_t agg_data, u64 agg_data_count, TState init_state, TState (*callback) (TState state)){
+  cout << "agg_not_global called with count: " << agg_data_count << ", and res: " << agg_data << "\n";
+  if (agg_data_count > 0 && agg_data)  {
+    return init_state;
+  } else {
+    cout << "agg_not_global: calling callback!" << "\n";
     return callback(init_state);
+  }
 }
 
 // end of builtins.cpp
