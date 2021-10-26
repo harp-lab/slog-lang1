@@ -60,8 +60,8 @@
      ((time scc-pass)
       ((compose #;print-ir-select (time split-selections-pass))
        ((compose #;print-ir-small (time partitioning-pass))
-        ((compose #;print-ir-fixed (time fix-arities-pass))
-         ((compose #;print-ir-flat (time remove-implicit-joins-pass))
+        ((compose #;print-ir-fixed (time remove-implicit-joins-pass))
+         ((compose #;print-ir-fixed (time fix-arities-pass))
           ((time optimize-pass)
            ((time static-unification-pass)
             ((time organize-pass)
@@ -234,6 +234,10 @@
                                       ""
                                       (hash-keys rules-h))))]))
 
+(define (rel-version->name rel-version)
+  (match-define `(rel-version ,name ,arity ,ind ,ver) rel-version)
+  name)
+
 (define (slog-compile-rule-to-cpp rule comp-rels-func-names)
   (define (comp-rel-name? op)
     (or (builtin? op)
@@ -257,6 +261,24 @@
                       (rel->name `(rel-select ,@(take (drop rel-ver0 1) 3) db))
                       (match (last rel-ver0) ['total "FULL"] ['delta "DELTA"] ['new "NEW"])
                       comp-rel-cpp-func)]
+         [`(srule ,(? ir-incremental-hclause? `(prov ((prov ,(? rel-select? rel-sel) ,_) ,hvars ...) ,_))
+                  ,(? ir-incremental-bclause? `(prov ((prov ,(? rel-version? rel-ver0) ,_) ,bvars0 ...) ,_))
+                  ,(? ir-incremental-bclause? `(prov ((prov (rel-version ~ ,neg-arity ,neg-indices ,neg-ver) ,_) ,bvars1 ...) ,_)))
+          (match-define `(agg ,negated-rel) (strip-prov neg-ver))
+          (define prefix-vars (let loop ([bvars0 (map second bvars0)] [bvars1 (map second bvars1)])
+                                (if (and (cons? bvars0) (cons? bvars1) (equal? (first bvars0) (first bvars1)))
+                                    (cons (first bvars0) (loop (cdr bvars0) (cdr bvars1)))
+                                    '())))
+          (format "new parallel_join_negate(~a, ~a, ~a, ~a, ~a)"
+                  (rel->name rel-sel)
+                  (rel->name `(rel-select ,@(take (drop rel-ver0 1) 3) db))
+                  (match (last rel-ver0) ['total "FULL"] ['delta "DELTA"] ['new "NEW"])
+                  (rel->name `(rel-select ,@(take (drop negated-rel 1) 3) db))
+                  ;(match (last rel-ver1) ['total "FULL"] ['delta "DELTA"] ['new "NEW"])
+                  (compute-reordering-cpp (map second hvars)
+                                          (append prefix-vars
+                                                  (map second (drop bvars0 (length prefix-vars)))
+                                                  (map second (drop bvars1 (length prefix-vars))))))]
          [`(srule ,(? ir-incremental-hclause? `(prov ((prov ,(? rel-select? rel-sel) ,_) ,hvars ...) ,_))
                   ,(? ir-incremental-bclause? `(prov ((prov ,(? rel-version? rel-ver0) ,_) ,bvars0 ...) ,_))
                   ,(? ir-incremental-bclause? `(prov ((prov (rel-version ,op ,op-arity ,op-indices ,ver) ,_) ,bvars1 ...) ,_)))
