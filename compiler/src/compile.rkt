@@ -269,11 +269,14 @@
                                 (if (and (cons? bvars0) (cons? bvars1) (equal? (first bvars0) (first bvars1)))
                                     (cons (first bvars0) (loop (cdr bvars0) (cdr bvars1)))
                                     '())))
+          (match-define `(rel-select ,neg-rel-name ,neg-rel-arity ,neg-rel-sel db) negated-rel)
+          (assert (equal? neg-rel-arity neg-arity))
           (format "new parallel_join_negate(~a, ~a, ~a, ~a, ~a)"
                   (rel->name rel-sel)
                   (rel->name `(rel-select ,@(take (drop rel-ver0 1) 3) db))
                   (match (last rel-ver0) ['total "FULL"] ['delta "DELTA"] ['new "NEW"])
-                  (rel->name `(rel-select ,@(take (drop negated-rel 1) 3) db))
+                  ;; We add neg-indices as a selection set for negated-rel in split-selections-pass as a hack
+                  (rel->name `(rel-select ,neg-rel-name ,neg-rel-arity ,neg-indices db))
                   ;(match (last rel-ver1) ['total "FULL"] ['delta "DELTA"] ['new "NEW"])
                   (compute-reordering-cpp (map second hvars)
                                           (append prefix-vars
