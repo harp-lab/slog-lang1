@@ -1,6 +1,8 @@
 ;; Simple not test
-(does "hello")
-(does "foo")
+(does 1)
+(does 2)
+(foo 2)
+(foo 3)
 
 ;; Should work
-[(doesnot x) <-- ~(does x)]
+[(doesnot x) <-- (~ does x) (foo x)]

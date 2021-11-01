@@ -409,7 +409,9 @@
                             (define arg-pos-in-bvars1 (index-of new-indices (list-ref indices i)))
                             (define arg (list-ref bvars1 arg-pos-in-bvars1))
                             (match arg
-                              [(? lit?) (format "n2d(~a)" arg)]
+                              ; [(? lit?) (format "n2d(~a)" arg)]
+                              [(? string?) (format "n2d(\"~a\")" arg)]
+                              [(? number?)  (format "n2d(~a)" arg)]
                               [else 
                                 (define arg-pos-in-bvars0 (index-of bvars0 arg))
                                 (format "data[~a]" arg-pos-in-bvars0)])) 
@@ -464,7 +466,9 @@
                             (define arg-pos-in-bvars1 (index-of new-indices (list-ref indices i)))
                             (define arg (list-ref bvars1 arg-pos-in-bvars1))
                             (match arg
-                              [(? lit?) (format "n2d(~a)" arg)]
+                              ; [(? lit?) (format "n2d(~a)" arg)]
+                              [(? string?) (format "n2d(\"~a\")" arg)]
+                              [(? number?)  (format "n2d(~a)" arg)]
                               [else 
                                 (define arg-pos-in-bvars0 (index-of bvars0 arg))
                                 (format "data[~a]" arg-pos-in-bvars0)])) 
@@ -499,7 +503,9 @@
                             (define arg-pos-in-bvars1 (index-of new-indices (list-ref indices i)))
                             (define arg (list-ref bvars1 arg-pos-in-bvars1))
                             (match arg
-                              [(? lit?) (format "n2d(~a)" arg)]
+                              ; [(? lit?) (format "n2d(~a)" arg)]
+                              [(? string?) (format "n2d(\"~a\")" arg)]
+                              [(? number?)  (format "n2d(~a)" arg)]
                               [else 
                                 (define arg-pos-in-bvars0 (index-of bvars0 arg))
                                 (format "data[~a]" arg-pos-in-bvars0)])) 

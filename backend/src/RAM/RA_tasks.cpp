@@ -418,6 +418,16 @@ u32 RAM::local_compute(int* offset)
             }
         }
 
+        else if ((*it)->get_RA_type() == COPY_AGGREGATE)
+        {
+            parallel_copy_aggregate* current_ra = (parallel_copy_aggregate*) *it;
+            relation* output_relation = current_ra->get_copy_aggregate_output();
+            relation* input_relation = current_ra->get_copy_aggregate_input();
+            relation* target_relation = current_ra->get_copy_aggregate_target();
+
+
+        }
+
         else if ((*it)->get_RA_type() == FACT)
         {
             fact* current_ra = (fact*) *it;

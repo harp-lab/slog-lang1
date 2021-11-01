@@ -93,6 +93,7 @@ class CompileTask(Task):
         self._proc.stdin.write((sexpr + "\n").encode('utf-8'))
         self._proc.stdin.flush()
         line = self._proc.stdout.readline().decode('utf-8')
+        print(line)
         output = sexpdata.loads(line)
         # If compilation failed...
         if output[0] == Symbol('failure'):
