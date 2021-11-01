@@ -7,6 +7,7 @@
 
 (provide static-unification-pass
          static-unification-rules-h
+         ir-fixed-rule-remove-silly-clauses
          remove-silly-clauses)
 
 (require "lang-predicates.rkt")
@@ -149,6 +150,16 @@
     (match-define (list id rel args) (ir-flat-clause-rel-args cl))
     (match (cons rel args)
       [(cons '= (list x y)) (equal? x y)]
+      [else #f]))
+  `(rule ,heads ,(list->set (filter (not/c is-silly-clause) (set->list bodys)))))
+
+(define (ir-fixed-rule-remove-silly-clauses rule)
+  (match-define `(rule ,heads ,bodys) rule)
+  (define (is-silly-clause cl)
+    (match-define (list id rel args) (ir-fixed-clause-rel-args cl))
+    (define rel-is-eq (equal? rel '(rel-arity = 2 comp)))
+    (match (cons rel-is-eq args)
+      [(cons #t (list x y)) (equal? x y)]
       [else #f]))
   `(rule ,heads ,(list->set (filter (not/c is-silly-clause) (set->list bodys)))))
 
