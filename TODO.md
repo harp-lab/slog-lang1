@@ -19,4 +19,4 @@ and inside this work both on `FULL` and `DELTA`.
    This new class contain a `local_...` function having same argument as `local_join` in `parallel_join.h`.
 4. a new function in `shmap_relation.h/.cpp` doing `out_join`, having same argument as `as_all_to_allv_right_join_buffer`.
    In new function return when found a prefix in trie, if not trying to add that value to all_to_all_buffer
-5. I still haven't found what is next step of append to all_to_all_buffer, I still need some way to broadcast, I think it should been done in `lie.cpp`
+5. all code related to `JOIN` in `RA_task.cpp` shall have a variant of negation code
