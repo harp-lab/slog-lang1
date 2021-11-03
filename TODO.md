@@ -9,10 +9,10 @@ Aggregation/Negagtion is considered as special variant of `join` operation. In r
 ## Possible file needed to be modified
 
 
-1. a new enum branch in `balanced_hash_relation` called `COPY_AGGREGATE`.
+1. a new enum branch in `balanced_hash_relation` called `NEGATION`.
 2. a new if bran case in `RA_task.cpp` to check:
 ```
-else if ((*it)->get_RA_type() == COPY_AGGREGATE)
+else if ((*it)->get_RA_type() == NEGATION)
 ```
 and inside this work both on `FULL` and `DELTA`.
 3. add a new file called `parallel_agg.cpp/.h` under `src/relation`. It contain a API as frontend's compilation result.

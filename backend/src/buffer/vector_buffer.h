@@ -19,4 +19,5 @@ struct vector_buffer
   void vector_buffer_free(void);
   void vector_buffer_append(const unsigned char *data, const uint64_t size);
   void vector_buffer_resize(const uint64_t size);
+  void print_buffer();
 };

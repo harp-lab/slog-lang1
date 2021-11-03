@@ -156,107 +156,6 @@ class Repl:
         print(BANNER_LOGO)
         print(BANNER)
 
-    def lookup_rel_by_tag(self, tag):
-        """ check if a relation info is in cache """
-        for rel in self.relations:
-            if rel[2] == tag:
-                return rel
-
-    def fetch_tuples(self, name):
-        """ print all tulple of a relation """
-        req = slog_pb2.RelationRequest()
-        req.database_id = self._cur_db
-        arity = self.lookup_rels(name)[0][1]
-        req.tag = self.lookup_rels(name)[0][2]
-        row_count = 0
-        col_count = 0
-        tuples = []
-        buf = [-1 for _ in range(0, arity+1)]
-        for response in self._stub.GetTuples(req):
-            if response.num_tuples == 0:
-                continue
-            for u64 in response.data:
-                if col_count == 0:
-                    # index col
-                    # rel_tag = u64 >> 46
-                    bucket_id = (u64 & BUCKET_MASK) >> 28
-                    tuple_id = u64 & (~TUPLE_ID_MASK)
-                    buf[0] = (bucket_id, tuple_id, row_count)
-                    col_count += 1
-                    continue
-                val_tag = u64 >> 46
-                if val_tag == INT_TAG:
-                    attr_val = u64 & VAL_MASK
-                elif val_tag == STRING_TAG:
-                    attr_val = self.intern_string_dict[u64 & VAL_MASK]
-                else:
-                    # relation
-                    rel_name = self.lookup_rel_by_tag(val_tag)[0]
-                    # attr_val = f'rel_{rel_name}_{u64 & (~TUPLE_ID_MASK)}'
-                    if name != rel_name and rel_name not in self.updated_tuples.keys():
-                        self.fetch_tuples(rel_name)
-                    bucket_id = (u64 & BUCKET_MASK) >> 28
-                    tuple_id = u64 & (~TUPLE_ID_MASK)
-                    attr_val = ['NESTED', rel_name, (bucket_id, tuple_id)]
-                buf[col_count] = attr_val
-                col_count += 1
-                if col_count == arity + 1:
-                    # don't print id col
-                    # rel name at last
-                    tuples.append(copy.copy(buf)+[name])
-                    col_count = 0
-                    row_count += 1
-            assert row_count == response.num_tuples
-        self.updated_tuples[name] = tuples
-        return tuples
-
-    def recursive_dump_tuples(self, rel, out_path):
-        """ recursive print all tuples of a relation """
-        # reset all tuples to non-updated
-        def find_val_by_id(name, row_id):
-            for row in self.updated_tuples[name]:
-                if row[0] == row_id:
-                    return row
-        resolved_relname = []
-        def _resolve(rname):
-            if rname in resolved_relname:
-                return
-            for i, row in enumerate(self.updated_tuples[rname]):
-                for j, col in enumerate(row[:-1]):
-                    if not isinstance(col, list):
-                        continue
-                    if col[0] == 'NESTED':
-                        nested_name = col[1]
-                        nested_id = col[2]
-                        val = find_val_by_id(nested_name, nested_id)
-                        if val is None:
-                            val = f'"{nested_name} has no fact with id {nested_id} !"'
-                        _resolve(nested_name)
-                        self.updated_tuples[rname][i][j] = val
-            resolved_relname.append(rname)
-
-        def rel_to_str(rel):
-            res = []
-            for col in rel[:-1]:
-                if isinstance(col, type):
-                    if col[0] == 'NESTED':
-                        res.append(f"({' '.join([str(v) for v in col])})")
-                    else:
-                        res.append(rel_to_str(col))
-                else:
-                    res.append(str(col))
-            return f"({rel[-1]} {' '.join(res)})"
-        self.fetch_tuples(rel[0])
-        # print(self.updated_tuples)
-        # _resolve(rel[0])
-        if not out_path:
-            for fact_row in sorted(self.updated_tuples[rel[0]], key=lambda t: int(t[0][2])):
-                print(f"#{fact_row[0][2]}:  {rel_to_str(fact_row[1:])}")
-        else:
-            with open(out_path, 'w') as out_f:
-                for fact_row in sorted(self.updated_tuples[rel[0]], key=lambda t: int(t[0][2])):
-                    out_f.write(f"#{fact_row[0][2]}:  {rel_to_str(fact_row[1:])}")
-
     def calc_ping(self):
         """ calculate ping time to slog rpc server """
         try:
@@ -286,6 +185,11 @@ class Repl:
                         '</style>'.format(self.client.server, self.calc_ping()))
         else:
             return HTML('Disconnected. Use `connect <host>`')
+
+    def exit(self):
+        """ exit REPL """
+        print('Goodbye.')
+        sys.exit(0)
 
     def loop(self):
         """  REPL main entrance """

@@ -66,3 +66,13 @@ void vector_buffer::vector_buffer_resize(const uint64_t si)
     }
     size = size;
 }
+
+void vector_buffer::print_buffer()
+{
+    std::cout << ">>> BUFFER ";
+    for (size_t i = 0; i < size; i++)
+    {
+        std::cout << int(buffer[i]) << " ";
+    }
+    std::cout << std::endl;
+}

@@ -309,14 +309,25 @@ void shmap_relation::as_all_to_allv_left_outer_join_buffer(
     std::vector<u64> prefix, all_to_allv_buffer& join_buffer, u64 *input0_buffer,
     int input0_buffer_width, int input1_buffer_width, int ra_id, u32 buckets,
     u32* output_sub_bucket_count, u32** output_sub_bucket_rank, std::vector<int> reorder_map,
-    int join_column_count, shmap_relation& deduplicate, int* local_join_count,
-    u32* local_join_duplicates, u32* local_join_inserts, int head_rel_hash_col_count, bool canonical)
+    int join_column_count, shmap_relation& deduplicate,
+    int* local_join_count, u32* local_join_duplicates, u32* local_join_inserts,
+    int head_rel_hash_col_count, bool canonical)
 {
     shmap_relation *m_trie = this;
+    bool found = true;
     for (u64 n : prefix) {
         if (m_trie->next.find(n) != NULL)
-            return
+        {
+            found = false;
+            break;
+        }
+        else
+        {
+            m_trie = *(m_trie->next.find(n));
+        }
     }
+    if (found)
+        return;
     as_all_to_allv_left_join_buffer_helper(m_trie, prefix, join_buffer, input0_buffer, input0_buffer_width, input1_buffer_width, ra_id, buckets, output_sub_bucket_count, output_sub_bucket_rank, reorder_map, join_column_count, deduplicate, local_join_count, local_join_duplicates, local_join_inserts, head_rel_hash_col_count, canonical);
 }
 

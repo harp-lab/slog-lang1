@@ -197,7 +197,7 @@ class SlogClient:
             writer.write("Compilation failed!")
         return edb
 
-    def run_with_db(self, filename, db_id=None, cores=2, writer=NoneWriter()):
+    def run_with_db(self, filename, db_id=None, cores=1, writer=NoneWriter()):
         ''' run a program with input database '''
         self.update_dbs()
         if not db_id:
