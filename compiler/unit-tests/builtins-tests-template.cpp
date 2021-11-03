@@ -9,7 +9,7 @@
 #include <iostream>
 #include <array>
 
-#include "test_header.h"
+#include "./test_header.h"
 #include "../../src/builtins.cpp"
 
 int main(){
