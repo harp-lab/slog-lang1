@@ -1,5 +1,5 @@
 
-
+using u64 = unsigned long;
 using local_agg_res_t = u64;
 // struct _BTree {
 //   virtual bool has_key(const u64* key) = 0;
