@@ -271,11 +271,11 @@ class RunTask(Task):
             cores = 1
         
         if cores == 1:
-            _proc = subprocess.Popen(["valgrind", "--track-origins=yes", "./target", in_db_dir, out_db_dir],
+            _proc = subprocess.Popen(["./target", in_db_dir, out_db_dir],
                                     stdin=PIPE, stdout=PIPE, stderr=open(stderrpath, 'w'),
                                     cwd=f"{build_dir}/build", env=env)
         else:
-            _proc = subprocess.Popen(["mpirun", "-n", str(cores), "valgrind", "--track-origins=yes", "./target", in_db_dir, out_db_dir],
+            _proc = subprocess.Popen(["mpirun", "-n", str(cores), "./target", in_db_dir, out_db_dir],
                                     stdin=PIPE, stdout=PIPE, stderr=open(stderrpath, 'w'),
                                     cwd=f"{build_dir}/build", env=env)
         with open(stdoutpath, 'w') as stdout_f:

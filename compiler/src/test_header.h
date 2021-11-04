@@ -1,5 +1,9 @@
 
-#define u64 unsigned long
+
+#pragma once
+
+#define u64  uint64_t
+
 using local_agg_res_t = u64;
 
 // struct _BTree {

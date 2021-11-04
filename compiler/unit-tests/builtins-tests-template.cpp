@@ -9,7 +9,7 @@
 #include <iostream>
 #include <array>
 
-#include "../../src/test_header.h"
+#include "../../../backend/src/parallel_RA_inc.h"
 #include "../../src/builtins.cpp"
 
 int main(){
