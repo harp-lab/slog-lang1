@@ -465,6 +465,10 @@ u32 RAM::local_compute(int* offset)
             relation* output_relation = current_ra->get_negation_output();
             relation* input_relation = current_ra->get_negation_input();
             relation* target_relation = current_ra->get_negation_target();
+            // std::cout << "NEGATION RELATION: \n"
+            //           << "input relation " << input_relation->get_filename() <<" arity: " << input_relation->get_arity() << "\n"
+            //           << "target relation" << target_relation->get_filename() << "arity: " << target_relation->get_arity()
+            //           << std::endl;
             std::vector<int> reorder_map_array;
             current_ra->get_negation_projection_index(&reorder_map_array);
             int join_column_count = target_relation->get_join_column_count();

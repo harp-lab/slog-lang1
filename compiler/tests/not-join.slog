@@ -1,9 +1,9 @@
-(does 2 0)
+(does 2 0 99)
 (foo 2 8)
 (foo 3 9)
-(does 4 0)
-(does 2 1)
+(does 4 0 99)
+(does 2 1 99)
 (bar 0)
 
 ;; Should work
-[(doesnot x y z) <-- (~ does x y) (foo x z) (bar y)]
+[(doesnot x y z) <-- (~ does x y _) (foo x z) (bar y)]

@@ -22,9 +22,9 @@ class parallel_join_negate : public parallel_RA
 {
 private:
     /* data */
-    relation* copy_negation_input0_table;
-    relation* copy_negation_target_table;
-    relation* copy_negation_output_table;
+    relation* join_negation_input0_table;
+    relation* join_negation_target_table;
+    relation* join_negation_output_table;
     int src_type;
     std::vector<int> projection_reorder_index_array;
     int projection_reorder_index_array_length;
@@ -39,16 +39,16 @@ public:
 
     parallel_join_negate(relation* dest, relation* src,  int t_type, relation* target_rel,
                             std::vector<int> projection_reorder_index_array)
-        : copy_negation_output_table(dest), copy_negation_input0_table(src), src_type(t_type),
-          copy_negation_target_table(target_rel), projection_reorder_index_array(projection_reorder_index_array)
+        : join_negation_output_table(dest), join_negation_input0_table(src), src_type(t_type),
+          join_negation_target_table(target_rel), projection_reorder_index_array(projection_reorder_index_array)
     {
         // std::cout << "init negate ..." << std::endl;
         RA_type = NEGATION;
     }
 
-    relation* get_negation_input() {return copy_negation_input0_table;}
-    relation* get_negation_output() {return copy_negation_output_table;}
-    relation* get_negation_target() {return copy_negation_target_table;}
+    relation* get_negation_input() {return join_negation_input0_table;}
+    relation* get_negation_output() {return join_negation_output_table;}
+    relation* get_negation_target() {return join_negation_target_table;}
     void get_negation_projection_index(std::vector<int>* projection_reorder_index_array)    {*projection_reorder_index_array = this->projection_reorder_index_array; }
 
     int get_src_graph_type() {return src_type;}
@@ -68,3 +68,12 @@ public:
                                   u32* local_join_inserts);
 
 };
+
+// class parallel_copy_aggregate : public parallel_RA
+// {
+// private:
+//     relation* copy_aggregate_output_table;
+//     relation* copy_aggregate_ 
+
+// };
+
