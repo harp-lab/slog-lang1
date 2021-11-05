@@ -16,15 +16,14 @@ import tempfile
 
 from six import MAXSIZE
 
-from daemon.const import DATA_PATH, DATABASE_PATH, CMDSVC_LOG, DB_PATH, SOURCES_PATH, TSV2BIN_PATH
-from daemon.const import STATUS_RESOLVED, STATUS_NOSUCHPROMISE, MAX_BUCKETS, MIN_BUCKETS \
+from slog.daemon.const import DATA_PATH, DATABASE_PATH, CMDSVC_LOG, DB_PATH, SOURCES_PATH, TSV2BIN_PATH
+from slog.daemon.const import STATUS_RESOLVED, STATUS_NOSUCHPROMISE, MAX_BUCKETS, MIN_BUCKETS \
                          , MAX_CHUNK_DATA
-from daemon.db import MetaDatabase
-from daemon.manifest import Manifest
-from daemon.util import join_hashes, generate_db_hash, compute_hash_file, read_intern_file
+from slog.daemon.db import MetaDatabase
+from slog.daemon.util import join_hashes, generate_db_hash, compute_hash_file, read_intern_file
 
-import protobufs.slog_pb2 as slog_pb2
-import protobufs.slog_pb2_grpc as slog_pb2_grpc
+import slog.protobufs.slog_pb2 as slog_pb2
+import slog.protobufs.slog_pb2_grpc as slog_pb2_grpc
 
 
 class CommandService(slog_pb2_grpc.CommandServiceServicer):
@@ -82,11 +81,13 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
         self._db.save_file_hashes(fdict)
         return ret
 
-    def PutCSVFacts(self, requests, _context):
+    def PutCSVFacts(self, requests, context):
         # write csv to tmp
         failed_files = []
         ret = slog_pb2.FactResponse()
         csv_hashes = []
+        changed_relations = []
+        in_db = ""
         with tempfile.TemporaryDirectory() as tmp_db_dir:
             # copy original db to tmp_db
             tmp_db_path = os.path.join(tmp_db_dir, '_tmp_db')
@@ -95,42 +96,49 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
                 buckets = request.buckets
                 rel_name = request.relation_name
                 in_db = request.using_database              # TODO: check all in_db are same
+                in_db_path = os.path.join(DATABASE_PATH, in_db)
                 if not os.path.exists(tmp_db_path):
                     # fork input database
-                    shutil.copytree(os.path.join(
-                        DATABASE_PATH, in_db), tmp_db_path)
+                    os.mkdir(tmp_db_path)
                 with tempfile.NamedTemporaryFile() as tmp_csv:
                     tmp_csv.write(body)
                     tmp_csv.seek(0)
                     fst_line = tmp_csv.readline()
                     arity = len(fst_line.decode('utf-8').strip().split('\t'))
-                    out_path = os.path.join(tmp_db_path, f'{rel_name}_{arity}')
                     index = ",".join([str(i) for i in range(1, arity+1)])
+                    tag = self._db.get_relation_tag(in_db, rel_name, arity)
+                    tablename = f'{tag}.{rel_name}.{arity}.table'
+                    out_path = os.path.join(tmp_db_path, tablename)
+                    shutil.copy(os.path.join(in_db_path, tablename), out_path)
+                    changed_relations.append(rel_name)
                     with subprocess.Popen([TSV2BIN_PATH, tmp_csv.name, str(arity), out_path, index,
-                                           str(buckets), tmp_db_path],
+                                           str(buckets), str(tag), tmp_db_path],
                                           stdout=subprocess.PIPE, stderr=subprocess.PIPE) as proc:
-                        _, err = proc.communicate()
+                        std_o, err = proc.communicate()
                         if err:
                             ret.success = False
                             failed_files.append(rel_name)
                             print(err)
                         else:
                             ret.success = True
+                            print(std_o)
                             csv_hashes.append(compute_hash_file(body))
             if ret.success:
                 # persist tmp database
                 new_db_id = generate_db_hash(csv_hashes, in_db)
                 new_database_path = os.path.join(DATABASE_PATH, new_db_id)
                 shutil.copytree(tmp_db_path, new_database_path)
+                # soft link all unchange file
+                for fname in os.listdir(os.path.join(DATABASE_PATH, in_db)):
+                    if not os.path.isdir(os.path.join(DATABASE_PATH, in_db, fname)) and \
+                       not os.path.exists(os.path.join(new_database_path, fname)):
+                       os.symlink(os.path.join(DATABASE_PATH, in_db, fname),
+                                  os.path.join(new_database_path, fname))
                 # update meta db
-                # read and update manifest
-                mf_path = os.path.join(new_database_path, 'manifest')
-                new_mf_s = Manifest(mf_path).generate_mf(new_database_path)
-                with open(mf_path, 'w') as _mf:
-                    _mf.truncate()
-                    _mf.seek(0)
-                    _mf.write(new_mf_s)
-                self._db.load_manifest(new_db_id, mf_path)
+                for fname in os.listdir(new_database_path):
+                    if fname.endswith('.table'):
+                        self._db.create_relation_by_datapath(
+                            new_db_id, os.path.join(new_database_path, fname))
                 ret.new_database = new_db_id
                 self._db.create_database_info(new_db_id, "", "", in_db)
         ret.error_msg = ", ". join(failed_files)
@@ -217,11 +225,9 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
         row = self._db.get_relations_by_db_and_tag(
             request.database_id,
             request.tag)
-        print()
         try:
             arity = int(row[1])
-            selection = list(map(int, row[3].split(",")))
-            data_file = row[4]
+            data_file = row[3]
             print(row)
             if data_file.strip() == "":
                 response = slog_pb2.Tuples()
@@ -230,10 +236,7 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
                 response.data.extend([])
                 return response
             tuplen = arity+1  # Tuples also include ID column
-            mapping = list(range(0, tuplen))
-            for selected in selection:
-                mapping.remove(selected)
-            mapping = selection + mapping
+            mapping = list(range(1, tuplen)) + [0]
             with open(data_file, 'rb') as rel_data_f:
                 file_size = os.stat(data_file).st_size
                 num_u64s = int(file_size) / 8

@@ -72,9 +72,29 @@
 ; Complete compilation to C++
 ;; returns (cons global-definitions program-text)
 (define (slog-compile-cpp program input-database output-database)
+  ;; read relation meta info from input dir
+  (define relations
+    (foldl (lambda (fpath rels)
+             (define fname (path->string (file-name-from-path fpath)))
+             (if (string-suffix? fname ".table")
+                 (let* ([fname-nosuffix (string-replace fname ".table" "")]
+                        [rel-tag-s (first (string-split fname-nosuffix "."))]
+                        [rel-arity-s (last (string-split fname-nosuffix "."))]
+                        [rel-arity (string->number rel-arity-s)]
+                        [rel-tag (string->number rel-tag-s)]
+                        [rel-name (string->symbol
+                                    (substring fname-nosuffix
+                                               (add1 (string-length rel-tag-s))
+                                               (- (string-length fname-nosuffix)
+                                                  (string-length rel-arity-s)
+                                                  1)))])
+                   (cons `(relation ,rel-name ,rel-arity ,rel-tag ,(append (range 1 (add1 rel-arity)) '(0))
+                                    ,(path->string (path->complete-path fpath)))
+                         rels))
+                 rels))
+           '()
+           (directory-list input-database)))
   (match-define `(ir-incremental ,ir-scc ,scc-graph ,scc-map ,comp-rules-h) program)
-  (define manifest (read-manifest (format "~a/manifest" input-database)))
-  (match-define `(manifest (relations ,relations) (strings "$strings.csv" ,n)) manifest)
   (define all-rel-selects
     (foldl (lambda (scc st)
               (match scc
@@ -111,11 +131,11 @@
                  [_ #f]))
              (define maybe-relation (filter matches relations))
              (when (not (= (length maybe-relation) 1))
-               (error (format "Could not find an appropriate relation ~a ~a in manifest (either 0 or >1 possible candidates)" rel-name rel-arity)))
+               (error (format "Could not find an appropriate relation ~a with arity ~a (need 1 candidate, got ~a)" rel-name rel-arity (length maybe-relation))))
              (define relation (first maybe-relation))
-             (match-define `(relation ,_ ,_ ,rid ,_ ,index ,data ,size) relation)
+             (match-define `(relation ,_ ,_ ,rid ,index ,data) relation)
              (string-append rel-txt
-                            (format "relation* ~a = new relation(~a, ~a, ~a, ~a, \"~a\", slog_input_dir + \"/~a\", FULL);\n"
+                            (format "relation* ~a = new relation(~a, ~a, ~a, ~a, \"~a\", ~a FULL);\n"
                                     (rel->name rel-sel)
                                     (length (rel->sel rel-sel))
                                     (if (and (not (member 0 (rel->sel rel-sel))) (= (length (rel->sel rel-sel)) (rel->arity rel-sel))) "true" "false")
@@ -123,8 +143,9 @@
                                     rid
                                     (rel->name rel-sel)
                                     (if (and (not (member 0 (rel->sel rel-sel))) (= (length (rel->sel rel-sel)) (rel->arity rel-sel)))
-                                        (format "~a_~a" (rel->name rel-sel) rel-arity)
-                                        (format "~a_nc_~a" (rel->name rel-sel) rel-arity))
+                                        (format "slog_input_dir + \"/~a.~a.~a.table\"," rid rel-name rel-arity)
+                                        ; TODO: how to get rid of this space?????
+                                        " ")
                                     )))
            ""
            (set->list all-rel-selects)))

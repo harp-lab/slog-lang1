@@ -48,7 +48,6 @@
          print-ir-select
          print-ir-small
          print-ir-incremental
-         read-manifest
          (all-from-out "generic-utils.rkt"))
 
 ; Helper for reading in all s-exprs from STDIN
@@ -801,10 +800,3 @@
       (pretty-print (strip-prov comp-rule))
       (newline)))
   ir)
-
-(define (read-manifest file-name)
-  (let* ([input (open-input-file file-name)]
-         [manifest (read input)])
-    (if (manifest? manifest)
-        manifest
-        (error "Unable to read input manifest"))))

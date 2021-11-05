@@ -122,7 +122,6 @@ void parallel_io::parallel_read_input_relation_from_file_to_local_buffer(u32 ari
 
     /* Read the metadata file containing the total number of rows and columns */
     std::string meta_data_filename;
-    meta_data_filename = file_name + ".size";
 
 #if 0
     FILE *fp_in;
@@ -135,20 +134,19 @@ void parallel_io::parallel_read_input_relation_from_file_to_local_buffer(u32 ari
     fclose(fp_in);
 #endif
 
-    std::string line1;
-    std::string line2;
-    if (rank == 0)
+    // calculate row count from size of file
+    uintmax_t size_data_file = std::filesystem::file_size(file_name);
+    if (size_data_file % (8 * (arity + 1)) != 0)
     {
-        std::ifstream myfile (meta_data_filename.c_str());
-        if (myfile.is_open())
-        {
-            getline (myfile,line1);
-            global_row_count = std::stoi(line1);
-            getline (myfile,line2);
-            col_count = std::stoi(line2);
-            myfile.close();
-        }
+        std::cout << "Input file :" << file_name << " "
+                  << arity << "  " << size_data_file % (8 * (arity + 1)) << "  "
+                //   << " Wrong input format, size of input can't be moded by (8 * (arity + 1))"
+                  << std::endl;
+        MPI_Abort(lcomm, -1);
     }
+    // assert(size_data_file % (8 * (arity + 1)) != 0);
+    global_row_count = size_data_file / (8 * (arity + 1));
+    col_count = arity + 1;
 
 
     /* Broadcast the total number of rows and column to all processes */
@@ -177,6 +175,7 @@ void parallel_io::parallel_read_input_relation_from_file_to_local_buffer(u32 ari
 			entry_count = (int) ceil((float)global_row_count / nprocs);
     }
 
+    // std::cout << "filename is  >>>>> " << file_name << std::endl;
     assert((int)arity+1 == col_count);
 
     std::string data_filename;

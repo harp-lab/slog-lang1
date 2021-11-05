@@ -7,7 +7,7 @@ Copyright (c) Sidharth Kumar, Thomas Gilray, Kristopher Micinski, see License.md
 ## Build instructions
 mkdir build
 
-ccmake ../
+cmake ../
 
 make
 

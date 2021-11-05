@@ -53,7 +53,7 @@ jobs:
         run: docker run --rm --entrypoint bash slog-ci-test /slog/compiler/unit-tests/cpp_compilation_tests.sh
 
       - name: Compile hashes
-        run: docker run --rm --entrypoint bash slog-ci-test /slog/tests/run_test.sh compile_hashes
+        run: docker run --rm --entrypoint bash slog-ci-test /slog/slog/tests/run_test.sh compile_hashes
 
       # TODO: Backend tests (Yihao working on them)
 

@@ -535,21 +535,6 @@
                 ,(? number?)
                 ,(? hash?)) #t]))
 
-; manifest files
-(define (manifest? m)
-  (define (relation-definition? d)
-    (match d
-      [`(relation ,(? symbol? name) ,(? nonnegative-integer? arity) ,(? nonnegative-integer? id)
-                  ,(? nonnegative-integer? num-facts) ,(? (listof nonnegative-integer?) canonical-index)
-                  ,(? string? data) ,(? string? size-file)) #t]
-      [_ #f]))
-  (match m
-    [`(manifest
-       (relations ,(? (listof relation-definition?)))
-       (strings "$strings.csv" ,(? nonnegative-integer?))
-       #;(symbols "$symbols.csv" ,(? nonnegative-integer?))) #t]
-    [_ #f]))
-
 ; the configuration of the debugger
 (define (debugger-state? db)
   (match db

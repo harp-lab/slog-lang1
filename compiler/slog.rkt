@@ -18,6 +18,7 @@
 (define default-input-dir 'none)
 (define input-database 'none)
 (define output-database 'none)
+(define output-code-loc 'none)
 
 ; Parse command-line
 (define file-path
@@ -47,7 +48,7 @@
     (slog-merge-builtins #t)]
    [("--mb-off" "--merge-builtins-off") "DO NOT merge multiple builtins in rule bodies into one synthetic computational relation"
     (slog-merge-builtins #f)]
-   [("--input-db") input-db "Input database (directory, must contain manifest)"
+   [("--input-db") input-db "Input database (directory, file name must follow relation file name rule)"
     (set! input-database input-db)]
    [("--build-input-db") input-db "New input database (directory, must be empty)"
     (set! default-input-dir input-db)]
@@ -56,7 +57,9 @@
    [("--printrels") rels "Print relation sizes (each iteration)"
     (print-relations (file->lines rels))]
    [("-f") "Be fast! (disable contract checking)"
-    (check-cond-contracts #f)]
+           (check-cond-contracts #f)]
+   [("--output-code") output-code "Output code (compiled slog file + CMake location)"
+    (set! output-code-loc output-code)]
    #:once-any
    [("-c" "--compile") "Compile the program to C++"
     (slog-compile-mode #t)
@@ -72,7 +75,7 @@
    [("--batch") "Run interpreter in batch mode and exit"
     (slog-batch-mode #t)
     (slog-compile-mode #f)]
-   #:args (filename)                     
+   #:args (filename)
    filename))
 
 (define before (current-inexact-milliseconds))
@@ -128,13 +131,20 @@
 
 (printf "rels: ~a, sccs: ~a\n" (hash-count rel-h) (hash-count scc-h))
 
+; location of this file so relative paths work better,
+; as its probably best theyre relative to this file.
+(define base-dir (path-only (path->complete-path (find-system-path 'run-file))))
+
+; Run the REPL+Debugger or finish compiling
 (define basename (first (string-split (last (string-split file-path "/")) ".")))
 (when (equal? default-input-dir 'none)
   (set! default-input-dir (format "../data/~a-input" basename)))
 (define o-dir (if (equal? output-database 'none) (format "../data/~a" basename) output-database))
+(define code-loc (if (equal? output-code-loc 'none) o-dir output-code-loc))
 (define extn (if (slog-souffle-mode) "dl" "cpp"))
-(define o-path (format "~a/~a.~a" o-dir basename extn))
-(define cmake-path (format "~a/CMakeLists.txt" o-dir))
+(define o-path (format "~a/~a.~a" code-loc basename extn))
+(define cmake-path (format "~a/CMakeLists.txt" code-loc))
+(define parallel-ra-h-loc (path->string (build-path base-dir "../backend/src/parallel_RA_inc.h")))
 
 (cond
   [(slog-souffle-mode)
@@ -145,23 +155,23 @@
   [(slog-compile-mode)
    (let* ([i-dir (if (equal? input-database 'none)
                      (begin (create-initial-database program default-input-dir) default-input-dir) 
-                     (begin (check-compatible-database program input-database) input-database))]
-          [builtins-cpp-file (file->string "src/builtins.cpp")])
+                     (begin (create-initial-database program input-database) input-database))]
+          [builtins-cpp-file (file->string (path->string (build-path base-dir "src/builtins.cpp")))])
      (match-define (cons global-definitions cpp) (slog-compile-cpp program i-dir o-dir))
      (when (not (directory-exists? o-dir)) (make-directory o-dir))
      (with-output-to-file o-path
        (lambda ()
          (define template
-           (with-input-from-file "src/driver-template.cpp"
+           (with-input-from-file (path->string (build-path base-dir "src/driver-template.cpp"))
              (lambda () (read-string 99999))))
-         (display (format template builtins-cpp-file global-definitions i-dir o-dir cpp)))
+         (display (format template parallel-ra-h-loc builtins-cpp-file global-definitions i-dir o-dir cpp)))
        #:exists 'replace)
      (with-output-to-file cmake-path
        (lambda ()
          (define template
-           (with-input-from-file "src/cmake-template"
+           (with-input-from-file (path->string (build-path base-dir "src/cmake-template"))
              (lambda () (read-string 99999))))
-         (display (format template basename basename basename basename basename)))
+         (display (format template basename basename basename basename basename basename)))
        #:exists 'replace)
      (display (format "[wrote C++ driver and data to \"~a\"]\n" o-path)))]
   [else (slog-debug program)])
