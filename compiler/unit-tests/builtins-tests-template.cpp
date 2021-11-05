@@ -76,7 +76,7 @@ int main(){
     //         ((rel-select bar 4 (1 2 3 4) db) z w x y)
     //         ((rel-version foo 4 (1 3) total) x y _2 w z)
     //         ((rel-version > 2 (2 1) comp) x y _1))]
-    //[lam5 (generate-cpp-lambda-for-rule-with-callback-builtin rule2 '(1 2) "builtin_greater")]
+    //[lam5 (generate-cpp-lambda-for-rule-with-builtin-impl rule2 '(1 2) "builtin_greater")]
 
     auto lam = ~a;
     {
@@ -102,7 +102,7 @@ int main(){
     //         ((rel-select bar 4 (1 2 3 4) db) z w x y)
     //         ((rel-version foo 4 (1 3) total) x y _2 w z)
     //         ((rel-version > 2 (2 1) comp) 101 102 _1))]
-    // [lam6 (generate-cpp-lambda-for-rule-with-callback-builtin rule6 '(1 2) "builtin_greater")]
+    // [lam6 (generate-cpp-lambda-for-rule-with-builtin-impl rule6 '(1 2) "builtin_greater")]
     auto lam = ~a;
     {
       u64 x = n2d(101), y = n2d(102), w= n2d(1000), z = n2d(1001);
@@ -120,7 +120,7 @@ int main(){
     //         ((rel-select bar 4 (1 2 3 4) db) x ans y w ans z)
     //         ((rel-version foo 4 (1 3) total) x y _2 w z)
     //         ((rel-version = 2 (1) comp) 42 ans _1))]
-    // [lam7 (generate-cpp-lambda-for-rule-with-callback-builtin rule7 '(1 2) "builtin_eq_1")]
+    // [lam7 (generate-cpp-lambda-for-rule-with-builtin-impl rule7 '(1 2) "builtin_eq_1")]
     auto lam = ~a;
     {
       u64 x = n2d(101), y = n2d(102), w= n2d(1000), z = n2d(1001);
@@ -139,7 +139,7 @@ int main(){
     //         ((rel-select bar 4 (1 2 3 4) db) 1001 x 1002 y 1003 z)
     //         ((rel-version foo 3 (1) total) x _2 y z)
     //         ((rel-version < 2 (2 1) comp) x 100 _1))]
-    // [lam8 (generate-cpp-lambda-for-rule-with-callback-builtin rule8 '(1 2) "builtin_less")]
+    // [lam8 (generate-cpp-lambda-for-rule-with-builtin-impl rule8 '(1 2) "builtin_less")]
     auto lam = ~a;
     {
       u64 x = n2d(200), y = n2d(211), z= n2d(212);
@@ -157,7 +157,7 @@ int main(){
     //      ((rel-select $inter-body4 3 (1 2 3) db) $id1 $id2 e)
     //      ((rel-version $inter-body3 3 (1) total) $id1 $_14 $id2 e)
     //      ((rel-version = 2 (1 2) comp) $id1 $id1 $_8))]
-    // [lam9 (generate-cpp-lambda-for-rule-with-callback-builtin rule9 '(1 2) "builtin_eq")]
+    // [lam9 (generate-cpp-lambda-for-rule-with-builtin-impl rule9 '(1 2) "builtin_eq")]
     auto lam = ~a;
     {
       u64 id1 = n2d(42), id2 = n2d(123), e = n2d(1000);

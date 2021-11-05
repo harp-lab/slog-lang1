@@ -6,7 +6,8 @@
 (provide slog-compile
          slog-compile-cpp
          generate-cpp-lambda-for-rule-with-builtin
-         generate-cpp-lambda-for-rule-with-callback-builtin
+         generate-cpp-lambdas-for-rule-with-aggregator
+         generate-cpp-lambda-for-rule-with-builtin-impl
          generate-cpp-lambda-for-computational-join
          generate-cpp-lambda-for-computational-copy
          generate-lambda-for-computational-relation-rule
@@ -266,11 +267,8 @@
          [`(srule ,(? ir-incremental-hclause? `(prov ((prov ,(? rel-select? rel-sel) ,_) ,hvars ...) ,_))
                   ,(? ir-incremental-bclause? `(prov ((prov ,(? rel-version? rel-ver0) ,_) ,bvars0 ...) ,_))
                   ,(? ir-incremental-bclause? `(prov ((prov (rel-version ,op ,op-arity ,op-indices ,ver) ,_) ,bvars1 ...) ,_)))
-           #:when (comp-or-agg-rel-kind? ver)
-          (define prefix-vars (let loop ([bvars0 (map second bvars0)] [bvars1 (map second bvars1)])
-                                (if (equal? (first bvars0) (first bvars1))
-                                    (cons (first bvars0) (loop (cdr bvars0) (cdr bvars1)))
-                                    '())))
+           #:when (comp-rel-kind? ver)
+          
           (define bi-rel-select `(rel-select ,op ,op-arity ,op-indices comp))
           (define comp-rel-cpp-func
             (cond [(builtin? op) (generate-cpp-lambda-for-rule-with-builtin rule)]
@@ -281,6 +279,22 @@
                       (rel->name `(rel-select ,@(take (drop rel-ver0 1) 3) db))
                       (match (last rel-ver0) ['total "FULL"] ['delta "DELTA"] ['new "NEW"])
                       comp-rel-cpp-func)]
+         [`(srule ,(? ir-incremental-hclause? `(prov ((prov ,(? rel-select? rel-sel) ,_) ,hvars ...) ,_))
+                  ,(? ir-incremental-bclause? `(prov ((prov ,(? rel-version? rel-ver0) ,_) ,bvars0 ...) ,_))
+                  ,(? ir-incremental-bclause? `(prov ((prov (rel-version ,op ,op-arity ,op-indices ,ver) ,_) ,bvars1 ...) ,_)))
+           #:when (agg-rel-kind? ver)
+          (match-define `(agg ,aggregated-rel) ver)
+          ; (define bi-rel-select `(rel-select ,op ,op-arity ,op-indices comp))
+          (match-define (list local-cpp-func reduce-cpp-func global-cpp-func)
+            (generate-cpp-lambdas-for-rule-with-aggregator rule))
+          ;parallel_copy_aggregate(relation rel, relation agg_rel, relation target_rel, char* ver,
+          ;                    local_agg_func_t local_agg_func, reduce_agg_func_t reduce_agg_func, global_agg_func_t global_agg_fun);
+          (format "new parallel_copy_aggregate(~a, ~a, ~a, ~a, ~a, ~a, ~a)"
+                      (rel->name rel-sel)
+                      (rel->name (strip-prov aggregated-rel))
+                      (rel->name `(rel-select ,@(take (drop rel-ver0 1) 3) db))
+                      (match (last rel-ver0) ['total "FULL"] ['delta "DELTA"] ['new "NEW"])
+                      local-cpp-func reduce-cpp-func global-cpp-func)]
 
          [`(srule ,(? ir-incremental-hclause? `(prov ((prov ,(? rel-select? rel-sel) ,_) ,hvars ...) ,_))
                   ,(? ir-incremental-bclause? `(prov ((prov ,(? rel-version? rel-ver0) ,_) ,bvars0 ...) ,_))
@@ -345,13 +359,21 @@
   (match-define `(srule (,rel-sel ,hvars ...)
                         (,rel-ver0 ,bvars0 ...)
                         ((rel-version ,bi-op ,op-arity ,new-indices ,ver) ,bvars1 ...)) (strip-prov r))
-  (define best-match (get-matching-builtin-spec `(rel-version ,bi-op ,op-arity ,new-indices ,ver)))
+  (define best-match (get-matching-builtin-or-aggregator-spec `(rel-version ,bi-op ,op-arity ,new-indices ,ver)))
   (match-define `(,name ,arity ,indices ,cpp-func-name) best-match)
-  (generate-cpp-lambda-for-rule-with-callback-builtin r indices cpp-func-name)) 
+  (generate-cpp-lambda-for-rule-with-builtin-impl r indices cpp-func-name)) 
 
+(define (generate-cpp-lambdas-for-rule-with-aggregator r)
+  (match-define `(srule (,rel-sel ,hvars ...)
+                        (,rel-ver0 ,bvars0 ...)
+                        ((rel-version ,bi-op ,op-arity ,new-indices ,kind) ,bvars1 ...)) (strip-prov r))
+  (define best-match (get-matching-builtin-or-aggregator-spec `(rel-version ,bi-op ,op-arity ,new-indices ,kind)))
+  (match-define `(,name ,arity ,indices ,local-cpp-func ,reduce-cpp-func ,global-cpp-func) best-match)
+  (match-define (cons res-local-func res-global-func) (generate-cpp-lambdas-for-rule-with-aggregator-impl r indices local-cpp-func global-cpp-func))
+  (list res-local-func reduce-cpp-func res-global-func))
 
-(define (generate-cpp-lambda-for-rule-with-callback-builtin r indices cpp-func-name)
-  ; (printf "(generate-cpp-lambda-for-rule-with-callback-builtin r indices cpp-func-name) args: ~a\n ~a ~a\n" (strip-prov r) indices cpp-func-name)
+(define (generate-cpp-lambda-for-rule-with-builtin-impl r indices cpp-func-name)
+  ; (printf "(generate-cpp-lambda-for-rule-with-builtin-impl r indices cpp-func-name) args: ~a\n ~a ~a\n" (strip-prov r) indices cpp-func-name)
   (match-define `(srule (,rel-sel ,hvars ...)
                         (,rel-ver0 ,bvars0 ...)
                         ((rel-version ,(? builtin? bi-op) ,arity ,new-indices comp) ,bvars1 ...)) (strip-prov r))
@@ -418,6 +440,97 @@
     (range 0 (length hvars))))
   ))
 
+(define (generate-cpp-lambdas-for-rule-with-aggregator-impl r indices local-cpp-func-name global-cpp-func-name)
+  ; (printf "(generate-cpp-lambda-for-rule-with-builtin-impl r indices cpp-func-name) args: ~a\n ~a ~a\n" (strip-prov r) indices cpp-func-name)
+  (match-define `(srule (,rel-sel ,hvars ...)
+                        (,rel-ver0 ,bvars0 ...)
+                        ((rel-version ,(? aggregator?) ,arity ,new-indices ,agg-kind) ,bvars1 ...)) (strip-prov r))
+  
+  (define new-tuple-index-to-old-tuple-index-mapping (map-new-tuple-index-to-old-tuple-index arity new-indices indices))
+  (set! indices (map sub1 indices))
+  (set! new-indices (map sub1 new-indices))
+  (define output-indices (filter (λ (i) (not (member i indices))) (range 0 arity)))
+
+  (define local-lambda
+    (string-replace-all 
+    "[](_BTree* rel, const u64* const data) -> local_agg_res_t{
+      auto args_for_old_bi = std::array<u64, [old-indices-size]> {[populate-args-for-old-bi-code]};
+      return [local-cpp-func-name](rel, args_for_old_bi.data());
+    }"
+    "[head-tuple-size]" (~a (length hvars))
+    "[old-indices-size]" (~a (length indices))
+    "[local-cpp-func-name]" local-cpp-func-name
+    "[populate-args-for-old-bi-code]"
+    (intercalate ", " (map (λ (i) 
+                            (define arg-pos-in-bvars1 (index-of new-indices (list-ref indices i)))
+                            (define arg (list-ref bvars1 arg-pos-in-bvars1))
+                            (match arg
+                              [(? lit?) (format "n2d(~a)" arg)]
+                              [else 
+                                (define arg-pos-in-bvars0 (index-of bvars0 arg))
+                                (format "data[~a]" arg-pos-in-bvars0)])) 
+                        (range 0 (length indices))))
+  ))
+  ; TODO maybe unify this with generate-cpp-lambda-for-rule-with-builtin-impl?
+  (define global-lambda
+  (string-replace-all 
+    "[](u64* data, local_agg_res_t agg_data, u64 agg_data_count, u64* const output) -> int{
+      auto args_for_old_bi = std::array<u64, [old-indices-size]> {[populate-args-for-old-bi-code]};
+      using TState = std::tuple<const u64*,u64*>;
+      TState state = std::make_tuple(data, output);
+      auto callback = []([callback-params] TState state) -> TState{
+        auto [data, output] = state;
+        bool compatible = [check-compatibility-code];
+        if (! compatible) return state;
+
+        auto head_tuple = output;
+        [head-tuple-populating-code]
+        return std::make_tuple(data, output + [head-tuple-size]);
+      };
+      auto [_,new_ptr] = [global-cpp-func-name]<TState>(args_for_old_bi.data(), agg_data, agg_data_count, state, callback);
+      auto tuples_count = (new_ptr - output) / [head-tuple-size];
+      return tuples_count;
+    }"
+
+    "[head-tuple-size]" (~a (length hvars))
+    "[old-indices-size]" (~a (length indices))
+    "[global-cpp-func-name]" global-cpp-func-name
+    "[populate-args-for-old-bi-code]"
+    (intercalate ", " (map (λ (i) 
+                            (define arg-pos-in-bvars1 (index-of new-indices (list-ref indices i)))
+                            (define arg (list-ref bvars1 arg-pos-in-bvars1))
+                            (match arg
+                              [(? lit?) (format "n2d(~a)" arg)]
+                              [else 
+                                (define arg-pos-in-bvars0 (index-of bvars0 arg))
+                                (format "data[~a]" arg-pos-in-bvars0)])) 
+                        (range 0 (length indices))))
+    "[callback-params]"
+    (intercalate "" (map (λ (i) (format "u64 res_~a, " i)) (range 0 (length output-indices))))
+    "[check-compatibility-code]"
+    (intercalate " && " 
+      (cons "true" (filter-map (λ (i) (let ([mapped-ind (index-of new-indices (list-ref output-indices i))]) 
+                          (and mapped-ind (format "res_~a == data[~a]" i mapped-ind)))) 
+                  (range 0 (length output-indices)))))
+    "[head-tuple-populating-code]"
+    (intercalate "\n" (map 
+      (λ (i)
+        (define rhs (match (list-ref hvars i)
+          [(? number? x) (format "number_to_datum(~a)" x)]
+          [(? string? str) (error (format "string literals in cpp compiler not supported yet!")) ] ;TODO
+          [(? symbol? var) #:when (member var bvars0)
+            (format "data[~a]" (index-of bvars0 var))]
+          [(? symbol? var) #:when (member var bvars1)
+            (define bi-arg-index (index-of bvars1 var))
+            (define index-in-old-bi-tuple (list-ref new-tuple-index-to-old-tuple-index-mapping bi-arg-index))
+            (define index-in-old-bi-return-tuple (- index-in-old-bi-tuple (length indices) 1))
+            (format "res_~a" index-in-old-bi-return-tuple)]
+          [bad-arg (error (format "bad rule: ~a\nbad arg: ~a" (strip-prov r) bad-arg))]))
+        (format "head_tuple[~a] = ~a;" i rhs)) 
+    (range 0 (length hvars))))
+  ))
+  (cons local-lambda global-lambda))
+
 (define (extend-indices indices arity) (append indices (filter (λ (i) (not (member i indices))) (range 0 (add1 arity)))))
 (define (map-new-tuple-index-to-old-tuple-index arity new-indices old-indices)
   (define new-indices-extended (extend-indices new-indices arity))
@@ -454,6 +567,9 @@
     (number? 1 (1) "builtin_number_huh")
     (not-number? 1 (1) "builtin_not_number_huh")))
 
+(define aggregators
+  `((~ 1 (1) "agg_not_1_local" "agg_not_reduce" "agg_not_global")
+    (~ 2 (1 2) "agg_not_2_local" "agg_not_reduce" "agg_not_global")))
 
 (define (cl-input-args cl)
     (match cl
@@ -599,30 +715,32 @@
   (generate-cpp-lambda-for-computational-copy dummy-bcl dummy-bi-func-name hcl))
 
 
-(define (get-matching-builtin-spec bi)
-  (match-define `(rel-version ,rel-name ,rel-arity ,rel-indices ,_) (->rel-version bi))
+(define (get-matching-builtin-or-aggregator-spec bi)
+  (match-define `(rel-select ,rel-name ,rel-arity ,rel-indices ,kind) (->rel-select bi))
+  (define specs (if (equal? kind 'comp) callback-builtins aggregators))
   (define matching-specs 
-        (filter (λ (bi-spec)
-                (match-define `(,name ,arity ,indices ,cpp-func-name) bi-spec)
-                (and (equal? rel-name name)
-                    (equal? rel-arity arity)
-                    (subset? (list->set indices) (list->set rel-indices)))) callback-builtins))
+    (filter (λ (bi-spec)
+              (match-define `(,name ,arity ,indices ,rest ...) bi-spec)
+              (and (equal? rel-name name)
+                   (equal? rel-arity arity)
+                   (subset? (list->set indices) (list->set rel-indices)))) 
+            specs))
   (when (empty? matching-specs)
-        (error (format "no suitable implementation exists for builtin ~a" bi)))
+        (error (format "no suitable implementation exists for ~a ~a" (if (comp-rel-kind? kind) "builtin" "aggregator") bi)))
   (define best-match
         (argmin (λ (bi-spec)
-                  (match-define `(,name ,arity ,indices ,cpp-func-name) bi-spec)
+                  (match-define `(,name ,arity ,indices ,rest ...) bi-spec)
                   (set-count (set-subtract (list->set rel-indices) (list->set indices))))
                 matching-specs))
   best-match)
 
 (define (get-func-for-comp-rel bi cr-names)
-  (match-define `(rel-version ,rel-name ,rel-arity ,rel-indices ,_) (->rel-version bi))
+  (match-define `(rel-select ,rel-name ,rel-arity ,rel-indices ,_) (->rel-select bi))
   (cond 
     [(hash-has-key? cr-names bi) 
       (hash-ref cr-names bi)]
     [else
-      (define best-match (get-matching-builtin-spec bi))
+      (define best-match (get-matching-builtin-or-aggregator-spec bi))
       (match-define `(,name ,arity ,indices ,cpp-func-name) best-match)
       (cond
         [(equal? indices rel-indices)
