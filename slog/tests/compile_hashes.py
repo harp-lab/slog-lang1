@@ -18,16 +18,9 @@ class CompileHashesTest(Test):
                                        "hash for initial DB, when recompiled " +
                                        "should return that same hash."))
 
-    def compile_file(self, filename, writer):
-        """
-        Main bit of this test
-        """
-        slogpath = os.path.join(os.path.dirname(__file__), filename)
-        dbid, _ = self.client.compile_slog(slogpath, writer)
-        return dbid
-
     def run_test(self, writer):
-        initial_db = self.compile_file(FILE, writer)
+        slogpath = os.path.join(os.path.dirname(__file__), FILE)
+        initial_db = self.client.compile_slog(slogpath, writer)
         writer.write('Compilation finished, checking against known digest')
         # hashes of a file are deterministic, so it should compile to this hash.
         # if its not this, either something has gone horribly wrong or we started using

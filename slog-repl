@@ -3,4 +3,4 @@
 # takes server location as an optional argument
 # defaults to 'localhost' if not provided.
 
-python -m slog.repl.repl $@
+python3 -m slog.repl.repl $1

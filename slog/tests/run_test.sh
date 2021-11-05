@@ -1,6 +1,3 @@
-#!/usr/bin/env bash
-set -e
-
 # Run a test (first argument)
 trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 

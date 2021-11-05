@@ -19,7 +19,7 @@ from sexpdata import Symbol
 from slog.daemon.db import MetaDatabase
 from slog.daemon.const import DB_PATH, COMPILESVC_LOG, SLOG_COMPILER_PROCESS, SOURCES_PATH, \
                          DATABASE_PATH, SLOG_COMPILER_ROOT, BINS_PATH, CMAKE_FILE, RUNSVC_LOG
-from slog.daemon.util import generate_db_hash, split_hashes, checkpoint_ord
+from slog.daemon.util import generate_db_hash, split_hashes, rel_name_covert, checkpoint_ord
 
 
 class Task:
@@ -224,10 +224,32 @@ class RunTask(Task):
                 shutil.copy2(os.path.join(in_db_path, table_fname),
                              os.path.join(out_db_path, table_fname))
         # copy all file out of checkpoint
-        for table_fname in os.listdir(checkpoint_dir):
-            if table_fname.endswith(".table_full"):
-                shutil.copy2(os.path.join(checkpoint_dir, table_fname),
-                            os.path.join(out_db_path, table_fname[:-5]))
+        for relation in relations:
+            rel_file_name = "rel__{}__{}__{}_full".format(
+                rel_name_covert(relation[0]), relation[1],
+                "__".join(map(str, range(1,relation[1]+1))))
+            checkpoint_data_file = os.path.join(checkpoint_dir, rel_file_name)
+            new_data_file = os.path.join(
+                DATABASE_PATH, out_db,
+                f'{relation[2]}.{relation[0]}.{relation[1]}.table')
+            if not os.path.exists(checkpoint_data_file):
+                # touch file
+                with open(new_data_file, 'w+') as _:
+                    pass
+                self.log(f"Output files {checkpoint_data_file} do not exists as expected,"
+                          " maybe the output relation has no tuple?")
+                # rule maybe empty
+                self._db.update_relation_data_info(new_data_file, 0, out_db,
+                                                   relation[0], relation[1])
+                continue
+            # copy file out of checkpoint
+            shutil.copy2(checkpoint_data_file, new_data_file)
+            # read file size to compute row
+            rows = int(os.path.getsize(new_data_file) / ((relation[1] + 1) * 8))
+            self._db.update_relation_data_info(checkpoint_data_file, rows, out_db,
+                                               relation[0], relation[1])
+            self.log(f"Found {rows} rows for relation {relation[0]}.")
+        out_db_path = os.path.join(DATABASE_PATH, out_db)
         for fname in os.listdir(out_db_path):
             if fname.endswith('.table'):
                 self._db.create_relation_by_datapath(
