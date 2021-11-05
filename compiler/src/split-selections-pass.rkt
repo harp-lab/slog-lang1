@@ -191,9 +191,9 @@
 
   `(ir-select ,ir ,rel-h++++ ,rules-h++++ ,comp-rules-h+))
 
-(define (extract-selects args poss cxs)
-    (define (cxs-or-const? x) (or (lit? x) (set-member? cxs x)))
-    (define cxs-lst (set->list cxs))
+(define (extract-selects args poss cxs-lst)
+    (define cxs-set (list->set cxs-lst))
+    (define (cxs-or-const? x) (or (lit? x) (set-member? cxs-set x)))
     (define cxs-selects0 (flat-map (λ (i) (indexes-of args i)) cxs-lst))
     (define rest-selects0 (filter (λ (i) (not (member i cxs-selects0))) (range (length args))))
     (match-define (cons const-selects rest-selects) 
@@ -251,22 +251,23 @@
               ['b0 (list b0rel b0arity b0kind b1rel b1arity b1kind)]
               ['b1 (list b1rel b1arity b1kind b0rel b0arity b0kind)]))
           (define independent-rel-selection (if (equal? independent0 'b0)
-                                                (first (extract-selects (cons b0x b0args) (cons b0xpos b0argposs) (set)))
-                                                (first (extract-selects (cons b1x b1args) (cons b1xpos b1argposs) (set)))))
+                                                (first (extract-selects (cons b0x b0args) (cons b0xpos b0argposs) (list)))
+                                                (first (extract-selects (cons b1x b1args) (cons b1xpos b1argposs) (list)))))
           (define who-is-independent 
             (if (and (comp-or-agg-rel-kind? independent-rel-kind)
                      (or (not (comp-or-agg-rel-kind? dependent-rel-kind))
                          (not (admissible-comp-rel-indices? `(rel-arity ,independent-rel-name ,independent-rel-arity comp) (list->set independent-rel-selection) comp-rules))))
                 dependent0
                 independent0))
+          (define cxs-sorted (filter (app set-member? cxs _) (if (equal? who-is-independent 'b0) (cons b0x b0args) (cons b1x b1args))))
           (match-define (list b0sel b0selxs b0oxs)
             (extract-selects (cons b0x b0args) 
                              (cons b0xpos b0argposs) 
-                             (if (and (equal? who-is-independent 'b0) (comp-or-agg-rel-kind? b0kind)) (set) cxs)))
+                             (if (and (equal? who-is-independent 'b0) (comp-or-agg-rel-kind? b0kind)) (set) cxs-sorted)))
           (match-define (list b1sel b1selxs b1oxs)
             (extract-selects (cons b1x b1args) 
                              (cons b1xpos b1argposs) 
-                             (if (and (equal? who-is-independent 'b1) (comp-or-agg-rel-kind? b1kind)) (set) cxs)))
+                             (if (and (equal? who-is-independent 'b1) (comp-or-agg-rel-kind? b1kind)) (set) cxs-sorted)))
           (define res-b0
             `(prov ((prov (rel-select ,b0rel ,b0arity ,b0sel ,b0kind) ,b0relpos)
                                ,@b0selxs ,@b0oxs)
@@ -290,28 +291,6 @@
                               (list res-b0 res-b1)
                               (list res-b1 res-b0)))
                 rel-h++)]
-    ;; TODO test and remove
-    #;[`(srule ,(and headclause
-                        `(prov ((prov ,(? rel-arity? hrel) ,hrelpos)
-                                (prov ,hargs ,hargposs)
-                                ...)
-                               ,headpos))
-                  (prov ((prov = ,=0pos)
-                         (prov ,b0x ,b0xpos)
-                         (prov ((prov (rel-arity ,b0rel ,b0arity ,b0kind) ,b0relpos)
-                                (prov ,b0args ,b0argposs)
-                                ...)
-                               ,body0clpos))
-                        ,body0pos))
-          (match-define (list b0sel b0selxs b0oxs)
-            (extract-selects (cons b0x b0args) (cons b0xpos b0argposs) (set)))
-          (cons `(srule ,headclause
-                        (prov ((prov (rel-select ,b0rel ,b0arity ,b0sel ,b0kind) ,b0relpos)
-                               ,@b0selxs ,@b0oxs)
-                              ,body0pos))
-                (extend-rel-h (hash-set rel-h hrel (hash-ref rel-h hrel set))
-                              `(rel-arity ,b0rel ,b0arity)
-                              b0sel))]
          [else (cons rule rel-h)]))
 
 (define (pick-select-unary-rule rule rel-h comp-rules)
@@ -336,7 +315,7 @@
           (cons csel args+)]
         [else
           (match-define (list b0sel b0selxs b0oxs)
-            (extract-selects (cons b0x b0args) (cons b0xpos b0argposs) (set)))
+            (extract-selects (cons b0x b0args) (cons b0xpos b0argposs) (list)))
           (cons b0sel (append b0selxs b0oxs))]))
       (define rel-h+ (cond 
         [(db-rel-kind? b0kind) (extend-rel-h′ rel-h `(rel-arity ,b0rel ,b0arity ,b0kind) b0sel)]
@@ -465,7 +444,13 @@
         (define aggregated-rel-select (get-aggregated-rel-select-for-partial-agg-rel-select (strip-prov rel)))
         (define new-rel-select `(rel-select ,rel-name ,rel-arity ,rel-indices (agg (prov ,aggregated-rel-select ,(prov->pos aggregated-rel)))))
         ; (printf "new-rel-select: ~a\n" new-rel-select)
-        (cons `(prov ((prov ,new-rel-select ,relpos) ,@args) ,pos) (set aggregated-rel-select))]
+        (define negation-hack-rel-select
+          (cond 
+            [(equal? rel-name '~)
+            (match-define `(rel-select ,neg-rel ,_ ,_ db) aggregated-rel-select)
+            (set `(rel-select ,neg-rel ,rel-arity ,rel-indices db))]
+            [else (set)]))
+        (cons `(prov ((prov ,new-rel-select ,relpos) ,@args) ,pos) (set-union (set aggregated-rel-select) negation-hack-rel-select))]
       [else (cons cl (set))]))
   (match rule
     [`(srule ,head ,bodys ...) 
