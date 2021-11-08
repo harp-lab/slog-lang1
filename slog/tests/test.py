@@ -5,8 +5,21 @@ import sys
 from yaspin import yaspin
 
 from slog.common.client import SlogClient
-import slog.protobufs.slog_pb2 as slog_pb2
-import slog.protobufs.slog_pb2_grpc as slog_pb2_grpc
+
+class DynText:
+    def __init__(self, base_text):
+        self.text = base_text
+        self.extra = None
+
+    def __str__(self):
+        # if self.extra:
+        #     # TODO: why dis dont works
+        #     # return f'{self.text} - {self.extra}'
+        #     return self.text
+        # else:
+        #     return self.text
+        return self.text
+
 
 class Test:
     """
@@ -14,8 +27,8 @@ class Test:
     """
     def __init__(self, server, txt):
         self.test_text = txt
-        self.spin_text = self.test_text
-        self.client = SlogClient('{}:5108'.format(server))
+        self.spin_text = DynText(self.test_text)
+        self.client = SlogClient()
 
     def success(self):
         """

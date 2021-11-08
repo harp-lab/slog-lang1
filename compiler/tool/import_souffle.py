@@ -31,9 +31,8 @@ def tsv_to_bin(souffle_fpath, slog_dir, buckets):
         # skip empty file
         return
     else:
-        index = ','.join([str(i) for i in range(1, arity+1)])
         os.system(' '.join([TSV2BIN_PATH, souffle_fpath,
-                            str(arity), slog_fname, index, str(buckets),
+                            str(arity), slog_fname, str(buckets),
                             slog_dir]))
 
 

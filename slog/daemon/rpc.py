@@ -16,9 +16,10 @@ import tempfile
 
 from six import MAXSIZE
 
-from slog.daemon.const import DATA_PATH, DATABASE_PATH, CMDSVC_LOG, DB_PATH, SOURCES_PATH, TSV2BIN_PATH
-from slog.daemon.const import STATUS_RESOLVED, STATUS_NOSUCHPROMISE, MAX_BUCKETS, MIN_BUCKETS \
-                         , MAX_CHUNK_DATA
+from slog.daemon.const import (DATA_PATH, DATABASE_PATH, CMDSVC_LOG, DB_PATH, FTP_DATA_PATH, SOURCES_PATH,
+                               TSV2BIN_PATH)
+from slog.daemon.const import (STATUS_RESOLVED, STATUS_NOSUCHPROMISE, MAX_BUCKETS, MIN_BUCKETS,
+                               MAX_CHUNK_DATA)
 from slog.daemon.db import MetaDatabase
 from slog.daemon.util import join_hashes, generate_db_hash, compute_hash_file, read_intern_file
 
@@ -92,37 +93,45 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
             # copy original db to tmp_db
             tmp_db_path = os.path.join(tmp_db_dir, '_tmp_db')
             for request in requests:
-                body = request.bodies[0].encode('utf-8')
+                csv_hsh = request.bodies[0]
                 buckets = request.buckets
                 rel_name = request.relation_name
+                print(rel_name)
+                # print(body)
                 in_db = request.using_database              # TODO: check all in_db are same
                 in_db_path = os.path.join(DATABASE_PATH, in_db)
                 if not os.path.exists(tmp_db_path):
                     # fork input database
                     os.mkdir(tmp_db_path)
-                with tempfile.NamedTemporaryFile() as tmp_csv:
-                    tmp_csv.write(body)
-                    tmp_csv.seek(0)
-                    fst_line = tmp_csv.readline()
-                    arity = len(fst_line.decode('utf-8').strip().split('\t'))
-                    index = ",".join([str(i) for i in range(1, arity+1)])
+                    shutil.copy2(os.path.join(in_db_path, '$strings.csv'),
+                                 os.path.join(tmp_db_path, '$strings.csv'))
+                uploaded_csv_path = os.path.join(FTP_DATA_PATH, csv_hsh)
+                if not os.path.exists(uploaded_csv_path):
+                    ret.success = False
+                    ret.error_msg = "file haven't uploaded to ftp server"
+                    return ret
+                with open(uploaded_csv_path, 'r') as csv_f:
+                    fst_line = csv_f.readline()
+                    arity = len(fst_line.strip().split('\t'))
                     tag = self._db.get_relation_tag(in_db, rel_name, arity)
-                    tablename = f'{tag}.{rel_name}.{arity}.table'
-                    out_path = os.path.join(tmp_db_path, tablename)
-                    shutil.copy(os.path.join(in_db_path, tablename), out_path)
+                    out_path = os.path.join(tmp_db_path, f'{tag}.{rel_name}.{arity}.table')
+                if not os.path.exists(out_path):
+                    shutil.copy(os.path.join(in_db_path, f'{tag}.{rel_name}.{arity}.table'),
+                                out_path)
                     changed_relations.append(rel_name)
-                    with subprocess.Popen([TSV2BIN_PATH, tmp_csv.name, str(arity), out_path, index,
-                                           str(buckets), str(tag), tmp_db_path],
-                                          stdout=subprocess.PIPE, stderr=subprocess.PIPE) as proc:
-                        std_o, err = proc.communicate()
-                        if err:
-                            ret.success = False
-                            failed_files.append(rel_name)
-                            print(err)
-                        else:
-                            ret.success = True
-                            print(std_o)
-                            csv_hashes.append(compute_hash_file(body))
+                with subprocess.Popen([TSV2BIN_PATH, uploaded_csv_path, str(arity), out_path,
+                                       str(buckets), str(tag), tmp_db_path],
+                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE) as proc:
+                    std_o, err = proc.communicate()
+                    if err:
+                        ret.success = False
+                        failed_files.append(rel_name)
+                        print(std_o.decode('utf-8'))
+                        print(err.decode('utf-8'))
+                    else:
+                        print(std_o.decode('utf-8'))
+                        ret.success = True
+                        csv_hashes.append(csv_hsh)
             if ret.success:
                 # persist tmp database
                 new_db_id = generate_db_hash(csv_hashes, in_db)
@@ -222,6 +231,7 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
         return ret
 
     def GetTuples(self, request, context):
+        print(f"requeste tag {request.tag}")
         row = self._db.get_relations_by_db_and_tag(
             request.database_id,
             request.tag)
@@ -301,6 +311,13 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
         database_id = request.database_id
         tag_name = request.tag_name
         self._db.tag_database(database_id, tag_name)
+        response = slog_pb2.ErrorResponse()
+        response.success = True
+        return response
+
+    def DropDB(self, request, context):
+        database_id = request.database_id
+        self._db.drop_database(database_id)
         response = slog_pb2.ErrorResponse()
         response.success = True
         return response

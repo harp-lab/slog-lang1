@@ -1,0 +1,59 @@
+
+.type register <: symbol
+
+.type address <: unsigned
+.type operand_code <: unsigned
+.type operand_index <: unsigned
+
+
+.decl def(EA:address,Reg:register)
+
+.decl instruction_get_dest_op(ea:address,index:number,op:operand_code)
+.input instruction_get_dest_op
+
+.decl call_operation(operation:symbol)
+call_operation("CALL").
+
+.decl function_non_maintained_reg(reg:register)
+.output function_non_maintained_reg
+
+function_non_maintained_reg("EAX").
+function_non_maintained_reg("ECX").
+function_non_maintained_reg("EDX").
+
+.decl instruction(ea:address, size:unsigned, prefix:symbol, opcode:symbol,
+          op1:operand_code, op2:operand_code, op3:operand_code, op4:operand_code,
+          immOffset:unsigned,displacementOffset:unsigned)
+.input instruction
+
+.decl op_regdirect_contains_reg(op:operand_code,reg:register)
+.input op_regdirect_contains_reg
+
+.decl instruction_get_operation(ea:address,operation:symbol) inline
+instruction_get_operation(EA,Operation):-
+    instruction(EA,_,_,Operation,_,_,_,_,_,_).
+
+.decl direct_call(src:address, dest:address)
+.input direct_call
+
+.decl get_pc_thunk(EA:address,Reg:register)
+.input get_pc_thunk
+
+def(EA,Reg):-
+    instruction_get_dest_op(EA,_,Op),
+    op_regdirect_contains_reg(Op,Reg).
+
+def(EA,Reg):-
+    instruction_get_operation(EA,Operation),
+    call_operation(Operation),
+    function_non_maintained_reg(Reg).
+
+def(EA,Reg):-
+    instruction_get_operation(Call,Operation),
+    call_operation(Operation),
+    delay_slot(Call,EA),
+    function_non_maintained_reg(Reg).
+
+def(EA,Reg):-
+    direct_call(EA,EA_pc_thunk),
+    get_pc_thunk(EA_pc_thunk,Reg).

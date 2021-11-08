@@ -234,7 +234,6 @@ void parallel_io::parallel_read_input_relation_from_file_to_local_buffer(u32 ari
 }
 
 
-
 void parallel_io::buffer_data_to_hash_buffer_col(u32 arity, u32 join_column_count, u32 buckets, u32** sub_bucket_rank, u32* sub_bucket_count, MPI_Comm comm)
 {
 
