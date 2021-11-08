@@ -12,6 +12,9 @@ RUN apt-get install -y clang-format clang-tidy clang-tools clang clangd libc++-d
 RUN raco setup --doc-index --force-user-docs
 RUN raco pkg install --batch --deps search-auto binaryio graph
 
+RUN apt-get update -y
+RUN apt-get install -y valgrind apt-utils
+
 ENV OMPI_ALLOW_RUN_AS_ROOT=1
 ENV OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
 ENV CC=mpicc

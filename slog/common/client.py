@@ -156,6 +156,8 @@ class SlogClient:
             return
         if os.path.isdir(csv_dir):
             for fname in os.listdir(csv_dir):
+                if os.path.getsize(f'{csv_dir}/{fname}') == 0:
+                    continue
                 if not fname.endswith('.facts') and not fname.endswith('.csv'):
                     continue
                 csv_file_paths.append(f'{csv_dir}/{fname}')

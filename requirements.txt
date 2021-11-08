@@ -1,6 +1,4 @@
 wheel
-ply
-sexpdata
 grpcio
 grpcio-tools
 grpc_interceptor
