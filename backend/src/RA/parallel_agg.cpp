@@ -17,9 +17,9 @@ bool parallel_join_negate::local_negation(
     u32* output_sub_bucket_count = output->get_sub_bucket_per_bucket_count();
     u32** output_sub_bucket_rank = output->get_sub_bucket_rank();
 
-    if (*offset > input0_buffer_size || input0_buffer_size == 0 || i1_size == 0)
+    if (*offset > input0_buffer_size || input0_buffer_size == 0)
     {
-        std::cout << "buffer size invalid ..." << std::endl;
+        std::cout << "input buffer empty or invalid for negation " << input0_buffer_size << std::endl;
         return true;
     }
     int local_join_count=0;
