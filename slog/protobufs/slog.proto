@@ -112,6 +112,7 @@ message RelationDescription {
   string name = 1;
   uint32 arity = 2;
   uint32 tag = 3;
+  int32 num_tuples = 4;
 }
 
 message RelationDescriptionsResponse {

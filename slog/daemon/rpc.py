@@ -87,7 +87,8 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
         failed_files = []
         ret = slog_pb2.FactResponse()
         csv_hashes = []
-        changed_relations = []
+        # changed_relations = []
+        cur_max_tag = None
         in_db = ""
         with tempfile.TemporaryDirectory() as tmp_db_dir:
             # copy original db to tmp_db
@@ -115,17 +116,23 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
                     arity = len(fst_line.strip().split('\t'))
                     tag = self._db.get_relation_tag(in_db, rel_name, arity)
                     out_path = os.path.join(tmp_db_path, f'{tag}.{rel_name}.{arity}.table')
-                if not os.path.exists(out_path):
+                if not os.path.exists(out_path) and tag:
                     shutil.copy(os.path.join(in_db_path, f'{tag}.{rel_name}.{arity}.table'),
                                 out_path)
-                    changed_relations.append(rel_name)
+                    # changed_relations.append(rel_name)
+                if not tag:
+                    if not cur_max_tag:
+                        cur_max_tag = self._db.get_max_relation_tag(in_db)
+                    cur_max_tag = cur_max_tag + 1
+                    tag = cur_max_tag
+                    out_path = os.path.join(tmp_db_path, f'{tag}.{rel_name}.{arity}.table')
                 with subprocess.Popen([TSV2BIN_PATH, uploaded_csv_path, str(arity), out_path,
                                        str(buckets), str(tag), tmp_db_path],
                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE) as proc:
                     std_o, err = proc.communicate()
                     if err:
                         ret.success = False
-                        failed_files.append(rel_name)
+                        failed_files.append(out_path)
                         print(std_o.decode('utf-8'))
                         print(err.decode('utf-8'))
                     else:
@@ -232,7 +239,7 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
 
     def GetTuples(self, request, context):
         print(f"requeste tag {request.tag}")
-        row = self._db.get_relations_by_db_and_tag(
+        row = self._db.get_relation_by_db_and_tag(
             request.database_id,
             request.tag)
         try:
@@ -285,6 +292,7 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
             desc_response.name = row[0]
             desc_response.arity = row[1]
             desc_response.tag = row[2]
+            desc_response.num_tuples = row[4]
             res.relations.extend([desc_response])
         return res
 

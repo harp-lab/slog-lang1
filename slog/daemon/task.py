@@ -1,6 +1,5 @@
 """
 Some slog front/backend tasks
-
 Kris Micinski
 Yihao Sun
 """
@@ -19,7 +18,7 @@ from sexpdata import Symbol
 from slog.daemon.db import MetaDatabase
 from slog.daemon.const import DB_PATH, COMPILESVC_LOG, SLOG_COMPILER_PROCESS, SOURCES_PATH, \
                          DATABASE_PATH, SLOG_COMPILER_ROOT, BINS_PATH, CMAKE_FILE, RUNSVC_LOG
-from slog.daemon.util import generate_db_hash, split_hashes, rel_name_covert, checkpoint_ord
+from slog.daemon.util import generate_db_hash, split_hashes, checkpoint_ord
 
 
 class Task:
@@ -135,7 +134,8 @@ class CompileTask(Task):
         print("running cmake now.")
         # Now run cmake
         try:
-            cmake = ["cmake", "-Bbuild", "-DCMAKE_BUILD_TYPE=Release", "."]
+            cmake = ["cmake", "-G", "Ninja", "-Bbuild",  "-DCMAKE_BUILD_TYPE=Release", "."]
+            # cmake = ["cmake", "-G", "Ninja", "-Bbuild",  "."]
             result = subprocess.run(
                 cmake, cwd=build_dir, stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE, check=True)
@@ -146,9 +146,11 @@ class CompileTask(Task):
             return
         self.log("cmake completed successfully")
         try:
-            make = ["make"]
+            make = ["cmake", "--build", f"{os.path.realpath(build_dir)}/build",
+                    "--config", "Release", "--"]
+                    # "--"]
             result = subprocess.run(
-                make, cwd=f"{build_dir}/build", stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                make, cwd=build_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                 check=True)
         except:
             err = "Error: make failed for {}:\n{}".format(
@@ -224,32 +226,10 @@ class RunTask(Task):
                 shutil.copy2(os.path.join(in_db_path, table_fname),
                              os.path.join(out_db_path, table_fname))
         # copy all file out of checkpoint
-        for relation in relations:
-            rel_file_name = "rel__{}__{}__{}_full".format(
-                rel_name_covert(relation[0]), relation[1],
-                "__".join(map(str, range(1,relation[1]+1))))
-            checkpoint_data_file = os.path.join(checkpoint_dir, rel_file_name)
-            new_data_file = os.path.join(
-                DATABASE_PATH, out_db,
-                f'{relation[2]}.{relation[0]}.{relation[1]}.table')
-            if not os.path.exists(checkpoint_data_file):
-                # touch file
-                with open(new_data_file, 'w+') as _:
-                    pass
-                self.log(f"Output files {checkpoint_data_file} do not exists as expected,"
-                          " maybe the output relation has no tuple?")
-                # rule maybe empty
-                self._db.update_relation_data_info(new_data_file, 0, out_db,
-                                                   relation[0], relation[1])
-                continue
-            # copy file out of checkpoint
-            shutil.copy2(checkpoint_data_file, new_data_file)
-            # read file size to compute row
-            rows = int(os.path.getsize(new_data_file) / ((relation[1] + 1) * 8))
-            self._db.update_relation_data_info(checkpoint_data_file, rows, out_db,
-                                               relation[0], relation[1])
-            self.log(f"Found {rows} rows for relation {relation[0]}.")
-        out_db_path = os.path.join(DATABASE_PATH, out_db)
+        for table_fname in os.listdir(checkpoint_dir):
+            if table_fname.endswith(".table_full"):
+                shutil.copy2(os.path.join(checkpoint_dir, table_fname),
+                            os.path.join(out_db_path, table_fname[:-5]))
         for fname in os.listdir(out_db_path):
             if fname.endswith('.table'):
                 self._db.create_relation_by_datapath(
@@ -265,8 +245,10 @@ class RunTask(Task):
         out_db_dir = os.path.join(DATABASE_PATH, out_db)
         self.log("Starting mpirun for hash {}".format(hsh))
         current_time = int(time.time())
-        stdoutfile = "stdout-{}".format(current_time)
-        stderrfile = "stderr-{}".format(current_time)
+        # stdoutfile = "stdout-{}".format(current_time)
+        stdoutfile = "stdout"
+        # stderrfile = "stderr-{}".format(current_time)
+        stderrfile = "stderr"
         stdoutpath = os.path.join(in_db_dir, stdoutfile)
         stderrpath = os.path.join(in_db_dir, stderrfile)
         self.set_promise_comment(promise, f"Now beginning MPI run. stdout->{stdoutfile}"
@@ -278,9 +260,15 @@ class RunTask(Task):
         failed = False
         if cores < 0:
             cores = 1
-        _proc = subprocess.Popen(["mpirun", "-n", str(cores), "./target", in_db_dir, out_db_dir],
-                                 stdin=PIPE, stdout=PIPE, stderr=open(stderrpath, 'w'),
-                                 cwd=f"{build_dir}/build", env=env)
+        if cores == 1:
+            # _proc = subprocess.Popen(["valgrind", "--leak-check=full", "./target", in_db_dir, out_db_dir],
+            _proc = subprocess.Popen(["./target", in_db_dir, out_db_dir],
+                                    stdin=PIPE, stdout=PIPE, stderr=open(stderrpath, 'w'),
+                                    cwd=f"{build_dir}/build", env=env)
+        else:
+            _proc = subprocess.Popen(["mpirun", "-n", str(cores), "./target", in_db_dir, out_db_dir],
+                                    stdin=PIPE, stdout=PIPE, stderr=open(stderrpath, 'w'),
+                                    cwd=f"{build_dir}/build", env=env)
         with open(stdoutpath, 'w') as stdout_f:
             self.reset_lines(out_db)
             # Process each line of the MPI tasks's output
