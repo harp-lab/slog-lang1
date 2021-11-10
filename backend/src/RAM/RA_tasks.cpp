@@ -173,7 +173,6 @@ u64 RAM::intra_bucket_comm_execute()
 
         else if ((*it)->get_RA_type() == NEGATION)
         {
-            // TODO: reduce here
             parallel_join_negate* current_ra = (parallel_join_negate*) *it;
             relation* input_rel = current_ra->get_negation_input();
             relation* target_rel = current_ra->get_negation_target();
@@ -208,7 +207,6 @@ u64 RAM::intra_bucket_comm_execute()
                                   mcomm.get_local_comm());
                 total_data_moved = total_data_moved + intra_bucket_buf_output_size[counter];
             }
-            counter++;
         }
         /// Intra-bucket comm for joins
         else if ((*it)->get_RA_type() == JOIN)
@@ -512,7 +510,6 @@ u32 RAM::local_compute(int* offset)
                     &join_tuples);
                 total_join_tuples = total_join_tuples + join_tuples;
             }
-            counter++;
         }
 
         else if ((*it)->get_RA_type() == FACT)

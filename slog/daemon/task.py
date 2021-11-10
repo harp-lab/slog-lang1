@@ -134,7 +134,8 @@ class CompileTask(Task):
         print("running cmake now.")
         # Now run cmake
         try:
-            cmake = ["cmake", "-Bbuild", "-DCMAKE_BUILD_TYPE=Release", "."]
+            cmake = ["cmake", "-G", "Ninja", "-Bbuild",  "-DCMAKE_BUILD_TYPE=Release", "."]
+            # cmake = ["cmake", "-G", "Ninja", "-Bbuild",  "."]
             result = subprocess.run(
                 cmake, cwd=build_dir, stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE, check=True)
@@ -145,9 +146,11 @@ class CompileTask(Task):
             return
         self.log("cmake completed successfully")
         try:
-            make = ["make"]
+            make = ["cmake", "--build", f"{os.path.realpath(build_dir)}/build",
+                    "--config", "Release", "--"]
+                    # "--"]
             result = subprocess.run(
-                make, cwd=f"{build_dir}/build", stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                make, cwd=build_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                 check=True)
         except:
             err = "Error: make failed for {}:\n{}".format(
@@ -242,8 +245,10 @@ class RunTask(Task):
         out_db_dir = os.path.join(DATABASE_PATH, out_db)
         self.log("Starting mpirun for hash {}".format(hsh))
         current_time = int(time.time())
-        stdoutfile = "stdout-{}".format(current_time)
-        stderrfile = "stderr-{}".format(current_time)
+        # stdoutfile = "stdout-{}".format(current_time)
+        stdoutfile = "stdout"
+        # stderrfile = "stderr-{}".format(current_time)
+        stderrfile = "stderr"
         stdoutpath = os.path.join(in_db_dir, stdoutfile)
         stderrpath = os.path.join(in_db_dir, stderrfile)
         self.set_promise_comment(promise, f"Now beginning MPI run. stdout->{stdoutfile}"
@@ -256,7 +261,8 @@ class RunTask(Task):
         if cores < 0:
             cores = 1
         if cores == 1:
-            _proc = subprocess.Popen(["valgrind", "--leak-check=full", "./target", in_db_dir, out_db_dir],
+            # _proc = subprocess.Popen(["valgrind", "--leak-check=full", "./target", in_db_dir, out_db_dir],
+            _proc = subprocess.Popen(["./target", in_db_dir, out_db_dir],
                                     stdin=PIPE, stdout=PIPE, stderr=open(stderrpath, 'w'),
                                     cwd=f"{build_dir}/build", env=env)
         else:

@@ -87,7 +87,8 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
         failed_files = []
         ret = slog_pb2.FactResponse()
         csv_hashes = []
-        changed_relations = []
+        # changed_relations = []
+        cur_max_tag = None
         in_db = ""
         with tempfile.TemporaryDirectory() as tmp_db_dir:
             # copy original db to tmp_db
@@ -115,17 +116,24 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
                     arity = len(fst_line.strip().split('\t'))
                     tag = self._db.get_relation_tag(in_db, rel_name, arity)
                     out_path = os.path.join(tmp_db_path, f'{tag}.{rel_name}.{arity}.table')
-                if not os.path.exists(out_path):
+                if not os.path.exists(out_path) and tag:
                     shutil.copy(os.path.join(in_db_path, f'{tag}.{rel_name}.{arity}.table'),
                                 out_path)
-                    changed_relations.append(rel_name)
+                    # changed_relations.append(rel_name)
+                if not tag:
+                    if not cur_max_tag:
+                        cur_max_tag = self._db.get_max_relation_tag(in_db)
+                    cur_max_tag = cur_max_tag + 1
+                    tag = cur_max_tag
+                    print(f"{out_path} has no tag, assign {tag}")
+                    out_path = os.path.join(tmp_db_path, f'{tag}.{rel_name}.{arity}.table')
                 with subprocess.Popen([TSV2BIN_PATH, uploaded_csv_path, str(arity), out_path,
                                        str(buckets), str(tag), tmp_db_path],
                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE) as proc:
                     std_o, err = proc.communicate()
                     if err:
                         ret.success = False
-                        failed_files.append(rel_name)
+                        failed_files.append(out_path)
                         print(std_o.decode('utf-8'))
                         print(err.decode('utf-8'))
                     else:
@@ -232,48 +240,46 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
 
     def GetTuples(self, request, context):
         print(f"requeste tag {request.tag}")
-        row = self._db.get_relations_by_db_and_tag(
+        row = self._db.get_relation_by_db_and_tag(
             request.database_id,
             request.tag)
-        try:
-            arity = int(row[1])
-            data_file = row[3]
-            print(row)
-            if data_file.strip() == "":
+        if row is None:
+            print(f"db: {request.database_id} tag: {request.tag}")
+        arity = int(row[1]) 
+        data_file = row[3]
+        print(row)
+        if data_file.strip() == "":
+            response = slog_pb2.Tuples()
+            response.status = STATUS_RESOLVED
+            response.num_tuples = 0
+            response.data.extend([])
+            return response
+        tuplen = arity+1  # Tuples also include ID column
+        mapping = list(range(1, tuplen)) + [0]
+        with open(data_file, 'rb') as rel_data_f:
+            file_size = os.stat(data_file).st_size
+            num_u64s = int(file_size) / 8
+            num_tuples = int(num_u64s) / tuplen
+            max_tuples_per_chunk = int(math.floor(MAX_CHUNK_DATA / (8 * arity)))
+            num_tuples_left = num_tuples
+            while num_tuples_left > 0:
+                num_tuples = int(
+                    min(num_tuples_left, max_tuples_per_chunk))
+                buffer = rel_data_f.read(num_tuples*tuplen*8)
                 response = slog_pb2.Tuples()
                 response.status = STATUS_RESOLVED
-                response.num_tuples = 0
-                response.data.extend([])
-                return response
-            tuplen = arity+1  # Tuples also include ID column
-            mapping = list(range(1, tuplen)) + [0]
-            with open(data_file, 'rb') as rel_data_f:
-                file_size = os.stat(data_file).st_size
-                num_u64s = int(file_size) / 8
-                num_tuples = int(num_u64s) / tuplen
-                max_tuples_per_chunk = int(math.floor(MAX_CHUNK_DATA / (8 * arity)))
-                num_tuples_left = num_tuples
-                while num_tuples_left > 0:
-                    num_tuples = int(
-                        min(num_tuples_left, max_tuples_per_chunk))
-                    buffer = rel_data_f.read(num_tuples*tuplen*8)
-                    response = slog_pb2.Tuples()
-                    response.status = STATUS_RESOLVED
-                    response.num_tuples = num_tuples
-                    cpy = [-1 for _ in range(tuplen*num_tuples)]
-                    # Shuffle tuples according
-                    for row_num in range(num_tuples):
-                        for i in range(arity+1):
-                            cpy[row_num*tuplen + mapping[i]] = int.from_bytes(
-                                buffer[row_num*tuplen*8 + i*8:row_num*tuplen*8 + (i+1)*8],
-                                'little', signed=False)
-                    num_tuples_left -= num_tuples
-                    response.num_tuples = num_tuples
-                    response.data.extend(cpy)
-                    yield response
-        except Exception as err:
-            traceback.print_exc()
-            self.log("Err {}".format(err))
+                response.num_tuples = num_tuples
+                cpy = [-1 for _ in range(tuplen*num_tuples)]
+                # Shuffle tuples according
+                for row_num in range(num_tuples):
+                    for i in range(arity+1):
+                        cpy[row_num*tuplen + mapping[i]] = int.from_bytes(
+                            buffer[row_num*tuplen*8 + i*8:row_num*tuplen*8 + (i+1)*8],
+                            'little', signed=False)
+                num_tuples_left -= num_tuples
+                response.num_tuples = num_tuples
+                response.data.extend(cpy)
+                yield response
 
     def GetRelations(self, request, context):
         print(request.database_id)
@@ -285,6 +291,7 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
             desc_response.name = row[0]
             desc_response.arity = row[1]
             desc_response.tag = row[2]
+            desc_response.num_tuples = row[4]
             res.relations.extend([desc_response])
         return res
 

@@ -17,9 +17,9 @@ bool parallel_join_negate::local_negation(
     u32* output_sub_bucket_count = output->get_sub_bucket_per_bucket_count();
     u32** output_sub_bucket_rank = output->get_sub_bucket_rank();
 
-    if (*offset > input0_buffer_size || input0_buffer_size == 0 || i1_size == 0)
+    if (*offset > input0_buffer_size || input0_buffer_size == 0)
     {
-        std::cout << "buffer size invalid ..." << std::endl;
+        std::cout << "buffer size invalid ... " << input0_buffer_size << "  " << i1_size << std::endl;
         return true;
     }
     int local_join_count=0;
@@ -32,7 +32,7 @@ bool parallel_join_negate::local_negation(
             for (int jc=0; jc < join_column_count; jc++)
             {
                 prefix.push_back(input0_buffer[k1 + jc]);
-                // std::cout << "PREFIX " << input0_buffer[k1 + jc] << std::endl;
+                std::cout << "PREFIX " << input0_buffer[k1 + jc] << std::endl;
             }
 
             u64 bucket_id = tuple_hash(input0_buffer + k1, join_column_count) % buckets;

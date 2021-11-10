@@ -57,6 +57,8 @@ HELP = '''
 
     switch <db>                         Switch to a given DB
 
+    relations                           print all relation meta info in current database
+
     ?(<rel> _/<arg> ...)                run a slog query find all related facts like `?(foo "bar" _)`,
                                         `_` is wildcard
 
@@ -73,7 +75,7 @@ HELP = '''
     fresh                               go back to empty database
 '''
 
-CMD = ['help', 'run', 'connect', 'dump', 'showdb',
+CMD = ['help', 'run', 'connect', 'dump', 'showdb', 'relations',
        'load', 'compile', 'tag', 'switch', 'fact-depth',
        'fact-cardi', 'clear', 'fresh']
 
@@ -129,6 +131,8 @@ def exec_command(client: SlogClient, raw_input: str):
         headers = [["tag", "id", "parent"]]
         for db_info in headers + dbs:
             print(f'{db_info[1]:<6} {db_info[0][:10]:<10} {db_info[2][:6]:<6}')
+    elif cmd == 'relations':
+        client.print_all_relations(ConsoleWriter())
     elif cmd == 'clear':
         client.tuple_printed_id_map = {}
     elif cmd == 'connect':

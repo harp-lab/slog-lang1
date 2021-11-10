@@ -31,7 +31,7 @@ void parallel_acopy::local_acopy(u32 buckets, shmap_relation* input, u32* input_
 
     acopy_buffer.width[ra_counter] = reorder_map.size();
     assert(acopy_buffer.width[ra_counter] == (int)output->get_arity()+1);
-    //assert(arity + 1 == (int)output->get_arity());
+    // assert(arity + 1 == (int)output->get_arity());
 
     for (u32 i = 0; i < buckets; i++)
         if (input_bucket_map[i] == 1)

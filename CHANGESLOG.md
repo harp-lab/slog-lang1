@@ -12,3 +12,8 @@
 
 10/7 2021
 - add query to REPL, but very limited, only allow `?(R _ _)` like
+
+11/8
+- set wrong counter 
+- use ninja
+- add a command can print all relation (include tuple size info)

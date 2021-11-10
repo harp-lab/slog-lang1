@@ -182,17 +182,6 @@ void write_interned_pools()
 void file_to_slog(char *input_file, char *output_file,
 				  vector<unsigned> &column_order, unsigned rel_tag)
 {
-	// compute the inverse column order to use to shuffle u64s
-	vector<unsigned> inverse_column_order(column_order.size());
-	for (size_t i = 0; i < column_order.size(); i++)
-	{
-		size_t j = 0;
-		while (column_order[j] != i)
-			j++;
-		inverse_column_order[i] = j;
-		// cout << "inverse_column_order[" << i << "] = " << j << endl;
-	}
-
 	u64 tuple_buffer[column_order.size()];
 
 	ifstream fp_in(input_file);
@@ -221,20 +210,17 @@ void file_to_slog(char *input_file, char *output_file,
 		while (row_stream)
 		{
 			getline(row_stream, col, '\t');
-			if (col_count > column_order.size())
+			if (col_count >= column_order.size() - 1)
 			{
-				cerr << "should have " << column_order.size() - 1
-					 << " columns, but found " << col_count << " cols on first row.\n";
-				cerr << "line: " << row << endl;
-				cerr << "note: make sure to include the 0 column for new fact IDs.\n";
-				exit(1);
+				break;
 			}
 			try
 			{
 				// TODO: support float later
 				// FIXME: detect empty space here!
-				u64 u64_v = stoull(col);
-				tuple_buffer[col_count] = u64_v;
+				u64 u64_v = stoi(col);
+				tuple_buffer[col_count] = TUPLE_MASK & u64_v;
+				// cout << "number at " << col_count << " : " << u64_v << endl;
 			}
 			catch (...)
 			{
@@ -253,7 +239,8 @@ void file_to_slog(char *input_file, char *output_file,
 				{
 					u64_v |= strings_map[col];
 				}
-				tuple_buffer[inverse_column_order[col_count + 1]] = u64_v;
+				// cout << "string at " << col_count << " : " << col << endl;
+				tuple_buffer[col_count] = u64_v;
 			}
 			col_count++;
 		}
@@ -264,23 +251,15 @@ void file_to_slog(char *input_file, char *output_file,
 		// 	col_count = 0;
 		// 	continue;
 		// }
-		if (col_count != column_order.size())
-		{
-			cerr << "should have " << column_order.size() - 1
-				 << " columns, but found " << col_count << " cols on first row.\n";
-			cerr << "line: " << row << endl;
-			cerr << "note: make sure to include the 0 column for new fact IDs.\n";
-			exit(1);
-		}
 
 		u64 tid = rel_tag;
 		tid <<= (TUPLE_MASK_LENGTH + BUCKET_MASK_LENGTH);
 		tid |= ((hash_tuple(tuple_buffer, arity) % buckets)) << TUPLE_MASK_LENGTH;
 		tid |= current_tuple_id++;
-		tuple_buffer[inverse_column_order[0]] = tid;
+		// cout << "id at " << col_count << " : " << tid << endl;
+		tuple_buffer[col_count] = tid;
 		// write data
 		write(fp_out, tuple_buffer, 8 * (arity + 1));
-		col_count = 1;
 		lineno++;
 	}
 	write_interned_pools();

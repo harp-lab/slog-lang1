@@ -147,7 +147,7 @@ class SlogClient:
                 req = slog_pb2.PutCSVFactsRequest()
                 req.using_database = db_id
                 req.relation_name = rel_name
-                req.buckets = 16
+                req.buckets = 8
                 req.bodies.extend([file_md5])
                 yield req
         csv_file_paths = []
@@ -242,7 +242,7 @@ class SlogClient:
     def _compile(self, program_hashes, writer=Writer()):
         ''' compile a slog program list (hashes) and return corresponded EDB '''
         req = slog_pb2.CompileHashesRequest()
-        req.buckets = 16
+        req.buckets = 8
         req.using_database = ""
         req.hashes.extend(program_hashes)
         response = self._stub.CompileHashes(req)
@@ -336,7 +336,13 @@ class SlogClient:
         req = slog_pb2.DatabaseRequest()
         req.database_id = db_id
         res = self._stub.GetRelations(req)
-        self.relations = [[rel.name, rel.arity, rel.tag] for rel in res.relations]
+        self.relations = [[rel.name, rel.arity, rel.tag, rel.num_tuples] for rel in res.relations]
+
+    def print_all_relations(self, writer: Writer):
+        """ print all relation """
+        for rel in self.relations:
+            writer.write(f"Relation >>> Name: {rel[0]}, Arity: {rel[1]}, Tag: {rel[2]}, "
+                         f"Tuples: {rel[3]}.")
 
     def lookup_db_by_id(self, db_id):
         """ check if a db info record is in cache """
@@ -401,15 +407,15 @@ class SlogClient:
             return []
         tuples_map = self._dump_tuples(name, self.cur_db)          
         tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
-        for rel in rels:
-            r_tuple_size = len(tuples_map[rel[2]]) / (rel[1] + 1)
-            writer.write(f"Relation name {name}, tag {rel[2]} has {int(r_tuple_size)} tuples")
         slog_tuples = parse_query_result(tuples_map, tag_map, self.intern_string_dict,
                                          self.tuple_printed_id_map)
         pp_strs = pretty_str_tuples(slog_tuples, self.unroll_depth, self.group_cardinality,
                                     tag_map, self.tuple_printed_id_map)
         for pp_str in pp_strs:
             writer.write(pp_str)
+        for rel in rels:
+            r_tuple_size = len(tuples_map[rel[2]]) / (rel[1] + 1)
+            writer.write(f"Relation name {name}, tag {rel[2]} has {int(r_tuple_size)} tuples")
         return slog_tuples
 
     def tag_db(self, db_id, tag_name):
