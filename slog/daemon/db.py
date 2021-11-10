@@ -137,7 +137,7 @@ class MetaDatabase:
         """ get maximum relation tag inside a slog database """
         res = self._db_fetchall(
             'SELECT tag FROM relations'
-            'WHERE database_id=?',
+            ' WHERE database_id = ?',
             (db_id,))
         tags = []
         for row in res:
