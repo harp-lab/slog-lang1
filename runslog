@@ -101,11 +101,10 @@ def run_local(file, outloc, factloc, cores, verbose, slog_root=None):
 
     #1: shell out to slog compiler to compile file to C++
     # Get the name of the binary (just strip the `.slog` out)
-    if verbose:
-        print("Compiling .slog to .cpp")
     if not file.endswith('.slog'):
         print(f"Not given a slog file! given: {file}")
         return
+
     bin_name = os.path.basename(file[:file.rfind('.')])
     slog_bin_path = os.path.join(slogfile_build_dir, bin_name)
     # ensure these exist so we can use them.
@@ -113,11 +112,18 @@ def run_local(file, outloc, factloc, cores, verbose, slog_root=None):
     os.makedirs(inputloc, exist_ok=True)
     os.makedirs(checkpointloc, exist_ok=True)
 
+    if verbose:
+        print("Compiling .slog to .cpp")
+
     try:
+        start = time.time()
         subprocess.check_output(["racket", "compiler/slog.rkt", "-c",
                                  "--output-code", outloc, "--output-db", checkpointloc,
                                  "--input-db", inputloc, file],
                                 stderr=subprocess.STDOUT)
+        end = time.time()
+        if verbose:
+            print(f"Time taken: {end - start}")
     except subprocess.CalledProcessError as e:
         print(f"Slog->C++ compilation failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
         return
@@ -126,12 +132,16 @@ def run_local(file, outloc, factloc, cores, verbose, slog_root=None):
     if verbose:
         print("Compiling tsv_bin utility")
     try:
+        start = time.time()
         # clean build directory
         shutil.rmtree(backend_build_dir, ignore_errors=True)
         subprocess.check_output(["cmake", "-B", backend_build_dir, backend_dir],
                                 stderr=subprocess.STDOUT)
         subprocess.check_output(["make", "-C", backend_build_dir , "-j", f"{cores}"],
                                 stderr=subprocess.STDOUT)
+        end = time.time()
+        if verbose:
+            print(f"Time taken: {end - start}")
     except subprocess.CalledProcessError as e:
         print(f"Compiling tsv->bin failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
 
@@ -139,19 +149,27 @@ def run_local(file, outloc, factloc, cores, verbose, slog_root=None):
     if verbose:
         print("Calling tsv->bin")
     if factloc:
+        start = time.time()
         out = ingest_facts(factloc, inputloc, tsv_bin_path)
         if not out:
             print("FAILURE TO INGEST FACTS!")
             return
+        end = time.time()
+        if verbose:
+            print(f"Time taken: {end - start}")
 
     #4: Shell out to cmake to compile C++
     if verbose:
         print("Compiling .cpp file to a binary")
     try:
+        start = time.time()
         subprocess.check_output(["cmake", "-B", slogfile_build_dir, outloc],
                                 stderr=subprocess.STDOUT)
         subprocess.check_output(["make", "-C", slogfile_build_dir, "-j", f"{cores}"],
                                 stderr=subprocess.STDOUT)
+        end = time.time()
+        if verbose:
+            print(f"Time taken: {end - start}")
     except subprocess.CalledProcessError as e:
         print(f"C++->bin failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
         return
@@ -164,7 +182,8 @@ def run_local(file, outloc, factloc, cores, verbose, slog_root=None):
         out = subprocess.check_output(["mpirun", "-n", f"{cores}", slog_bin_path],
                                       stderr=subprocess.STDOUT)
         end = time.time()
-        print(f"Execution time: {end - start}")
+        if verbose:
+            print(f"Time taken: {end - start}")
     except subprocess.CalledProcessError as e:
         print(f"Program failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
         return
