@@ -12,7 +12,7 @@ if (OPENMP_FOUND)
     set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++17 -Werror=class-memaccess -fpermissive")
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++17 -Werror=class-memaccess -fpermissive -pg")
 set (source_dir "${PROJECT_SOURCE_DIR}/src")
 set (tests_dir "${PROJECT_SOURCE_DIR}/tests")
 set (data_dir "${PROJECT_SOURCE_DIR}/data")

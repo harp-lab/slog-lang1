@@ -118,7 +118,16 @@ bool parallel_join::local_join(int threshold, int* offset,
 
             u64 bucket_id = tuple_hash(input0_buffer + k1, join_column_count) % buckets;
 
-            input1[bucket_id].as_all_to_allv_left_join_buffer(prefix, join_buffer, input0_buffer + k1, input0_buffer_width, input1_buffer_width, counter, buckets, output_sub_bucket_count, output_sub_bucket_rank, reorder_map_array, join_column_count, deduplicate, &local_join_count, global_join_duplicates, global_join_inserts, output->get_join_column_count(), output->get_is_canonical());
+            input1[bucket_id].as_all_to_allv_left_join_buffer(
+                prefix, join_buffer,
+                input0_buffer + k1,input0_buffer_width,
+                input1_buffer_width, counter,
+                buckets, output_sub_bucket_count,
+                output_sub_bucket_rank, reorder_map_array,
+                join_column_count, deduplicate,
+                &local_join_count, global_join_duplicates,
+                global_join_inserts, output->get_join_column_count(),
+                output->get_is_canonical());
 
             // std::cout << "local_join_count " << local_join_count << " Threshold " << threshold << " k1 " << k1 << " offset " << *offset << " " << input0_buffer_width << std::endl;
             if (local_join_count > threshold)
@@ -140,7 +149,16 @@ bool parallel_join::local_join(int threshold, int* offset,
 
             u64 bucket_id = tuple_hash(input0_buffer + k1, join_column_count) % buckets;
 
-            input1[bucket_id].as_all_to_allv_right_join_buffer(prefix, join_buffer, input0_buffer + k1, input0_buffer_width, input1_buffer_width, counter, buckets, output_sub_bucket_count, output_sub_bucket_rank, reorder_map_array, join_column_count, deduplicate, &local_join_count, global_join_duplicates, global_join_inserts, "test", output->get_join_column_count(), output->get_is_canonical());
+            input1[bucket_id].as_all_to_allv_right_join_buffer(
+                prefix, join_buffer,
+                input0_buffer + k1, input0_buffer_width,
+                input1_buffer_width, counter,
+                buckets, output_sub_bucket_count,
+                output_sub_bucket_rank, reorder_map_array,
+                join_column_count, deduplicate,
+                &local_join_count, global_join_duplicates,
+                global_join_inserts, "test",
+                output->get_join_column_count(),output->get_is_canonical());
 
             // std::cout << "local_join_count " << local_join_count << " Threshold " << threshold << " k1 " << k1 << " offset " << *offset << " " << input0_buffer_width << std::endl;
             if (local_join_count > threshold)

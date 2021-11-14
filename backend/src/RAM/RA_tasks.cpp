@@ -194,6 +194,7 @@ u64 RAM::intra_bucket_comm_execute()
             }
             else
             {
+                // FULL should do right outer join
                 intra_bucket_comm(get_bucket_count(),
                                   input_rel->get_full(),
                                   input_rel->get_distinct_sub_bucket_rank_count(),
@@ -472,43 +473,74 @@ u32 RAM::local_compute(int* offset)
             int join_column_count = target_relation->get_join_column_count();
             if  (current_ra->get_src_graph_type() == DELTA)
             {
-                join_completed = join_completed & current_ra->local_negation(
-                    threshold,&(offset[counter]),
-                    LEFT,
-                    get_bucket_count(),
-                    intra_bucket_buf_output_size[counter],
-                    input_relation->get_arity()+1, intra_bucket_buf_output[counter],
-                    input_relation->get_delta(),
-                    target_relation->get_full(), target_relation->get_full_element_count(),
-                    target_relation->get_arity()+1,
-                    reorder_map_array,
-                    output_relation,
-                    compute_buffer,
-                    counter,
-                    join_column_count,
-                    &join_tuples_duplicates,
-                    &join_tuples);
-                total_join_tuples = total_join_tuples + join_tuples;
+                if (target_relation->get_full_element_count() == 0)
+                {
+                    // negate on empty set, copy everything in input to output
+                    current_ra->local_copy(
+                        get_bucket_count(),
+                        input_relation->get_delta(), input_relation->get_bucket_map(),
+                        output_relation,
+                        reorder_map_array,
+                        input_relation->get_arity(),
+                        input_relation->get_join_column_count(),
+                        compute_buffer, counter);
+                }
+                else 
+                {
+                    // normal negation
+                    join_completed = join_completed & current_ra->local_negation(
+                        threshold,&(offset[counter]),
+                        LEFT,
+                        get_bucket_count(),
+                        intra_bucket_buf_output_size[counter],
+                        input_relation->get_arity()+1, intra_bucket_buf_output[counter],
+                        input_relation->get_delta(),
+                        target_relation->get_full(), target_relation->get_full_element_count(),
+                        target_relation->get_arity()+1,
+                        reorder_map_array,
+                        output_relation,
+                        compute_buffer,
+                        counter,
+                        join_column_count,
+                        &join_tuples_duplicates,
+                        &join_tuples);
+                    total_join_tuples = total_join_tuples + join_tuples;
+                }
             }
             else
             {
-                join_completed = join_completed & current_ra->local_negation(
-                    threshold,&(offset[counter]),
-                    LEFT,
-                    get_bucket_count(),
-                    intra_bucket_buf_output_size[counter],
-                    input_relation->get_arity()+1, intra_bucket_buf_output[counter],
-                    input_relation->get_full(),
-                    target_relation->get_full(), target_relation->get_full_element_count(),
-                    target_relation->get_arity()+1,
-                    reorder_map_array,
-                    output_relation,
-                    compute_buffer,
-                    counter,
-                    join_column_count,
-                    &join_tuples_duplicates,
-                    &join_tuples);
-                total_join_tuples = total_join_tuples + join_tuples;
+                if (target_relation->get_full_element_count() == 0)
+                {
+                    // negate on empty set, copy everything in input to output
+                    current_ra->local_copy(
+                        get_bucket_count(),
+                        input_relation->get_full(), input_relation->get_bucket_map(),
+                        output_relation,
+                        reorder_map_array,
+                        input_relation->get_arity(),
+                        input_relation->get_join_column_count(),
+                        compute_buffer, counter);
+                }
+                else 
+                {
+                    join_completed = join_completed & current_ra->local_negation(
+                        threshold,&(offset[counter]),
+                        LEFT,
+                        get_bucket_count(),
+                        intra_bucket_buf_output_size[counter],
+                        input_relation->get_arity()+1, intra_bucket_buf_output[counter],
+                        input_relation->get_full(),
+                        target_relation->get_full(), target_relation->get_full_element_count(),
+                        target_relation->get_arity()+1,
+                        reorder_map_array,
+                        output_relation,
+                        compute_buffer,
+                        counter,
+                        join_column_count,
+                        &join_tuples_duplicates,
+                        &join_tuples);
+                    total_join_tuples = total_join_tuples + join_tuples;
+                }
             }
         }
 
