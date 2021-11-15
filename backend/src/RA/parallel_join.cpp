@@ -157,7 +157,7 @@ bool parallel_join::local_join(int threshold, int* offset,
                 output_sub_bucket_rank, reorder_map_array,
                 join_column_count, deduplicate,
                 &local_join_count, global_join_duplicates,
-                global_join_inserts, "test",
+                global_join_inserts,
                 output->get_join_column_count(),output->get_is_canonical());
 
             // std::cout << "local_join_count " << local_join_count << " Threshold " << threshold << " k1 " << k1 << " offset " << *offset << " " << input0_buffer_width << std::endl;

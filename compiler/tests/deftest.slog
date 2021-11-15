@@ -21,7 +21,7 @@
 [(block_next EA EA_next)
  <--
  (block_last_instruction _ EA)
-;  (~ arch.delay_slot _ EA)
+ (~ arch.delay_slot _ EA)
  (direct_jump EA EA_next)
 ;  ]
  (~ inter_procedural_jump EA EA_next)]
@@ -129,9 +129,9 @@
 [(last_def Block EA_def Reg)
  <--
  (block_last_def Block_end EA_def Reg)
-;  (~ must_def Block_end Reg)
+;   (~ must_def Block_end Reg)
  (block_next Block_end Block)
-;  (~ flow_def Block_end Reg Block _)
+;   (~ flow_def Block_end Reg Block _)
  ]
 
 ; [(last_def Block_next EA_def Reg)

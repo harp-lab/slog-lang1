@@ -1,5 +1,6 @@
 
 #include "../parallel_RA_inc.h"
+#include <iostream>
 
 bool parallel_join_negate::local_negation(
     int threshold, int* offset, int join_order, u32 buckets,
@@ -16,6 +17,7 @@ bool parallel_join_negate::local_negation(
     join_buffer.width[counter] = reorder_map_array.size();
 
     shmap_relation deduplicate;
+    shmap_relation* negated_target = new shmap_relation;
     u32* output_sub_bucket_count = output->get_sub_bucket_per_bucket_count();
     u32** output_sub_bucket_rank = output->get_sub_bucket_rank();
 
@@ -24,18 +26,44 @@ bool parallel_join_negate::local_negation(
         // std::cout << "buffer size invalid ... " << input0_buffer_size << "  " << i1_size << std::endl;
         return true;
     }
-    // if (i1_size == 0)
-    // {
-    //     // if the target relation is empty set, just copy all input into output
-    //     for (u32 i = 0; i < buckets; i++)
-    //     {
-            
-    //     }
-    // }
     int local_join_count=0;
-    if (join_order == LEFT)
+    if (join_order == RIGHT)
     {
-
+        for (int k1 = *offset; k1 < input0_buffer_size; k1 = k1 + input0_buffer_width)
+        {
+            u64 prefix[join_column_count];
+            // std::cout << "NEG PREFIX  ";
+            for (int jc=0; jc < join_column_count; jc++)
+            {
+                prefix[jc] = input0_buffer[k1 + jc];
+                // std::cout << input0_buffer[k1 + jc] << " ";
+            }
+            // std::cout << std::endl;
+            negated_target->insert_tuple_from_array(prefix, join_column_count);
+        }
+        for (int k1 = *offset; k1 < input0_buffer_size; k1 = k1 + input0_buffer_width)
+        {
+            u64 bucket_id = tuple_hash(input0_buffer + k1, join_column_count) % buckets;
+            input1[bucket_id].as_all_to_allv_right_outer_join_buffer(
+                negated_target, join_buffer, input0_buffer + k1, input0_buffer_width,
+                input1_buffer_width, counter, buckets, output_sub_bucket_count,
+                output_sub_bucket_rank, reorder_map_array, join_column_count,
+                deduplicate, &local_join_count,
+                global_join_duplicates, global_join_inserts,
+                output->get_join_column_count(), output->get_is_canonical());
+            // std::cout << "local_negation_count " << local_join_count << " Threshold " << threshold << " k1 " << k1 << " offset " << *offset << " " << input0_buffer_width << std::endl;
+            if (local_join_count > threshold)
+            {
+                *offset = k1 + input0_buffer_width;
+                deduplicate.remove_tuple();
+                delete negated_target;
+                return false;
+            }
+        }
+    }
+    else {
+        // LEFT
+        
         for (int k1 = *offset; k1 < input0_buffer_size; k1 = k1 + input0_buffer_width)
         {
             std::vector<u64> prefix;
@@ -68,11 +96,8 @@ bool parallel_join_negate::local_negation(
             }
         }
     }
-    else {
-        // RIGHT
-        
-    }
     deduplicate.remove_tuple();
+    delete negated_target;
     return true;
 }
 

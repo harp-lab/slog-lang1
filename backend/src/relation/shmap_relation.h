@@ -34,7 +34,7 @@ struct shmap_relation {
         u32** output_sub_bucket_rank, std::vector<int> reorder_map,
         int join_column_count, shmap_relation& deduplicate,
         int* local_join_count, u32* local_join_duplicates,
-        u32* local_join_inserts, std::string name,
+        u32* local_join_inserts,
         int head_rel_hash_col_count, bool canonical);
     void as_all_to_allv_right_join_buffer_helper(
         shmap_relation*& cur_trie, std::vector<u64> cur_path,
@@ -45,7 +45,6 @@ struct shmap_relation {
         std::vector<int> reorder_map, int join_column_count,
         shmap_relation& deduplicate, int* local_join_count,
         u32* local_join_duplicates, u32* local_join_inserts,
-        std::string name,
         int head_rel_hash_col_count, bool canonical);
     void as_all_to_allv_left_join_buffer(
         std::vector<u64> prefix, all_to_allv_buffer& join_buffer,
@@ -68,8 +67,9 @@ struct shmap_relation {
         u32* local_join_duplicates, u32* local_join_inserts,
         int head_rel_hash_col_count, bool canonical);
     void as_all_to_allv_left_outer_join_buffer(shmap_relation*& out_rel, std::vector<u64> prefix, all_to_allv_buffer& join_buffer, u64 *input0_buffer, int input0_buffer_width, int input1_buffer_width, int ra_id, u32 buckets, u32* output_sub_bucket_count, u32** output_sub_bucket_rank, std::vector<int> reorder_map, int join_column_count, shmap_relation& deduplicate, int* local_join_count, u32* local_join_duplicates, u32* local_join_inserts, int head_rel_hash_col_count, bool canonical);
-    // void as_all_to_allv_right_outer_join_buffer(std::vector<u64> prefix, all_to_allv_buffer& join_buffer, u64 *input0_buffer, int input0_buffer_width, int input1_buffer_width, int ra_id, u32 buckets, u32* output_sub_bucket_count, u32** output_sub_bucket_rank, std::vector<int> reorder_map, int join_column_count, shmap_relation& deduplicate, int* local_join_count, u32* local_join_duplicates, u32* local_join_inserts, std::string name, int head_rel_hash_col_count, bool canonical);
     void as_all_to_allv_left_outer_join_buffer_helper(shmap_relation*& cur_trie, std::vector<u64> cur_path, all_to_allv_buffer& join_buffer, u64 *input0_buffer, int input0_buffer_width, int input1_buffer_width, int ra_id, u32 buckets, u32* output_sub_bucket_count, u32** output_sub_bucket_rank, std::vector<int> reorder_map, int join_column_count, shmap_relation& deduplicate, int* local_join_count, u32* local_join_duplicates, u32* local_join_inserts, int head_rel_hash_col_count, bool canonical);
+    void as_all_to_allv_right_outer_join_buffer(shmap_relation* neg_target, all_to_allv_buffer& join_buffer, u64 *input0_buffer, int input0_buffer_width, int input1_buffer_width, int ra_id, u32 buckets, u32* output_sub_bucket_count, u32** output_sub_bucket_rank, std::vector<int> reorder_map, int join_column_count, shmap_relation& deduplicate, int* local_join_count, u32* local_join_duplicates, u32* local_join_inserts, int head_rel_hash_col_count, bool canonical);
+    void as_all_to_allv_right_outer_join_buffer_helper(shmap_relation* neg_target, shmap_relation*& cur_trie, std::vector<u64> cur_path, all_to_allv_buffer& join_buffer, u64 *input0_buffer, int input0_buffer_width, int input1_buffer_width, int ra_id, u32 buckets, u32* output_sub_bucket_count, u32** output_sub_bucket_rank, std::vector<int> reorder_map, int join_column_count, shmap_relation& deduplicate, int* local_join_count, u32* local_join_duplicates, u32* local_join_inserts, int head_rel_hash_col_count, bool canonical);
 
 
     void as_all_to_all_copy_buffer_with_starting_index(int threshold, int RA_count, all_to_all_buffer& buffer, std::vector<u64> prefix, std::vector<int> reorder_map, int ra_id, u32 buckets, u32* output_sub_bucket_count, u32** output_sub_bucket_rank, u32 arity, u32 join_column_count, int head_rel_hash_col_count, bool canonical);

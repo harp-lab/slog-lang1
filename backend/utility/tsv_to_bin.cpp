@@ -256,6 +256,7 @@ void file_to_slog(char *input_file, char *output_file,
 		tid <<= (TUPLE_MASK_LENGTH + BUCKET_MASK_LENGTH);
 		tid |= ((hash_tuple(tuple_buffer, arity) % buckets)) << TUPLE_MASK_LENGTH;
 		tid |= current_tuple_id++;
+		// cout << "tuple in bucket " << ((hash_tuple(tuple_buffer, arity) % buckets)) << endl;
 		// cout << "id at " << col_count << " : " << tid << endl;
 		tuple_buffer[col_count] = tid;
 		// write data
