@@ -11,7 +11,6 @@ import math
 import os
 import shutil
 import subprocess
-import traceback
 import tempfile
 
 from six import MAXSIZE
@@ -245,7 +244,7 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
             request.tag)
         if row is None:
             print(f"db: {request.database_id} tag: {request.tag}")
-        arity = int(row[1]) 
+        arity = int(row[1])
         data_file = row[3]
         print(row)
         if data_file.strip() == "":
