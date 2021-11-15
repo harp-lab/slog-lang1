@@ -5,6 +5,7 @@
 __pycache__
 parser.out
 parsertab.py
+TESTOUT
 .vscode
 .slog-history
 metadatabase/database.sqlite3

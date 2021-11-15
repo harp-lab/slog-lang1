@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
 
-rm -f metadatabase/database.sqlite3 || true
+rm -f metadatabase/database.sqlite3
+rm -rf data/databases && mkdir data/databases
 sqlite3 metadatabase/database.sqlite3 < metadatabase/schema.sql

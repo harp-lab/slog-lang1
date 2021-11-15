@@ -9,6 +9,11 @@ import os
 # Network
 PORT = 5108
 
+# FTP
+FTP_ADDR = ('', 2121)
+FTP_DEFAULT_USER = "slog_ftp"
+FTP_DEFAULT_PWD = "slog_ftp"
+
 # project root dir location
 PROJECT_ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 
@@ -24,6 +29,7 @@ SOURCES_PATH = os.path.join(DATA_PATH, "sources")
 SLOG_COMPILER_PROCESS = os.path.join(PROJECT_ROOT_DIR, "compiler/slog-process.rkt")
 SLOG_COMPILER_ROOT = os.path.join(PROJECT_ROOT_DIR, "compiler")
 TSV2BIN_PATH = os.path.join(PROJECT_ROOT_DIR, "backend/build/tsv_to_bin")
+FTP_DATA_PATH = os.path.join(DATA_PATH, "ftp")
 
 # Logs
 CMDSVC_LOG = open(os.path.join(DATA_PATH, "cmdsvc.log"), 'a')

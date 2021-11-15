@@ -7,6 +7,34 @@
 // global definitions:
 ~a
 
+std::string get_stem(const std::filesystem::path &p) { return (p.stem().string()); }
+
+int get_tag_for_rel(std::string& relation_name, std::string& db_dir) {
+
+  std::vector<int> used_tags;
+  used_tag.push_back(255);
+  for (const auto & entry : std::filesystem::directory_iterator(path))
+  {
+    // check if ends with table
+    std::string filename_s = get_stem(entry);
+    std::string suffix = ".table";
+    if (filename_s.rfind(suffix) != std::abs(filename_s.size()-suffix.size()))
+    {
+      continue;
+    }
+    std::string filename_s = filename_s.substr(0, std::abs(filename_s.size()-suffix.size()));
+    std::string rel_name = filename_s.substr(filename_s.lfind(".")+1, filename_s.rfind("."));
+    std::string tag_s = filename_s.substr(0, filename_s.lfind("."));
+    if (rel_name == relation_name)
+    {
+      return std::stoi(tag_s);
+    }
+    used_tags.push_back(std::stoi(tag_s));
+  }
+  std::sort(used_tags.begin(), used_tags.end(), std::greater<int>());
+  return used_tags[0]+1;
+}
+
 int main(int argc, char **argv)
 {
   // input dir from compiler
