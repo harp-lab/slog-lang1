@@ -263,17 +263,19 @@ class RunTask(Task):
         if cores == 1:
             # _proc = subprocess.Popen(["valgrind", "--leak-check=full", "./target", in_db_dir, out_db_dir],
             _proc = subprocess.Popen(["./target", in_db_dir, out_db_dir],
+            # _proc = subprocess.Popen(["mpirun", "-n", "1", "./target", in_db_dir, out_db_dir],
                                     stdin=PIPE, stdout=PIPE, stderr=open(stderrpath, 'w'),
                                     cwd=f"{build_dir}/build", env=env)
         else:
             _proc = subprocess.Popen(["mpirun", "-n", str(cores), "./target", in_db_dir, out_db_dir],
+            # _proc = subprocess.Popen(["mpirun", "-n", str(cores), "valgrind", "--leak-check=full", "./target", in_db_dir, out_db_dir],
                                     stdin=PIPE, stdout=PIPE, stderr=open(stderrpath, 'w'),
                                     cwd=f"{build_dir}/build", env=env)
         with open(stdoutpath, 'w') as stdout_f:
             self.reset_lines(out_db)
             # Process each line of the MPI tasks's output
             while True:
-                line = _proc.stdout.readline().decode()
+                line = _proc.stdout.readline()
                 # EOF
                 if not line:
                     break

@@ -37,12 +37,12 @@ int get_tag_for_rel(std::string relation_name, int arity) {
   std::string name_arity = relation_name + "." + std::to_string(arity);
   if (rel_tag_map.find(name_arity) != rel_tag_map.end())
   {
-    std::cout << "rel: " << name_arity << rel_tag_map[name_arity] << std::endl;
+    // std::cout << "rel: " << name_arity << rel_tag_map[name_arity] << std::endl;
     return rel_tag_map[name_arity];
   }
   max_rel++;
   rel_tag_map[name_arity] = max_rel;
-  std::cout << "rel: " << name_arity << " " << max_rel << std::endl;
+  // std::cout << "rel: " << name_arity << " " << max_rel << std::endl;
   return max_rel;
 }
 

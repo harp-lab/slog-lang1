@@ -11,6 +11,9 @@ RUN apt-get update -y && apt-get install -y clang-format clang-tidy clang-tools 
 RUN raco setup --doc-index --force-user-docs
 RUN raco pkg install --batch --deps search-auto binaryio graph
 
+RUN apt-get update -y
+RUN apt-get install -y valgrind apt-utils
+
 ENV OMPI_ALLOW_RUN_AS_ROOT=1
 ENV OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
 ENV CC=mpicc
@@ -19,7 +22,9 @@ ENV CXX=mpicxx
 COPY . /slog
 
 # build backend
-RUN cd /slog/backend ; rm -rf build ; cmake -Bbuild -DCMAKE_BUILD_TYPE=Release . && cd build ; make -j8;
+RUN cd /slog/backend ; rm -rf build ; \ 
+    cmake --no-warn-unused-cli -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE -DCMAKE_BUILD_TYPE:STRING=RelWithDebInfo -DCMAKE_C_COMPILER:FILEPATH=/usr/bin/mpicc -H/slog/backend -B/slog/backend/build -G Ninja ; \
+    cmake --build /slog/backend/build --config RelWithDebInfo --target all -j --
 
 WORKDIR /slog
 RUN pip3 install -r requirements.txt

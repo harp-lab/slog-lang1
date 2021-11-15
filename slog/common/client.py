@@ -147,7 +147,7 @@ class SlogClient:
                 req = slog_pb2.PutCSVFactsRequest()
                 req.using_database = db_id
                 req.relation_name = rel_name
-                req.buckets = 8
+                req.buckets = 1
                 req.bodies.extend([file_md5])
                 yield req
         csv_file_paths = []
@@ -242,7 +242,7 @@ class SlogClient:
     def _compile(self, program_hashes, writer=Writer()):
         ''' compile a slog program list (hashes) and return corresponded EDB '''
         req = slog_pb2.CompileHashesRequest()
-        req.buckets = 8
+        req.buckets = 1
         req.using_database = ""
         req.hashes.extend(program_hashes)
         response = self._stub.CompileHashes(req)
@@ -340,9 +340,12 @@ class SlogClient:
 
     def print_all_relations(self, writer: Writer):
         """ print all relation """
+        total_tuples = 0
         for rel in self.relations:
-            writer.write(f"Relation >>> Name: {rel[0]}, Arity: {rel[1]}, Tag: {rel[2]}, "
+            writer.write(f"Relation >>> Name: {rel[0]}\t Arity: {rel[1]}\t Tag: {rel[2]}\t "
                          f"Tuples: {rel[3]}.")
+            total_tuples += rel[3]
+        writer.write(f"Total tuple number in current database {total_tuples}")
 
     def lookup_db_by_id(self, db_id):
         """ check if a db info record is in cache """

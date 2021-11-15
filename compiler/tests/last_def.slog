@@ -1,0 +1,31 @@
+
+; (code_in_block 1 2)
+; (code_in_block 4 2)
+; (may_fallthrough 1 4)
+; ; (local_next 1 4)
+; (def 1 99)
+
+[(local_next EA EA_next)
+ <--
+ (code_in_block EA Block)
+ (may_fallthrough EA EA_next)
+ (code_in_block EA_next Block)]
+
+[(block_last_def EA_next EA Reg)
+ <--
+ (def EA Reg)
+ (local_next EA EA_next)]
+
+; [(block_last_def EA_next EA_def Reg)
+;  <--
+;  (block_last_def EA EA_def Reg)
+;  (~ must_def EA Reg)
+;  (local_next EA EA_next)]
+
+; [(last_def Block EA_def Reg)
+;  <--
+;  (block_last_def Block_end EA_def Reg)
+; ;  (~ must_def Block_end Reg)
+;  (block_next Block_end Block)
+; ;  (~ flow_def Block_end Reg Block _)
+;  ]
