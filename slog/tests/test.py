@@ -2,7 +2,6 @@
 
 import sys
 
-import grpc
 from yaspin import yaspin
 
 from slog.common.client import SlogClient
@@ -30,7 +29,7 @@ class Test:
     """
     def __init__(self, server, txt):
         self.test_text = txt
-        self.spin_text = DynText(self.test_text)
+        self.spin_text = self.test_text
         self.client = SlogClient()
 
     def success(self):
