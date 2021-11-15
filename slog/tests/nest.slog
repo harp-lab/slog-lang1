@@ -1,0 +1,5 @@
+(foo 1)
+
+[(bar (foo x)) <-- (foo x)]
+
+(lst 1 (lst 2 (lst 3 0)))

@@ -106,10 +106,10 @@ class MetaDatabase:
             res = None
         return res
 
-    def get_relations_by_db_and_tag(self, db_id, tag):
+    def get_relation_by_db_and_tag(self, db_id, tag):
         """ get a relation row by give database and tag, if not found return None """
         relation_row = self._db_fechone(
-            'SELECT name,arity,tag,data_file'
+            'SELECT name,arity,tag,data_file,num_tuples'
             ' FROM relations'
             ' WHERE database_id = ? and tag = ?',
             (db_id, tag))
@@ -118,7 +118,7 @@ class MetaDatabase:
     def get_all_relations_in_db(self, db_id):
         """ return all relation row of a slog database """
         rows = self._db_fetchall(
-            'SELECT name,arity,tag,data_file FROM'
+            'SELECT name,arity,tag,data_file,num_tuples FROM'
             ' relations'
             ' WHERE database_id = ?',
             (db_id,))
@@ -132,6 +132,17 @@ class MetaDatabase:
             (db_id, rel_name, arity))
         if res is not None:
             return res[0]
+
+    def get_max_relation_tag(self, db_id):
+        """ get maximum relation tag inside a slog database """
+        res = self._db_fetchall(
+            'SELECT tag FROM relations'
+            ' WHERE database_id = ?',
+            (db_id,))
+        tags = []
+        for row in res:
+            tags.append(row[0])
+        return max(tags)
 
     def get_all_pending_compile_job(self):
         """ return all pending compiled_job row  """
@@ -326,3 +337,14 @@ class MetaDatabase:
         self._db_update(
             'UPDATE databases SET tag_name=? WHERE database_id=?',
             (database_id, tag))
+
+    def drop_database(self, database_id):
+        """ delete a persisted slog database """
+        conn = sqlite3.Connection(self.db_path)
+        cur = conn.cursor()
+        # delete datbase itself
+        cur.execute('DELETE FROM databases WHERE database_id=?', (database_id,))
+        # delete related relations
+        cur.execute('DELETE FROM relations WHERE database_id=?', (database_id,))
+        conn.commit()
+        conn.close()

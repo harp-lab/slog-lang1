@@ -2,7 +2,9 @@
 These are common 'verbs' for things to do
 """
 
-import copy
+from functools import lru_cache
+from ftplib import FTP
+import hashlib
 import os
 import sys
 import time
@@ -12,20 +14,24 @@ from six import MAXSIZE
 
 from slog.common import rel_name_from_file, make_stub, PING_INTERVAL
 from slog.common.elaborator import Elaborator
-from slog.daemon.const import STATUS_PENDING, STATUS_FAILED, STATUS_RESOLVED, STATUS_NOSUCHPROMISE
+from slog.common.tuple import parse_query_result, pretty_str_tuples
+from slog.daemon.const import FTP_DEFAULT_PWD, FTP_DEFAULT_USER, STATUS_PENDING, STATUS_FAILED, STATUS_RESOLVED, STATUS_NOSUCHPROMISE
 import slog.protobufs.slog_pb2 as slog_pb2
 
+CSV_CHUNK_SIZE = 1024
 
-TAG_MASK = 0xFFFFC00000000000
-BUCKET_MASK = 0x00003FFFF0000000
-TUPLE_ID_MASK = 0xFFFFFFFFF0000000
-VAL_MASK = ~ TAG_MASK
-INT_TAG = 0
-STRING_TAG = 2
-SYMBOL_TAG = 3
+def digest_file(fpath):
+    """ md5 digest of a large file """
+    hash_func = hashlib.md5()
+    with open(fpath, 'rb') as large_f:
+        while True:
+            chunk = large_f.read(2**20)
+            if not chunk:
+                break
+            hash_func.update(chunk)
+    return hash_func.hexdigest()
 
-
-class NoneWriter:
+class Writer:
     """
     Does nothing when given a write command.
     """
@@ -38,7 +44,13 @@ class NoneWriter:
     def fail(self, _):
         ...
 
-class ConsoleWriter:
+    def __eq__(self, o: object) -> bool:
+        return True
+
+    def __hash__(self) -> int:
+        return 0
+
+class ConsoleWriter(Writer):
     """
     Simple class to print when given a write command
     """
@@ -51,7 +63,7 @@ class ConsoleWriter:
     def fail(self, out):
         print(out)
 
-class FileWriter:
+class FileWriter(Writer):
     def __init__(self, f):
         self.f = f
     def write(self, out):
@@ -61,27 +73,38 @@ class FileWriter:
     def fail(self, out):
         self.f.write(f'{out}\n')
 
+    def __eq__(self, o: object) -> bool:
+        return self.f.name == o.name
+
+    def __hash__(self) -> int:
+        return hash(self.f.name)
+
 class SlogClient:
     """
     Client to a slog server.
     """
 
-    def __init__(self, server="localhost"):
+    def __init__(self, server="localhost", rpc_port=5108, ftp_port=2121):
         self._channel = None
         self._stub = None
+        self.server_addr = server
+        self.ftp_port = ftp_port
         try:
-            self.connect(server)
+            self.connect(f"{server}:{rpc_port}")
         except grpc.RpcError:
             print("Can't connect to slog daemon server")
             sys.exit(1)
         self.lasterr = None
         self.relations = []
-        self.unroll_depth = 3
+        self.unroll_depth = 5
+        self.group_cardinality = 5
         self.cur_db = ''
         self._cur_program_hashes = None
         self.intern_string_dict = {}
         self.updated_tuples = {}
         self.all_db = []
+        # map of tuple with it's print name
+        self.tuple_printed_id_map = {}
 
     def connect(self, server):
         """ Reconnect to the rpc server """
@@ -105,19 +128,27 @@ class SlogClient:
         req = slog_pb2.PingRequest()
         self._stub.Ping(req)
 
-    def upload_csv(self, csv_dir, writer=NoneWriter()):
-        ''' upload csv to current EDB using tsv_bin tool '''
-        def csv_request_generator(csv_file_paths: list):
+    # def _csv_request_generator()
+
+    @lru_cache(maxsize=None)
+    def upload_csv(self, csv_dir, db_id, writer=Writer()):
+        '''
+        upload csv to current EDB to some database using tsv_bin tool
+        this will upload.
+        '''
+        # upload to ftp first
+        ftp_conn = FTP()
+        ftp_conn.connect(self.server_addr, self.ftp_port)
+        ftp_conn.login(FTP_DEFAULT_USER, FTP_DEFAULT_PWD)
+        def csv_request_generator(csv_hash_map):
             ''' a generator to create gRPC stream from a list of facts file '''
-            for csv_fname in csv_file_paths:
+            for csv_fname, file_md5 in csv_hash_map.items():
                 rel_name = rel_name_from_file(csv_fname)
                 req = slog_pb2.PutCSVFactsRequest()
-                req.using_database = self.cur_db
+                req.using_database = db_id
                 req.relation_name = rel_name
-                req.buckets = 16
-                with open(csv_fname, 'r') as csv_f:
-                    csv_text = csv_f.read()
-                    req.bodies.extend([csv_text])
+                req.buckets = 8
+                req.bodies.extend([file_md5])
                 yield req
         csv_file_paths = []
         if not os.path.exists(csv_dir):
@@ -125,10 +156,12 @@ class SlogClient:
             return
         if os.path.isdir(csv_dir):
             for fname in os.listdir(csv_dir):
-                if not fname.endswith('.facts'):
+                if os.path.getsize(f'{csv_dir}/{fname}') == 0:
+                    continue
+                if not fname.endswith('.facts') and not fname.endswith('.csv'):
                     continue
                 csv_file_paths.append(f'{csv_dir}/{fname}')
-        elif csv_dir.strip().endswith('.facts'):
+        elif csv_dir.strip().endswith('.facts') or csv_dir.strip().endswith('.csv'):
             base = os.path.basename(csv_dir)
             rel_name = base[:base.rfind('.')]
             if rel_name not in {r[0] for r in self.relations}:
@@ -140,7 +173,15 @@ class SlogClient:
             writer.write("no valid facts file found! NOTICE: all csv facts"
                          " file must has extension `.facts`")
             return
-        response = self._stub.PutCSVFacts(csv_request_generator(csv_file_paths))
+        file_hashes_map = {}
+        # upload file first
+        for csv_fname in csv_file_paths:
+            rel_name = rel_name_from_file(csv_fname)
+            file_md5 = digest_file(csv_fname)
+            with open(csv_fname, 'rb') as csv_f:
+                ftp_conn.storbinary(f'STOR {file_md5}', csv_f)
+            file_hashes_map[csv_fname] = file_md5
+        response = self._stub.PutCSVFacts(csv_request_generator(file_hashes_map))
         if response.success:
             self.switchto_db(response.new_database)
             writer.ok("✅ ")
@@ -148,9 +189,10 @@ class SlogClient:
         else:
             writer.fail("💥")
             writer.write(f" {response.error_msg} fail to update!")
-        return response.new_database
+        ftp_conn.close()
 
-    def compile_slog(self, filename, writer=NoneWriter()):
+    @lru_cache(maxsize=None)
+    def compile_slog(self, filename, writer=Writer()):
         '''
         compile a slog file, and set current DB as the resultant DB.
         Returns a 2-tuple of new-db-id and program hashes
@@ -163,30 +205,44 @@ class SlogClient:
             writer.write(f"Error processing preambles:\n{file_not_found}")
             return None
 
-        self._load(elaborator)
+        self._load(elaborator.hashes)
         inited_db = self._compile(elaborator.hashes.keys(), writer)
         if not inited_db:
             return None
         self.switchto_db(inited_db)
-        return inited_db
+        return inited_db, elaborator.hashes.keys()
 
-    def _load(self, eloborated_file: Elaborator):
-        ''' load a eloborated slog file into backend '''
+    @lru_cache(maxsize=None)
+    def slog_add_rule(self, slog_str, db_id, writer:Writer=Writer()):
+        """ add a single line of slog query to some database, return the generated database """
+        hash_func = hashlib.sha256()
+        slog_code = slog_str.encode('utf-8')
+        hash_func.update(slog_code)
+        slog_hash = hash_func.hexdigest()
+        self._load({slog_hash: slog_str})
+        inited_db = self._compile([slog_hash], writer)
+        if not inited_db:
+            return
+        new_db = self._run(program_hashes=[slog_hash], input_database=db_id, writer=writer)
+        return new_db
+
+    def _load(self, hsh_map: dict):
+        ''' load a slog file into backend, input is hash map contain file_hash ↦ file_body '''
         # Exchange hashes
         req = slog_pb2.HashesRequest()
         req.session_key = "empty"
-        req.hashes.extend(eloborated_file.hashes.keys())
+        req.hashes.extend(hsh_map.keys())
         response = self._stub.ExchangeHashes(req)
         req = slog_pb2.PutHashesRequest()
         req.session_key = "empty"
         for hsh in response.hashes:
-            req.bodies.extend([eloborated_file.hashes[hsh]])
+            req.bodies.extend([hsh_map[hsh]])
         self._stub.PutHashes(req)
 
-    def _compile(self, program_hashes, writer=NoneWriter()):
+    def _compile(self, program_hashes, writer=Writer()):
         ''' compile a slog program list (hashes) and return corresponded EDB '''
         req = slog_pb2.CompileHashesRequest()
-        req.buckets = 16
+        req.buckets = 8
         req.using_database = ""
         req.hashes.extend(program_hashes)
         response = self._stub.CompileHashes(req)
@@ -195,9 +251,11 @@ class SlogClient:
         edb = self.run_until_promised(response.promise_id, PING_INTERVAL, writer)
         if not edb:
             writer.write("Compilation failed!")
+        self.update_dbs()
         return edb
 
-    def run_with_db(self, filename, db_id=None, cores=1, writer=NoneWriter()):
+    @lru_cache(maxsize=None)
+    def run_with_db(self, filename, db_id=None, cores=1, writer=Writer()):
         ''' run a program with input database '''
         self.update_dbs()
         if not db_id:
@@ -223,7 +281,7 @@ class SlogClient:
             self.switchto_db(output_db)
         return output_db
 
-    def _run(self, program_hashes, input_database, cores=2, writer=NoneWriter()):
+    def _run(self, program_hashes:list, input_database:str, cores=2, writer=Writer()):
         ''' run a program list (hashes) with given EDB hash and return updated idb'''
         req = slog_pb2.RunProgramRequest()
         req.using_database = input_database
@@ -235,34 +293,56 @@ class SlogClient:
         if response.promise_id == MAXSIZE:
             writer.write("running a file never loaded!")
             return None
-        idb = self.run_until_promised(response.promise_id, PING_INTERVAL, writer)
-        if not idb:
+        out_db = self.run_until_promised(response.promise_id, PING_INTERVAL, writer)
+        if not out_db:
             writer.write("Execution failed!")
-        return idb
+        self.update_dbs()
+        return out_db
 
-    def _update_intern_strings(self):
+    def _update_intern_strings(self, db_id):
         """ update cached string.csv data """
         req = slog_pb2.StringRequest()
-        req.database_id = self.cur_db
+        req.database_id = db_id
         for sres in self._stub.GetStrings(req):
-            self.intern_string_dict[sres.id] = sres.text
+            self.intern_string_dict[sres.id] = f'"{sres.text}"'
 
     def switchto_db(self, db_id):
         """ switch to a database """
+        self.update_dbs()
+        if self.lookup_db_by_tag(db_id):
+            db_id = self.lookup_db_by_tag(db_id)[0]
+        elif self.lookup_db_by_id(db_id):
+            db_id = self.lookup_db_by_id(db_id)[0]
+        else:
+            print(f"database {db_id} not exists!")
+            return
         self._cur_time += 1
         self.cur_db = db_id
         new_ts = self._cur_time
         self._times[new_ts] = db_id
         self.load_relations(db_id)
-        self._update_intern_strings()
+        self._update_intern_strings(self.cur_db)
         self.updated_tuples = {}
+
+    def fresh(self):
+        """ go back to ⊥ """
+        self.cur_db = ""
+        self.relations = []
+        self.intern_string_dict = {}
+        self.tuple_printed_id_map = {}
 
     def load_relations(self, db_id):
         """ get all relation inside a database """
         req = slog_pb2.DatabaseRequest()
         req.database_id = db_id
         res = self._stub.GetRelations(req)
-        self.relations = [[rel.name, rel.arity, rel.tag] for rel in res.relations]
+        self.relations = [[rel.name, rel.arity, rel.tag, rel.num_tuples] for rel in res.relations]
+
+    def print_all_relations(self, writer: Writer):
+        """ print all relation """
+        for rel in self.relations:
+            writer.write(f"Relation >>> Name: {rel[0]}, Arity: {rel[1]}, Tag: {rel[2]}, "
+                         f"Tuples: {rel[3]}.")
 
     def lookup_db_by_id(self, db_id):
         """ check if a db info record is in cache """
@@ -292,107 +372,51 @@ class SlogClient:
             if rel[2] == tag:
                 return rel
 
-    def fetch_tuples(self, name):
-        """ print all tulple of a relation """
+    def _recusive_fetch_tuples(self, tag, tuples_map:dict, db_id):
+        """ recursively fecth all tuples of a given relation name """
+        if tag in tuples_map.keys():
+            return tuples_map
+        tuples_map[tag] = []
         req = slog_pb2.RelationRequest()
-        req.database_id = self.cur_db
-        arity = self.lookup_rels(name)[0][1]
-        req.tag = self.lookup_rels(name)[0][2]
-        row_count = 0
-        col_count = 0
-        tuples = []
-        buf = [-1 for _ in range(0, arity+1)]
+        req.database_id = db_id
+        req.tag = tag
         for response in self._stub.GetTuples(req):
-            if response.num_tuples == 0:
-                continue
             for u64 in response.data:
-                if col_count == 0:
-                    # index col
-                    # rel_tag = u64 >> 46
-                    bucket_id = (u64 & BUCKET_MASK) >> 28
-                    tuple_id = u64 & (~TUPLE_ID_MASK)
-                    buf[0] = (bucket_id, tuple_id, row_count)
-                    col_count += 1
-                    continue
                 val_tag = u64 >> 46
-                if val_tag == INT_TAG:
-                    attr_val = u64 & VAL_MASK
-                elif val_tag == STRING_TAG:
-                    attr_val = self.intern_string_dict[u64 & VAL_MASK]
-                else:
+                if val_tag > 254:
                     # relation
-                    rel_name = self.lookup_rel_by_tag(val_tag)[0]
-                    # attr_val = f'rel_{rel_name}_{u64 & (~TUPLE_ID_MASK)}'
-                    if name != rel_name and rel_name not in self.updated_tuples.keys():
-                        self.fetch_tuples(rel_name)
-                    bucket_id = (u64 & BUCKET_MASK) >> 28
-                    tuple_id = u64 & (~TUPLE_ID_MASK)
-                    attr_val = ['NESTED', rel_name, (bucket_id, tuple_id)]
-                buf[col_count] = attr_val
-                col_count += 1
-                if col_count == arity + 1:
-                    # don't print id col
-                    # rel name at last
-                    tuples.append(copy.copy(buf)+[name])
-                    col_count = 0
-                    row_count += 1
-            assert row_count == response.num_tuples
-        self.updated_tuples[name] = tuples
-        return tuples
+                    if val_tag not in tuples_map.keys():
+                        tuples_map = self._recusive_fetch_tuples(val_tag, tuples_map, db_id)
+                tuples_map[tag].append(u64)
+        return tuples_map
 
-    def recursive_dump_tuples(self, rel, writer):
+    @lru_cache(maxsize=None)
+    def _dump_tuples(self, name, db_id):
+        """ real dump function, this can help use using cahce """
+        tuples_map = {}
+        for rel in self.lookup_rels(name):
+            tag = rel[2]
+            self._recusive_fetch_tuples(tag, tuples_map, db_id)
+        return tuples_map
+
+    def dump_relation_by_name(self, name, writer:Writer=Writer()):
         """ recursive print all tuples of a relation """
-        # reset all tuples to non-updated
-        def find_val_by_id(name, row_id):
-            for row in self.updated_tuples[name]:
-                if row[0] == row_id:
-                    return row
-
-        resolved_relname = []
-        def _resolve(rname):
-            if rname in resolved_relname:
-                return
-            for i, row in enumerate(self.updated_tuples[rname]):
-                for j, col in enumerate(row[:-1]):
-                    if not isinstance(col, list):
-                        continue
-                    if col[0] == 'NESTED':
-                        nested_name = col[1]
-                        nested_id = col[2]
-                        val = find_val_by_id(nested_name, nested_id)
-                        if val is None:
-                            val = f'"{nested_name} has no fact with id {nested_id} !"'
-                        _resolve(nested_name)
-                        self.updated_tuples[rname][i][j] = val
-            resolved_relname.append(rname)
-
-        def rel_to_str(rel):
-            res = []
-            for col in rel[:-1]:
-                if isinstance(col, type):
-                    if col[0] == 'NESTED':
-                        res.append(f"({' '.join([str(v) for v in col])})")
-                    else:
-                        res.append(rel_to_str(col))
-                else:
-                    res.append(str(col))
-            return f"({rel[-1]} {' '.join(res)})"
-        self.fetch_tuples(rel[0])
-        # writer.write(self.updated_tuples)
-        _resolve(rel[0])
-        for fact_row in sorted(self.updated_tuples[rel[0]], key=lambda t: int(t[0][2])):
-            writer.write(f"#{fact_row[0][2]}:  {rel_to_str(fact_row[1:])}")
-
-    def pretty_dump_relation(self, name, writer=NoneWriter()):
-        """ recursive print all tuples of a relation """
-        if len(self.lookup_rels(name)) == 0:
+        rels = self.lookup_rels(name)
+        if len(rels) == 0:
             writer.write("No relation named {} in the current database".format(name))
-            return
-        elif len(self.lookup_rels(name)) > 1:
-            writer.write(f"More than one arity for {name}, not currently"
-                  " supporting printing for multi-arity relations")
-            return
-        self.recursive_dump_tuples(self.lookup_rels(name)[0], writer)
+            return []
+        tuples_map = self._dump_tuples(name, self.cur_db)          
+        tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
+        slog_tuples = parse_query_result(tuples_map, tag_map, self.intern_string_dict,
+                                         self.tuple_printed_id_map)
+        pp_strs = pretty_str_tuples(slog_tuples, self.unroll_depth, self.group_cardinality,
+                                    tag_map, self.tuple_printed_id_map)
+        for pp_str in pp_strs:
+            writer.write(pp_str)
+        for rel in rels:
+            r_tuple_size = len(tuples_map[rel[2]]) / (rel[1] + 1)
+            writer.write(f"Relation name {name}, tag {rel[2]} has {int(r_tuple_size)} tuples")
+        return slog_tuples
 
     def tag_db(self, db_id, tag_name):
         """ tag a database with some name """
@@ -401,7 +425,7 @@ class SlogClient:
         request.tag_name = tag_name
         self._stub.TagDB(request)
 
-    def run_until_promised(self, promise_id, ping_interval=1, writer=NoneWriter()):
+    def run_until_promised(self, promise_id, ping_interval=1, writer=Writer()):
         '''
         run promise query until promised value returned,
         if writer is provided intermidiate message will be printed
@@ -426,5 +450,85 @@ class SlogClient:
                 return res.err_or_db
             elif res.status == STATUS_NOSUCHPROMISE:
                 writer.fail("💥")
-                writer.write(f"promise does not exist!")
+                writer.write("promise does not exist!")
                 return
+
+    def desugar_query(self, query_name, query: str):
+        '''
+        turn a query language into a slog code
+        `query_name` is the name of query in generated slog code
+        query is query string it self, like `?(foo _ 1)`
+        '''
+        slog_code = f'[({query_name} x) <-- (= x {query[1:]})]'
+        return slog_code
+
+    def run_slog_query(self, query, db_id, writer: Writer):
+        """ run a query on some database  """
+        hash_func = hashlib.sha256()
+        query_encoded = query.encode('utf-8')
+        hash_func.update(query_encoded)
+        query_hash = hash_func.hexdigest()
+        query_name = f"query_{query_hash[:10]}"
+        slog_code = self.desugar_query(query_name, query)
+        print(slog_code)
+        query_db = self.slog_add_rule(slog_code, db_id)
+        if not query_db:
+            writer.fail(f"query {query} on {db_id} fail!")
+            return
+        self.switchto_db(query_db)
+        tuples_map = self._dump_tuples(query_name, self.cur_db)
+        tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
+        slog_tuples = parse_query_result(tuples_map, tag_map, self.intern_string_dict,
+                                         self.tuple_printed_id_map)
+        id_print_name_map = {}
+        for p_id, p_val in self.tuple_printed_id_map.items():
+            id_print_name_map[p_val.tuple_id] = p_id
+        actual_ids = []
+        for slog_tuple in slog_tuples:
+            if slog_tuple.rel_name == query_name:
+                actual_ids.append(slog_tuple.col[1][1:])
+        actual_tuples = []
+        for _t in self.tuple_printed_id_map.values():
+            # query add layer of helper relation, which will increase the
+            if _t.tuple_id in actual_ids:
+                actual_tuples.append(_t)
+        return actual_tuples
+
+    def pretty_print_slog_query(self, query, writer:Writer):
+        """
+        run a query on current database and print result
+        TODO: should we add new database here?
+        """
+        old_db = self.cur_db
+        query_res = self.run_slog_query(query, self.cur_db, Writer())
+        writer.write(f"Total {len(query_res)} tuple in results!")
+        if not query_res:
+            return
+        tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
+        pp_strs = pretty_str_tuples(query_res, self.unroll_depth, self.group_cardinality,
+                                    tag_map, self.tuple_printed_id_map)
+        for pp_str in pp_strs:
+            writer.write(pp_str)
+        # after dump query relation, delete intermediate database, switch back to old db
+        if self.cur_db != old_db:
+            # query_db = self.cur_db
+            self.switchto_db(old_db)
+            # req = slog_pb2.DropDBRequest(database_id=query_db)
+            # self._stub.DropDB(req)
+        return query_res
+
+    def print_cached_tuple(self, printed_id, writer:Writer):
+        """
+        fetch  a tuple by it's printed name in query history and print it
+        """
+        if self.tuple_printed_id_map is None or \
+           printed_id not in self.tuple_printed_id_map:
+            writer.fail(f'requested tuple id {printed_id} is not in query history cache!')
+            return
+        tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
+        slog_tuple = self.tuple_printed_id_map[printed_id]
+        pp_str = pretty_str_tuples([slog_tuple], self.unroll_depth, self.group_cardinality,
+                                   tag_map, self.tuple_printed_id_map)
+        writer.write(pp_str[0])
+        return self.tuple_printed_id_map[printed_id]
+

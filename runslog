@@ -16,6 +16,7 @@ import argparse
 import os
 import shutil
 import subprocess
+import time
 
 from yaspin import yaspin
 
@@ -78,7 +79,7 @@ def ingest_facts(factloc, inputloc, tsv_bin_path):
     return True
 
 
-def run_local(file, outloc, factloc, cores, slog_root=None):
+def run_local(file, outloc, factloc, cores, verbose, slog_root=None):
     """
     Calls local utilities to compile and run a slog file locally.
     slog_root is the location of the slog repository.
@@ -103,6 +104,7 @@ def run_local(file, outloc, factloc, cores, slog_root=None):
     if not file.endswith('.slog'):
         print(f"Not given a slog file! given: {file}")
         return
+
     bin_name = os.path.basename(file[:file.rfind('.')])
     slog_bin_path = os.path.join(slogfile_build_dir, bin_name)
     # ensure these exist so we can use them.
@@ -110,52 +112,86 @@ def run_local(file, outloc, factloc, cores, slog_root=None):
     os.makedirs(inputloc, exist_ok=True)
     os.makedirs(checkpointloc, exist_ok=True)
 
+    if verbose:
+        print("Compiling .slog to .cpp")
+
     try:
+        start = time.time()
         subprocess.check_output(["racket", "compiler/slog.rkt", "-c",
                                  "--output-code", outloc, "--output-db", checkpointloc,
                                  "--input-db", inputloc, file],
                                 stderr=subprocess.STDOUT)
+        end = time.time()
+        if verbose:
+            print(f"Time taken: {end - start}")
     except subprocess.CalledProcessError as e:
         print(f"Slog->C++ compilation failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
         return
 
     #2: Shell out to cmake to compile tsv_to_bin
+    if verbose:
+        print("Compiling tsv_bin utility")
     try:
+        start = time.time()
         # clean build directory
         shutil.rmtree(backend_build_dir, ignore_errors=True)
         subprocess.check_output(["cmake", "-B", backend_build_dir, backend_dir],
                                 stderr=subprocess.STDOUT)
         subprocess.check_output(["make", "-C", backend_build_dir , "-j", f"{cores}"],
                                 stderr=subprocess.STDOUT)
+        end = time.time()
+        if verbose:
+            print(f"Time taken: {end - start}")
     except subprocess.CalledProcessError as e:
         print(f"Compiling tsv->bin failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
 
     #3: Shell out to tsv_to_bin to convert fact directory to bin
+    if verbose:
+        print("Calling tsv->bin")
     if factloc:
+        start = time.time()
         out = ingest_facts(factloc, inputloc, tsv_bin_path)
         if not out:
             print("FAILURE TO INGEST FACTS!")
             return
+        end = time.time()
+        if verbose:
+            print(f"Time taken: {end - start}")
 
     #4: Shell out to cmake to compile C++
+    if verbose:
+        print("Compiling .cpp file to a binary")
     try:
+        start = time.time()
         subprocess.check_output(["cmake", "-B", slogfile_build_dir, outloc],
                                 stderr=subprocess.STDOUT)
         subprocess.check_output(["make", "-C", slogfile_build_dir, "-j", f"{cores}"],
                                 stderr=subprocess.STDOUT)
+        end = time.time()
+        if verbose:
+            print(f"Time taken: {end - start}")
     except subprocess.CalledProcessError as e:
         print(f"C++->bin failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
         return
+
     #5: Shell out to mpirun to run compiled slog binary with in and out args.
+    if verbose:
+        print("Running slog executable.")
     try:
+        start = time.time()
         out = subprocess.check_output(["mpirun", "-n", f"{cores}", slog_bin_path],
                                       stderr=subprocess.STDOUT)
+        end = time.time()
+        if verbose:
+            print(f"Time taken: {end - start}")
     except subprocess.CalledProcessError as e:
         print(f"Program failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
+        return
 
-    print("Build success!")
+    if verbose:
+        print("Build success!")
 
-def run_server(file, outloc, factloc, server, cores):
+def run_server(file, outloc, factloc, server, cores, verbose):
     """
     Runs the file on the server using the SlogClient interface
     """
@@ -200,6 +236,7 @@ if __name__ == '__main__':
     parser.add_argument("-j", "--cores",
                         help="The number of cores to compute with",
                         type=int, default=1)
+    parser.add_argument("-v", "--verbose", action='store_true', help="Use verbose output.")
     parser.add_argument('-r', "--root",
                         help="The location of the slog project directory. "
                              "Defaults to the current working directory if not provided.")
@@ -209,6 +246,6 @@ if __name__ == '__main__':
     os.makedirs(args.out_dir, exist_ok=True)
 
     if args.server:
-        run_server(slogfile, args.out_dir, args.facts, args.server + ":5108", args.cores)
+        run_server(slogfile, args.out_dir, args.facts, args.server + ":5108", args.verbose, args.cores)
     else:
-        run_local(slogfile, args.out_dir, args.facts, args.cores, args.root)
+        run_local(slogfile, args.out_dir, args.facts, args.cores, args.verbose, args.root)

@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n\nslog.proto\"I\n\x15\x43reateSessionResponse\x12\x15\n\rauthenticated\x18\x01 \x01(\x08\x12\x19\n\x11\x65rr_or_session_id\x18\x02 \x01(\t\"\x1b\n\x0bPingRequest\x12\x0c\n\x04\x64\x61ta\x18\x01 \x01(\x08\"\x14\n\x04Pong\x12\x0c\n\x04\x64\x61ta\x18\x01 \x01(\x08\"4\n\rHashesRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x0e\n\x06hashes\x18\x02 \x03(\t\"\x18\n\x06Hashes\x12\x0e\n\x06hashes\x18\x02 \x03(\t\"7\n\x10PutHashesRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x0e\n\x06\x62odies\x18\x04 \x03(\t\"y\n\x12PutCSVFactsRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x15\n\rrelation_name\x18\x02 \x01(\t\x12\x0f\n\x07\x62uckets\x18\x04 \x01(\r\x12\x16\n\x0eusing_database\x18\x05 \x01(\t\x12\x0e\n\x06\x62odies\x18\x06 \x03(\t\"d\n\x14\x43ompileHashesRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x0f\n\x07\x62uckets\x18\x02 \x01(\r\x12\x16\n\x0eusing_database\x18\x03 \x01(\t\x12\x0e\n\x06hashes\x18\x04 \x03(\t\"_\n\x11RunProgramRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x16\n\x0eusing_database\x18\x02 \x01(\t\x12\r\n\x05\x63ores\x18\x03 \x01(\x05\x12\x0e\n\x06hashes\x18\x04 \x03(\t\"F\n\rErrorResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x16\n\terror_msg\x18\x02 \x01(\tH\x00\x88\x01\x01\x42\x0c\n\n_error_msg\"q\n\x0c\x46\x61\x63tResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x16\n\terror_msg\x18\x02 \x01(\tH\x00\x88\x01\x01\x12\x19\n\x0cnew_database\x18\x03 \x01(\tH\x01\x88\x01\x01\x42\x0c\n\n_error_msgB\x0f\n\r_new_database\";\n\x0f\x44\x61tabaseRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x13\n\x0b\x64\x61tabase_id\x18\x02 \x01(\t\"B\n\x1bGetCanonicalDatabaseRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x0e\n\x06hashes\x18\x02 \x03(\t\"H\n\x0fRelationRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x13\n\x0b\x64\x61tabase_id\x18\x02 \x01(\t\x12\x0b\n\x03tag\x18\x03 \x01(\r\"?\n\x13RelationDescription\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\r\n\x05\x61rity\x18\x02 \x01(\r\x12\x0b\n\x03tag\x18\x03 \x01(\r\"X\n\x1cRelationDescriptionsResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\'\n\trelations\x18\x02 \x03(\x0b\x32\x14.RelationDescription\"$\n\rStringRequest\x12\x13\n\x0b\x64\x61tabase_id\x18\x01 \x01(\t\"#\n\x07Strings\x12\n\n\x02id\x18\x01 \x01(\r\x12\x0c\n\x04text\x18\x02 \x01(\t\"9\n\x0ePromiseRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x12\n\npromise_id\x18\x02 \x01(\x04\"\x1d\n\x07Promise\x12\x12\n\npromise_id\x18\x02 \x01(\x04\"2\n\rPromiseStatus\x12\x0e\n\x06status\x18\x01 \x01(\r\x12\x11\n\terr_or_db\x18\x02 \x01(\t\":\n\x06Tuples\x12\x0e\n\x06status\x18\x01 \x01(\r\x12\x12\n\nnum_tuples\x18\x02 \x01(\r\x12\x0c\n\x04\x64\x61ta\x18\x03 \x03(\x04\"\x1c\n\rShowDBRequest\x12\x0b\n\x03msg\x18\x01 \x01(\t\"X\n\x0c\x44\x61tabaseInfo\x12\x13\n\x0b\x64\x61tabase_id\x18\x01 \x01(\t\x12\x10\n\x08tag_name\x18\x02 \x01(\t\x12\x0c\n\x04user\x18\x03 \x01(\t\x12\x13\n\x0b\x66orked_from\x18\x04 \x01(\t\"5\n\x0cTagDBRequest\x12\x13\n\x0b\x64\x61tabase_id\x18\x01 \x01(\t\x12\x10\n\x08tag_name\x18\x02 \x01(\t2\xb5\x04\n\x0e\x43ommandService\x12)\n\x0e\x45xchangeHashes\x12\x0e.HashesRequest\x1a\x07.Hashes\x12.\n\tPutHashes\x12\x11.PutHashesRequest\x1a\x0e.ErrorResponse\x12\x33\n\x0bPutCSVFacts\x12\x13.PutCSVFactsRequest\x1a\r.FactResponse(\x01\x12\x30\n\rCompileHashes\x12\x15.CompileHashesRequest\x1a\x08.Promise\x12\x1b\n\x04Ping\x12\x0c.PingRequest\x1a\x05.Pong\x12)\n\tRunHashes\x12\x12.RunProgramRequest\x1a\x08.Promise\x12/\n\x0cQueryPromise\x12\x0f.PromiseRequest\x1a\x0e.PromiseStatus\x12?\n\x0cGetRelations\x12\x10.DatabaseRequest\x1a\x1d.RelationDescriptionsResponse\x12(\n\tGetTuples\x12\x10.RelationRequest\x1a\x07.Tuples0\x01\x12(\n\nGetStrings\x12\x0e.StringRequest\x1a\x08.Strings0\x01\x12)\n\x06ShowDB\x12\x0e.ShowDBRequest\x1a\r.DatabaseInfo0\x01\x12(\n\x05TagDB\x12\r.TagDBRequest\x1a\x0e.ErrorResponse0\x01\x62\x06proto3'
+  serialized_pb=b'\n\nslog.proto\"I\n\x15\x43reateSessionResponse\x12\x15\n\rauthenticated\x18\x01 \x01(\x08\x12\x19\n\x11\x65rr_or_session_id\x18\x02 \x01(\t\"\x1b\n\x0bPingRequest\x12\x0c\n\x04\x64\x61ta\x18\x01 \x01(\x08\"\x14\n\x04Pong\x12\x0c\n\x04\x64\x61ta\x18\x01 \x01(\x08\"4\n\rHashesRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x0e\n\x06hashes\x18\x02 \x03(\t\"\x18\n\x06Hashes\x12\x0e\n\x06hashes\x18\x02 \x03(\t\"7\n\x10PutHashesRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x0e\n\x06\x62odies\x18\x04 \x03(\t\"y\n\x12PutCSVFactsRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x15\n\rrelation_name\x18\x02 \x01(\t\x12\x0f\n\x07\x62uckets\x18\x04 \x01(\r\x12\x16\n\x0eusing_database\x18\x05 \x01(\t\x12\x0e\n\x06\x62odies\x18\x06 \x03(\t\"d\n\x14\x43ompileHashesRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x0f\n\x07\x62uckets\x18\x02 \x01(\r\x12\x16\n\x0eusing_database\x18\x03 \x01(\t\x12\x0e\n\x06hashes\x18\x04 \x03(\t\"_\n\x11RunProgramRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x16\n\x0eusing_database\x18\x02 \x01(\t\x12\r\n\x05\x63ores\x18\x03 \x01(\x05\x12\x0e\n\x06hashes\x18\x04 \x03(\t\"F\n\rErrorResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x16\n\terror_msg\x18\x02 \x01(\tH\x00\x88\x01\x01\x42\x0c\n\n_error_msg\"q\n\x0c\x46\x61\x63tResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x16\n\terror_msg\x18\x02 \x01(\tH\x00\x88\x01\x01\x12\x19\n\x0cnew_database\x18\x03 \x01(\tH\x01\x88\x01\x01\x42\x0c\n\n_error_msgB\x0f\n\r_new_database\";\n\x0f\x44\x61tabaseRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x13\n\x0b\x64\x61tabase_id\x18\x02 \x01(\t\"B\n\x1bGetCanonicalDatabaseRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x0e\n\x06hashes\x18\x02 \x03(\t\"H\n\x0fRelationRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x13\n\x0b\x64\x61tabase_id\x18\x02 \x01(\t\x12\x0b\n\x03tag\x18\x03 \x01(\r\"S\n\x13RelationDescription\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\r\n\x05\x61rity\x18\x02 \x01(\r\x12\x0b\n\x03tag\x18\x03 \x01(\r\x12\x12\n\nnum_tuples\x18\x04 \x01(\x05\"X\n\x1cRelationDescriptionsResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\'\n\trelations\x18\x02 \x03(\x0b\x32\x14.RelationDescription\"$\n\rStringRequest\x12\x13\n\x0b\x64\x61tabase_id\x18\x01 \x01(\t\"#\n\x07Strings\x12\n\n\x02id\x18\x01 \x01(\r\x12\x0c\n\x04text\x18\x02 \x01(\t\"9\n\x0ePromiseRequest\x12\x13\n\x0bsession_key\x18\x01 \x01(\t\x12\x12\n\npromise_id\x18\x02 \x01(\x04\"\x1d\n\x07Promise\x12\x12\n\npromise_id\x18\x02 \x01(\x04\"2\n\rPromiseStatus\x12\x0e\n\x06status\x18\x01 \x01(\r\x12\x11\n\terr_or_db\x18\x02 \x01(\t\":\n\x06Tuples\x12\x0e\n\x06status\x18\x01 \x01(\r\x12\x12\n\nnum_tuples\x18\x02 \x01(\r\x12\x0c\n\x04\x64\x61ta\x18\x03 \x03(\x04\"\x1c\n\rShowDBRequest\x12\x0b\n\x03msg\x18\x01 \x01(\t\"X\n\x0c\x44\x61tabaseInfo\x12\x13\n\x0b\x64\x61tabase_id\x18\x01 \x01(\t\x12\x10\n\x08tag_name\x18\x02 \x01(\t\x12\x0c\n\x04user\x18\x03 \x01(\t\x12\x13\n\x0b\x66orked_from\x18\x04 \x01(\t\"5\n\x0cTagDBRequest\x12\x13\n\x0b\x64\x61tabase_id\x18\x01 \x01(\t\x12\x10\n\x08tag_name\x18\x02 \x01(\t\"$\n\rDropDBRequest\x12\x13\n\x0b\x64\x61tabase_id\x18\x01 \x01(\t2\xdf\x04\n\x0e\x43ommandService\x12)\n\x0e\x45xchangeHashes\x12\x0e.HashesRequest\x1a\x07.Hashes\x12.\n\tPutHashes\x12\x11.PutHashesRequest\x1a\x0e.ErrorResponse\x12\x33\n\x0bPutCSVFacts\x12\x13.PutCSVFactsRequest\x1a\r.FactResponse(\x01\x12\x30\n\rCompileHashes\x12\x15.CompileHashesRequest\x1a\x08.Promise\x12\x1b\n\x04Ping\x12\x0c.PingRequest\x1a\x05.Pong\x12)\n\tRunHashes\x12\x12.RunProgramRequest\x1a\x08.Promise\x12/\n\x0cQueryPromise\x12\x0f.PromiseRequest\x1a\x0e.PromiseStatus\x12?\n\x0cGetRelations\x12\x10.DatabaseRequest\x1a\x1d.RelationDescriptionsResponse\x12(\n\tGetTuples\x12\x10.RelationRequest\x1a\x07.Tuples0\x01\x12(\n\nGetStrings\x12\x0e.StringRequest\x1a\x08.Strings0\x01\x12)\n\x06ShowDB\x12\x0e.ShowDBRequest\x1a\r.DatabaseInfo0\x01\x12(\n\x05TagDB\x12\r.TagDBRequest\x1a\x0e.ErrorResponse0\x01\x12(\n\x06\x44ropDB\x12\x0e.DropDBRequest\x1a\x0e.ErrorResponseb\x06proto3'
 )
 
 
@@ -657,6 +657,13 @@ _RELATIONDESCRIPTION = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='num_tuples', full_name='RelationDescription.num_tuples', index=3,
+      number=4, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
   ],
   extensions=[
   ],
@@ -670,7 +677,7 @@ _RELATIONDESCRIPTION = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=989,
-  serialized_end=1052,
+  serialized_end=1072,
 )
 
 
@@ -708,8 +715,8 @@ _RELATIONDESCRIPTIONSRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1054,
-  serialized_end=1142,
+  serialized_start=1074,
+  serialized_end=1162,
 )
 
 
@@ -740,8 +747,8 @@ _STRINGREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1144,
-  serialized_end=1180,
+  serialized_start=1164,
+  serialized_end=1200,
 )
 
 
@@ -779,8 +786,8 @@ _STRINGS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1182,
-  serialized_end=1217,
+  serialized_start=1202,
+  serialized_end=1237,
 )
 
 
@@ -818,8 +825,8 @@ _PROMISEREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1219,
-  serialized_end=1276,
+  serialized_start=1239,
+  serialized_end=1296,
 )
 
 
@@ -850,8 +857,8 @@ _PROMISE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1278,
-  serialized_end=1307,
+  serialized_start=1298,
+  serialized_end=1327,
 )
 
 
@@ -889,8 +896,8 @@ _PROMISESTATUS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1309,
-  serialized_end=1359,
+  serialized_start=1329,
+  serialized_end=1379,
 )
 
 
@@ -935,8 +942,8 @@ _TUPLES = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1361,
-  serialized_end=1419,
+  serialized_start=1381,
+  serialized_end=1439,
 )
 
 
@@ -967,8 +974,8 @@ _SHOWDBREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1421,
-  serialized_end=1449,
+  serialized_start=1441,
+  serialized_end=1469,
 )
 
 
@@ -1020,8 +1027,8 @@ _DATABASEINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1451,
-  serialized_end=1539,
+  serialized_start=1471,
+  serialized_end=1559,
 )
 
 
@@ -1059,8 +1066,40 @@ _TAGDBREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1541,
-  serialized_end=1594,
+  serialized_start=1561,
+  serialized_end=1614,
+)
+
+
+_DROPDBREQUEST = _descriptor.Descriptor(
+  name='DropDBRequest',
+  full_name='DropDBRequest',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='database_id', full_name='DropDBRequest.database_id', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1616,
+  serialized_end=1652,
 )
 
 _ERRORRESPONSE.oneofs_by_name['_error_msg'].fields.append(
@@ -1098,6 +1137,7 @@ DESCRIPTOR.message_types_by_name['Tuples'] = _TUPLES
 DESCRIPTOR.message_types_by_name['ShowDBRequest'] = _SHOWDBREQUEST
 DESCRIPTOR.message_types_by_name['DatabaseInfo'] = _DATABASEINFO
 DESCRIPTOR.message_types_by_name['TagDBRequest'] = _TAGDBREQUEST
+DESCRIPTOR.message_types_by_name['DropDBRequest'] = _DROPDBREQUEST
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 CreateSessionResponse = _reflection.GeneratedProtocolMessageType('CreateSessionResponse', (_message.Message,), {
@@ -1275,6 +1315,13 @@ TagDBRequest = _reflection.GeneratedProtocolMessageType('TagDBRequest', (_messag
   })
 _sym_db.RegisterMessage(TagDBRequest)
 
+DropDBRequest = _reflection.GeneratedProtocolMessageType('DropDBRequest', (_message.Message,), {
+  'DESCRIPTOR' : _DROPDBREQUEST,
+  '__module__' : 'slog_pb2'
+  # @@protoc_insertion_point(class_scope:DropDBRequest)
+  })
+_sym_db.RegisterMessage(DropDBRequest)
+
 
 
 _COMMANDSERVICE = _descriptor.ServiceDescriptor(
@@ -1284,8 +1331,8 @@ _COMMANDSERVICE = _descriptor.ServiceDescriptor(
   index=0,
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_start=1597,
-  serialized_end=2162,
+  serialized_start=1655,
+  serialized_end=2262,
   methods=[
   _descriptor.MethodDescriptor(
     name='ExchangeHashes',
@@ -1403,6 +1450,16 @@ _COMMANDSERVICE = _descriptor.ServiceDescriptor(
     index=11,
     containing_service=None,
     input_type=_TAGDBREQUEST,
+    output_type=_ERRORRESPONSE,
+    serialized_options=None,
+    create_key=_descriptor._internal_create_key,
+  ),
+  _descriptor.MethodDescriptor(
+    name='DropDB',
+    full_name='CommandService.DropDB',
+    index=12,
+    containing_service=None,
+    input_type=_DROPDBREQUEST,
     output_type=_ERRORRESPONSE,
     serialized_options=None,
     create_key=_descriptor._internal_create_key,
