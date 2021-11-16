@@ -661,6 +661,9 @@
           [#\< "_less"]
           [#\> "_greater"]
           [#\| "_pipe"]
+          [#\⊥ "_bot"]
+          [#\⊤ "_top"]
+          [#\⋄ "_diamond"]
           [(? char-symbolic?) (error (format "bad character: ~a" c))]
           [else (string c)]))
         (string->list name)))]))
