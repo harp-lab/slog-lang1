@@ -570,6 +570,10 @@ void relation::load_data_from_file_with_offset()
 
 void relation::load_data_from_file()
 {
+    std::cout << "relation with tag :" << this->get_intern_tag() << " "
+              << "filename :" << this->get_filename() << " "
+            //   << "c++ object " << this
+              << "start normal IO" << std::endl;
     /// reading from file
     if (initailization_type != -1)
     {
@@ -717,6 +721,7 @@ void relation::initialize_relation(mpi_comm& mcomm, std::map<u64, u64>& intern_m
     // TODO: ww
     if ((!this->is_canonical) || (!std::filesystem::exists(this->filename)))
     {
+        // std::cout << "relation :" << this->get_filename()  << "not exists!";
         return;
     }
  
@@ -734,7 +739,9 @@ void relation::initialize_relation(mpi_comm& mcomm, std::map<u64, u64>& intern_m
 	    	load_data_from_file();
     }
     else
+    {
     	load_data_from_file();
+    }
     //std::cout << filename << " " << fact_load << std::endl;
     //if (fact_load == true)
         //if (init_val.size() != 0)

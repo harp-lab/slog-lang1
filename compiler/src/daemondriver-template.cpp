@@ -1,4 +1,7 @@
 #include "parallel_RA_inc.h"
+#include <iterator>
+#include <sstream>
+#include <string>
 
 // builtins.cpp goes here!
 ~a
@@ -27,22 +30,32 @@ void load_input_relation(std::string db_dir)
     std::string filename_s = entry.path().stem().string();
     int tag = std::stoi(filename_s.substr(0, filename_s.find(".")));
     std::string name_arity = filename_s.substr(filename_s.find(".")+1, filename_s.size()-filename_s.find(".")-1);
+    std::string name = name_arity.substr(0, name_arity.rfind("."));
+    std::string arity_s = name_arity.substr(name_arity.rfind(".")+1, name_arity.size());
+    int arity = std::stoi(arity_s);
+    std::stringstream index_stream;
+    index_stream << name;
+    for (int i = 1; i <= arity; i++)
+    {
+      index_stream << "__" <<  i;
+    }
     if (tag > max_rel)
       max_rel = tag;
-    rel_tag_map[name_arity] = tag;
+    std::cout << "load " << index_stream.str() << std::endl;
+    rel_tag_map[index_stream.str()] = tag;
   }
 }
 
-int get_tag_for_rel(std::string relation_name, int arity) {
-  std::string name_arity = relation_name + "." + std::to_string(arity);
+int get_tag_for_rel(std::string relation_name, std::string index_str) {
+  std::string name_arity = relation_name + "__" + index_str;
   if (rel_tag_map.find(name_arity) != rel_tag_map.end())
   {
-    std::cout << "rel: " << name_arity << rel_tag_map[name_arity] << std::endl;
+    // std::cout << "rel: " << name_arity << " " << rel_tag_map[name_arity] << std::endl;
     return rel_tag_map[name_arity];
   }
   max_rel++;
   rel_tag_map[name_arity] = max_rel;
-  std::cout << "rel: " << name_arity << " " << max_rel << std::endl;
+  std::cout << "generate rel tag: " << name_arity << " " << max_rel << std::endl;
   return max_rel;
 }
 
