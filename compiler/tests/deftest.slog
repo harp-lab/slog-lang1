@@ -120,31 +120,31 @@
  (~ must_def EA Reg)
  (local_next EA EA_next)]
 
-; [(last_def Block EA Reg)
-;  <--
-;  (def EA Reg)
-;  (block_next EA Block)
-;  (~ flow_def EA Reg Block _)]
+[(last_def Block EA Reg)
+ <--
+ (def EA Reg)
+ (block_next EA Block)
+ (~ flow_def EA Reg Block _)]
 
 [(last_def Block EA_def Reg)
  <--
  (block_last_def Block_end EA_def Reg)
-;   (~ must_def Block_end Reg)
+ (~ must_def Block_end Reg)
  (block_next Block_end Block)
-;   (~ flow_def Block_end Reg Block _)
+ (~ flow_def Block_end Reg Block _)
  ]
 
-; [(last_def Block_next EA_def Reg)
-;  <--
-;  (last_def Block EA_def Reg)
-;  (~ defined_in_block Block Reg)
-;  (block_last_instruction Block Block_end)
-;  (block_next Block_end Block_next)
-;  (~ flow_def Block_end Reg Block _)]
+[(last_def Block_next EA_def Reg)
+ <--
+ (last_def Block EA_def Reg)
+ (~ defined_in_block Block Reg)
+ (block_last_instruction Block Block_end)
+ (block_next Block_end Block_next)
+ (~ flow_def Block_end Reg Block _)]
 
-; [(last_def Block_next Block_end Reg)
-;  <--
-;  (flow_def Block_end Reg Block_next _)]
+[(last_def Block_next Block_end Reg)
+ <--
+ (flow_def Block_end Reg Block_next _)]
 
 
 ; [(def_used_intra EA_def Reg EA_used Index)

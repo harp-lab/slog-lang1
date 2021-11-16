@@ -6,6 +6,7 @@
 
 
 #include "../parallel_RA_inc.h"
+#include <iostream>
 //#include <experimental/filesystem>
 
 
@@ -402,7 +403,9 @@ bool LIE::execute ()
                     else if (offset_io == true)
                         scc_relation[i]->load_data_from_file_with_offset();
                     else
+                    {
                         scc_relation[i]->load_data_from_file();
+                    }
                 }
             }
         }
