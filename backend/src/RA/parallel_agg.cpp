@@ -1,6 +1,5 @@
 
 #include "../parallel_RA_inc.h"
-#include <iostream>
 
 bool parallel_join_negate::local_negation(
     int threshold, int* offset, int join_order, u32 buckets,
@@ -29,6 +28,7 @@ bool parallel_join_negate::local_negation(
     int local_join_count=0;
     if (join_order == RIGHT)
     {
+        int negated_target_counts = 0;
         for (int k1 = *offset; k1 < input0_buffer_size; k1 = k1 + input0_buffer_width)
         {
             u64 prefix[join_column_count];
@@ -40,6 +40,11 @@ bool parallel_join_negate::local_negation(
             }
             // std::cout << std::endl;
             negated_target->insert_tuple_from_array(prefix, join_column_count);
+            negated_target_counts++;
+        }
+        if (negated_target == 0)
+        {
+            
         }
         for (int k1 = *offset; k1 < input0_buffer_size; k1 = k1 + input0_buffer_width)
         {
@@ -48,7 +53,7 @@ bool parallel_join_negate::local_negation(
                 negated_target, join_buffer, input0_buffer + k1, input0_buffer_width,
                 input1_buffer_width, counter, buckets, output_sub_bucket_count,
                 output_sub_bucket_rank, reorder_map_array, join_column_count,
-                deduplicate, &local_join_count,
+                output->get_arity(), &local_join_count,
                 global_join_duplicates, global_join_inserts,
                 output->get_join_column_count(), output->get_is_canonical());
             // std::cout << "local_negation_count " << local_join_count << " Threshold " << threshold << " k1 " << k1 << " offset " << *offset << " " << input0_buffer_width << std::endl;
