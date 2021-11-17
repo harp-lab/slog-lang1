@@ -1,0 +1,1269 @@
+(entry-point
+  (app
+   (lam "f0" (seq (app (ref "f0") (int 0)) (app (ref "f0") (int 1))))
+   (lam
+    "z0"
+    (app
+     (lam "f1" (seq (app (ref "f1") (int 0)) (app (ref "f1") (int 1))))
+     (lam
+      "z1"
+      (app
+       (lam "f2" (seq (app (ref "f2") (int 0)) (app (ref "f2") (int 1))))
+       (lam
+        "z2"
+        (app
+         (lam "f3" (seq (app (ref "f3") (int 0)) (app (ref "f3") (int 1))))
+         (lam
+          "z3"
+          (app
+           (lam "f4" (seq (app (ref "f4") (int 0)) (app (ref "f4") (int 1))))
+           (lam
+            "z4"
+            (app
+             (lam "f5" (seq (app (ref "f5") (int 0)) (app (ref "f5") (int 1))))
+             (lam
+              "z5"
+              (app
+               (lam
+                "f6"
+                (seq (app (ref "f6") (int 0)) (app (ref "f6") (int 1))))
+               (lam
+                "z6"
+                (app
+                 (lam
+                  "f7"
+                  (seq (app (ref "f7") (int 0)) (app (ref "f7") (int 1))))
+                 (lam
+                  "z7"
+                  (app
+                   (lam
+                    "f8"
+                    (seq (app (ref "f8") (int 0)) (app (ref "f8") (int 1))))
+                   (lam
+                    "z8"
+                    (app
+                     (lam
+                      "f9"
+                      (seq (app (ref "f9") (int 0)) (app (ref "f9") (int 1))))
+                     (lam
+                      "z9"
+                      (app
+                       (lam
+                        "f10"
+                        (seq
+                         (app (ref "f10") (int 0))
+                         (app (ref "f10") (int 1))))
+                       (lam
+                        "z10"
+                        (app
+                         (lam
+                          "f11"
+                          (seq
+                           (app (ref "f11") (int 0))
+                           (app (ref "f11") (int 1))))
+                         (lam
+                          "z11"
+                          (app
+                           (lam
+                            "f12"
+                            (seq
+                             (app (ref "f12") (int 0))
+                             (app (ref "f12") (int 1))))
+                           (lam
+                            "z12"
+                            (app
+                             (lam
+                              "f13"
+                              (seq
+                               (app (ref "f13") (int 0))
+                               (app (ref "f13") (int 1))))
+                             (lam
+                              "z13"
+                              (app
+                               (lam
+                                "f14"
+                                (seq
+                                 (app (ref "f14") (int 0))
+                                 (app (ref "f14") (int 1))))
+                               (lam
+                                "z14"
+                                (app
+                                 (lam
+                                  "f15"
+                                  (seq
+                                   (app (ref "f15") (int 0))
+                                   (app (ref "f15") (int 1))))
+                                 (lam
+                                  "z15"
+                                  (app
+                                   (lam
+                                    "f16"
+                                    (seq
+                                     (app (ref "f16") (int 0))
+                                     (app (ref "f16") (int 1))))
+                                   (lam
+                                    "z16"
+                                    (app
+                                     (lam
+                                      "f17"
+                                      (seq
+                                       (app (ref "f17") (int 0))
+                                       (app (ref "f17") (int 1))))
+                                     (lam
+                                      "z17"
+                                      (app
+                                       (lam
+                                        "f18"
+                                        (seq
+                                         (app (ref "f18") (int 0))
+                                         (app (ref "f18") (int 1))))
+                                       (lam
+                                        "z18"
+                                        (app
+                                         (lam
+                                          "f19"
+                                          (seq
+                                           (app (ref "f19") (int 0))
+                                           (app (ref "f19") (int 1))))
+                                         (lam
+                                          "z19"
+                                          (app
+                                           (lam
+                                            "f20"
+                                            (seq
+                                             (app (ref "f20") (int 0))
+                                             (app (ref "f20") (int 1))))
+                                           (lam
+                                            "z20"
+                                            (app
+                                             (lam
+                                              "f21"
+                                              (seq
+                                               (app (ref "f21") (int 0))
+                                               (app (ref "f21") (int 1))))
+                                             (lam
+                                              "z21"
+                                              (app
+                                               (lam
+                                                "f22"
+                                                (seq
+                                                 (app (ref "f22") (int 0))
+                                                 (app (ref "f22") (int 1))))
+                                               (lam
+                                                "z22"
+                                                (app
+                                                 (lam
+                                                  "f23"
+                                                  (seq
+                                                   (app (ref "f23") (int 0))
+                                                   (app (ref "f23") (int 1))))
+                                                 (lam
+                                                  "z23"
+                                                  (app
+                                                   (lam
+                                                    "f24"
+                                                    (seq
+                                                     (app (ref "f24") (int 0))
+                                                     (app
+                                                      (ref "f24")
+                                                      (int 1))))
+                                                   (lam
+                                                    "z24"
+                                                    (app
+                                                     (lam
+                                                      "f25"
+                                                      (seq
+                                                       (app
+                                                        (ref "f25")
+                                                        (int 0))
+                                                       (app
+                                                        (ref "f25")
+                                                        (int 1))))
+                                                     (lam
+                                                      "z25"
+                                                      (app
+                                                       (lam
+                                                        "f26"
+                                                        (seq
+                                                         (app
+                                                          (ref "f26")
+                                                          (int 0))
+                                                         (app
+                                                          (ref "f26")
+                                                          (int 1))))
+                                                       (lam
+                                                        "z26"
+                                                        (app
+                                                         (lam
+                                                          "f27"
+                                                          (seq
+                                                           (app
+                                                            (ref "f27")
+                                                            (int 0))
+                                                           (app
+                                                            (ref "f27")
+                                                            (int 1))))
+                                                         (lam
+                                                          "z27"
+                                                          (app
+                                                           (lam
+                                                            "f28"
+                                                            (seq
+                                                             (app
+                                                              (ref "f28")
+                                                              (int 0))
+                                                             (app
+                                                              (ref "f28")
+                                                              (int 1))))
+                                                           (lam
+                                                            "z28"
+                                                            (app
+                                                             (lam
+                                                              "f29"
+                                                              (seq
+                                                               (app
+                                                                (ref "f29")
+                                                                (int 0))
+                                                               (app
+                                                                (ref "f29")
+                                                                (int 1))))
+                                                             (lam
+                                                              "z29"
+                                                              (app
+                                                               (lam
+                                                                "f30"
+                                                                (seq
+                                                                 (app
+                                                                  (ref "f30")
+                                                                  (int 0))
+                                                                 (app
+                                                                  (ref "f30")
+                                                                  (int 1))))
+                                                               (lam
+                                                                "z30"
+                                                                (app
+                                                                 (lam
+                                                                  "f31"
+                                                                  (seq
+                                                                   (app
+                                                                    (ref "f31")
+                                                                    (int 0))
+                                                                   (app
+                                                                    (ref "f31")
+                                                                    (int 1))))
+                                                                 (lam
+                                                                  "z31"
+                                                                  (app
+                                                                   (lam
+                                                                    "f32"
+                                                                    (seq
+                                                                     (app
+                                                                      (ref
+                                                                       "f32")
+                                                                      (int 0))
+                                                                     (app
+                                                                      (ref
+                                                                       "f32")
+                                                                      (int
+                                                                       1))))
+                                                                   (lam
+                                                                    "z32"
+                                                                    (app
+                                                                     (lam
+                                                                      "f33"
+                                                                      (seq
+                                                                       (app
+                                                                        (ref
+                                                                         "f33")
+                                                                        (int
+                                                                         0))
+                                                                       (app
+                                                                        (ref
+                                                                         "f33")
+                                                                        (int
+                                                                         1))))
+                                                                     (lam
+                                                                      "z33"
+                                                                      (app
+                                                                       (lam
+                                                                        "f34"
+                                                                        (seq
+                                                                         (app
+                                                                          (ref
+                                                                           "f34")
+                                                                          (int
+                                                                           0))
+                                                                         (app
+                                                                          (ref
+                                                                           "f34")
+                                                                          (int
+                                                                           1))))
+                                                                       (lam
+                                                                        "z34"
+                                                                        (app
+                                                                         (lam
+                                                                          "f35"
+                                                                          (seq
+                                                                           (app
+                                                                            (ref
+                                                                             "f35")
+                                                                            (int
+                                                                             0))
+                                                                           (app
+                                                                            (ref
+                                                                             "f35")
+                                                                            (int
+                                                                             1))))
+                                                                         (lam
+                                                                          "z35"
+                                                                          (app
+                                                                           (lam
+                                                                            "f36"
+                                                                            (seq
+                                                                             (app
+                                                                              (ref
+                                                                               "f36")
+                                                                              (int
+                                                                               0))
+                                                                             (app
+                                                                              (ref
+                                                                               "f36")
+                                                                              (int
+                                                                               1))))
+                                                                           (lam
+                                                                            "z36"
+                                                                            (app
+                                                                             (lam
+                                                                              "f37"
+                                                                              (seq
+                                                                               (app
+                                                                                (ref
+                                                                                 "f37")
+                                                                                (int
+                                                                                 0))
+                                                                               (app
+                                                                                (ref
+                                                                                 "f37")
+                                                                                (int
+                                                                                 1))))
+                                                                             (lam
+                                                                              "z37"
+                                                                              (app
+                                                                               (lam
+                                                                                "f38"
+                                                                                (seq
+                                                                                 (app
+                                                                                  (ref
+                                                                                   "f38")
+                                                                                  (int
+                                                                                   0))
+                                                                                 (app
+                                                                                  (ref
+                                                                                   "f38")
+                                                                                  (int
+                                                                                   1))))
+                                                                               (lam
+                                                                                "z38"
+                                                                                (app
+                                                                                 (lam
+                                                                                  "f39"
+                                                                                  (seq
+                                                                                   (app
+                                                                                    (ref
+                                                                                     "f39")
+                                                                                    (int
+                                                                                     0))
+                                                                                   (app
+                                                                                    (ref
+                                                                                     "f39")
+                                                                                    (int
+                                                                                     1))))
+                                                                                 (lam
+                                                                                  "z39"
+                                                                                  (app
+                                                                                   (lam
+                                                                                    "f40"
+                                                                                    (seq
+                                                                                     (app
+                                                                                      (ref
+                                                                                       "f40")
+                                                                                      (int
+                                                                                       0))
+                                                                                     (app
+                                                                                      (ref
+                                                                                       "f40")
+                                                                                      (int
+                                                                                       1))))
+                                                                                   (lam
+                                                                                    "z40"
+                                                                                    (app
+                                                                                     (lam
+                                                                                      "f41"
+                                                                                      (seq
+                                                                                       (app
+                                                                                        (ref
+                                                                                         "f41")
+                                                                                        (int
+                                                                                         0))
+                                                                                       (app
+                                                                                        (ref
+                                                                                         "f41")
+                                                                                        (int
+                                                                                         1))))
+                                                                                     (lam
+                                                                                      "z41"
+                                                                                      (app
+                                                                                       (lam
+                                                                                        "f42"
+                                                                                        (seq
+                                                                                         (app
+                                                                                          (ref
+                                                                                           "f42")
+                                                                                          (int
+                                                                                           0))
+                                                                                         (app
+                                                                                          (ref
+                                                                                           "f42")
+                                                                                          (int
+                                                                                           1))))
+                                                                                       (lam
+                                                                                        "z42"
+                                                                                        (app
+                                                                                         (lam
+                                                                                          "f43"
+                                                                                          (seq
+                                                                                           (app
+                                                                                            (ref
+                                                                                             "f43")
+                                                                                            (int
+                                                                                             0))
+                                                                                           (app
+                                                                                            (ref
+                                                                                             "f43")
+                                                                                            (int
+                                                                                             1))))
+                                                                                         (lam
+                                                                                          "z43"
+                                                                                          (app
+                                                                                           (lam
+                                                                                            "f44"
+                                                                                            (seq
+                                                                                             (app
+                                                                                              (ref
+                                                                                               "f44")
+                                                                                              (int
+                                                                                               0))
+                                                                                             (app
+                                                                                              (ref
+                                                                                               "f44")
+                                                                                              (int
+                                                                                               1))))
+                                                                                           (lam
+                                                                                            "z44"
+                                                                                            (app
+                                                                                             (lam
+                                                                                              "f45"
+                                                                                              (seq
+                                                                                               (app
+                                                                                                (ref
+                                                                                                 "f45")
+                                                                                                (int
+                                                                                                 0))
+                                                                                               (app
+                                                                                                (ref
+                                                                                                 "f45")
+                                                                                                (int
+                                                                                                 1))))
+                                                                                             (lam
+                                                                                              "z45"
+                                                                                              (app
+                                                                                               (lam
+                                                                                                "f46"
+                                                                                                (seq
+                                                                                                 (app
+                                                                                                  (ref
+                                                                                                   "f46")
+                                                                                                  (int
+                                                                                                   0))
+                                                                                                 (app
+                                                                                                  (ref
+                                                                                                   "f46")
+                                                                                                  (int
+                                                                                                   1))))
+                                                                                               (lam
+                                                                                                "z46"
+                                                                                                (app
+                                                                                                 (lam
+                                                                                                  "f47"
+                                                                                                  (seq
+                                                                                                   (app
+                                                                                                    (ref
+                                                                                                     "f47")
+                                                                                                    (int
+                                                                                                     0))
+                                                                                                   (app
+                                                                                                    (ref
+                                                                                                     "f47")
+                                                                                                    (int
+                                                                                                     1))))
+                                                                                                 (lam
+                                                                                                  "z47"
+                                                                                                  (app
+                                                                                                   (lam
+                                                                                                    "f48"
+                                                                                                    (seq
+                                                                                                     (app
+                                                                                                      (ref
+                                                                                                       "f48")
+                                                                                                      (int
+                                                                                                       0))
+                                                                                                     (app
+                                                                                                      (ref
+                                                                                                       "f48")
+                                                                                                      (int
+                                                                                                       1))))
+                                                                                                   (lam
+                                                                                                    "z48"
+                                                                                                    (app
+                                                                                                     (lam
+                                                                                                      "f49"
+                                                                                                      (seq
+                                                                                                       (app
+                                                                                                        (ref
+                                                                                                         "f49")
+                                                                                                        (int
+                                                                                                         0))
+                                                                                                       (app
+                                                                                                        (ref
+                                                                                                         "f49")
+                                                                                                        (int
+                                                                                                         1))))
+                                                                                                     (lam
+                                                                                                      "z49"
+                                                                                                      (app
+                                                                                                       (lam
+                                                                                                        "f50"
+                                                                                                        (seq
+                                                                                                         (app
+                                                                                                          (ref
+                                                                                                           "f50")
+                                                                                                          (int
+                                                                                                           0))
+                                                                                                         (app
+                                                                                                          (ref
+                                                                                                           "f50")
+                                                                                                          (int
+                                                                                                           1))))
+                                                                                                       (lam
+                                                                                                        "z50"
+                                                                                                        (app
+                                                                                                         (lam
+                                                                                                          "f51"
+                                                                                                          (seq
+                                                                                                           (app
+                                                                                                            (ref
+                                                                                                             "f51")
+                                                                                                            (int
+                                                                                                             0))
+                                                                                                           (app
+                                                                                                            (ref
+                                                                                                             "f51")
+                                                                                                            (int
+                                                                                                             1))))
+                                                                                                         (lam
+                                                                                                          "z51"
+                                                                                                          (app
+                                                                                                           (lam
+                                                                                                            "f52"
+                                                                                                            (seq
+                                                                                                             (app
+                                                                                                              (ref
+                                                                                                               "f52")
+                                                                                                              (int
+                                                                                                               0))
+                                                                                                             (app
+                                                                                                              (ref
+                                                                                                               "f52")
+                                                                                                              (int
+                                                                                                               1))))
+                                                                                                           (lam
+                                                                                                            "z52"
+                                                                                                            (app
+                                                                                                             (lam
+                                                                                                              "f53"
+                                                                                                              (seq
+                                                                                                               (app
+                                                                                                                (ref
+                                                                                                                 "f53")
+                                                                                                                (int
+                                                                                                                 0))
+                                                                                                               (app
+                                                                                                                (ref
+                                                                                                                 "f53")
+                                                                                                                (int
+                                                                                                                 1))))
+                                                                                                             (lam
+                                                                                                              "z53"
+                                                                                                              (app
+                                                                                                               (lam
+                                                                                                                "f54"
+                                                                                                                (seq
+                                                                                                                 (app
+                                                                                                                  (ref
+                                                                                                                   "f54")
+                                                                                                                  (int
+                                                                                                                   0))
+                                                                                                                 (app
+                                                                                                                  (ref
+                                                                                                                   "f54")
+                                                                                                                  (int
+                                                                                                                   1))))
+                                                                                                               (lam
+                                                                                                                "z54"
+                                                                                                                (app
+                                                                                                                 (lam
+                                                                                                                  "f55"
+                                                                                                                  (seq
+                                                                                                                   (app
+                                                                                                                    (ref
+                                                                                                                     "f55")
+                                                                                                                    (int
+                                                                                                                     0))
+                                                                                                                   (app
+                                                                                                                    (ref
+                                                                                                                     "f55")
+                                                                                                                    (int
+                                                                                                                     1))))
+                                                                                                                 (lam
+                                                                                                                  "z55"
+                                                                                                                  (app
+                                                                                                                   (lam
+                                                                                                                    "f56"
+                                                                                                                    (seq
+                                                                                                                     (app
+                                                                                                                      (ref
+                                                                                                                       "f56")
+                                                                                                                      (int
+                                                                                                                       0))
+                                                                                                                     (app
+                                                                                                                      (ref
+                                                                                                                       "f56")
+                                                                                                                      (int
+                                                                                                                       1))))
+                                                                                                                   (lam
+                                                                                                                    "z56"
+                                                                                                                    (app
+                                                                                                                     (lam
+                                                                                                                      "f57"
+                                                                                                                      (seq
+                                                                                                                       (app
+                                                                                                                        (ref
+                                                                                                                         "f57")
+                                                                                                                        (int
+                                                                                                                         0))
+                                                                                                                       (app
+                                                                                                                        (ref
+                                                                                                                         "f57")
+                                                                                                                        (int
+                                                                                                                         1))))
+                                                                                                                     (lam
+                                                                                                                      "z57"
+                                                                                                                      (app
+                                                                                                                       (lam
+                                                                                                                        "f58"
+                                                                                                                        (seq
+                                                                                                                         (app
+                                                                                                                          (ref
+                                                                                                                           "f58")
+                                                                                                                          (int
+                                                                                                                           0))
+                                                                                                                         (app
+                                                                                                                          (ref
+                                                                                                                           "f58")
+                                                                                                                          (int
+                                                                                                                           1))))
+                                                                                                                       (lam
+                                                                                                                        "z58"
+                                                                                                                        (app
+                                                                                                                         (lam
+                                                                                                                          "f59"
+                                                                                                                          (seq
+                                                                                                                           (app
+                                                                                                                            (ref
+                                                                                                                             "f59")
+                                                                                                                            (int
+                                                                                                                             0))
+                                                                                                                           (app
+                                                                                                                            (ref
+                                                                                                                             "f59")
+                                                                                                                            (int
+                                                                                                                             1))))
+                                                                                                                         (lam
+                                                                                                                          "z59"
+                                                                                                                          (app
+                                                                                                                           (lam
+                                                                                                                            "f60"
+                                                                                                                            (seq
+                                                                                                                             (app
+                                                                                                                              (ref
+                                                                                                                               "f60")
+                                                                                                                              (int
+                                                                                                                               0))
+                                                                                                                             (app
+                                                                                                                              (ref
+                                                                                                                               "f60")
+                                                                                                                              (int
+                                                                                                                               1))))
+                                                                                                                           (lam
+                                                                                                                            "z60"
+                                                                                                                            (app
+                                                                                                                             (lam
+                                                                                                                              "f61"
+                                                                                                                              (seq
+                                                                                                                               (app
+                                                                                                                                (ref
+                                                                                                                                 "f61")
+                                                                                                                                (int
+                                                                                                                                 0))
+                                                                                                                               (app
+                                                                                                                                (ref
+                                                                                                                                 "f61")
+                                                                                                                                (int
+                                                                                                                                 1))))
+                                                                                                                             (lam
+                                                                                                                              "z61"
+                                                                                                                              (app
+                                                                                                                               (lam
+                                                                                                                                "f62"
+                                                                                                                                (seq
+                                                                                                                                 (app
+                                                                                                                                  (ref
+                                                                                                                                   "f62")
+                                                                                                                                  (int
+                                                                                                                                   0))
+                                                                                                                                 (app
+                                                                                                                                  (ref
+                                                                                                                                   "f62")
+                                                                                                                                  (int
+                                                                                                                                   1))))
+                                                                                                                               (lam
+                                                                                                                                "z62"
+                                                                                                                                (app
+                                                                                                                                 (lam
+                                                                                                                                  "f63"
+                                                                                                                                  (seq
+                                                                                                                                   (app
+                                                                                                                                    (ref
+                                                                                                                                     "f63")
+                                                                                                                                    (int
+                                                                                                                                     0))
+                                                                                                                                   (app
+                                                                                                                                    (ref
+                                                                                                                                     "f63")
+                                                                                                                                    (int
+                                                                                                                                     1))))
+                                                                                                                                 (lam
+                                                                                                                                  "z63"
+                                                                                                                                  (app
+                                                                                                                                   (lam
+                                                                                                                                    "f64"
+                                                                                                                                    (seq
+                                                                                                                                     (app
+                                                                                                                                      (ref
+                                                                                                                                       "f64")
+                                                                                                                                      (int
+                                                                                                                                       0))
+                                                                                                                                     (app
+                                                                                                                                      (ref
+                                                                                                                                       "f64")
+                                                                                                                                      (int
+                                                                                                                                       1))))
+                                                                                                                                   (lam
+                                                                                                                                    "z64"
+                                                                                                                                    (app
+                                                                                                                                     (lam
+                                                                                                                                      "f65"
+                                                                                                                                      (seq
+                                                                                                                                       (app
+                                                                                                                                        (ref
+                                                                                                                                         "f65")
+                                                                                                                                        (int
+                                                                                                                                         0))
+                                                                                                                                       (app
+                                                                                                                                        (ref
+                                                                                                                                         "f65")
+                                                                                                                                        (int
+                                                                                                                                         1))))
+                                                                                                                                     (lam
+                                                                                                                                      "z65"
+                                                                                                                                      (app
+                                                                                                                                       (lam
+                                                                                                                                        "f66"
+                                                                                                                                        (seq
+                                                                                                                                         (app
+                                                                                                                                          (ref
+                                                                                                                                           "f66")
+                                                                                                                                          (int
+                                                                                                                                           0))
+                                                                                                                                         (app
+                                                                                                                                          (ref
+                                                                                                                                           "f66")
+                                                                                                                                          (int
+                                                                                                                                           1))))
+                                                                                                                                       (lam
+                                                                                                                                        "z66"
+                                                                                                                                        (app
+                                                                                                                                         (lam
+                                                                                                                                          "f67"
+                                                                                                                                          (seq
+                                                                                                                                           (app
+                                                                                                                                            (ref
+                                                                                                                                             "f67")
+                                                                                                                                            (int
+                                                                                                                                             0))
+                                                                                                                                           (app
+                                                                                                                                            (ref
+                                                                                                                                             "f67")
+                                                                                                                                            (int
+                                                                                                                                             1))))
+                                                                                                                                         (lam
+                                                                                                                                          "z67"
+                                                                                                                                          (app
+                                                                                                                                           (lam
+                                                                                                                                            "f68"
+                                                                                                                                            (seq
+                                                                                                                                             (app
+                                                                                                                                              (ref
+                                                                                                                                               "f68")
+                                                                                                                                              (int
+                                                                                                                                               0))
+                                                                                                                                             (app
+                                                                                                                                              (ref
+                                                                                                                                               "f68")
+                                                                                                                                              (int
+                                                                                                                                               1))))
+                                                                                                                                           (lam
+                                                                                                                                            "z68"
+                                                                                                                                            (app
+                                                                                                                                             (lam
+                                                                                                                                              "f69"
+                                                                                                                                              (seq
+                                                                                                                                               (app
+                                                                                                                                                (ref
+                                                                                                                                                 "f69")
+                                                                                                                                                (int
+                                                                                                                                                 0))
+                                                                                                                                               (app
+                                                                                                                                                (ref
+                                                                                                                                                 "f69")
+                                                                                                                                                (int
+                                                                                                                                                 1))))
+                                                                                                                                             (lam
+                                                                                                                                              "z69"
+                                                                                                                                              (app
+                                                                                                                                               (lam
+                                                                                                                                                "f70"
+                                                                                                                                                (seq
+                                                                                                                                                 (app
+                                                                                                                                                  (ref
+                                                                                                                                                   "f70")
+                                                                                                                                                  (int
+                                                                                                                                                   0))
+                                                                                                                                                 (app
+                                                                                                                                                  (ref
+                                                                                                                                                   "f70")
+                                                                                                                                                  (int
+                                                                                                                                                   1))))
+                                                                                                                                               (lam
+                                                                                                                                                "z70"
+                                                                                                                                                (app
+                                                                                                                                                 (lam
+                                                                                                                                                  "f71"
+                                                                                                                                                  (seq
+                                                                                                                                                   (app
+                                                                                                                                                    (ref
+                                                                                                                                                     "f71")
+                                                                                                                                                    (int
+                                                                                                                                                     0))
+                                                                                                                                                   (app
+                                                                                                                                                    (ref
+                                                                                                                                                     "f71")
+                                                                                                                                                    (int
+                                                                                                                                                     1))))
+                                                                                                                                                 (lam
+                                                                                                                                                  "z71"
+                                                                                                                                                  (app
+                                                                                                                                                   (lam
+                                                                                                                                                    "f72"
+                                                                                                                                                    (seq
+                                                                                                                                                     (app
+                                                                                                                                                      (ref
+                                                                                                                                                       "f72")
+                                                                                                                                                      (int
+                                                                                                                                                       0))
+                                                                                                                                                     (app
+                                                                                                                                                      (ref
+                                                                                                                                                       "f72")
+                                                                                                                                                      (int
+                                                                                                                                                       1))))
+                                                                                                                                                   (lam
+                                                                                                                                                    "z72"
+                                                                                                                                                    (app
+                                                                                                                                                     (lam
+                                                                                                                                                      "f73"
+                                                                                                                                                      (seq
+                                                                                                                                                       (app
+                                                                                                                                                        (ref
+                                                                                                                                                         "f73")
+                                                                                                                                                        (int
+                                                                                                                                                         0))
+                                                                                                                                                       (app
+                                                                                                                                                        (ref
+                                                                                                                                                         "f73")
+                                                                                                                                                        (int
+                                                                                                                                                         1))))
+                                                                                                                                                     (lam
+                                                                                                                                                      "z73"
+                                                                                                                                                      (app
+                                                                                                                                                       (lam
+                                                                                                                                                        "f74"
+                                                                                                                                                        (seq
+                                                                                                                                                         (app
+                                                                                                                                                          (ref
+                                                                                                                                                           "f74")
+                                                                                                                                                          (int
+                                                                                                                                                           0))
+                                                                                                                                                         (app
+                                                                                                                                                          (ref
+                                                                                                                                                           "f74")
+                                                                                                                                                          (int
+                                                                                                                                                           1))))
+                                                                                                                                                       (lam
+                                                                                                                                                        "z74"
+                                                                                                                                                        (app
+                                                                                                                                                         (lam
+                                                                                                                                                          "x"
+                                                                                                                                                          (app
+                                                                                                                                                           (lam
+                                                                                                                                                            "x"
+                                                                                                                                                            (app
+                                                                                                                                                             (lam
+                                                                                                                                                              "x"
+                                                                                                                                                              (lam
+                                                                                                                                                               "w"
+                                                                                                                                                               (app
+                                                                                                                                                                (app
+                                                                                                                                                                 (app
+                                                                                                                                                                  (app
+                                                                                                                                                                   (app
+                                                                                                                                                                    (app
+                                                                                                                                                                     (app
+                                                                                                                                                                      (app
+                                                                                                                                                                       (app
+                                                                                                                                                                        (app
+                                                                                                                                                                         (app
+                                                                                                                                                                          (app
+                                                                                                                                                                           (app
+                                                                                                                                                                            (app
+                                                                                                                                                                             (app
+                                                                                                                                                                              (app
+                                                                                                                                                                               (app
+                                                                                                                                                                                (app
+                                                                                                                                                                                 (app
+                                                                                                                                                                                  (app
+                                                                                                                                                                                   (app
+                                                                                                                                                                                    (app
+                                                                                                                                                                                     (app
+                                                                                                                                                                                      (app
+                                                                                                                                                                                       (app
+                                                                                                                                                                                        (app
+                                                                                                                                                                                         (app
+                                                                                                                                                                                          (app
+                                                                                                                                                                                           (app
+                                                                                                                                                                                            (app
+                                                                                                                                                                                             (app
+                                                                                                                                                                                              (app
+                                                                                                                                                                                               (app
+                                                                                                                                                                                                (app
+                                                                                                                                                                                                 (app
+                                                                                                                                                                                                  (app
+                                                                                                                                                                                                   (app
+                                                                                                                                                                                                    (app
+                                                                                                                                                                                                     (app
+                                                                                                                                                                                                      (app
+                                                                                                                                                                                                       (app
+                                                                                                                                                                                                        (app
+                                                                                                                                                                                                         (app
+                                                                                                                                                                                                          (app
+                                                                                                                                                                                                           (app
+                                                                                                                                                                                                            (app
+                                                                                                                                                                                                             (app
+                                                                                                                                                                                                              (app
+                                                                                                                                                                                                               (app
+                                                                                                                                                                                                                (app
+                                                                                                                                                                                                                 (app
+                                                                                                                                                                                                                  (app
+                                                                                                                                                                                                                   (app
+                                                                                                                                                                                                                    (app
+                                                                                                                                                                                                                     (app
+                                                                                                                                                                                                                      (app
+                                                                                                                                                                                                                       (app
+                                                                                                                                                                                                                        (app
+                                                                                                                                                                                                                         (app
+                                                                                                                                                                                                                          (app
+                                                                                                                                                                                                                           (app
+                                                                                                                                                                                                                            (app
+                                                                                                                                                                                                                             (app
+                                                                                                                                                                                                                              (app
+                                                                                                                                                                                                                               (app
+                                                                                                                                                                                                                                (app
+                                                                                                                                                                                                                                 (app
+                                                                                                                                                                                                                                  (app
+                                                                                                                                                                                                                                   (app
+                                                                                                                                                                                                                                    (app
+                                                                                                                                                                                                                                     (app
+                                                                                                                                                                                                                                      (app
+                                                                                                                                                                                                                                       (app
+                                                                                                                                                                                                                                        (app
+                                                                                                                                                                                                                                         (app
+                                                                                                                                                                                                                                          (ref
+                                                                                                                                                                                                                                           "w")
+                                                                                                                                                                                                                                          (ref
+                                                                                                                                                                                                                                           "z0"))
+                                                                                                                                                                                                                                         (ref
+                                                                                                                                                                                                                                          "z1"))
+                                                                                                                                                                                                                                        (ref
+                                                                                                                                                                                                                                         "z2"))
+                                                                                                                                                                                                                                       (ref
+                                                                                                                                                                                                                                        "z3"))
+                                                                                                                                                                                                                                      (ref
+                                                                                                                                                                                                                                       "z4"))
+                                                                                                                                                                                                                                     (ref
+                                                                                                                                                                                                                                      "z5"))
+                                                                                                                                                                                                                                    (ref
+                                                                                                                                                                                                                                     "z6"))
+                                                                                                                                                                                                                                   (ref
+                                                                                                                                                                                                                                    "z7"))
+                                                                                                                                                                                                                                  (ref
+                                                                                                                                                                                                                                   "z8"))
+                                                                                                                                                                                                                                 (ref
+                                                                                                                                                                                                                                  "z9"))
+                                                                                                                                                                                                                                (ref
+                                                                                                                                                                                                                                 "z10"))
+                                                                                                                                                                                                                               (ref
+                                                                                                                                                                                                                                "z11"))
+                                                                                                                                                                                                                              (ref
+                                                                                                                                                                                                                               "z12"))
+                                                                                                                                                                                                                             (ref
+                                                                                                                                                                                                                              "z13"))
+                                                                                                                                                                                                                            (ref
+                                                                                                                                                                                                                             "z14"))
+                                                                                                                                                                                                                           (ref
+                                                                                                                                                                                                                            "z15"))
+                                                                                                                                                                                                                          (ref
+                                                                                                                                                                                                                           "z16"))
+                                                                                                                                                                                                                         (ref
+                                                                                                                                                                                                                          "z17"))
+                                                                                                                                                                                                                        (ref
+                                                                                                                                                                                                                         "z18"))
+                                                                                                                                                                                                                       (ref
+                                                                                                                                                                                                                        "z19"))
+                                                                                                                                                                                                                      (ref
+                                                                                                                                                                                                                       "z20"))
+                                                                                                                                                                                                                     (ref
+                                                                                                                                                                                                                      "z21"))
+                                                                                                                                                                                                                    (ref
+                                                                                                                                                                                                                     "z22"))
+                                                                                                                                                                                                                   (ref
+                                                                                                                                                                                                                    "z23"))
+                                                                                                                                                                                                                  (ref
+                                                                                                                                                                                                                   "z24"))
+                                                                                                                                                                                                                 (ref
+                                                                                                                                                                                                                  "z25"))
+                                                                                                                                                                                                                (ref
+                                                                                                                                                                                                                 "z26"))
+                                                                                                                                                                                                               (ref
+                                                                                                                                                                                                                "z27"))
+                                                                                                                                                                                                              (ref
+                                                                                                                                                                                                               "z28"))
+                                                                                                                                                                                                             (ref
+                                                                                                                                                                                                              "z29"))
+                                                                                                                                                                                                            (ref
+                                                                                                                                                                                                             "z30"))
+                                                                                                                                                                                                           (ref
+                                                                                                                                                                                                            "z31"))
+                                                                                                                                                                                                          (ref
+                                                                                                                                                                                                           "z32"))
+                                                                                                                                                                                                         (ref
+                                                                                                                                                                                                          "z33"))
+                                                                                                                                                                                                        (ref
+                                                                                                                                                                                                         "z34"))
+                                                                                                                                                                                                       (ref
+                                                                                                                                                                                                        "z35"))
+                                                                                                                                                                                                      (ref
+                                                                                                                                                                                                       "z36"))
+                                                                                                                                                                                                     (ref
+                                                                                                                                                                                                      "z37"))
+                                                                                                                                                                                                    (ref
+                                                                                                                                                                                                     "z38"))
+                                                                                                                                                                                                   (ref
+                                                                                                                                                                                                    "z39"))
+                                                                                                                                                                                                  (ref
+                                                                                                                                                                                                   "z40"))
+                                                                                                                                                                                                 (ref
+                                                                                                                                                                                                  "z41"))
+                                                                                                                                                                                                (ref
+                                                                                                                                                                                                 "z42"))
+                                                                                                                                                                                               (ref
+                                                                                                                                                                                                "z43"))
+                                                                                                                                                                                              (ref
+                                                                                                                                                                                               "z44"))
+                                                                                                                                                                                             (ref
+                                                                                                                                                                                              "z45"))
+                                                                                                                                                                                            (ref
+                                                                                                                                                                                             "z46"))
+                                                                                                                                                                                           (ref
+                                                                                                                                                                                            "z47"))
+                                                                                                                                                                                          (ref
+                                                                                                                                                                                           "z48"))
+                                                                                                                                                                                         (ref
+                                                                                                                                                                                          "z49"))
+                                                                                                                                                                                        (ref
+                                                                                                                                                                                         "z50"))
+                                                                                                                                                                                       (ref
+                                                                                                                                                                                        "z51"))
+                                                                                                                                                                                      (ref
+                                                                                                                                                                                       "z52"))
+                                                                                                                                                                                     (ref
+                                                                                                                                                                                      "z53"))
+                                                                                                                                                                                    (ref
+                                                                                                                                                                                     "z54"))
+                                                                                                                                                                                   (ref
+                                                                                                                                                                                    "z55"))
+                                                                                                                                                                                  (ref
+                                                                                                                                                                                   "z56"))
+                                                                                                                                                                                 (ref
+                                                                                                                                                                                  "z57"))
+                                                                                                                                                                                (ref
+                                                                                                                                                                                 "z58"))
+                                                                                                                                                                               (ref
+                                                                                                                                                                                "z59"))
+                                                                                                                                                                              (ref
+                                                                                                                                                                               "z60"))
+                                                                                                                                                                             (ref
+                                                                                                                                                                              "z61"))
+                                                                                                                                                                            (ref
+                                                                                                                                                                             "z62"))
+                                                                                                                                                                           (ref
+                                                                                                                                                                            "z63"))
+                                                                                                                                                                          (ref
+                                                                                                                                                                           "z64"))
+                                                                                                                                                                         (ref
+                                                                                                                                                                          "z65"))
+                                                                                                                                                                        (ref
+                                                                                                                                                                         "z66"))
+                                                                                                                                                                       (ref
+                                                                                                                                                                        "z67"))
+                                                                                                                                                                      (ref
+                                                                                                                                                                       "z68"))
+                                                                                                                                                                     (ref
+                                                                                                                                                                      "z69"))
+                                                                                                                                                                    (ref
+                                                                                                                                                                     "z70"))
+                                                                                                                                                                   (ref
+                                                                                                                                                                    "z71"))
+                                                                                                                                                                  (ref
+                                                                                                                                                                   "z72"))
+                                                                                                                                                                 (ref
+                                                                                                                                                                  "z73"))
+                                                                                                                                                                (ref
+                                                                                                                                                                 "z74"))))
+                                                                                                                                                             (lam
+                                                                                                                                                              "x"
+                                                                                                                                                              (ref
+                                                                                                                                                               "x"))))
+                                                                                                                                                           (lam
+                                                                                                                                                            "x"
+                                                                                                                                                            (ref
+                                                                                                                                                             "x"))))
+                                                                                                                                                         (lam
+                                                                                                                                                          "x"
+                                                                                                                                                          (ref
+                                                                                                                                                           "x"))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+
+
+
+
+; Entry points
+[(entry-point e)
+ -->
+ (eval e (bot) (bot) (halt (entry-point e)) [])]
+
+[(ret v sto (halt ep))
+ -->
+ (entry-point-return ep v sto)]
+
+; Eval states 
+(step
+ ?(eval (int n) env sto k t)
+ (ret (int n) sto k))
+
+(step
+ ?(eval (ref x) env sto k t)
+ (ret {lookup !do(x env sto)} sto k))
+
+(step
+ ?(eval (lam x e) env sto k t)
+ (ret (clo (lam x e) env) sto k))
+
+(step
+ ?(eval (app ef ea) env sto k t)
+ (eval ef env sto (ap-k ea env k t (app ef ea)) t))
+
+(step
+ ?(eval (seq e0 e1) env sto k t)
+ (eval e0 env sto (seq-k e1 env sto k t) t))
+[(eval e1 env sto k t) <-- (eval (seq e0 e1) env sto k t)]
+
+; Ret states
+(step
+ ?(ret v sto (ap-k ea env k t app-e))
+ (eval ea env sto (fn-k v k t app-e) t))
+
+(step
+ ?(ret v sto (fn-k fv k t app-e))
+ (apply fv v sto k {ext-time !do(t app-e)}))
+
+(step
+ ?(ret v sto (seq-k e1 env sto k t))
+ (eval e1 env sto k t))
+
+; Apply states
+(step
+ ?(apply (clo (lam x e) env) v sto k t)
+ (eval e {ext-env !do(env x (vaddr x t))} {ext-store !do(sto (vaddr x t) v)} k t))
+
+; Env/store lookup & update
+(lookup ?do(x env sto) {store-lookup !do({env-lookup !do(x env)} sto)})
+[(env-lookup ?do(x env) a) <-- (env-map env x a)]
+[(store-lookup ?do(a sto) v) <-- (store-map sto a v)]
+(ext-env ?do(env x a) (environment env x a))
+(ext-store ?do(sto a v) (store sto a v))
+(env-map ?(environment env x a) x a)
+[(env-map ?(environment env y _) x a)
+ <--
+ (=/= x y)
+ (env-map env x a)]
+(store-map ?(store sto a v) a v)
+[(store-map ?(store sto a' _) a v)
+ <--
+ (=/= a a')
+ (store-map sto a v)]
+
+; timestamps
+(contour-limit-k 3)
+[(ext-time ?do(t e) {take !do(k [e t ...])}) <-- (contour-limit-k k)]
+[(take ?do(0 lst) []) <--]
+[(take ?do(n []) []) <-- (> n 0)]
+[(take ?do(n [x lst ...]) [x {take !do({- n 1} lst)} ...]) <-- (> n 0)]
+
