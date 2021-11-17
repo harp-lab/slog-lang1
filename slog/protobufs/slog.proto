@@ -28,7 +28,8 @@ service CommandService {
   rpc GetTuples(RelationRequest) returns (stream Tuples);
   rpc GetStrings(StringRequest) returns (stream Strings);
   rpc ShowDB(ShowDBRequest) returns (stream DatabaseInfo);
-  rpc TagDB(TagDBRequest) returns (stream ErrorResponse); 
+  rpc TagDB(TagDBRequest) returns (stream ErrorResponse);
+  rpc DropDB(DropDBRequest) returns (ErrorResponse);
 }
 
 message PingRequest {
@@ -111,6 +112,7 @@ message RelationDescription {
   string name = 1;
   uint32 arity = 2;
   uint32 tag = 3;
+  int32 num_tuples = 4;
 }
 
 message RelationDescriptionsResponse {
@@ -162,4 +164,8 @@ message DatabaseInfo {
 message TagDBRequest {
   string database_id = 1;
   string tag_name = 2;
+}
+
+message DropDBRequest {
+  string database_id = 1;
 }

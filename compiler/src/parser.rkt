@@ -43,7 +43,8 @@
   (num (number digit10))
   (identifier-characters
    (re-or (char-range "a" "z") (char-range "A" "Z") (char-range "α" "ω") (char-range "Α" "Ω") digit10 
-          "_" "-" "+" "/" "*" "." "@" "$" "%" "^" "~" "&" "|" "<" ">" "=" "?" "!" "'" ":"))
+          "_" "-" "+" "/" "*" "." "@" "$" "%" "^" "~" "&" "|" "<" ">" "=" "?" "!" "'" ":"
+           "⊥" "⊤" "⋄")) 
   (identifier (re-+ identifier-characters)))
 
 ;; Lexer error handling

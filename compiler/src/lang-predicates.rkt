@@ -714,7 +714,7 @@
 
 ; A canonical index must include all the columns from 1 to N and not include 0
 (define (canonical-index? l arity)
-  (equal? (sort l <) (range 1 (add1 arity))))
+  (equal? l (range 1 (add1 arity))))
 
 ; Strips out any/all prov information in an s-expr
 (define (strip-prov e)

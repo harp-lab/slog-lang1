@@ -5,15 +5,19 @@ Kris Micinski
 Yihao Sun
 '''
 
+import argparse
+import re
 import sys
+import time
 
 import timeit
 import grpc
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion.base import merge_completers
 from prompt_toolkit.history import FileHistory
-from prompt_toolkit.completion import NestedCompleter, FuzzyWordCompleter
+from prompt_toolkit.completion import NestedCompleter, FuzzyWordCompleter, WordCompleter
 from prompt_toolkit.formatted_text import HTML
+from prompt_toolkit.key_binding import KeyBindings
 from pyfiglet import Figlet
 from yaspin import yaspin
 from slog.common.client import SlogClient, ConsoleWriter, FileWriter
@@ -52,15 +56,47 @@ HELP = '''
     tag <hash> "<tag>"                  Give a database hash a taged name
 
     switch <db>                         Switch to a given DB
+
+    relations                           print all relation meta info in current database
+
+    ?(<rel> _/<arg> ...)                run a slog query find all related facts like `?(foo "bar" _)`,
+                                        `_` is wildcard
+
+    #<id>                               print a tuple in query history
+
+    clear                               clear the query history
+    
+    <slog code>                         execute a line of slog code
+    
+    fact-depth                          set the maximum unroll depth in facts printing
+
+    fact-cardi                          set the group cardinality of facts printing
+
+    fresh                               go back to empty database
 '''
 
-CMD = ['help', 'run', 'connect', 'dump', 'showdb',
-       'load', 'commit', 'compile', 'tag', 'switch']
+CMD = ['help', 'run', 'connect', 'dump', 'showdb', 'relations',
+       'load', 'compile', 'tag', 'switch', 'fact-depth',
+       'fact-cardi', 'clear', 'fresh']
 
+
+kb = KeyBindings()
+
+@kb.add('escape', 'enter')
+def _(event):
+    event.current_buffer.insert_text('\n')
+
+@kb.add('enter')
+def _(event):
+    event.current_buffer.validate_and_handle()
 
 def invalid_alert(message):
     """ print alert for command exectution """
     print(f"Invalid command: {message}")
+
+def prompt_continuation(width, line_number, is_soft_wrap):
+    return '.' * width
+    # Or: return [('', '.' * width)]
 
 def exec_command(client: SlogClient, raw_input: str):
     """
@@ -71,18 +107,34 @@ def exec_command(client: SlogClient, raw_input: str):
         # bypass empty command
         return
     # check if it a query
+    if (raw_input.startswith('(') and raw_input.endswith(')')) or \
+       (raw_input.startswith('[') and raw_input.endswith(']')):
+        client.slog_add_rule(raw_input[1:], client.cur_db, ConsoleWriter())
+        return
     if raw_input.startswith('?(') and raw_input.endswith(')'):
+        client.pretty_print_slog_query(raw_input, ConsoleWriter())
+        return
+    # fact printing
+    if re.findall(r'^#(\d+)$', raw_input) != []:
+        printed_id = int(re.findall(r'^#(\d+)$', raw_input)[0])
+        client.print_cached_tuple(printed_id, ConsoleWriter())
         return
     # normal command
     cmd = raw_input.split(' ')[0].strip()
     args = [r.strip() for r in raw_input.split(' ')[1:] if r.strip() != '']
     if cmd == 'help':
         print(HELP)
+    elif cmd == 'fresh':
+        client.fresh()
     elif cmd == 'showdb':
         dbs = client.update_dbs()
         headers = [["tag", "id", "parent"]]
         for db_info in headers + dbs:
             print(f'{db_info[1]:<6} {db_info[0][:10]:<10} {db_info[2][:6]:<6}')
+    elif cmd == 'relations':
+        client.print_all_relations(ConsoleWriter())
+    elif cmd == 'clear':
+        client.tuple_printed_id_map = {}
     elif cmd == 'connect':
         if len(args) == 1:
             client.connect(args[0])
@@ -90,20 +142,32 @@ def exec_command(client: SlogClient, raw_input: str):
             invalid_alert(f'{cmd} expect 1 arg, but get {len(args)}')
     elif cmd == 'dump':
         if len(args) == 1:
-            client.pretty_dump_relation(args[0], ConsoleWriter())
+            client.dump_relation_by_name(args[0], ConsoleWriter())
         elif len(args) == 2:
             if args[1].startswith('"') and args[1].endswith('"'):
                 with open(args[1][1:-1], 'w') as out_f:
-                    client.pretty_dump_relation(args[0], FileWriter(out_f))
+                    client.dump_relation_by_name(args[0], FileWriter(out_f))
             else:
                 invalid_alert(f'{cmd} expect a string at postion 2 as arg')
         else:
             invalid_alert(f'{cmd} expect 1/2 arg, but get {len(args)}')
+    elif cmd == 'fact-depth':
+        if len(args) == 1 and args[0].isnumeric():
+            client.unroll_depth = int(args[0])
+            print(f'max nested fact unrolling depth is set to {int(args[0])}')
+        else:
+            invalid_alert(f'{cmd} expect at least 1 arg!')
+    elif cmd == 'fact-cardi':
+        if len(args) == 1 and args[0].isnumeric():
+            client.group_cardinality = int(args[0])
+            print(f'max nested fact unrolling depth is set to {int(args[0])}')
+        else:
+            invalid_alert(f'{cmd} expect at least 1 arg!')
     elif cmd == 'load':
         if len(args) == 1:
             if args[0].startswith('"') and args[0].endswith('"'):
                 with yaspin(text='uploading csv facts ...') as spinner:
-                    client.upload_csv(args[0][1:-1], writer=spinner)
+                    client.upload_csv(args[0][1:-1], client.cur_db, writer=spinner)
             else:
                 invalid_alert(f'{cmd} expect a string at postion 1 as arg')
         else:
@@ -118,12 +182,14 @@ def exec_command(client: SlogClient, raw_input: str):
         else:
             invalid_alert(f'{cmd} expect 1 arg, but get {len(args)}')
     elif cmd == 'run':
-        if len(args) > 1 and (not args[0].startswith('"') or not args[0].endswith('"')):
-            client.invalid_alert(f'{cmd} expect a string at postion 1 as arg')
+        if len(args) >= 1 and (not args[0].startswith('"') or not args[0].endswith('"')):
+            invalid_alert(f'{cmd} expect a string at postion 1 as arg')
             return
         with yaspin(text="Running...") as spinner:
-            if len(args) == 2 and len(args[1]) < 5 and args[1].isnumeric():
-                client.run_with_db(args[0][1:-1], cores=int(args[1]), writer=spinner)
+            if len(args) == 1:
+                client.run_with_db(args[0][1:-1], client.cur_db, writer=spinner)
+            elif len(args) == 2 and len(args[1]) < 5 and args[1].isnumeric():
+                client.run_with_db(args[0][1:-1], client.cur_db, cores=int(args[1]), writer=spinner)
             elif len(args) == 2:
                 client.run_with_db(args[0][1:-1], args[1], writer=spinner)
             elif len(args) == 3 and args[2].isnumeric():
@@ -137,7 +203,7 @@ def exec_command(client: SlogClient, raw_input: str):
             else:
                 invalid_alert(f'{cmd} expect a string at postion 1 as arg')
         else:
-            invalid_alert(f'{cmd} expect 2 arg, but get {len(args)}')  
+            invalid_alert(f'{cmd} expect 2 arg, but get {len(args)}')
     elif cmd == 'switch':
         if len(args) == 1:
             client.switchto_db(args[0])
@@ -149,113 +215,13 @@ def exec_command(client: SlogClient, raw_input: str):
 class Repl:
     """ Slog REPL """
 
-    def __init__(self, server=None):
+    def __init__(self, server, rpc_port, ftp_port):
         # TODO: init the SlogClient
-        self.client = SlogClient(server)
+        self.client = SlogClient(server, rpc_port, ftp_port)
+        self.ftp_port = ftp_port
         self.prompt_session = PromptSession(history=FileHistory("./.slog-history"))
         print(BANNER_LOGO)
         print(BANNER)
-
-    def lookup_rel_by_tag(self, tag):
-        """ check if a relation info is in cache """
-        for rel in self.relations:
-            if rel[2] == tag:
-                return rel
-
-    def fetch_tuples(self, name):
-        """ print all tulple of a relation """
-        req = slog_pb2.RelationRequest()
-        req.database_id = self._cur_db
-        arity = self.lookup_rels(name)[0][1]
-        req.tag = self.lookup_rels(name)[0][2]
-        row_count = 0
-        col_count = 0
-        tuples = []
-        buf = [-1 for _ in range(0, arity+1)]
-        for response in self._stub.GetTuples(req):
-            if response.num_tuples == 0:
-                continue
-            for u64 in response.data:
-                if col_count == 0:
-                    # index col
-                    # rel_tag = u64 >> 46
-                    bucket_id = (u64 & BUCKET_MASK) >> 28
-                    tuple_id = u64 & (~TUPLE_ID_MASK)
-                    buf[0] = (bucket_id, tuple_id, row_count)
-                    col_count += 1
-                    continue
-                val_tag = u64 >> 46
-                if val_tag == INT_TAG:
-                    attr_val = u64 & VAL_MASK
-                elif val_tag == STRING_TAG:
-                    attr_val = self.intern_string_dict[u64 & VAL_MASK]
-                else:
-                    # relation
-                    rel_name = self.lookup_rel_by_tag(val_tag)[0]
-                    # attr_val = f'rel_{rel_name}_{u64 & (~TUPLE_ID_MASK)}'
-                    if name != rel_name and rel_name not in self.updated_tuples.keys():
-                        self.fetch_tuples(rel_name)
-                    bucket_id = (u64 & BUCKET_MASK) >> 28
-                    tuple_id = u64 & (~TUPLE_ID_MASK)
-                    attr_val = ['NESTED', rel_name, (bucket_id, tuple_id)]
-                buf[col_count] = attr_val
-                col_count += 1
-                if col_count == arity + 1:
-                    # don't print id col
-                    # rel name at last
-                    tuples.append(copy.copy(buf)+[name])
-                    col_count = 0
-                    row_count += 1
-            assert row_count == response.num_tuples
-        self.updated_tuples[name] = tuples
-        return tuples
-
-    def recursive_dump_tuples(self, rel, out_path):
-        """ recursive print all tuples of a relation """
-        # reset all tuples to non-updated
-        def find_val_by_id(name, row_id):
-            for row in self.updated_tuples[name]:
-                if row[0] == row_id:
-                    return row
-        resolved_relname = []
-        def _resolve(rname):
-            if rname in resolved_relname:
-                return
-            for i, row in enumerate(self.updated_tuples[rname]):
-                for j, col in enumerate(row[:-1]):
-                    if not isinstance(col, list):
-                        continue
-                    if col[0] == 'NESTED':
-                        nested_name = col[1]
-                        nested_id = col[2]
-                        val = find_val_by_id(nested_name, nested_id)
-                        if val is None:
-                            val = f'"{nested_name} has no fact with id {nested_id} !"'
-                        _resolve(nested_name)
-                        self.updated_tuples[rname][i][j] = val
-            resolved_relname.append(rname)
-
-        def rel_to_str(rel):
-            res = []
-            for col in rel[:-1]:
-                if isinstance(col, type):
-                    if col[0] == 'NESTED':
-                        res.append(f"({' '.join([str(v) for v in col])})")
-                    else:
-                        res.append(rel_to_str(col))
-                else:
-                    res.append(str(col))
-            return f"({rel[-1]} {' '.join(res)})"
-        self.fetch_tuples(rel[0])
-        # print(self.updated_tuples)
-        # _resolve(rel[0])
-        if not out_path:
-            for fact_row in sorted(self.updated_tuples[rel[0]], key=lambda t: int(t[0][2])):
-                print(f"#{fact_row[0][2]}:  {rel_to_str(fact_row[1:])}")
-        else:
-            with open(out_path, 'w') as out_f:
-                for fact_row in sorted(self.updated_tuples[rel[0]], key=lambda t: int(t[0][2])):
-                    out_f.write(f"#{fact_row[0][2]}:  {rel_to_str(fact_row[1:])}")
 
     def calc_ping(self):
         """ calculate ping time to slog rpc server """
@@ -287,16 +253,22 @@ class Repl:
         else:
             return HTML('Disconnected. Use `connect <host>`')
 
+    def exit(self):
+        """ exit REPL """
+        print('Goodbye.')
+        sys.exit(0)
+
     def loop(self):
         """  REPL main entrance """
         while True:
             try:
                 front = self.get_front()
-                relation_names = map(lambda x: x[0], self.client.relations)
+                # ignore internal relation in autocomplete
+                relation_names = [r[0] for r in self.client.relations if not r[0].startswith('$')]
                 # completer = WordCompleter(relation_names)
                 self.client.update_dbs()
                 completer_map = {cmd: None for cmd in CMD}
-                completer_map['dump'] = FuzzyWordCompleter(list(relation_names))
+                completer_map['dump'] = FuzzyWordCompleter(relation_names)
                 possible_db_hash = [db[0][:6] for db in self.client.all_db]
                 possible_db_tag = []
                 for db_info in self.client.all_db:
@@ -311,15 +283,25 @@ class Repl:
                 completer_map['load'] = StringPathCompeleter()
                 completer_map['compile'] = StringPathCompeleter()
                 completer_map['switch'] = FuzzyWordCompleter(possible_db_hash + possible_db_tag)
+                relname_par_completer = WordCompleter([f"({n}" for n in relation_names])
+                for rname in relation_names:
+                    completer_map[f'?({rname}'] = relname_par_completer
+                    completer_map[f'({rname}'] = relname_par_completer
+                    completer_map[f'[({rname}'] = relname_par_completer
                 completer = NestedCompleter(completer_map)
                 text = self.prompt_session.prompt(
                     'σλoγ [{}] » '.format(front),
                     bottom_toolbar=self.bottom_toolbar(),
-                    complete_while_typing=True,
-                    completer=completer)
+                    completer=completer,
+                    key_bindings=kb,
+                    prompt_continuation=prompt_continuation,
+                    multiline=True)
                 if text.strip() == '':
                     continue
+                prev_time = time.time()
                 exec_command(self.client, text)
+                after_time = time.time()
+                print("\033[93mCommand cost {:10.2f} sec.\033[4m".format(after_time - prev_time)) 
             except EOFError:
                 self.exit()
             except AssertionError:
@@ -328,10 +310,15 @@ class Repl:
 
 if __name__ == "__main__":
     # Take server as an optional argument to the repl.
-    if len(sys.argv) > 1:
-        repl = Repl(sys.argv[1])
-    else:
-        repl = Repl("localhost:5108")
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument('--server', dest='server_addr', default='localhost',
+                            help="IP address of slog server")
+    arg_parser.add_argument('--rpc_port', dest='rpc_port', type=int, default=5108,
+                            help="rpc port on <server_addr>")
+    arg_parser.add_argument('--ftp_port', dest='ftp_port', type=int, default=2121,
+                            help="ftp port on <server_addr>")
+    args = arg_parser.parse_args()
+    repl = Repl(args.server_addr, args.rpc_port, args.ftp_port)
     try:
         while True:
             repl.loop()

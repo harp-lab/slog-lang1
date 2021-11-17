@@ -134,16 +134,18 @@
                (error (format "Could not find an appropriate relation ~a with arity ~a (need 1 candidate, got ~a)" rel-name rel-arity (length maybe-relation))))
              (define relation (first maybe-relation))
              (match-define `(relation ,_ ,_ ,rid ,index ,data) relation)
+             (define tag-func (format "get_tag_for_rel(\"~a\",\"~a\")" rel-name (string-join (map number->string sel) "__")))
+             (define is-canonical (canonical-index? (rel->sel rel-sel) (rel->arity rel-sel)))
              (string-append rel-txt
-                            (format "relation* ~a = new relation(~a, ~a, ~a, ~a, \"~a\", ~a FULL);\n"
+                            (format "relation* ~a = new relation(~a, ~a, ~a, ~a, ~a, ~a FULL);\n"
                                     (rel->name rel-sel)
                                     (length (rel->sel rel-sel))
-                                    (if (and (not (member 0 (rel->sel rel-sel))) (= (length (rel->sel rel-sel)) (rel->arity rel-sel))) "true" "false")
+                                    (if is-canonical "true" "false")
                                     (rel->arity rel-sel)
-                                    rid
-                                    (rel->name rel-sel)
-                                    (if (and (not (member 0 (rel->sel rel-sel))) (= (length (rel->sel rel-sel)) (rel->arity rel-sel)))
-                                        (format "slog_input_dir + \"/~a.~a.~a.table\"," rid rel-name rel-arity)
+                                    tag-func
+                                    (format "std::to_string(~a) + \".~a.~a.table\"" tag-func rel-name rel-arity)
+                                    (if is-canonical
+                                        (format "slog_input_dir + \"/\" + std::to_string(~a) + \".~a.~a.table\"," tag-func rel-name rel-arity)
                                         ; TODO: how to get rid of this space?????
                                         " ")
                                     )))
@@ -434,7 +436,9 @@
                             (define arg-pos-in-bvars1 (index-of new-indices (list-ref indices i)))
                             (define arg (list-ref bvars1 arg-pos-in-bvars1))
                             (match arg
-                              [(? lit?) (format "n2d(~a)" arg)]
+                              ; [(? lit?) (format "n2d(~a)" arg)]
+                              [(? string?) (format "n2d(\"~a\")" arg)]
+                              [(? number?)  (format "n2d(~a)" arg)]
                               [else 
                                 (define arg-pos-in-bvars0 (index-of bvars0 arg))
                                 (format "data[~a]" arg-pos-in-bvars0)])) 
@@ -489,7 +493,9 @@
                             (define arg-pos-in-bvars1 (index-of new-indices (list-ref indices i)))
                             (define arg (list-ref bvars1 arg-pos-in-bvars1))
                             (match arg
-                              [(? lit?) (format "n2d(~a)" arg)]
+                              ; [(? lit?) (format "n2d(~a)" arg)]
+                              [(? string?) (format "n2d(\"~a\")" arg)]
+                              [(? number?)  (format "n2d(~a)" arg)]
                               [else 
                                 (define arg-pos-in-bvars0 (index-of bvars0 arg))
                                 (format "data[~a]" arg-pos-in-bvars0)])) 
@@ -524,7 +530,9 @@
                             (define arg-pos-in-bvars1 (index-of new-indices (list-ref indices i)))
                             (define arg (list-ref bvars1 arg-pos-in-bvars1))
                             (match arg
-                              [(? lit?) (format "n2d(~a)" arg)]
+                              ; [(? lit?) (format "n2d(~a)" arg)]
+                              [(? string?) (format "n2d(\"~a\")" arg)]
+                              [(? number?)  (format "n2d(~a)" arg)]
                               [else 
                                 (define arg-pos-in-bvars0 (index-of bvars0 arg))
                                 (format "data[~a]" arg-pos-in-bvars0)])) 
