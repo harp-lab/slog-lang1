@@ -72,7 +72,7 @@ def ingest_facts(factloc, inputloc, tsv_bin_path):
         try:
             # idk why 16 is buckets, got from rpc.py
             subprocess.check_output([tsv_bin_path, factfile, str(arity),
-                                     tableloc, index, '16', str(tabletag), inputloc])
+                                     tableloc, '16', str(tabletag), inputloc])
         except subprocess.CalledProcessError as e:
             print(f"tsv_to_bin failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
             return None
