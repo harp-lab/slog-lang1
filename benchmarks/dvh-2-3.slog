@@ -1,23 +1,23 @@
 (entry-point
   (app
-   (lam "f0" (seq (app (ref "f0") (int 0)) (app (ref "f0") (int 1))))
+   (lam 1000 (seq (app (ref 1000) (int 0)) (app (ref 1000) (int 1))))
    (lam
-    "z0"
+    4
     (app
-     (lam "f1" (seq (app (ref "f1") (int 0)) (app (ref "f1") (int 1))))
+     (lam 1001 (seq (app (ref 1001) (int 0)) (app (ref 1001) (int 1))))
      (lam
-      "z1"
+      5
       (app
        (lam
-        "x"
+        3
         (app
          (lam
-          "x"
+          3
           (app
-           (lam "x" (lam "w" (app (app (ref "w") (ref "z0")) (ref "z1"))))
-           (lam "x" (ref "x"))))
-         (lam "x" (ref "x"))))
-       (lam "x" (ref "x"))))))))
+           (lam 3 (lam 0 (app (app (ref 2) (ref 4)) (ref 5))))
+           (lam 3 (ref 3))))
+         (lam 3 (ref 3))))
+       (lam 3 (ref 3))))))))
 
 ; Entry points
 [(entry-point e)
