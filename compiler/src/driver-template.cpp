@@ -1,38 +1,64 @@
 // location of `parallel_RA_inc.h` here
 #include "~a"
 
+#include <iterator>
+#include <sstream>
+#include <string>
+
 // builtins.cpp goes here!
 ~a
 
 // global definitions:
 ~a
 
-std::string get_stem(const std::filesystem::path &p) { return (p.stem().string()); }
+int max_rel = 255;
+std::map<std::string, int> rel_tag_map;
 
-int get_tag_for_rel(std::string& relation_name, std::string& db_dir) {
-
-  std::vector<int> used_tags;
-  used_tag.push_back(255);
-  for (const auto & entry : std::filesystem::directory_iterator(path))
+// load all relation inside input database
+void load_input_relation(std::string db_dir)
+{
+  for (const auto & entry : std::filesystem::directory_iterator(db_dir))
   {
     // check if ends with table
-    std::string filename_s = get_stem(entry);
+    std::string filename_ss = entry.path().filename().string();
     std::string suffix = ".table";
-    if (filename_s.rfind(suffix) != std::abs(filename_s.size()-suffix.size()))
+    int ft = filename_ss.size()-suffix.size();
+    if (ft < 0)
+      ft = 0;
+    if (filename_ss.rfind(suffix) != ft)
     {
       continue;
     }
-    std::string filename_s = filename_s.substr(0, std::abs(filename_s.size()-suffix.size()));
-    std::string rel_name = filename_s.substr(filename_s.lfind(".")+1, filename_s.rfind("."));
-    std::string tag_s = filename_s.substr(0, filename_s.lfind("."));
-    if (rel_name == relation_name)
+    std::string filename_s = entry.path().stem().string();
+    int tag = std::stoi(filename_s.substr(0, filename_s.find(".")));
+    std::string name_arity = filename_s.substr(filename_s.find(".")+1, filename_s.size()-filename_s.find(".")-1);
+    std::string name = name_arity.substr(0, name_arity.rfind("."));
+    std::string arity_s = name_arity.substr(name_arity.rfind(".")+1, name_arity.size());
+    int arity = std::stoi(arity_s);
+    std::stringstream index_stream;
+    index_stream << name;
+    for (int i = 1; i <= arity; i++)
     {
-      return std::stoi(tag_s);
+      index_stream << "__" <<  i;
     }
-    used_tags.push_back(std::stoi(tag_s));
+    if (tag > max_rel)
+      max_rel = tag;
+    std::cout << "load " << index_stream.str() << std::endl;
+    rel_tag_map[index_stream.str()] = tag;
   }
-  std::sort(used_tags.begin(), used_tags.end(), std::greater<int>());
-  return used_tags[0]+1;
+}
+
+int get_tag_for_rel(std::string relation_name, std::string index_str) {
+  std::string name_arity = relation_name + "__" + index_str;
+  if (rel_tag_map.find(name_arity) != rel_tag_map.end())
+  {
+    // std::cout << "rel: " << name_arity << " " << rel_tag_map[name_arity] << std::endl;
+    return rel_tag_map[name_arity];
+  }
+  max_rel++;
+  rel_tag_map[name_arity] = max_rel;
+  std::cout << "generate rel tag: " << name_arity << " " << max_rel << std::endl;
+  return max_rel;
 }
 
 int main(int argc, char **argv)
@@ -44,9 +70,8 @@ int main(int argc, char **argv)
   if (argc == 3) {
     slog_input_dir = argv[1];
     slog_output_dir = argv[2];
-    std::cout << "using input " << slog_input_dir << std::endl;
-    std::cout << "using output " << slog_output_dir << std::endl;
   }
+  load_input_relation(slog_input_dir);
   mpi_comm mcomm;
   mcomm.create(argc, argv);
 
@@ -54,8 +79,9 @@ int main(int argc, char **argv)
 
   
   // Enable IO
-  lie->enable_share_io();
+  lie->enable_all_to_all_dump();
   lie->enable_data_IO();
+  lie->enable_IO();
   lie->set_output_dir(slog_output_dir); // Write to this directory
   lie->set_comm(mcomm);
   lie->set_batch_size(1);

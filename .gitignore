@@ -10,3 +10,4 @@ TESTOUT
 .slog-history
 metadatabase/database.sqlite3
 env/
+.cache
