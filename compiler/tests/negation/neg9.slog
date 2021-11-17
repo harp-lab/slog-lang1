@@ -1,0 +1,11 @@
+(bar 1 2)
+(bar 2 3)
+(do 1 10)
+(do 2 11)
+(doesnot 1 2 10 100)
+
+[(foo c a b)
+ <--
+ (bar a b)
+ (do a c)
+ (~ doesnot a b c _)]
