@@ -42,9 +42,10 @@ bool parallel_join_negate::local_negation(
             negated_target->insert_tuple_from_array(prefix, join_column_count);
             negated_target_counts++;
         }
-        if (negated_target == 0)
+        if (negated_target_counts == 0)
         {
-            
+            delete negated_target;
+            negated_target = NULL;
         }
         for (int k1 = *offset; k1 < input0_buffer_size; k1 = k1 + input0_buffer_width)
         {
