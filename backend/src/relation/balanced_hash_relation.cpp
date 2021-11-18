@@ -6,6 +6,7 @@
 
 
 #include "../parallel_RA_inc.h"
+#include <filesystem>
 
 u32 relation::get_global_delta_element_count()
 {
@@ -570,6 +571,11 @@ void relation::load_data_from_file_with_offset()
 
 void relation::load_data_from_file()
 {
+    if (!std::filesystem::exists(this->get_filename()))
+    {
+        // if file not exists don't IO
+        return;
+    }
     std::cout << "relation with tag :" << this->get_intern_tag() << " "
               << "filename :" << this->get_filename() << " "
             //   << "c++ object " << this
