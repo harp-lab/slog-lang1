@@ -58,15 +58,12 @@ public:
                         u32 buckets,
                         int input0_buffer_size, 
                         int input0_buffer_width, u64 *input0_buffer,
-                        shmap_relation *input0,
                         shmap_relation *input1, u32 i1_size, int input1_buffer_width,
-                        std::vector<int> reorder_map_array,
+                        std::vector<int> &reorder_map_array,
                         relation* output,
                         all_to_allv_buffer& join_buffer,
                         int counter,
-                        int join_column_count,
-                        u32* local_join_duplicates,
-                        u32* local_join_inserts);
+                        int join_column_count);
 
     void local_copy(u32 buckets,
                     shmap_relation* input,

@@ -480,17 +480,13 @@ u32 RAM::local_compute(int* offset)
                     get_bucket_count(),
                     intra_bucket_buf_output_size[counter],
                     target_relation->get_arity()+1, intra_bucket_buf_output[counter],
-                    target_relation->get_full(),
                     input_rel_trie, input_size,
                     input_relation->get_arity()+1,
                     reorder_map_array,
                     output_relation,
                     compute_buffer,
                     counter,
-                    join_column_count,
-                    &join_tuples_duplicates,
-                    &join_tuples);
-                total_join_tuples = total_join_tuples + join_tuples;
+                    join_column_count);
             }
         }
 

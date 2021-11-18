@@ -410,9 +410,8 @@ void shmap_relation::as_all_to_allv_right_join_buffer_helper(shmap_relation*& cu
 void shmap_relation::as_all_to_allv_right_outer_join_buffer(
     shmap_relation* neg_target, all_to_allv_buffer& join_buffer, u64 *input0_buffer,
     int input0_buffer_width, int input1_buffer_width, int ra_id, u32 buckets,
-    u32* output_sub_bucket_count, u32** output_sub_bucket_rank, std::vector<int> reorder_map,
+    u32* output_sub_bucket_count, u32** output_sub_bucket_rank, std::vector<int>& reorder_map,
     int join_column_count, int out_arity,
-    int* local_join_count, u32* local_join_duplicates, u32* local_join_inserts,
     int head_rel_hash_col_count, bool canonical)
 {
     shmap_relation *m_trie = this;
@@ -438,8 +437,7 @@ void shmap_relation::as_all_to_allv_right_outer_join_buffer(
         ra_id, buckets,
         output_sub_bucket_count, output_sub_bucket_rank,
         reorder_map, join_column_count,
-        out_arity, local_join_count,
-        local_join_duplicates, local_join_inserts,
+        out_arity,
         head_rel_hash_col_count, canonical);
 }
 
@@ -450,9 +448,8 @@ void shmap_relation::as_all_to_allv_right_outer_join_buffer_helper(
     int input0_buffer_width, int input1_buffer_width,
     int ra_id, u32 buckets,
     u32* output_sub_bucket_count, u32** output_sub_bucket_rank,
-    std::vector<int> reorder_map, int join_column_count,
-    int out_arity, int* local_join_count,
-    u32* local_join_duplicates, u32* local_join_inserts,
+    std::vector<int> &reorder_map, int join_column_count,
+    int out_arity,
     int head_rel_hash_col_count, bool canonical)
 { 
     if (cur_path.size() >= join_column_count || neg_target == NULL)
@@ -475,8 +472,7 @@ void shmap_relation::as_all_to_allv_right_outer_join_buffer_helper(
                 ra_id, buckets,
                 output_sub_bucket_count, output_sub_bucket_rank,
                 reorder_map, join_column_count,
-                out_arity, local_join_count,
-                local_join_duplicates, local_join_inserts,
+                out_arity,
                 head_rel_hash_col_count, canonical);
         }
         else
@@ -489,9 +485,7 @@ void shmap_relation::as_all_to_allv_right_outer_join_buffer_helper(
                 output_sub_bucket_rank,
                 reorder_map, out_arity,
                 join_column_count, head_rel_hash_col_count,
-                canonical);
-            (*local_join_inserts)++;
-            (*local_join_count)++;           
+                canonical);         
             // std::cout << "left join count " << (*local_join_count) << std::endl;
         }
         cur_path.pop_back();
