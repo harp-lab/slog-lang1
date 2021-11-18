@@ -140,8 +140,11 @@ void shmap_relation::as_all_to_allv_acopy_buffer_helper(shmap_relation*& cur_tri
 
         uint64_t bucket_id = tuple_hash(reordered_cur_path, head_rel_hash_col_count) % buckets;
         uint64_t sub_bucket_id=0;
-        if (canonical == false && arity != 0)
+        if (canonical == false && arity != 0 && arity >= head_rel_hash_col_count)
+        {
+            std::cout << "arity " << arity << " head_rel_hash_col_count " << head_rel_hash_col_count << std::endl;
             sub_bucket_id = tuple_hash(reordered_cur_path + head_rel_hash_col_count, arity-head_rel_hash_col_count) % output_sub_bucket_count[bucket_id];
+        }
 
 
         int index = output_sub_bucket_rank[bucket_id][sub_bucket_id];
@@ -198,7 +201,7 @@ void shmap_relation::as_all_to_allv_copy_buffer_helper(
 
         uint64_t bucket_id = tuple_hash(reordered_cur_path, head_rel_hash_col_count) % buckets;
         uint64_t sub_bucket_id=0;
-        if (canonical == false && arity != 0)
+        if (canonical == false && arity != 0 && arity >= head_rel_hash_col_count)
             sub_bucket_id = tuple_hash(reordered_cur_path + head_rel_hash_col_count, arity-head_rel_hash_col_count) % output_sub_bucket_count[bucket_id];
 
         //std::cout << "Copy size " << buffer.width[ra_id] << std::endl;
@@ -257,7 +260,7 @@ void shmap_relation::as_all_to_allv_copy_filter_buffer_helper(shmap_relation*& c
 
             uint64_t bucket_id = tuple_hash(reordered_cur_path, head_rel_hash_col_count) % buckets;
             uint64_t sub_bucket_id=0;
-            if (canonical == false && arity != 0)
+            if (canonical == false && arity != 0 && arity >= head_rel_hash_col_count)
                 sub_bucket_id = tuple_hash(reordered_cur_path + head_rel_hash_col_count, arity-head_rel_hash_col_count) % output_sub_bucket_count[bucket_id];
 
             int index = output_sub_bucket_rank[bucket_id][sub_bucket_id];
@@ -311,7 +314,7 @@ void shmap_relation::as_all_to_allv_copy_generate_buffer_helper(shmap_relation*&
         {
             uint64_t bucket_id = tuple_hash(reordered_cur_path, head_rel_hash_col_count) % buckets;
             uint64_t sub_bucket_id=0;
-            if (canonical == false && arity != 0)
+            if (canonical == false && arity != 0 && arity >= head_rel_hash_col_count)
                 sub_bucket_id = tuple_hash(reordered_cur_path + head_rel_hash_col_count, arity-head_rel_hash_col_count) % output_sub_bucket_count[bucket_id];
 
             //std::cout << "CG bucket_id " << bucket_id << " sub_bucket_id " << sub_bucket_id << std::endl;
@@ -682,7 +685,7 @@ void shmap_relation::as_all_to_all_copy_buffer_helper(int threshold, int RA_coun
 
         uint64_t bucket_id = tuple_hash(reordered_cur_path, head_rel_hash_col_count) % buckets;
         uint64_t sub_bucket_id=0;
-        if (canonical == false && arity != 0)
+        if (canonical == false && arity != 0 && arity >= head_rel_hash_col_count)
             sub_bucket_id = tuple_hash(reordered_cur_path + head_rel_hash_col_count, arity-head_rel_hash_col_count) % output_sub_bucket_count[bucket_id];
 
         int index = output_sub_bucket_rank[bucket_id][sub_bucket_id];
@@ -742,7 +745,7 @@ void shmap_relation::as_all_to_all_copy_buffer_helper_with_starting_index(int th
 
         uint64_t bucket_id = tuple_hash(reordered_cur_path, head_rel_hash_col_count) % buckets;
         uint64_t sub_bucket_id=0;
-        if (canonical == false && arity != 0)
+        if (canonical == false && arity != 0 && arity >= head_rel_hash_col_count)
             sub_bucket_id = tuple_hash(reordered_cur_path + head_rel_hash_col_count, arity-head_rel_hash_col_count) % output_sub_bucket_count[bucket_id];
 
         int index = output_sub_bucket_rank[bucket_id][sub_bucket_id];
@@ -796,7 +799,7 @@ void shmap_relation::as_all_to_all_copy_filter_buffer_helper(int threshold, int 
 
             uint64_t bucket_id = tuple_hash(reordered_cur_path, head_rel_hash_col_count) % buckets;
             uint64_t sub_bucket_id=0;
-            if (canonical == false && arity != 0)
+            if (canonical == false && arity != 0 && arity >= head_rel_hash_col_count)
                 sub_bucket_id = tuple_hash(reordered_cur_path + head_rel_hash_col_count, arity-head_rel_hash_col_count) % output_sub_bucket_count[bucket_id];
 
             int index = output_sub_bucket_rank[bucket_id][sub_bucket_id];
@@ -842,7 +845,7 @@ void shmap_relation::as_all_to_all_acopy_buffer_helper(int threshold, int RA_cou
 
         uint64_t bucket_id = tuple_hash(reordered_cur_path, head_rel_hash_col_count) % buckets;
         uint64_t sub_bucket_id=0;
-        if (canonical == false && arity != 0)
+        if (canonical == false && arity != 0 && arity >= head_rel_hash_col_count)
             sub_bucket_id = tuple_hash(reordered_cur_path + head_rel_hash_col_count, arity-head_rel_hash_col_count) % output_sub_bucket_count[bucket_id];
 
         int index = output_sub_bucket_rank[bucket_id][sub_bucket_id];

@@ -579,7 +579,7 @@ void relation::load_data_from_file()
     {
         /// Main : Execute : init : io : end
     	double read_data_start = MPI_Wtime();
-        //std::cout << "Filename " << filename << std::endl;
+        //std::cout << "111111 Filename " << filename << std::endl;
         file_io.parallel_read_input_relation_from_file_to_local_buffer(arity, filename, mcomm.get_local_comm());
         double read_data_end = MPI_Wtime();
         double read_data_time = read_data_end - read_data_start;
@@ -717,6 +717,7 @@ void relation::initialize_relation(mpi_comm& mcomm, std::map<u64, u64>& intern_m
     /// Main : Execute : init : buffer_init : end
     file_io.set_share_io(share_io);
 
+    /*
     // if no input file stop reading, just return
     // TODO: ww
     if ((!this->is_canonical) || (!std::filesystem::exists(this->filename)))
@@ -724,7 +725,8 @@ void relation::initialize_relation(mpi_comm& mcomm, std::map<u64, u64>& intern_m
         // std::cout << "relation :" << this->get_filename()  << "not exists!";
         return;
     }
- 
+    */
+
     /// read data from file
     if (restart_flag)
     {
@@ -742,6 +744,7 @@ void relation::initialize_relation(mpi_comm& mcomm, std::map<u64, u64>& intern_m
     {
     	load_data_from_file();
     }
+
     //std::cout << filename << " " << fact_load << std::endl;
     //if (fact_load == true)
         //if (init_val.size() != 0)
@@ -1104,7 +1107,7 @@ bool relation::insert_in_delta(u64* t)
 {
     uint64_t bucket_id = tuple_hash(t, join_column_count) % get_bucket_count();
     u32 sub_bucket_id = 0;
-    if (is_canonical == false   && arity != 0)
+    if (is_canonical == false   && arity != 0 && arity >= join_column_count)
         sub_bucket_id = tuple_hash(t + join_column_count, arity-join_column_count) % sub_bucket_per_bucket_count[bucket_id];
 
     //assert((int)bucket_id == mcomm.get_local_rank());
@@ -1126,7 +1129,7 @@ bool relation::insert_in_newt(u64* t)
 {
     uint64_t bucket_id = tuple_hash(t, join_column_count) % get_bucket_count();
     u32 sub_bucket_id = 0;
-    if (is_canonical == false && arity != 0)
+    if (is_canonical == false && arity != 0 && arity >= join_column_count)
         sub_bucket_id = tuple_hash(t + join_column_count, arity-join_column_count) % sub_bucket_per_bucket_count[bucket_id];
 
     //assert((int)bucket_id == mcomm.get_local_rank());
@@ -1149,7 +1152,7 @@ bool relation::insert_in_full(u64* t)
     u32 buckets = get_bucket_count();
     uint64_t bucket_id = tuple_hash(t, join_column_count) % buckets;
     uint64_t sub_bucket_id=0;
-    if (is_canonical == false  && arity != 0)
+    if (is_canonical == false  && arity != 0 && arity >= join_column_count)
         sub_bucket_id = tuple_hash(t + join_column_count, arity-join_column_count) % sub_bucket_per_bucket_count[bucket_id];
 
     //assert((int)bucket_id == mcomm.get_local_rank());

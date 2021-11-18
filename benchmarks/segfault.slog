@@ -1,43 +1,18 @@
 (entry-point
- (app
-  (lam 1000 (seq (app (ref 1000) (int 0)) (app (ref 1000) (int 1))))
-  (lam
-   4
-   (app
-    (lam 1001 (seq (app (ref 1001) (int 0)) (app (ref 1001) (int 1))))
-    (lam
-     5
-     (app
-      (lam
-       3
-       (app
-        (lam
-         3
-         (app
-          (lam 3 (lam 0 (app (app (ref 2) (ref 4)) (ref 5))))
-          (lam 3 (ref 3))))
-        (lam 3 (ref 3))))
-      (lam 3 (ref 3))))))))
+ (app (lam 0 (app (ref 0) (ref 0))) (lam 1 (ref 1))))
 
 ; Entry points
 [(entry-point e)
  -->
  (eval e (bot 0) (bot 0) (halt (entry-point e)) [])]
 
-[(ret v sto (halt ep))
- -->
- (entry-point-return ep v sto)]
-
 ; Eval states 
-(step
- ?(eval (int n) env sto k t)
- (ret (int n) sto k))
-
 [(step
   ?(eval (ref x) env sto k t)
   (ret v sto k))
  <--
  (store-map sto a v)
+ --
  (env-map env x a)]
 
 (step
@@ -48,11 +23,6 @@
  ?(eval (app ef ea) env sto k t)
  (eval ef env sto (ap-k ea env k t (app ef ea)) t))
 
-(step
- ?(eval (seq e0 e1) env sto k t)
- (eval e0 env sto (seq-k e1 env sto k t) t))
-[(eval e1 env sto k t) <-- (eval (seq e0 e1) env sto k t)]
-
 ; Ret states
 (step
  ?(ret v sto (ap-k ea env k t app-e))
@@ -60,11 +30,7 @@
 
 (step
  ?(ret v sto (fn-k fv k t app-e))
- (apply fv v sto k {ext-time !do(t app-e)}))
-
-(step
- ?(ret v sto (seq-k e1 env sto k t))
- (eval e1 env sto k t))
+ (apply fv v sto k []))
 
 ; Apply states
 (step
@@ -87,11 +53,4 @@
  <--
  (=/= a a')
  (store-map sto a v)]
-
-; timestamps
-(contour-limit-k 3)
-[(ext-time ?do(t e) {take !do(k [e t ...])}) <-- (contour-limit-k k)]
-[(take ?do(0 lst) []) <--]
-[(take ?do(n []) []) <-- (> n 0)]
-[(take ?do(n [x lst ...]) [x {take !do({- n 1} lst)} ...]) <-- (> n 0)]
 
