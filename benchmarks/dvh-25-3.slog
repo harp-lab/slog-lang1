@@ -1,185 +1,182 @@
 (entry-point
-  (app
-   (lam "f0" (seq (app (ref "f0") (int 0)) (app (ref "f0") (int 1))))
-   (lam
-    "z0"
-    (app
-     (lam "f1" (seq (app (ref "f1") (int 0)) (app (ref "f1") (int 1))))
-     (lam
-      "z1"
-      (app
-       (lam "f2" (seq (app (ref "f2") (int 0)) (app (ref "f2") (int 1))))
-       (lam
-        "z2"
-        (app
-         (lam "f3" (seq (app (ref "f3") (int 0)) (app (ref "f3") (int 1))))
-         (lam
-          "z3"
-          (app
-           (lam "f4" (seq (app (ref "f4") (int 0)) (app (ref "f4") (int 1))))
-           (lam
-            "z4"
-            (app
-             (lam "f5" (seq (app (ref "f5") (int 0)) (app (ref "f5") (int 1))))
-             (lam
-              "z5"
-              (app
-               (lam
-                "f6"
-                (seq (app (ref "f6") (int 0)) (app (ref "f6") (int 1))))
-               (lam
-                "z6"
-                (app
-                 (lam
-                  "f7"
-                  (seq (app (ref "f7") (int 0)) (app (ref "f7") (int 1))))
-                 (lam
-                  "z7"
-                  (app
-                   (lam
-                    "f8"
-                    (seq (app (ref "f8") (int 0)) (app (ref "f8") (int 1))))
-                   (lam
-                    "z8"
-                    (app
-                     (lam
-                      "f9"
-                      (seq (app (ref "f9") (int 0)) (app (ref "f9") (int 1))))
-                     (lam
-                      "z9"
-                      (app
-                       (lam
-                        "f10"
-                        (seq
-                         (app (ref "f10") (int 0))
-                         (app (ref "f10") (int 1))))
-                       (lam
-                        "z10"
-                        (app
-                         (lam
-                          "f11"
-                          (seq
-                           (app (ref "f11") (int 0))
-                           (app (ref "f11") (int 1))))
-                         (lam
-                          "z11"
-                          (app
-                           (lam
-                            "f12"
-                            (seq
-                             (app (ref "f12") (int 0))
-                             (app (ref "f12") (int 1))))
-                           (lam
-                            "z12"
-                            (app
-                             (lam
-                              "f13"
-                              (seq
-                               (app (ref "f13") (int 0))
-                               (app (ref "f13") (int 1))))
-                             (lam
-                              "z13"
-                              (app
-                               (lam
-                                "f14"
-                                (seq
-                                 (app (ref "f14") (int 0))
-                                 (app (ref "f14") (int 1))))
-                               (lam
-                                "z14"
-                                (app
-                                 (lam
-                                  "f15"
-                                  (seq
-                                   (app (ref "f15") (int 0))
-                                   (app (ref "f15") (int 1))))
-                                 (lam
-                                  "z15"
-                                  (app
-                                   (lam
-                                    "f16"
-                                    (seq
-                                     (app (ref "f16") (int 0))
-                                     (app (ref "f16") (int 1))))
-                                   (lam
-                                    "z16"
-                                    (app
-                                     (lam
-                                      "f17"
-                                      (seq
-                                       (app (ref "f17") (int 0))
-                                       (app (ref "f17") (int 1))))
-                                     (lam
-                                      "z17"
-                                      (app
-                                       (lam
-                                        "f18"
-                                        (seq
-                                         (app (ref "f18") (int 0))
-                                         (app (ref "f18") (int 1))))
-                                       (lam
-                                        "z18"
-                                        (app
-                                         (lam
-                                          "f19"
-                                          (seq
-                                           (app (ref "f19") (int 0))
-                                           (app (ref "f19") (int 1))))
-                                         (lam
-                                          "z19"
-                                          (app
-                                           (lam
-                                            "f20"
-                                            (seq
-                                             (app (ref "f20") (int 0))
-                                             (app (ref "f20") (int 1))))
-                                           (lam
-                                            "z20"
-                                            (app
-                                             (lam
-                                              "f21"
-                                              (seq
-                                               (app (ref "f21") (int 0))
-                                               (app (ref "f21") (int 1))))
-                                             (lam
-                                              "z21"
-                                              (app
-                                               (lam
-                                                "f22"
-                                                (seq
-                                                 (app (ref "f22") (int 0))
-                                                 (app (ref "f22") (int 1))))
-                                               (lam
-                                                "z22"
-                                                (app
-                                                 (lam
-                                                  "f23"
-                                                  (seq
-                                                   (app (ref "f23") (int 0))
-                                                   (app (ref "f23") (int 1))))
-                                                 (lam
-                                                  "z23"
-                                                  (app
-                                                   (lam
-                                                    "f24"
-                                                    (seq
-                                                     (app (ref "f24") (int 0))
+ (app
+  (lam 1000 (seq (app (ref 1000) (int 0)) (app (ref 1000) (int 1))))
+  (lam
+   4
+   (app
+    (lam 1001 (seq (app (ref 1001) (int 0)) (app (ref 1001) (int 1))))
+    (lam
+     5
+     (app
+      (lam 1002 (seq (app (ref 1002) (int 0)) (app (ref 1002) (int 1))))
+      (lam
+       6
+       (app
+        (lam 1003 (seq (app (ref 1003) (int 0)) (app (ref 1003) (int 1))))
+        (lam
+         7
+         (app
+          (lam 1004 (seq (app (ref 1004) (int 0)) (app (ref 1004) (int 1))))
+          (lam
+           8
+           (app
+            (lam 1005 (seq (app (ref 1005) (int 0)) (app (ref 1005) (int 1))))
+            (lam
+             9
+             (app
+              (lam
+               1006
+               (seq (app (ref 1006) (int 0)) (app (ref 1006) (int 1))))
+              (lam
+               10
+               (app
+                (lam
+                 1007
+                 (seq (app (ref 1007) (int 0)) (app (ref 1007) (int 1))))
+                (lam
+                 11
+                 (app
+                  (lam
+                   1008
+                   (seq (app (ref 1008) (int 0)) (app (ref 1008) (int 1))))
+                  (lam
+                   12
+                   (app
+                    (lam
+                     1009
+                     (seq (app (ref 1009) (int 0)) (app (ref 1009) (int 1))))
+                    (lam
+                     13
+                     (app
+                      (lam
+                       1010
+                       (seq (app (ref 1010) (int 0)) (app (ref 1010) (int 1))))
+                      (lam
+                       14
+                       (app
+                        (lam
+                         1011
+                         (seq
+                          (app (ref 1011) (int 0))
+                          (app (ref 1011) (int 1))))
+                        (lam
+                         15
+                         (app
+                          (lam
+                           1012
+                           (seq
+                            (app (ref 1012) (int 0))
+                            (app (ref 1012) (int 1))))
+                          (lam
+                           16
+                           (app
+                            (lam
+                             1013
+                             (seq
+                              (app (ref 1013) (int 0))
+                              (app (ref 1013) (int 1))))
+                            (lam
+                             17
+                             (app
+                              (lam
+                               1014
+                               (seq
+                                (app (ref 1014) (int 0))
+                                (app (ref 1014) (int 1))))
+                              (lam
+                               18
+                               (app
+                                (lam
+                                 1015
+                                 (seq
+                                  (app (ref 1015) (int 0))
+                                  (app (ref 1015) (int 1))))
+                                (lam
+                                 19
+                                 (app
+                                  (lam
+                                   1016
+                                   (seq
+                                    (app (ref 1016) (int 0))
+                                    (app (ref 1016) (int 1))))
+                                  (lam
+                                   20
+                                   (app
+                                    (lam
+                                     1017
+                                     (seq
+                                      (app (ref 1017) (int 0))
+                                      (app (ref 1017) (int 1))))
+                                    (lam
+                                     21
+                                     (app
+                                      (lam
+                                       1018
+                                       (seq
+                                        (app (ref 1018) (int 0))
+                                        (app (ref 1018) (int 1))))
+                                      (lam
+                                       22
+                                       (app
+                                        (lam
+                                         1019
+                                         (seq
+                                          (app (ref 1019) (int 0))
+                                          (app (ref 1019) (int 1))))
+                                        (lam
+                                         23
+                                         (app
+                                          (lam
+                                           1020
+                                           (seq
+                                            (app (ref 1020) (int 0))
+                                            (app (ref 1020) (int 1))))
+                                          (lam
+                                           24
+                                           (app
+                                            (lam
+                                             1021
+                                             (seq
+                                              (app (ref 1021) (int 0))
+                                              (app (ref 1021) (int 1))))
+                                            (lam
+                                             25
+                                             (app
+                                              (lam
+                                               1022
+                                               (seq
+                                                (app (ref 1022) (int 0))
+                                                (app (ref 1022) (int 1))))
+                                              (lam
+                                               26
+                                               (app
+                                                (lam
+                                                 1023
+                                                 (seq
+                                                  (app (ref 1023) (int 0))
+                                                  (app (ref 1023) (int 1))))
+                                                (lam
+                                                 27
+                                                 (app
+                                                  (lam
+                                                   1024
+                                                   (seq
+                                                    (app (ref 1024) (int 0))
+                                                    (app (ref 1024) (int 1))))
+                                                  (lam
+                                                   28
+                                                   (app
+                                                    (lam
+                                                     3
                                                      (app
-                                                      (ref "f24")
-                                                      (int 1))))
-                                                   (lam
-                                                    "z24"
-                                                    (app
-                                                     (lam
-                                                      "x"
-                                                      (app
-                                                       (lam
-                                                        "x"
-                                                        (app
+                                                      (lam
+                                                       3
+                                                       (app
+                                                        (lam
+                                                         3
                                                          (lam
-                                                          "x"
-                                                          (lam
-                                                           "w"
+                                                          0
+                                                          (app
                                                            (app
                                                             (app
                                                              (app
@@ -204,64 +201,57 @@
                                                                                 (app
                                                                                  (app
                                                                                   (app
-                                                                                   (app
-                                                                                    (ref
-                                                                                     "w")
-                                                                                    (ref
-                                                                                     "z0"))
                                                                                    (ref
-                                                                                    "z1"))
+                                                                                    2)
+                                                                                   (ref
+                                                                                    4))
                                                                                   (ref
-                                                                                   "z2"))
+                                                                                   5))
                                                                                  (ref
-                                                                                  "z3"))
+                                                                                  6))
                                                                                 (ref
-                                                                                 "z4"))
+                                                                                 7))
                                                                                (ref
-                                                                                "z5"))
+                                                                                8))
                                                                               (ref
-                                                                               "z6"))
+                                                                               9))
                                                                              (ref
-                                                                              "z7"))
+                                                                              10))
                                                                             (ref
-                                                                             "z8"))
+                                                                             11))
                                                                            (ref
-                                                                            "z9"))
+                                                                            12))
                                                                           (ref
-                                                                           "z10"))
+                                                                           13))
                                                                          (ref
-                                                                          "z11"))
+                                                                          14))
                                                                         (ref
-                                                                         "z12"))
+                                                                         15))
                                                                        (ref
-                                                                        "z13"))
-                                                                      (ref
-                                                                       "z14"))
-                                                                     (ref
-                                                                      "z15"))
-                                                                    (ref
-                                                                     "z16"))
-                                                                   (ref "z17"))
-                                                                  (ref "z18"))
-                                                                 (ref "z19"))
-                                                                (ref "z20"))
-                                                               (ref "z21"))
-                                                              (ref "z22"))
-                                                             (ref "z23"))
-                                                            (ref "z24"))))
-                                                         (lam "x" (ref "x"))))
-                                                       (lam "x" (ref "x"))))
-                                                     (lam
-                                                      "x"
-                                                      (ref
-                                                       "x"))))))))))))))))))))))))))))))))))))))))))))))))))))))
-
-
+                                                                        16))
+                                                                      (ref 17))
+                                                                     (ref 18))
+                                                                    (ref 19))
+                                                                   (ref 20))
+                                                                  (ref 21))
+                                                                 (ref 22))
+                                                                (ref 23))
+                                                               (ref 24))
+                                                              (ref 25))
+                                                             (ref 26))
+                                                            (ref 27))
+                                                           (ref 28))))
+                                                        (lam 3 (ref 3))))
+                                                      (lam 3 (ref 3))))
+                                                    (lam
+                                                     3
+                                                     (ref
+                                                      3))))))))))))))))))))))))))))))))))))))))))))))))))))))
 
 ; Entry points
 [(entry-point e)
  -->
- (eval e (bot) (bot) (halt (entry-point e)) [])]
+ (eval e (bot 0) (bot 0) (halt (entry-point e)) [])]
 
 [(ret v sto (halt ep))
  -->
@@ -272,9 +262,13 @@
  ?(eval (int n) env sto k t)
  (ret (int n) sto k))
 
-(step
- ?(eval (ref x) env sto k t)
- (ret {lookup !do(x env sto)} sto k))
+[(step
+  ?(eval (ref x) env sto k t)
+  (ret v sto k))
+ <--
+ (store-map sto a v)
+ --
+ (env-map env x a)]
 
 (step
  ?(eval (lam x e) env sto k t)
@@ -305,14 +299,14 @@
 ; Apply states
 (step
  ?(apply (clo (lam x e) env) v sto k t)
- (eval e {ext-env !do(env x (vaddr x t))} {ext-store !do(sto (vaddr x t) v)} k t))
+ (eval e (environment env x (vaddr x t)) (store sto (vaddr x t) v) k t))
 
 ; Env/store lookup & update
-(lookup ?do(x env sto) {store-lookup !do({env-lookup !do(x env)} sto)})
-[(env-lookup ?do(x env) a) <-- (env-map env x a)]
-[(store-lookup ?do(a sto) v) <-- (store-map sto a v)]
-(ext-env ?do(env x a) (environment env x a))
-(ext-store ?do(sto a v) (store sto a v))
+;(lookup ?do(x env sto) {store-lookup !do({env-lookup !do(x env)} sto)})
+;[(env-lookup ?do(x env) a) <-- (env-map env x a)]
+;[(store-lookup ?do(a sto) v) <-- (store-map sto a v)]
+;(ext-env ?do(env x a) (environment env x a))
+;(ext-store ?do(sto a v) (store sto a v))
 (env-map ?(environment env x a) x a)
 [(env-map ?(environment env y _) x a)
  <--
