@@ -186,5 +186,51 @@ int main(){
       assert( res == 1);
     }
   }
+
+  {
+    // (srule
+    //      ((rel-select foo 1 (1) db) df)
+    //      ((rel-version do-foo 1 (1) total) $=0 df)
+    //      ((rel-version = 2 (1 2) comp) $=0 0 $_2))
+    auto lam = ~a;
+    {
+      u64 eq0 = n2d(0), df = 4444;
+      auto input = vector<u64> {eq0, df};
+      u64 out[1000];
+      auto res = lam(input.data(), out);
+      // cout << "res : " << res << "\n";
+      cout << "out[0]: " << out[0] << "\n";
+      assert(out[0] == df);
+      assert( res == 1);
+    }
+  }
+
+
+  {
+    // [rule12 '(srule
+    //      ((rel-select bar 3 (1 2 3) db) x y z)
+    //      ((rel-version foo 3 (2 3 1) total) y z x)
+    //      ((rel-version - 3 (2 3 1) comp) y z 4))]
+    // we have (- 4 y z)
+    auto lam = ~a;
+    {
+      u64 x = n2d(10), y = n2d(3), z= n2d(1);
+      auto input = vector<u64> {y, z, x};
+      u64 out[1000];
+      auto res = lam(input.data(), out);
+      // cout << "res : " << res << "\n";
+      cout << "out[0]: " << out[0] << "\n";
+      assert(out[0] == x && out[1] == y && out[2] == z);
+      assert(res == 1);
+    }
+    {
+      u64 x = n2d(10), y = n2d(2), z= n2d(1);
+      auto input = vector<u64> {y, z, x};
+      u64 out[1000];
+      auto res = lam(input.data(), out);
+      // cout << "res : " << res << "\n";
+      assert(res == 0);
+    }
+  }
   return 0;
 }

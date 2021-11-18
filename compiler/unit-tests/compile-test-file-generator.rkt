@@ -65,8 +65,20 @@
          ((rel-version range 3 (3 2 1) comp) c b a $_2))]
   [lam10 (generate-cpp-lambda-for-rule-with-builtin rule10)]
 
+  [rule11 '(srule
+         ((rel-select foo 1 (1) db) df)
+         ((rel-version do-foo 1 (1) total) $=0 df)
+         ((rel-version = 2 (1 2) comp) $=0 0 $_2))]
+  [lam11 (generate-cpp-lambda-for-rule-with-builtin rule11)]
+
+  [rule12 '(srule
+         ((rel-select bar 3 (1 2 3) db) x y z)
+         ((rel-version foo 3 (2 3 1) total) y z x)
+         ((rel-version - 3 (2 3 1) comp) y z 4))]
+  [lam12 (generate-cpp-lambda-for-rule-with-builtin rule12)]
+
   [builtins-test-template-file (file->string (get-path "./builtins-tests-template.cpp"))]
-  [output-file (format builtins-test-template-file lam1 lam2 lam4 lam5 lam6 lam7 lam8 lam9 lam10)])
+  [output-file (format builtins-test-template-file lam1 lam2 lam4 lam5 lam6 lam7 lam8 lam9 lam10 lam11 lam12)])
   (display-to-file output-file (get-path "./output/builtins-tests-generated.cpp") 	#:exists 'replace))
 
 
