@@ -579,7 +579,7 @@ void relation::load_data_from_file()
     {
         /// Main : Execute : init : io : end
     	double read_data_start = MPI_Wtime();
-        std::cout << "111111 Filename " << filename << std::endl;
+        //std::cout << "111111 Filename " << filename << std::endl;
         file_io.parallel_read_input_relation_from_file_to_local_buffer(arity, filename, mcomm.get_local_comm());
         double read_data_end = MPI_Wtime();
         double read_data_time = read_data_end - read_data_start;
