@@ -147,7 +147,7 @@ class SlogClient:
                 req = slog_pb2.PutCSVFactsRequest()
                 req.using_database = db_id
                 req.relation_name = rel_name
-                req.buckets = 1
+                req.buckets = 6
                 req.bodies.extend([file_md5])
                 yield req
         csv_file_paths = []
@@ -242,7 +242,7 @@ class SlogClient:
     def _compile(self, program_hashes, writer=Writer()):
         ''' compile a slog program list (hashes) and return corresponded EDB '''
         req = slog_pb2.CompileHashesRequest()
-        req.buckets = 1
+        req.buckets = 6
         req.using_database = ""
         req.hashes.extend(program_hashes)
         response = self._stub.CompileHashes(req)

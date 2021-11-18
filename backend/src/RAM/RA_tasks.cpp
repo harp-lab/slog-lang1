@@ -177,39 +177,7 @@ u64 RAM::intra_bucket_comm_execute()
             relation* input_rel = current_ra->get_negation_input();
             relation* target_rel = current_ra->get_negation_target();
 
-            // if (current_ra->get_src_graph_type() == DELTA)
-            // {
-            //     intra_bucket_comm(get_bucket_count(),
-            //                       input_rel->get_delta(),
-            //                       input_rel->get_distinct_sub_bucket_rank_count(),
-            //                       input_rel->get_distinct_sub_bucket_rank(),
-            //                       input_rel->get_bucket_map(),
-            //                       target_rel->get_distinct_sub_bucket_rank_count(),
-            //                       target_rel->get_distinct_sub_bucket_rank(),
-            //                       target_rel->get_bucket_map(),
-            //                       &intra_bucket_buf_output_size[counter],
-            //                       &intra_bucket_buf_output[counter],
-            //                       mcomm.get_local_comm());
-            //     total_data_moved = total_data_moved + intra_bucket_buf_output_size[counter];
-            // }
-            // else
-            // {
-            //     // FULL should do right outer join
-            //     intra_bucket_comm(get_bucket_count(),
-            //                       input_rel->get_full(),
-            //                       input_rel->get_distinct_sub_bucket_rank_count(),
-            //                       input_rel->get_distinct_sub_bucket_rank(),
-            //                       input_rel->get_bucket_map(),
-            //                       target_rel->get_distinct_sub_bucket_rank_count(),
-            //                       target_rel->get_distinct_sub_bucket_rank(),
-            //                       target_rel->get_bucket_map(),
-            //                       &intra_bucket_buf_output_size[counter],
-            //                       &intra_bucket_buf_output[counter],
-            //                       mcomm.get_local_comm());
-            //     total_data_moved = total_data_moved + intra_bucket_buf_output_size[counter];
-            // }
-
-            // RIGHT NEGATION JOIN
+            // negation can only be a right like join, all process need to know negated rule
             intra_bucket_comm(get_bucket_count(),
                               target_rel->get_full(),
                               target_rel->get_distinct_sub_bucket_rank_count(),
@@ -481,67 +449,28 @@ u32 RAM::local_compute(int* offset)
             std::vector<int> reorder_map_array;
             current_ra->get_negation_projection_index(&reorder_map_array);
             int join_column_count = target_relation->get_join_column_count();
-            // if  (current_ra->get_src_graph_type() == DELTA)
-            // {
-            //     // normal negation
-            //     join_completed = join_completed & current_ra->local_negation(
-            //         threshold,&(offset[counter]),
-            //         LEFT,
-            //         get_bucket_count(),
-            //         intra_bucket_buf_output_size[counter],
-            //         input_relation->get_arity()+1, intra_bucket_buf_output[counter],
-            //         input_relation->get_delta(),
-            //         target_relation->get_full(), target_relation->get_full_element_count(),
-            //         target_relation->get_arity()+1,
-            //         reorder_map_array,
-            //         output_relation,
-            //         compute_buffer,
-            //         counter,
-            //         join_column_count,
-            //         &join_tuples_duplicates,
-            //         &join_tuples);
-            //     total_join_tuples = total_join_tuples + join_tuples;
-            // }
-            // else
-            // {
-            //     join_completed = join_completed & current_ra->local_negation(
-            //         threshold,&(offset[counter]),
-            //         LEFT,
-            //         get_bucket_count(),
-            //         intra_bucket_buf_output_size[counter],
-            //         input_relation->get_arity()+1, intra_bucket_buf_output[counter],
-            //         input_relation->get_full(),
-            //         target_relation->get_full(), target_relation->get_full_element_count(),
-            //         target_relation->get_arity()+1,
-            //         reorder_map_array,
-            //         output_relation,
-            //         compute_buffer,
-            //         counter,
-            //         join_column_count,
-            //         &join_tuples_duplicates,
-            //         &join_tuples);
-            //     total_join_tuples = total_join_tuples + join_tuples;
-            // }
 
+            shmap_relation* input_rel_trie = NULL;
+            int input_size = 0;
             if  (current_ra->get_src_graph_type() == DELTA)
             {
-                join_completed = join_completed & current_ra->local_negation(
-                    threshold,&(offset[counter]),
-                    RIGHT,
-                    get_bucket_count(),
-                    intra_bucket_buf_output_size[counter],
-                    target_relation->get_arity()+1, intra_bucket_buf_output[counter],
-                    target_relation->get_full(),
-                    input_relation->get_delta(), input_relation->get_delta_element_count(),
-                    input_relation->get_arity()+1,
-                    reorder_map_array,
-                    output_relation,
-                    compute_buffer,
-                    counter,
-                    join_column_count,
-                    &join_tuples_duplicates,
-                    &join_tuples);
-                total_join_tuples = total_join_tuples + join_tuples;
+                input_rel_trie = input_relation->get_delta();
+                input_size = input_relation->get_delta_element_count();
+            }
+            else
+            {
+                input_rel_trie = input_relation->get_full();
+                input_size = input_relation->get_full_element_count();
+            }
+            if (intra_bucket_buf_output_size[counter] == 0)
+            {
+                current_ra->local_copy(
+                    get_bucket_count(), input_rel_trie,
+                    input_relation->get_bucket_map(), output_relation,
+                    reorder_map_array, output_relation->get_arity(),
+                    input_relation->get_join_column_count(),
+                    compute_buffer, counter);
+                join_completed = true;
             }
             else
             {
@@ -552,7 +481,7 @@ u32 RAM::local_compute(int* offset)
                     intra_bucket_buf_output_size[counter],
                     target_relation->get_arity()+1, intra_bucket_buf_output[counter],
                     target_relation->get_full(),
-                    input_relation->get_full(), input_relation->get_full_element_count(),
+                    input_rel_trie, input_size,
                     input_relation->get_arity()+1,
                     reorder_map_array,
                     output_relation,

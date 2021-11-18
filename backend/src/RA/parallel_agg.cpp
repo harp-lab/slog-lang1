@@ -1,6 +1,7 @@
 
 #include "../parallel_RA_inc.h"
 #include <iostream>
+#include <ostream>
 
 bool parallel_join_negate::local_negation(
     int threshold, int* offset, int join_order, u32 buckets,
@@ -17,11 +18,11 @@ bool parallel_join_negate::local_negation(
     join_buffer.width[counter] = reorder_map_array.size();
 
     shmap_relation deduplicate;
-    shmap_relation* negated_target = new shmap_relation;
+    shmap_relation* negated_target = NULL;
     u32* output_sub_bucket_count = output->get_sub_bucket_per_bucket_count();
     u32** output_sub_bucket_rank = output->get_sub_bucket_rank();
-
-    if (*offset > input0_buffer_size || input0_buffer_size == 0)
+ 
+    if (*offset > input0_buffer_size || i1_size == 0)
     {
         // std::cout << "buffer size invalid ... " << input0_buffer_size << "  " << i1_size << std::endl;
         return true;
@@ -29,26 +30,28 @@ bool parallel_join_negate::local_negation(
     int local_join_count=0;
     if (join_order == RIGHT)
     {
-        int negated_target_counts = 0;
-        for (int k1 = *offset; k1 < input0_buffer_size; k1 = k1 + input0_buffer_width)
+        if (input0_buffer_size != 0)
         {
-            u64 prefix[join_column_count];
-            // std::cout << "NEG PREFIX  ";
-            for (int jc=0; jc < join_column_count; jc++)
+            negated_target = new shmap_relation;
+            for (int k1 = *offset; k1 < input0_buffer_size; k1 = k1 + input0_buffer_width)
             {
-                prefix[jc] = input0_buffer[k1 + jc];
-                // std::cout << input0_buffer[k1 + jc] << " ";
+                u64 prefix[join_column_count];
+                // std::cout << "NEG PREFIX  ";
+                for (int jc=0; jc < join_column_count; jc++)
+                {
+                    prefix[jc] = input0_buffer[k1 + jc];
+                    // std::cout << input0_buffer[k1 + jc] << " ";
+                }
+                // std::cout << std::endl;
+                negated_target->insert_tuple_from_array(prefix, join_column_count);
             }
-            // std::cout << std::endl;
-            negated_target->insert_tuple_from_array(prefix, join_column_count);
-            negated_target_counts++;
         }
-        std::cout << negated_target_counts << " facts need to be negated!" << std::endl;
-        if (negated_target_counts == 0)
-        {
-            delete negated_target;
-            negated_target = NULL;
+        else {
+            // should fail here !!!
+            std::cout << "shouldn't be here..." << std::endl;
+            return false;
         }
+        
         for (int k1 = *offset; k1 < input0_buffer_size; k1 = k1 + input0_buffer_width)
         {
             u64 bucket_id = tuple_hash(input0_buffer + k1, join_column_count) % buckets;
@@ -69,43 +72,9 @@ bool parallel_join_negate::local_negation(
             }
         }
     }
-    else {
-        // LEFT
-        
-        for (int k1 = *offset; k1 < input0_buffer_size; k1 = k1 + input0_buffer_width)
-        {
-            std::vector<u64> prefix;
-            for (int jc=0; jc < join_column_count; jc++)
-            {
-                prefix.push_back(input0_buffer[k1 + jc]);
-                // std::cout << "PREFIX " << input0_buffer[k1 + jc] << std::endl;
-            }
-
-            u64 bucket_id = tuple_hash(input0_buffer + k1, join_column_count) % buckets;
-
-            // std::cout << "join buffer size before local join : "
-            //           <<  join_buffer.width << std::endl;
-            input1[bucket_id].as_all_to_allv_left_outer_join_buffer(
-                input0,
-                prefix, join_buffer, input0_buffer + k1, input0_buffer_width,
-                input1_buffer_width, counter, buckets, output_sub_bucket_count,
-                output_sub_bucket_rank, reorder_map_array, join_column_count,
-                deduplicate, &local_join_count,
-                global_join_duplicates, global_join_inserts,
-                output->get_join_column_count(), output->get_is_canonical());
-            // std::cout << "join buffer size after local join : "
-            //           <<  join_buffer.width << std::endl;
-            // std::cout << "local_negation_count " << local_join_count << " Threshold " << threshold << " k1 " << k1 << " offset " << *offset << " " << input0_buffer_width << std::endl;
-            if (local_join_count > threshold)
-            {
-                *offset = k1 + input0_buffer_width;
-                deduplicate.remove_tuple();
-                return false;
-            }
-        }
-    }
     deduplicate.remove_tuple();
-    delete negated_target;
+    if (negated_target != NULL)
+        delete negated_target;
     return true;
 }
 

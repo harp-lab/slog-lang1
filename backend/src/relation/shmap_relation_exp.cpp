@@ -142,7 +142,7 @@ void shmap_relation::as_all_to_allv_acopy_buffer_helper(shmap_relation*& cur_tri
         uint64_t sub_bucket_id=0;
         if (canonical == false && arity != 0 && arity >= head_rel_hash_col_count)
         {
-            std::cout << "arity " << arity << " head_rel_hash_col_count " << head_rel_hash_col_count << std::endl;
+            // std::cout << "arity " << arity << " head_rel_hash_col_count " << head_rel_hash_col_count << std::endl;
             sub_bucket_id = tuple_hash(reordered_cur_path + head_rel_hash_col_count, arity-head_rel_hash_col_count) % output_sub_bucket_count[bucket_id];
         }
 
@@ -441,82 +441,6 @@ void shmap_relation::as_all_to_allv_right_outer_join_buffer(
         out_arity, local_join_count,
         local_join_duplicates, local_join_inserts,
         head_rel_hash_col_count, canonical);
-}
-
-void shmap_relation::as_all_to_allv_left_outer_join_buffer(
-    shmap_relation*& out_rel,
-    std::vector<u64> prefix, all_to_allv_buffer& join_buffer, u64 *input0_buffer,
-    int input0_buffer_width, int input1_buffer_width, int ra_id, u32 buckets,
-    u32* output_sub_bucket_count, u32** output_sub_bucket_rank, std::vector<int> reorder_map,
-    int join_column_count, shmap_relation& deduplicate,
-    int* local_join_count, u32* local_join_duplicates, u32* local_join_inserts,
-    int head_rel_hash_col_count, bool canonical)
-{
-    shmap_relation *m_trie = this;
-    shmap_relation *t_trie = out_rel;
-    bool found = true;
-    std::vector<u64> cur_prefix;
-    for (u64 n : prefix) {
-        if (m_trie->next.find(n) == NULL)
-        {
-            found = false;
-            break;
-        }
-        else
-        {
-            m_trie = *(m_trie->next.find(n));
-            // t_trie = *(m_trie->next.find(n));
-        }
-    }
-    if (found)
-    {
-        return;
-    }
-    for (u64 n : prefix) {
-        if (t_trie->next.find(n) == NULL)
-        {
-            return;
-        }
-        t_trie = *(t_trie->next.find(n));
-    }
-    as_all_to_allv_left_join_buffer_helper(t_trie, prefix, join_buffer, input0_buffer, input0_buffer_width, input1_buffer_width, ra_id, buckets, output_sub_bucket_count, output_sub_bucket_rank, reorder_map, join_column_count, deduplicate, local_join_count, local_join_duplicates, local_join_inserts, head_rel_hash_col_count, canonical);
-}
-
-void shmap_relation::as_all_to_allv_left_outer_join_buffer_helper(
-    shmap_relation*& cur_trie, std::vector<u64> cur_path,
-    all_to_allv_buffer& buffer, u64 *input0_buffer,
-    int input0_buffer_width, int input1_buffer_width,
-    int ra_id, u32 buckets,
-    u32* output_sub_bucket_count, u32** output_sub_bucket_rank,
-    std::vector<int> reorder_map, int join_column_count,
-    shmap_relation& deduplicate, int* local_join_count,
-    u32* local_join_duplicates, u32* local_join_inserts,
-    int head_rel_hash_col_count, bool canonical)
-{
-    u64 reordered_cur_path[buffer.width[ra_id]];
-    for (u32 j =0; j < reorder_map.size(); j++)
-        reordered_cur_path[j] = cur_path[reorder_map[j]];
-
-    uint64_t bucket_id = tuple_hash(reordered_cur_path, head_rel_hash_col_count) % buckets;
-    uint64_t sub_bucket_id=0;
-    if (canonical == false && join_column_count != 0)
-        sub_bucket_id = tuple_hash(reordered_cur_path + head_rel_hash_col_count, join_column_count-head_rel_hash_col_count) % output_sub_bucket_count[bucket_id];
-
-    //std::cout << "Copy size " << buffer.width[ra_id] << std::endl;
-    //std::cout << "Copy happening " << cur_path[0] << " " << cur_path[1] <<  std::endl;
-    //std::cout << "Copy happening " << reordered_cur_path[0] << " " << reordered_cur_path[1] <<  std::endl;
-    //std::cout << "Bucket id " << bucket_id << " sub bucket id " <<sub_bucket_id << std::endl;
-    int index = output_sub_bucket_rank[bucket_id][sub_bucket_id];
-    buffer.local_compute_output_size_rel[ra_id] = buffer.local_compute_output_size_rel[ra_id] + buffer.width[ra_id];
-    buffer.local_compute_output_size_total = buffer.local_compute_output_size_total + buffer.width[ra_id];
-    buffer.local_compute_output_size_flat[index * buffer.ra_count + ra_id] = buffer.local_compute_output_size_flat[index * buffer.ra_count + ra_id] + buffer.width[ra_id];
-
-    buffer.local_compute_output_size[ra_id][index] = buffer.local_compute_output_size[ra_id][index] + buffer.width[ra_id];
-    buffer.cumulative_tuple_process_map[index] = buffer.cumulative_tuple_process_map[index] + buffer.width[ra_id];
-    buffer.local_compute_output[ra_id][index].vector_buffer_append((const unsigned char*)reordered_cur_path, sizeof(u64)*buffer.width[ra_id]);
-    (*local_join_inserts)++;
-    (*local_join_count)++;
-
 }
 
 void shmap_relation::as_all_to_allv_right_outer_join_buffer_helper(
