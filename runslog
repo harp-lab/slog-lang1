@@ -135,9 +135,11 @@ def run_local(file, outloc, factloc, cores, verbose, slog_root=None):
         start = time.time()
         # clean build directory
         shutil.rmtree(backend_build_dir, ignore_errors=True)
-        subprocess.check_output(["cmake", "-B", backend_build_dir, backend_dir],
+        subprocess.check_output(["cmake", "--no-warn-unused-cli", "-DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE",
+                                 "-DCMAKE_BUILD_TYPE:STRING=Release", "-DCMAKE_C_COMPILER:FILEPATH=mpicc",
+                                 "-B"+backend_build_dir, "-H"+backend_dir, "-G", "Ninja"],
                                 stderr=subprocess.STDOUT)
-        subprocess.check_output(["make", "-C", backend_build_dir , "-j", f"{cores}"],
+        subprocess.check_output(["cmake", "--build", backend_build_dir , "--config", "Release", "--target", "all", "-j", f"{cores}"],
                                 stderr=subprocess.STDOUT)
         end = time.time()
         if verbose:
@@ -163,9 +165,11 @@ def run_local(file, outloc, factloc, cores, verbose, slog_root=None):
         print("Compiling .cpp file to a binary")
     try:
         start = time.time()
-        subprocess.check_output(["cmake", "-B", slogfile_build_dir, outloc],
+        subprocess.check_output(["cmake", "--no-warn-unused-cli", "-DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE",
+                                 "-DCMAKE_BUILD_TYPE:STRING=Release", "-DCMAKE_C_COMPILER:FILEPATH=mpicc",
+                                 "-B"+slogfile_build_dir,"-H"+outloc, "-G", "Ninja"],
                                 stderr=subprocess.STDOUT)
-        subprocess.check_output(["make", "-C", slogfile_build_dir, "-j", f"{cores}"],
+        subprocess.check_output(["cmake", "--build", slogfile_build_dir,"--config", "Release","--target", "all", "-j", f"{cores}"],
                                 stderr=subprocess.STDOUT)
         end = time.time()
         if verbose:
