@@ -1,28 +1,8 @@
-(entry-point
-  (app
-   (lam "f0" (seq (app (ref "f0") (int 0)) (app (ref "f0") (int 1))))
-   (lam
-    "z0"
-    (app
-     (lam "f1" (seq (app (ref "f1") (int 0)) (app (ref "f1") (int 1))))
-     (lam
-      "z1"
-      (app
-       (lam
-        "x"
-        (app
-         (lam
-          "x"
-          (app
-           (lam "x" (lam "w" (app (app (ref "w") (ref "z0")) (ref "z1"))))
-           (lam "x" (ref "x"))))
-         (lam "x" (ref "x"))))
-       (lam "x" (ref "x"))))))))
 
 ; Entry points
 [(entry-point e)
  -->
- (eval e (bot) (bot) (halt (entry-point e)) [])]
+ (eval e (bot 0) (bot 0) (halt (entry-point e)) [])]
 
 [(ret v sto (halt ep))
  -->
@@ -33,9 +13,13 @@
  ?(eval (int n) env sto k t)
  (ret (int n) sto k))
 
-(step
- ?(eval (ref x) env sto k t)
- (ret {lookup !do(x env sto)} sto k))
+[(step
+  ?(eval (ref x) env sto k t)
+  (ret v sto k))
+ <--
+ (store-map sto a v)
+ --
+ (env-map env x a)]
 
 (step
  ?(eval (lam x e) env sto k t)
@@ -66,14 +50,14 @@
 ; Apply states
 (step
  ?(apply (clo (lam x e) env) v sto k t)
- (eval e {ext-env !do(env x (vaddr x t))} {ext-store !do(sto (vaddr x t) v)} k t))
+ (eval e (environment env x (vaddr x t)) (store sto (vaddr x t) v) k t))
 
 ; Env/store lookup & update
-(lookup ?do(x env sto) {store-lookup !do({env-lookup !do(x env)} sto)})
-[(env-lookup ?do(x env) a) <-- (env-map env x a)]
-[(store-lookup ?do(a sto) v) <-- (store-map sto a v)]
-(ext-env ?do(env x a) (environment env x a))
-(ext-store ?do(sto a v) (store sto a v))
+;(lookup ?do(x env sto) {store-lookup !do({env-lookup !do(x env)} sto)})
+;[(env-lookup ?do(x env) a) <-- (env-map env x a)]
+;[(store-lookup ?do(a sto) v) <-- (store-map sto a v)]
+;(ext-env ?do(env x a) (environment env x a))
+;(ext-store ?do(sto a v) (store sto a v))
 (env-map ?(environment env x a) x a)
 [(env-map ?(environment env y _) x a)
  <--

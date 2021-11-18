@@ -1,28 +1,28 @@
 (entry-point
-  (app
-   (lam 1000 (seq (app (ref 1000) (int 0)) (app (ref 1000) (int 1))))
-   (lam
-    4
-    (app
-     (lam 1001 (seq (app (ref 1001) (int 0)) (app (ref 1001) (int 1))))
-     (lam
-      5
-      (app
-       (lam
-        3
-        (app
-         (lam
-          3
-          (app
-           (lam 3 (lam 0 (app (app (ref 2) (ref 4)) (ref 5))))
-           (lam 3 (ref 3))))
-         (lam 3 (ref 3))))
-       (lam 3 (ref 3))))))))
+ (app
+  (lam 1000 (seq (app (ref 1000) (int 0)) (app (ref 1000) (int 1))))
+  (lam
+   4
+   (app
+    (lam 1001 (seq (app (ref 1001) (int 0)) (app (ref 1001) (int 1))))
+    (lam
+     5
+     (app
+      (lam
+       3
+       (app
+        (lam
+         3
+         (app
+          (lam 3 (lam 0 (app (app (ref 2) (ref 4)) (ref 5))))
+          (lam 3 (ref 3))))
+        (lam 3 (ref 3))))
+      (lam 3 (ref 3))))))))
 
 ; Entry points
 [(entry-point e)
  -->
- (eval e (bot) (bot) (halt (entry-point e)) [])]
+ (eval e (bot 0) (bot 0) (halt (entry-point e)) [])]
 
 [(ret v sto (halt ep))
  -->
@@ -33,9 +33,12 @@
  ?(eval (int n) env sto k t)
  (ret (int n) sto k))
 
-(step
- ?(eval (ref x) env sto k t)
- (ret {lookup !do(x env sto)} sto k))
+[(step
+  ?(eval (ref x) env sto k t)
+  (ret v sto k))
+ <--
+ (store-map sto a v)
+ (env-map env x a)]
 
 (step
  ?(eval (lam x e) env sto k t)
@@ -66,14 +69,14 @@
 ; Apply states
 (step
  ?(apply (clo (lam x e) env) v sto k t)
- (eval e {ext-env !do(env x (vaddr x t))} {ext-store !do(sto (vaddr x t) v)} k t))
+ (eval e (environment env x (vaddr x t)) (store sto (vaddr x t) v) k t))
 
 ; Env/store lookup & update
-(lookup ?do(x env sto) {store-lookup !do({env-lookup !do(x env)} sto)})
-[(env-lookup ?do(x env) a) <-- (env-map env x a)]
-[(store-lookup ?do(a sto) v) <-- (store-map sto a v)]
-(ext-env ?do(env x a) (environment env x a))
-(ext-store ?do(sto a v) (store sto a v))
+;(lookup ?do(x env sto) {store-lookup !do({env-lookup !do(x env)} sto)})
+;[(env-lookup ?do(x env) a) <-- (env-map env x a)]
+;[(store-lookup ?do(a sto) v) <-- (store-map sto a v)]
+;(ext-env ?do(env x a) (environment env x a))
+;(ext-store ?do(sto a v) (store sto a v))
 (env-map ?(environment env x a) x a)
 [(env-map ?(environment env y _) x a)
  <--

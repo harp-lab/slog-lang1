@@ -6,7 +6,7 @@
 	`(app (ref "w") (ref "z0"))
 	`(app ,(generate-clo-app (- j 1)) (ref ,(format "z~a" j)))))
   (define (generate-padding k)
-    (if (= k 0)
+    (if (= k 0) 
 	`(lam "w" ,(generate-clo-app (- t 1)))
 	`(app (lam "x" ,(generate-padding (- k 1))) (lam "x" (ref "x")))))
   (define fx (format "f~a" i))

@@ -20,6 +20,6 @@
 	(lam ,zx
 	     ,(generate-term t k (+ i 1))))))
 
-(pretty-print
+(pretty-write
  `(entry-point
    ,(generate-term 2 3)))
