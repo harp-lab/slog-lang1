@@ -5,6 +5,7 @@
 
 
 #include "../parallel_RA_inc.h"
+#include <filesystem>
 
 
 parallel_io::parallel_io()
@@ -136,15 +137,24 @@ void parallel_io::parallel_read_input_relation_from_file_to_local_buffer(u32 ari
 
     // calculate row count from size of file
     //std::cout << "222222 Filename " << file_name << std::endl;
-    uintmax_t size_data_file = std::filesystem::file_size(file_name);
-    if (size_data_file % (8 * (arity + 1)) != 0)
+    uintmax_t size_data_file = 0;
+    // if input file not exists, we assume input relation is empty size
+    if(std::filesystem::exists(file_name))
     {
-        std::cout << "Input file :" << file_name << " "
-                  << arity << "  " << size_data_file % (8 * (arity + 1)) << "  "
-                //   << " Wrong input format, size of input can't be moded by (8 * (arity + 1))"
-                  << std::endl;
-        MPI_Abort(lcomm, -1);
+        size_data_file = std::filesystem::file_size(file_name);
+        if (size_data_file % (8 * (arity + 1)) != 0)
+        {
+            std::cout << "Input file :" << file_name << " "
+                    << arity << "  " << size_data_file % (8 * (arity + 1)) << "  "
+                    //   << " Wrong input format, size of input can't be moded by (8 * (arity + 1))"
+                    << std::endl;
+            MPI_Abort(lcomm, -1);
+        }
     }
+    else {
+        return;
+    }
+
     // assert(size_data_file % (8 * (arity + 1)) != 0);
     global_row_count = size_data_file / (8 * (arity + 1));
     col_count = arity + 1;
