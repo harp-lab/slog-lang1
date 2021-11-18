@@ -140,7 +140,7 @@ void shmap_relation::as_all_to_allv_acopy_buffer_helper(shmap_relation*& cur_tri
         uint64_t sub_bucket_id=0;
         if (canonical == false && arity != 0 && arity >= head_rel_hash_col_count)
         {
-            std::cout << "arity " << arity << " head_rel_hash_col_count " << head_rel_hash_col_count << std::endl;
+	  //std::cout << "arity " << arity << " head_rel_hash_col_count " << head_rel_hash_col_count << std::endl;
             sub_bucket_id = tuple_hash(reordered_cur_path + head_rel_hash_col_count, arity-head_rel_hash_col_count) % output_sub_bucket_count[bucket_id];
         }
 

@@ -1,0 +1,243 @@
+(entry-point
+ (app
+  (lam 1000 (seq (app (ref 1000) (int 0)) (app (ref 1000) (int 1))))
+  (lam
+   4
+   (app
+    (lam 1001 (seq (app (ref 1001) (int 0)) (app (ref 1001) (int 1))))
+    (lam
+     5
+     (app
+      (lam 1002 (seq (app (ref 1002) (int 0)) (app (ref 1002) (int 1))))
+      (lam
+       6
+       (app
+        (lam 1003 (seq (app (ref 1003) (int 0)) (app (ref 1003) (int 1))))
+        (lam
+         7
+         (app
+          (lam 1004 (seq (app (ref 1004) (int 0)) (app (ref 1004) (int 1))))
+          (lam
+           8
+           (app
+            (lam 1005 (seq (app (ref 1005) (int 0)) (app (ref 1005) (int 1))))
+            (lam
+             9
+             (app
+              (lam
+               1006
+               (seq (app (ref 1006) (int 0)) (app (ref 1006) (int 1))))
+              (lam
+               10
+               (app
+                (lam
+                 1007
+                 (seq (app (ref 1007) (int 0)) (app (ref 1007) (int 1))))
+                (lam
+                 11
+                 (app
+                  (lam
+                   1008
+                   (seq (app (ref 1008) (int 0)) (app (ref 1008) (int 1))))
+                  (lam
+                   12
+                   (app
+                    (lam
+                     1009
+                     (seq (app (ref 1009) (int 0)) (app (ref 1009) (int 1))))
+                    (lam
+                     13
+                     (app
+                      (lam
+                       1010
+                       (seq (app (ref 1010) (int 0)) (app (ref 1010) (int 1))))
+                      (lam
+                       14
+                       (app
+                        (lam
+                         1011
+                         (seq
+                          (app (ref 1011) (int 0))
+                          (app (ref 1011) (int 1))))
+                        (lam
+                         15
+                         (app
+                          (lam
+                           1012
+                           (seq
+                            (app (ref 1012) (int 0))
+                            (app (ref 1012) (int 1))))
+                          (lam
+                           16
+                           (app
+                            (lam
+                             1013
+                             (seq
+                              (app (ref 1013) (int 0))
+                              (app (ref 1013) (int 1))))
+                            (lam
+                             17
+                             (app
+                              (lam
+                               1014
+                               (seq
+                                (app (ref 1014) (int 0))
+                                (app (ref 1014) (int 1))))
+                              (lam
+                               18
+                               (app
+                                (lam
+                                 1015
+                                 (seq
+                                  (app (ref 1015) (int 0))
+                                  (app (ref 1015) (int 1))))
+                                (lam
+                                 19
+                                 (app
+                                  (lam
+                                   1016
+                                   (seq
+                                    (app (ref 1016) (int 0))
+                                    (app (ref 1016) (int 1))))
+                                  (lam
+                                   20
+                                   (app
+                                    (lam
+                                     1017
+                                     (seq
+                                      (app (ref 1017) (int 0))
+                                      (app (ref 1017) (int 1))))
+                                    (lam
+                                     21
+                                     (app
+                                      (lam
+                                       3
+                                       (app
+                                        (lam
+                                         3
+                                         (app
+                                          (lam
+                                           3
+                                           (lam
+                                            0
+                                            (app
+                                             (app
+                                              (app
+                                               (app
+                                                (app
+                                                 (app
+                                                  (app
+                                                   (app
+                                                    (app
+                                                     (app
+                                                      (app
+                                                       (app
+                                                        (app
+                                                         (app
+                                                          (app
+                                                           (app
+                                                            (app
+                                                             (app
+                                                              (ref 2)
+                                                              (ref 4))
+                                                             (ref 5))
+                                                            (ref 6))
+                                                           (ref 7))
+                                                          (ref 8))
+                                                         (ref 9))
+                                                        (ref 10))
+                                                       (ref 11))
+                                                      (ref 12))
+                                                     (ref 13))
+                                                    (ref 14))
+                                                   (ref 15))
+                                                  (ref 16))
+                                                 (ref 17))
+                                                (ref 18))
+                                               (ref 19))
+                                              (ref 20))
+                                             (ref 21))))
+                                          (lam 3 (ref 3))))
+                                        (lam 3 (ref 3))))
+                                      (lam
+                                       3
+                                       (ref
+                                        3))))))))))))))))))))))))))))))))))))))))
+
+; Entry points
+[(entry-point e)
+ -->
+ (eval e (bot 0) (bot 0) (halt (entry-point e)) [])]
+
+[(ret v sto (halt ep))
+ -->
+ (entry-point-return ep v sto)]
+
+; Eval states 
+(step
+ ?(eval (int n) env sto k t)
+ (ret (int n) sto k))
+
+[(step
+  ?(eval (ref x) env sto k t)
+  (ret v sto k))
+ <--
+ (store-map sto a v)
+ --
+ (env-map env x a)]
+
+(step
+ ?(eval (lam x e) env sto k t)
+ (ret (clo (lam x e) env) sto k))
+
+(step
+ ?(eval (app ef ea) env sto k t)
+ (eval ef env sto (ap-k ea env k t (app ef ea)) t))
+
+(step
+ ?(eval (seq e0 e1) env sto k t)
+ (eval e0 env sto (seq-k e1 env sto k t) t))
+[(eval e1 env sto k t) <-- (eval (seq e0 e1) env sto k t)]
+
+; Ret states
+(step
+ ?(ret v sto (ap-k ea env k t app-e))
+ (eval ea env sto (fn-k v k t app-e) t))
+
+(step
+ ?(ret v sto (fn-k fv k t app-e))
+ (apply fv v sto k {ext-time !do(t app-e)}))
+
+(step
+ ?(ret v sto (seq-k e1 env sto k t))
+ (eval e1 env sto k t))
+
+; Apply states
+(step
+ ?(apply (clo (lam x e) env) v sto k t)
+ (eval e (environment env x (vaddr x t)) (store sto (vaddr x t) v) k t))
+
+; Env/store lookup & update
+;(lookup ?do(x env sto) {store-lookup !do({env-lookup !do(x env)} sto)})
+;[(env-lookup ?do(x env) a) <-- (env-map env x a)]
+;[(store-lookup ?do(a sto) v) <-- (store-map sto a v)]
+;(ext-env ?do(env x a) (environment env x a))
+;(ext-store ?do(sto a v) (store sto a v))
+(env-map ?(environment env x a) x a)
+[(env-map ?(environment env y _) x a)
+ <--
+ (=/= x y)
+ (env-map env x a)]
+(store-map ?(store sto a v) a v)
+[(store-map ?(store sto a' _) a v)
+ <--
+ (=/= a a')
+ (store-map sto a v)]
+
+; timestamps
+(contour-limit-k 3)
+[(ext-time ?do(t e) {take !do(k [e t ...])}) <-- (contour-limit-k k)]
+[(take ?do(0 lst) []) <--]
+[(take ?do(n []) []) <-- (> n 0)]
+[(take ?do(n [x lst ...]) [x {take !do({- n 1} lst)} ...]) <-- (> n 0)]
+
