@@ -18,21 +18,21 @@
  (may_fallthrough EA Block2)
  (block Block2)]
 
-; [(block_next EA EA_next)
-;  <--
-;  (block_last_instruction _ EA)
-;  (~ arch.delay_slot _ EA)
-;  (direct_jump EA EA_next)
-; ;  ]
-;  (~ inter_procedural_jump EA EA_next)]
+[(block_next EA EA_next)
+ <--
+ (block_last_instruction _ EA)
+ (~ arch.delay_slot _ EA)
+ (direct_jump EA EA_next)
+;  ]
+ (~ inter_procedural_jump EA EA_next)]
 
 
-; [(block_next EA EA_next)
-;  <--
-;  (block_last_instruction _ EA)
-;  (arch.delay_slot JumpEA EA)
-;  (direct_jump JumpEA EA_next)
-;  (~ inter_procedural_jump JumpEA EA_next)]
+[(block_next EA EA_next)
+ <--
+ (block_last_instruction _ EA)
+ (arch.delay_slot JumpEA EA)
+ (direct_jump JumpEA EA_next)
+ (~ inter_procedural_jump JumpEA EA_next)]
 
 
 [(block_next EA EA_next)

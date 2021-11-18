@@ -1,5 +1,6 @@
 
 #include "../parallel_RA_inc.h"
+#include <iostream>
 
 bool parallel_join_negate::local_negation(
     int threshold, int* offset, int join_order, u32 buckets,
@@ -42,6 +43,7 @@ bool parallel_join_negate::local_negation(
             negated_target->insert_tuple_from_array(prefix, join_column_count);
             negated_target_counts++;
         }
+        std::cout << negated_target_counts << " facts need to be negated!" << std::endl;
         if (negated_target_counts == 0)
         {
             delete negated_target;

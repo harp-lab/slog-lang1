@@ -6,6 +6,8 @@
 
 
 #include "../parallel_RA_inc.h"
+#include <iostream>
+#include <iterator>
 
 
 bool shmap_relation::insert_tuple_from_array(u64* t, int arity)
@@ -412,6 +414,21 @@ void shmap_relation::as_all_to_allv_right_outer_join_buffer(
 {
     shmap_relation *m_trie = this;
     std::vector<u64> init_path;
+    if (neg_target == NULL)
+    {
+        std::cout << "empty negate target !" << std::endl;   
+        // if nothing need to negate, copy the whole trie
+        as_all_to_allv_copy_buffer_helper(
+                m_trie, {},
+                join_buffer, ra_id, buckets,
+                output_sub_bucket_count,
+                output_sub_bucket_rank,
+                reorder_map, out_arity,
+                join_column_count, head_rel_hash_col_count,
+                canonical);
+        
+        return;
+    }
     as_all_to_allv_right_outer_join_buffer_helper(
         neg_target, m_trie, init_path, join_buffer, input0_buffer,
         input0_buffer_width, input1_buffer_width,
@@ -510,20 +527,7 @@ void shmap_relation::as_all_to_allv_right_outer_join_buffer_helper(
     int out_arity, int* local_join_count,
     u32* local_join_duplicates, u32* local_join_inserts,
     int head_rel_hash_col_count, bool canonical)
-{
-    if (neg_target == NULL)
-    {
-        // if nothing need to negate, copy the whole trie
-        as_all_to_allv_copy_buffer_helper(
-                cur_trie, cur_path,
-                join_buffer, ra_id, buckets,
-                output_sub_bucket_count,
-                output_sub_bucket_rank,
-                reorder_map, out_arity,
-                join_column_count, head_rel_hash_col_count,
-                canonical);
-        return;
-    }
+{ 
     if (cur_path.size() >= join_column_count || neg_target == NULL)
     {
         return;
