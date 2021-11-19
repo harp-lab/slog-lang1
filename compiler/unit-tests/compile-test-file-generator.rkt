@@ -77,8 +77,40 @@
          ((rel-version - 3 (2 3 1) comp) y z 4))]
   [lam12 (generate-cpp-lambda-for-rule-with-builtin rule12)]
 
+  [rule13 '(srule
+        ((rel-select $inter-head 2 (1 2) db) e $=0)
+        ((rel-version foo 1 () total) $_1 e)
+        ((rel-version = 2 (2) comp) 0 $_3 $=0))]
+  [lam13 (generate-cpp-lambda-for-rule-with-builtin rule13)]
+
+  [rule14 '(srule
+            ((rel-select $inter-body1 2 (1 2) db) $id3 $id1)
+            ((rel-version $inter-body 3 (1 3) total) $id11 $id1 $_9 $id3)
+            ((rel-version = 2 (2 1) comp) $id11 $id1 $_8))]
+  [lam14 (generate-cpp-lambda-for-rule-with-builtin rule14)]
+
+  [rule15 '(srule
+            ((rel-select $inter-body1 2 (1 2) db) $id3 $id1)
+            ((rel-version $inter-body 3 (1 3) total) $id11 $id1 $_9 $id3)
+            ((rel-version = 2 (2 1) comp) $id11 $id1 $_8))]
+  [lam15 (generate-cpp-lambda-for-rule-with-builtin rule15)]
+
+  [rule16 '(srule
+            ((rel-select $inter-body 3 (1 2 3) db) $id11 $id3 $id1)
+            ((rel-version ctx 3 (1 3) total) $id1 $id12 $id3 $id11)
+            ((rel-version = 2 (1 2) comp) $id1 $id12 $_7))]
+  [lam16 (generate-cpp-lambda-for-rule-with-builtin rule16)]
+
+  [rule17 '(srule
+            ((rel-select $inter-body2 2 (1 2) db) $id3 $id2)
+            ((rel-version $inter-body1 2 (2) total) $id2 $_10 $id3)
+            ((rel-version = 2 (1 2) comp) $id2 $id2 $_7))]
+  [lam17 (generate-cpp-lambda-for-rule-with-builtin rule17)]
+  
+  
   [builtins-test-template-file (file->string (get-path "./builtins-tests-template.cpp"))]
-  [output-file (format builtins-test-template-file lam1 lam2 lam4 lam5 lam6 lam7 lam8 lam9 lam10 lam11 lam12)])
+  [output-file (format builtins-test-template-file 
+                  lam1 lam2 lam4 lam5 lam6 lam7 lam8 lam9 lam10 lam11 lam12 lam13 lam14 lam15 lam16 lam17)])
   (display-to-file output-file (get-path "./output/builtins-tests-generated.cpp") 	#:exists 'replace))
 
 

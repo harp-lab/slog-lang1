@@ -130,7 +130,7 @@
                   (and (equal? r rel-name) (equal? a rel-arity))]
                  [_ #f]))
              (define maybe-relation (filter matches relations))
-             (when (not (= (length maybe-relation) 1))
+             #;(when (not (= (length maybe-relation) 1))
                (error (format "Could not find an appropriate relation ~a with arity ~a (need 1 candidate, got ~a)" rel-name rel-arity (length maybe-relation))))
              (define relation (first maybe-relation))
              (match-define `(relation ,_ ,_ ,rid ,index ,data) relation)
@@ -409,7 +409,7 @@
   (set! available-indices (map sub1 available-indices))
   (set! requested-indices (map sub1 requested-indices))
   (define output-indices (filter (λ (i) (not (member i available-indices))) (range 0 arity)))
-
+  (define diff-indices (filter (λ (i) (not (member i available-indices))) requested-indices))
   (string-replace-all 
     "[](const u64* const data, u64* const output) -> int{
       auto args_for_old_bi = std::array<u64, [old-indices-size]> {[populate-args-for-old-bi-code]};
@@ -449,11 +449,16 @@
     "[check-compatibility-code]"
     (intercalate " && " 
       (cons "true" (filter-map (λ (i) 
-                    (define mapped-ind (index-of requested-indices (list-ref output-indices i)))
-                    (and mapped-ind 
-                      (match (list-ref bvars1 mapped-ind) 
-                      [(? var?) (format "res_~a == data[~a]" i mapped-ind)]
-                      [(? lit? arg) (format "res_~a == ~a" i (lit->cpp-datum arg))]))) 
+                    (define output-index (list-ref output-indices i))
+                    (cond 
+                      [(member output-index diff-indices)
+                        (define arg (list-ref bvars1 (index-of requested-indices output-index)))
+                        (match arg
+                          [(? var?)
+                            (define index-in-input-tuple (index-of bvars0 arg))
+                            (format "res_~a == data[~a]" i index-in-input-tuple)]
+                          [(? lit?) (format "res_~a == ~a" i (lit->cpp-datum arg))])]
+                      [else #f])) 
                   (range 0 (length output-indices)))))
     "[head-tuple-populating-code]"
     (intercalate "\n" (map 
@@ -473,16 +478,17 @@
     (range 0 (length hvars))))
   ))
 
-(define (generate-cpp-lambdas-for-rule-with-aggregator-impl r indices local-cpp-func-name global-cpp-func-name)
+(define (generate-cpp-lambdas-for-rule-with-aggregator-impl r available-indices local-cpp-func-name global-cpp-func-name)
   ; (printf "(generate-cpp-lambda-for-rule-with-builtin-impl r indices cpp-func-name) args: ~a\n ~a ~a\n" (strip-prov r) indices cpp-func-name)
   (match-define `(srule (,rel-sel ,hvars ...)
                         (,rel-ver0 ,bvars0 ...)
-                        ((rel-version ,(? aggregator?) ,arity ,new-indices ,agg-kind) ,bvars1 ...)) (strip-prov r))
+                        ((rel-version ,(? aggregator?) ,arity ,requested-indices ,agg-kind) ,bvars1 ...)) (strip-prov r))
   
-  (define new-tuple-index-to-old-tuple-index-mapping (map-new-tuple-index-to-old-tuple-index arity new-indices indices))
-  (set! indices (map sub1 indices))
-  (set! new-indices (map sub1 new-indices))
-  (define output-indices (filter (λ (i) (not (member i indices))) (range 0 arity)))
+  (define new-tuple-index-to-old-tuple-index-mapping (map-new-tuple-index-to-old-tuple-index arity requested-indices available-indices))
+  (set! available-indices (map sub1 available-indices))
+  (set! requested-indices (map sub1 requested-indices))
+  (define output-indices (filter (λ (i) (not (member i available-indices))) (range 0 arity)))
+  (define diff-indices (filter (λ (i) (not (member i available-indices))) requested-indices))
 
   (define local-lambda
     (string-replace-all 
@@ -491,11 +497,11 @@
       return [local-cpp-func-name](rel, args_for_old_bi.data());
     }"
     "[head-tuple-size]" (~a (length hvars))
-    "[old-indices-size]" (~a (length indices))
+    "[old-indices-size]" (~a (length available-indices))
     "[local-cpp-func-name]" local-cpp-func-name
     "[populate-args-for-old-bi-code]"
     (intercalate ", " (map (λ (i) 
-                            (define arg-pos-in-bvars1 (index-of new-indices (list-ref indices i)))
+                            (define arg-pos-in-bvars1 (index-of requested-indices (list-ref available-indices i)))
                             (define arg (list-ref bvars1 arg-pos-in-bvars1))
                             (match arg
                               ; [(? lit?) (format "n2d(~a)" arg)]
@@ -504,7 +510,7 @@
                               [else 
                                 (define arg-pos-in-bvars0 (index-of bvars0 arg))
                                 (format "data[~a]" arg-pos-in-bvars0)])) 
-                        (range 0 (length indices))))
+                        (range 0 (length available-indices))))
   ))
   ; TODO maybe unify this with generate-cpp-lambda-for-rule-with-builtin-impl?
   (define global-lambda
@@ -528,11 +534,11 @@
     }"
 
     "[head-tuple-size]" (~a (length hvars))
-    "[old-indices-size]" (~a (length indices))
+    "[old-indices-size]" (~a (length available-indices))
     "[global-cpp-func-name]" global-cpp-func-name
     "[populate-args-for-old-bi-code]"
     (intercalate ", " (map (λ (i) 
-                            (define arg-pos-in-bvars1 (index-of new-indices (list-ref indices i)))
+                            (define arg-pos-in-bvars1 (index-of requested-indices (list-ref available-indices i)))
                             (define arg (list-ref bvars1 arg-pos-in-bvars1))
                             (match arg
                               ; [(? lit?) (format "n2d(~a)" arg)]
@@ -541,13 +547,22 @@
                               [else 
                                 (define arg-pos-in-bvars0 (index-of bvars0 arg))
                                 (format "data[~a]" arg-pos-in-bvars0)])) 
-                        (range 0 (length indices))))
+                        (range 0 (length available-indices))))
     "[callback-params]"
     (intercalate "" (map (λ (i) (format "u64 res_~a, " i)) (range 0 (length output-indices))))
     "[check-compatibility-code]"
     (intercalate " && " 
-      (cons "true" (filter-map (λ (i) (let ([mapped-ind (index-of new-indices (list-ref output-indices i))]) 
-                          (and mapped-ind (format "res_~a == data[~a]" i mapped-ind)))) 
+      (cons "true" (filter-map (λ (i) 
+                    (define output-index (list-ref output-indices i))
+                    (cond 
+                      [(member output-index diff-indices)
+                        (define arg (list-ref bvars1 (index-of requested-indices output-index)))
+                        (match arg
+                          [(? var?)
+                            (define index-in-input-tuple (index-of bvars0 arg))
+                            (format "res_~a == data[~a]" i index-in-input-tuple)]
+                          [(? lit?) (format "res_~a == ~a" i (lit->cpp-datum arg))])]
+                      [else #f])) 
                   (range 0 (length output-indices)))))
     "[head-tuple-populating-code]"
     (intercalate "\n" (map 
@@ -560,7 +575,7 @@
           [(? symbol? var) #:when (member var bvars1)
             (define bi-arg-index (index-of bvars1 var))
             (define index-in-old-bi-tuple (list-ref new-tuple-index-to-old-tuple-index-mapping bi-arg-index))
-            (define index-in-old-bi-return-tuple (- index-in-old-bi-tuple (length indices) 1))
+            (define index-in-old-bi-return-tuple (- index-in-old-bi-tuple (length available-indices) 1))
             (format "res_~a" index-in-old-bi-return-tuple)]
           [bad-arg (error (format "bad rule: ~a\nbad arg: ~a" (strip-prov r) bad-arg))]))
         (format "head_tuple[~a] = ~a;" i rhs)) 
