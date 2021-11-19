@@ -127,55 +127,25 @@
                                          23
                                          (app
                                           (lam
-                                           1020
-                                           (seq
-                                            (app (ref 1020) (int 0))
-                                            (app (ref 1020) (int 1))))
-                                          (lam
-                                           24
+                                           3
                                            (app
                                             (lam
-                                             1021
-                                             (seq
-                                              (app (ref 1021) (int 0))
-                                              (app (ref 1021) (int 1))))
-                                            (lam
-                                             25
+                                             3
                                              (app
                                               (lam
-                                               1022
-                                               (seq
-                                                (app (ref 1022) (int 0))
-                                                (app (ref 1022) (int 1))))
-                                              (lam
-                                               26
-                                               (app
-                                                (lam
-                                                 1023
-                                                 (seq
-                                                  (app (ref 1023) (int 0))
-                                                  (app (ref 1023) (int 1))))
-                                                (lam
-                                                 27
+                                               3
+                                               (lam
+                                                0
+                                                (app
                                                  (app
-                                                  (lam
-                                                   1024
-                                                   (seq
-                                                    (app (ref 1024) (int 0))
-                                                    (app (ref 1024) (int 1))))
-                                                  (lam
-                                                   28
+                                                  (app
                                                    (app
-                                                    (lam
-                                                     3
+                                                    (app
                                                      (app
-                                                      (lam
-                                                       3
+                                                      (app
                                                        (app
-                                                        (lam
-                                                         3
-                                                         (lam
-                                                          0
+                                                        (app
+                                                         (app
                                                           (app
                                                            (app
                                                             (app
@@ -186,67 +156,33 @@
                                                                  (app
                                                                   (app
                                                                    (app
-                                                                    (app
-                                                                     (app
-                                                                      (app
-                                                                       (app
-                                                                        (app
-                                                                         (app
-                                                                          (app
-                                                                           (app
-                                                                            (app
-                                                                             (app
-                                                                              (app
-                                                                               (app
-                                                                                (app
-                                                                                 (app
-                                                                                  (app
-                                                                                   (ref
-                                                                                    2)
-                                                                                   (ref
-                                                                                    4))
-                                                                                  (ref
-                                                                                   5))
-                                                                                 (ref
-                                                                                  6))
-                                                                                (ref
-                                                                                 7))
-                                                                               (ref
-                                                                                8))
-                                                                              (ref
-                                                                               9))
-                                                                             (ref
-                                                                              10))
-                                                                            (ref
-                                                                             11))
-                                                                           (ref
-                                                                            12))
-                                                                          (ref
-                                                                           13))
-                                                                         (ref
-                                                                          14))
-                                                                        (ref
-                                                                         15))
-                                                                       (ref
-                                                                        16))
-                                                                      (ref 17))
-                                                                     (ref 18))
-                                                                    (ref 19))
-                                                                   (ref 20))
-                                                                  (ref 21))
-                                                                 (ref 22))
-                                                                (ref 23))
-                                                               (ref 24))
-                                                              (ref 25))
-                                                             (ref 26))
-                                                            (ref 27))
-                                                           (ref 28))))
-                                                        (lam 3 (ref 3))))
-                                                      (lam 3 (ref 3))))
-                                                    (lam
-                                                     3
-                                                     (ref
-                                                      3))))))))))))))))))))))))))))))))))))))))))))))))))))))
+                                                                    (ref 2)
+                                                                    (ref 4))
+                                                                   (ref 5))
+                                                                  (ref 6))
+                                                                 (ref 7))
+                                                                (ref 8))
+                                                               (ref 9))
+                                                              (ref 10))
+                                                             (ref 11))
+                                                            (ref 12))
+                                                           (ref 13))
+                                                          (ref 14))
+                                                         (ref 15))
+                                                        (ref 16))
+                                                       (ref 17))
+                                                      (ref 18))
+                                                     (ref 19))
+                                                    (ref 20))
+                                                   (ref 21))
+                                                  (ref 22))
+                                                 (ref 23))))
+                                              (lam 3 (ref 3))))
+                                            (lam 3 (ref 3))))
+                                          (lam
+                                           3
+                                           (ref
+                                            3))))))))))))))))))))))))))))))))))))))))))))
 
 ; Entry points
 [(entry-point e)

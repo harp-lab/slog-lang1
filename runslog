@@ -79,7 +79,7 @@ def ingest_facts(factloc, inputloc, tsv_bin_path):
     return True
 
 
-def run_local(file, outloc, factloc, cores, verbose, slog_root=None):
+def run_local(file, outloc, factloc, cores, verbose, slog_root=None, compile_backend=False):
     """
     Calls local utilities to compile and run a slog file locally.
     slog_root is the location of the slog repository.
@@ -129,21 +129,24 @@ def run_local(file, outloc, factloc, cores, verbose, slog_root=None):
         return
 
     #2: Shell out to cmake to compile tsv_to_bin
-    if verbose:
-        print("Compiling tsv_bin utility")
-    try:
-        start = time.time()
-        # clean build directory
-        shutil.rmtree(backend_build_dir, ignore_errors=True)
-        subprocess.check_output(["cmake", "-B", backend_build_dir, backend_dir],
-                                stderr=subprocess.STDOUT)
-        subprocess.check_output(["make", "-C", backend_build_dir , "-j", f"{cores}"],
-                                stderr=subprocess.STDOUT)
-        end = time.time()
+    if compile_backend:
         if verbose:
-            print(f"Time taken: {end - start}")
-    except subprocess.CalledProcessError as e:
-        print(f"Compiling tsv->bin failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
+            print("Compiling slog MPI backend")
+        try:
+            start = time.time()
+            # clean build directory
+            shutil.rmtree(backend_build_dir, ignore_errors=True)
+            subprocess.check_output(["cmake", "--no-warn-unused-cli", "-DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE",
+                                    "-DCMAKE_BUILD_TYPE:STRING=Release", "-DCMAKE_C_COMPILER:FILEPATH=mpicc",
+                                    "-B"+backend_build_dir, "-H"+backend_dir, "-G", "Ninja"],
+                                    stderr=subprocess.STDOUT)
+            subprocess.check_output(["cmake", "--build", backend_build_dir , "--config", "Release", "--target", "all",
+                                     "-j", f"{cores}"], stderr=subprocess.STDOUT)
+            end = time.time()
+            if verbose:
+                print(f"Time taken: {end - start}")
+        except subprocess.CalledProcessError as e:
+            print(f"Compiling Compiling slog MPI backend failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
 
     #3: Shell out to tsv_to_bin to convert fact directory to bin
     if verbose:
@@ -163,9 +166,11 @@ def run_local(file, outloc, factloc, cores, verbose, slog_root=None):
         print("Compiling .cpp file to a binary")
     try:
         start = time.time()
-        subprocess.check_output(["cmake", "-B", slogfile_build_dir, outloc],
+        subprocess.check_output(["cmake", "--no-warn-unused-cli", "-DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE",
+                                 "-DCMAKE_BUILD_TYPE:STRING=Release", "-DCMAKE_C_COMPILER:FILEPATH=mpicc",
+                                 "-B"+slogfile_build_dir,"-H"+outloc, "-G", "Ninja"],
                                 stderr=subprocess.STDOUT)
-        subprocess.check_output(["make", "-C", slogfile_build_dir, "-j", f"{cores}"],
+        subprocess.check_output(["cmake", "--build", slogfile_build_dir,"--config", "Release","--target", "all", "-j", f"{cores}"],
                                 stderr=subprocess.STDOUT)
         end = time.time()
         if verbose:
@@ -240,12 +245,14 @@ if __name__ == '__main__':
     parser.add_argument('-r', "--root",
                         help="The location of the slog project directory. "
                              "Defaults to the current working directory if not provided.")
+    parser.add_argument('-cb', '--compile_backend', action='store_true',
+                        help='compile the backend code before compile the generate c++ code.')
     args = parser.parse_args()
 
     slogfile = os.path.realpath(args.slogfile)
     os.makedirs(args.out_dir, exist_ok=True)
-
     if args.server:
         run_server(slogfile, args.out_dir, args.facts, args.server + ":5108", args.verbose, args.cores)
     else:
-        run_local(slogfile, args.out_dir, args.facts, args.cores, args.verbose, args.root)
+        run_local(slogfile, args.out_dir, args.facts, args.cores, args.verbose, args.root,
+                  compile_backend=args.compile_backend)

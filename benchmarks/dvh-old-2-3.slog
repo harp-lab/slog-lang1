@@ -33,12 +33,9 @@
  ?(eval (int n) env sto k t)
  (ret (int n) sto k))
 
-[(step
-  ?(eval (ref x) env sto k t)
-  (ret v sto k))
- <--
- (store-map sto a v)
- (env-map env x a)]
+(step
+ ?(eval (ref x) env sto k t)
+ (ret {lookup !do(x env sto)} sto k))
 
 (step
  ?(eval (lam x e) env sto k t)
@@ -72,11 +69,11 @@
  (eval e (environment env x (vaddr x t)) (store sto (vaddr x t) v) k t))
 
 ; Env/store lookup & update
-;(lookup ?do(x env sto) {store-lookup !do({env-lookup !do(x env)} sto)})
-;[(env-lookup ?do(x env) a) <-- (env-map env x a)]
-;[(store-lookup ?do(a sto) v) <-- (store-map sto a v)]
-;(ext-env ?do(env x a) (environment env x a))
-;(ext-store ?do(sto a v) (store sto a v))
+(lookup ?do(x env sto) {store-lookup !do({env-lookup !do(x env)} sto)})
+[(env-lookup ?do(x env) a) <-- (env-map env x a)]
+[(store-lookup ?do(a sto) v) <-- (store-map sto a v)]
+(ext-env ?do(env x a) (environment env x a))
+(ext-store ?do(sto a v) (store sto a v))
 (env-map ?(environment env x a) x a)
 [(env-map ?(environment env y _) x a)
  <--
