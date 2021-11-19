@@ -52,7 +52,7 @@
       (define before (current-inexact-milliseconds))
       (define res (apply op args))
       (define elapsed (- (current-inexact-milliseconds) before))
-      (when (> elapsed 5000)
+      #;(when (> elapsed 5000)
         (printf "~a took ~a ms!\n" (object-name op) (~r elapsed #:precision 0)))
       res))
   (parameterize ([current-source-tree source-tree])

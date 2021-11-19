@@ -23,7 +23,7 @@ COPY . /slog
 
 # build backend
 RUN cd /slog/backend ; rm -rf build ; \ 
-    cmake --no-warn-unused-cli -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_C_COMPILER:FILEPATH=/usr/bin/mpicc -H/slog/backend -B/slog/backend/build -G Ninja ; \
+    cmake --no-warn-unused-cli -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE -DCMAKE_BUILD_TYPE:STRING=RelWithDebInfo -DCMAKE_C_COMPILER:FILEPATH=/usr/bin/clang -H/slog/backend -B/slog/backend/build -G Ninja ; \
     cmake --build /slog/backend/build --config Release --target all -j --
 
 WORKDIR /slog
