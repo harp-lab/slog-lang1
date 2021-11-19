@@ -25,6 +25,7 @@ RUN cd /slog/backend ; rm -rf build ; \
 
 WORKDIR /slog
 RUN pip3 install -r requirements.txt
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 100
 EXPOSE 5108
 
 ENTRYPOINT ["tail", "-f", "/dev/null"]

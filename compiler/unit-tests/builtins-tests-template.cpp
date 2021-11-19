@@ -219,7 +219,7 @@ int main(){
       u64 out[1000];
       auto res = lam(input.data(), out);
       // cout << "res : " << res << "\n";
-      cout << "out[0]: " << out[0] << "\n";
+      // cout << "out[0]: " << out[0] << "\n";
       assert(out[0] == x && out[1] == y && out[2] == z);
       assert(res == 1);
     }
@@ -230,6 +230,91 @@ int main(){
       auto res = lam(input.data(), out);
       // cout << "res : " << res << "\n";
       assert(res == 0);
+    }
+  }
+
+  {
+    // [rule13 '(srule
+    //     ((rel-select $inter-head 2 (1 2) db) e $=0)
+    //     ((rel-version foo 1 () total) $_1 e)
+    //     ((rel-version = 2 (2) comp) 0 $_3 $=0))]
+    auto lam = ~a;
+    {
+      u64 _1 = 14124, e = 10;
+      auto input = vector<u64> {_1, e};
+      u64 out[1000];
+      auto res = lam(input.data(), out);
+      // cout << "out[0]: " << out[0] << "\n";
+      // assert(out[0] == e && out[1] == n2d(0));
+      assert(res == 1);
+    }
+  }
+
+  {
+    // [rule14 '(srule
+    //     ((rel-select $inter-body1 2 (1 2) db) $id3 $id1)
+    //     ((rel-version $inter-body 3 (1 3) total) $id11 $id1 $_9 $id3)
+    //     ((rel-version = 2 (2 1) comp) $id11 $id1 $_8))]
+    auto lam = ~a;
+    {
+      u64 id11 = 55, id1 = 55, _9 = 13123, id3 = 4534;
+      auto input = vector<u64>{id11, id1, _9, id3};
+      u64 out[1000];
+      auto res = lam(input.data(), out);
+      // cout << "out[0]: " << out[0] << ", out[1]: " << out[1] << "\n";
+      assert(out[0] == id3 && out[1] == id1);
+      assert(res == 1);
+    }
+  }
+
+  {
+    // [rule15 '(srule
+    //     ((rel-select $inter-body1 2 (1 2) db) $id3 $id1)
+    //     ((rel-version $inter-body 3 (1 3) total) $id11 $id1 $_9 $id3)
+    //     ((rel-version = 2 (2 1) comp) $id11 $id1 $_8))]
+    auto lam = ~a;
+    {
+      u64 id11 = 100, id1 = 100, _9 = 9, id3 = 123;
+      auto input = vector<u64>{id11, id1, _9, id3};
+      u64 out[1000];
+      auto res = lam(input.data(), out);
+      // cout << "out[0]: " << out[0] << ", out[1]: " << out[1] << "\n";
+      assert(out[0] == id3 && out[1] == id1);
+      assert(res == 1);
+    }
+  }
+
+  {
+    // [rule16 '(srule
+    //     ((rel-select $inter-body 3 (1 2 3) db) $id11 $id3 $id1)
+    //     ((rel-version ctx 3 (1 3) total) $id1 $id12 $id3 $id11)
+    //     ((rel-version = 2 (1 2) comp) $id1 $id12 $_7))]
+    auto lam = ~a;
+    {
+      u64 id1 = 10, id12 = 10, id3 = 33, id11 = 1111;
+      auto input = vector<u64>{id1, id12, id3, id11};
+      u64 out[1000];
+      auto res = lam(input.data(), out);
+      // cout << "out[0]: " << out[0] << ", out[1]: " << out[1] << ", out[2]: " << out[2] << "\n";
+      assert(out[0] == id11 && out[1] == id3 && out[2] == id1);
+      assert(res == 1);
+    }
+  }
+
+  {
+    // [rule17 '(srule
+    //     ((rel-select $inter-body2 2 (1 2) db) $id3 $id2)
+    //     ((rel-version $inter-body1 2 (2) total) $id2 $_10 $id3)
+    //     ((rel-version = 2 (1 2) comp) $id2 $id2 $_7))]
+    auto lam = ~a;
+    {
+      u64 id2 = 200, _10 = 1234, id3 = 1222;
+      auto input = vector<u64>{id2, _10, id3};
+      u64 out[1000] = {};
+      auto res = lam(input.data(), out);
+      // cout << "out[0]: " << out[0] << ", out[1]: " << out[1] << "\n";
+      assert(res == 1);
+      assert(out[0] == id3 && out[1] == id2);
     }
   }
   return 0;

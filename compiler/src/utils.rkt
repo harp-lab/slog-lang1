@@ -41,6 +41,7 @@
          format-source-tree-rule
          format-ir-rule
          ir->ir-flat
+         ir->ir-fixed
          compilation-error
          pretty-syntax-error
          print-ir-flat
@@ -158,6 +159,11 @@
   (match ir
     [`(ir-flat ,_ ...) ir]
     [else (ir->ir-flat (second ir))]))
+
+(define (ir->ir-fixed ir)
+  (match ir
+    [`(ir-fixed ,_ ...) ir]
+    [else (ir->ir-fixed (second ir))]))
 
 ;; digs through an IR, taking a root rule and extends a hash
 ;; (representing a graph of rules in the entire flattened IR, from
@@ -674,6 +680,11 @@
       (format-source-tree-rule `(prov (,@(set->list heads) <-- ,@(set->list bodys)) _) #f)
       #;(format "[~a <-- \n ~a]" (intercalate "\n " (map strip-prov (set->list heads)))
                                (intercalate "\n " (map strip-prov (set->list bodys))))]))
+(define (format-ir-fixed-rule rule)
+  (match rule
+    [`(rule ,heads ,bodys)
+      (format "[ ~a\n <-- \n ~a]" (intercalate "\n " (map strip-prov (set->list heads)))
+                               (intercalate "\n " (map strip-prov (set->list bodys))))]))
 (define (format-source-tree-rule rule [hide-wildcard-ids #t])
  (define (wildcard? sym) 
   (and hide-wildcard-ids
@@ -732,10 +743,16 @@
   ir)
 
 (define (print-ir-fixed ir)
-  (match-define `(ir-fixed ,ir-flat ,rules-h ,ir-flat-comp-rules-h) ir)
-  (printf "ir-fixed: \n")
-  (for ([r (hash-keys rules-h)])
-    (printf "~a\n" (strip-prov r)))
+  (match-define `(ir-fixed ,_ ,rules-h ,ir-flat-comp-rules-h) ir)
+  (printf "ir-fixed rules:\n")
+  (define rules-grouped (group-by cdr (hash->list rules-h)))
+  (for ([group (sort rules-grouped rule-prov<? #:key (compose cdr first))])
+    (printf "------------------------------------------------------\n")
+    (match-define `(rule-prov ir-flat ,rule ,file ,id) (cdr (first group)))
+    (printf "~a ~a:\n" file id)
+    (for ([r (map car group)])
+      (printf "~a\n" (format-ir-fixed-rule r))
+      (newline)))
   (when (> (hash-count ir-flat-comp-rules-h) 0) (printf "COMP RULES:\n"))
   (for ([r (hash-keys ir-flat-comp-rules-h)])
     (printf "~a\n" (strip-prov r)))
@@ -747,7 +764,8 @@
   (printf "ir-small: \n")
   (when (> (hash-count rules-h) 0) (printf "RULES:\n"))
   (for ([r (hash-keys rules-h)])
-    (printf "~a\n" (strip-prov r)))
+    (match-define `(srule ,head ,bodys ...) r)
+    (printf "[~a <--\n  ~a]\n" (strip-prov head) (intercalate "\n  " (map strip-prov bodys))))
   (when (> (hash-count comp-rules-h) 0) (printf "COMP RULES:\n"))
   (for ([r (hash-keys comp-rules-h)])
     (printf "~a\n" (strip-prov r)))

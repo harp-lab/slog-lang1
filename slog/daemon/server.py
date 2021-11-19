@@ -6,6 +6,7 @@ Yihao Sun
 """
 
 from concurrent import futures
+import os
 import threading
 import time
 import traceback
@@ -48,6 +49,8 @@ def start_mpirun_task():
 def run():
     """ main entrance """
     # boot ftp
+    if not os.path.exists(FTP_DATA_PATH):
+        os.makedirs(FTP_DATA_PATH)
     ftp_server = SlogFtpSever(FTP_DATA_PATH)
     ftp_thread = threading.Thread(target=ftp_server.start, daemon=True)
     ftp_thread.start()

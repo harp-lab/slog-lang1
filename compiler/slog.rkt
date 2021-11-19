@@ -39,7 +39,7 @@
    [("--ps" "--print-ir-small") "Print ir-small"
     (slog-print-ir-small #t)]
    [("-p" "--print-ir-flat") "Print ir-flat"
-    (slog-print-ir-flat #t)]
+    (slog-print-ir-fixed #t)]
    [("--debug-smt") "Print debug informations about smt calls"
     (slog-debug-smt #t)]
    [("-o") "Attempt to optimize the Slog IR"
@@ -108,8 +108,8 @@
 (when (slog-print-ir)
   (void (print-ir-incremental program)))
 
-(when (slog-print-ir-flat)
-  (void (print-ir-flat (ir->ir-flat program))))
+(when (slog-print-ir-fixed)
+  (void (print-ir-fixed (ir->ir-fixed program))))
 
 (match-define `(ir-scc ,ir-select ,scc-dag ,scc-h ,_comp-rules-h) ir-scc)
 (match-define `(ir-select ,ir-small ,rel-h ,rules-h ,__comp-rules-h) ir-select)
