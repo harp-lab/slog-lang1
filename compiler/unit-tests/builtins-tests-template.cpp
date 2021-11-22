@@ -317,5 +317,22 @@ int main(){
       assert(out[0] == id3 && out[1] == id2);
     }
   }
+
+  {
+    // [rule18 '(srule
+    //     ((rel-select bar 3 (1 2 3) db) z x y)
+    //     ((rel-version foo 2 (2) total) x y _1)
+    //     ((rel-version + 3 (1 2) comp) x x _2 z))]
+    auto lam = ~a;
+    {
+      u64 x = n2d(10), y = n2d(15);
+      auto input = vector<u64>{x, y};
+      u64 out[1000] = {};
+      auto res = lam(input.data(), out);
+      cout << "out[0]: " << out[0] << ", out[1]: " << out[1] << ", out[2]: " << out[2] << "\n";
+      assert(res == 1);
+      assert(out[0] == n2d(20) && out[1] == x && out[2] == y);
+    }
+  }
   return 0;
 }

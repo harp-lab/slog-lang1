@@ -400,7 +400,7 @@
 
 
 (define (generate-cpp-lambda-for-rule-with-builtin-impl r available-indices cpp-func-name)
-  ; (printf "(generate-cpp-lambda-for-rule-with-builtin-impl r indices cpp-func-name) args: ~a\n ~a ~a\n" (strip-prov r) indices cpp-func-name)
+  ; (printf "(generate-cpp-lambda-for-rule-with-builtin-impl r indices cpp-func-name) args: ~a\n ~a ~a\n" (strip-prov r) available-indices cpp-func-name)
   (match-define `(srule (,rel-sel ,hvars ...)
                         (,rel-ver0 ,bvars0 ...)
                         ((rel-version ,(? builtin? bi-op) ,arity ,requested-indices comp) ,bvars1 ...)) (strip-prov r))
@@ -469,10 +469,10 @@
           [(? symbol? var) #:when (member var bvars0)
             (format "data[~a]" (index-of bvars0 var))]
           [(? symbol? var) #:when (member var bvars1)
-            (define bi-arg-index (index-of bvars1 var))
-            (define index-in-old-bi-tuple (list-ref new-tuple-index-to-old-tuple-index-mapping bi-arg-index))
-            (define index-in-old-bi-return-tuple (- index-in-old-bi-tuple (length available-indices) 1))
-            (format "res_~a" index-in-old-bi-return-tuple)]
+            (define bi-arg-pos (index-of bvars1 var))
+            (define bi-arg-index (list-ref (extend-indices (map add1 requested-indices) arity) bi-arg-pos))
+            (define index-in-res (index-of output-indices (sub1 bi-arg-index)))
+            (format "res_~a" index-in-res)]
           [bad-arg (error (format "bad rule: ~a\nbad arg: ~a" (strip-prov r) bad-arg))]))
         (format "head_tuple[~a] = ~a;" i rhs)) 
     (range 0 (length hvars))))
@@ -573,10 +573,10 @@
           [(? symbol? var) #:when (member var bvars0)
             (format "data[~a]" (index-of bvars0 var))]
           [(? symbol? var) #:when (member var bvars1)
-            (define bi-arg-index (index-of bvars1 var))
-            (define index-in-old-bi-tuple (list-ref new-tuple-index-to-old-tuple-index-mapping bi-arg-index))
-            (define index-in-old-bi-return-tuple (- index-in-old-bi-tuple (length available-indices) 1))
-            (format "res_~a" index-in-old-bi-return-tuple)]
+            (define bi-arg-pos (index-of bvars1 var))
+            (define bi-arg-index (list-ref (extend-indices (map add1 requested-indices) arity) bi-arg-pos))
+            (define index-in-res (index-of output-indices (sub1 bi-arg-index)))
+            (format "res_~a" index-in-res)]
           [bad-arg (error (format "bad rule: ~a\nbad arg: ~a" (strip-prov r) bad-arg))]))
         (format "head_tuple[~a] = ~a;" i rhs)) 
     (range 0 (length hvars))))
@@ -584,6 +584,7 @@
   (cons local-lambda global-lambda))
 
 (define (extend-indices indices arity) (append indices (filter (λ (i) (not (member i indices))) (range 0 (add1 arity)))))
+
 (define (map-new-tuple-index-to-old-tuple-index arity new-indices old-indices)
   (define new-indices-extended (extend-indices new-indices arity))
   (define old-indices-extended (extend-indices old-indices arity))
