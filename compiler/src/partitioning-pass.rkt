@@ -65,7 +65,7 @@
     ,(foldl (lambda (rule h)
               (match (hash-ref rules-h+ rule)
                     [(and rule-prov `(rule-prov ir-flat ,fixed-rule ,module ,source-id))
-                    (define rules-st (partition-rule rule comp-rules+))
+                    (define rules-st (partition-rule rule rule-prov comp-rules+))
                     (for ([r rules-st])
                       (validate-ir-small-rule r rule-prov))
                     (foldl (lambda (r h)
@@ -174,11 +174,11 @@
                 (set->list (choose-n st (- n 1)))))))
 
 ;; breaks down a rule of the form (cl0 cl1 cl-lst... --> heads) into two rules: (cl0 cl1 --> GEN-CLAUSE) (GEN-CLAUSE cl-lst... --> heads)
-(define/contract-cond (merge-two-clauses cl0 cl1 cl-lst heads)
-  (ir-fixed-clause? ir-fixed-clause? (set/c ir-fixed-clause?) (set/c ir-fixed-clause?)
+(define/contract-cond (merge-two-clauses cl0 cl1 cl-lst heads rule-prov)
+  (ir-fixed-clause? ir-fixed-clause? (set/c ir-fixed-clause?) (set/c ir-fixed-clause?) any/c
    . -> . (cons/c ir-fixed-rule? ir-fixed-rule?))
   (match-define `(prov ((prov = ,=pos) (prov ,x ,xpos) (prov ((prov ,rel ,relpos) ,vals ...) ,clspos)) ,pos) (set-first heads))
-  (define inter-rel (gensymb '$inter-body))
+  (define inter-rel (gensymb (string->symbol (format "$rule~a-inter-body" (rule-prov->id rule-prov)))))
   (define external-vars
     (set->list (set-intersect (cl-lst-vars (list cl0 cl1))
                               (cl-lst-vars (append (set->list cl-lst) (set->list heads))))))
@@ -208,15 +208,15 @@
        (ormap lit? args)))
 
 ; partitions a rule into a set of unary or binary rules in the ir-small format
-(define/contract-cond (partition-rule rule comp-rules)
-  (-> ir-fixed-rule? list? (set/c ir-small-rule?))
+(define/contract-cond (partition-rule rule rule-prov comp-rules)
+  (-> ir-fixed-rule? list? any/c (set/c ir-small-rule?))
   #;(assert (ir-fixed-rule? rule) (format "bad ir-fixed-rule: ~a" (strip-prov rule)))
-  (define res (_partition-rule rule comp-rules))
+  (define res (_partition-rule rule rule-prov comp-rules))
   #;(for ([r (set->list res)])
     (assert (ir-small-rule? r) (format "bad ir-small-rule: ~a" (strip-prov r))))
   res)
 
-(define (_partition-rule rule comp-rules)
+(define (_partition-rule rule rule-prov comp-rules)
   (match rule
     ;; TODO this is probably not required anymore, as the static unification pass takes care of it
    #;[`(rule ,heads ,bodys) ;; making sure binary joins don't have constants in them
@@ -246,9 +246,9 @@
     (match-define (cons new-rule-2 new-body2) (if (db-clause-has-constants body2) (clause->const-less-clause body2) (cons #f body2)))
     (define updated-rule `(rule ,heads ,(set new-body1 new-body2)))
 
-    (set-union (partition-rule updated-rule comp-rules) 
-                (if new-rule-1 (partition-rule new-rule-1 comp-rules) (set))
-                (if new-rule-2 (partition-rule new-rule-2 comp-rules) (set)))]
+    (set-union (partition-rule updated-rule rule-prov comp-rules) 
+                (if new-rule-1 (partition-rule new-rule-1 rule-prov comp-rules) (set))
+                (if new-rule-2 (partition-rule new-rule-2 rule-prov comp-rules) (set)))]
    ;; rules with purely comp clauses are given an extra dummy db clause
    [`(rule ,heads ,bodys)
    #:when (and (> (set-count bodys) 0) 
@@ -258,8 +258,8 @@
     ; (define unit-clause (give-clause-id `(prov ((prov (rel-arity $unit 0 db) ,pos)) ,pos)))
     (define unit-clause (give-clause-id `(prov ((prov (rel-arity $unit 1 db) ,pos) (prov ,(gensymb '$__dummy) ,pos)) ,pos)))
     (define unit-fact (give-clause-id `(prov ((prov (rel-arity $unit 1 db) ,pos) (prov 0 ,pos)) ,pos)))
-    (set-union (partition-rule `(rule ,heads ,(set-add bodys unit-clause)) comp-rules)
-               (partition-rule `(rule ,(set unit-fact) ,(set)) comp-rules))]
+    (set-union (partition-rule `(rule ,heads ,(set-add bodys unit-clause)) rule-prov comp-rules)
+               (partition-rule `(rule ,(set unit-fact) ,(set)) rule-prov comp-rules))]
    [`(rule ,heads ,bodys)
    #:when (and (= 1 (set-count heads))
               (>= 2 (set-count bodys)))
@@ -274,7 +274,7 @@
                (= 3 (set-count bodys)))
     (match-define `(prov ((prov = ,=pos) (prov ,x ,xpos) (prov ((prov ,rel ,relpos) ,vals ...) ,clspos)) ,pos) (set-first heads))
   
-    (define inter-rel (gensymb '$inter-body))
+    (define inter-rel (gensymb (string->symbol (format "$rule~a-inter-body" (rule-prov->id rule-prov)))))
     ; Helper for emiting two srules, one of cl0 join cl1 and another for cl2 join inter-rel
     (define (emit-two-rules cl0 cl1 cl2)
       (define external-vars
@@ -329,7 +329,7 @@
                 (error (format "ungrounded rule: ~a" (strip-prov rule)))]
               [else
                 (emit-two-rules (second bodys-lst) (third bodys-lst) (first bodys-lst))]))
-      (foldl set-union (set) (map (app partition-rule _ comp-rules) two-rules))]
+      (foldl set-union (set) (map (app partition-rule _ rule-prov comp-rules) two-rules))]
    [`(rule ,heads ,bodys)
    #:when (and (= 1 (set-count heads))
               (< 3 (set-count bodys)))
@@ -362,11 +362,10 @@
         (define parts (choose-n bodys 2))
         (define good-partition (argmax (λ (part) (compute-sequential-partition-affinity (car part) (cdr part) comp-rules)) (set->list parts)))
         (match-define (cons cl-chosen cl-rest) good-partition)
-        ; (assert (clause-list-grounded cl-chosen comp-rules) (intercalate "\n" (map strip-prov (set->list cl-chosen))))
         (match-define (list cl0 cl1) (set->list cl-chosen))
-        (match-define (cons new-rule1 new-rule2) (merge-two-clauses cl0 cl1 cl-rest heads))
-        (define srules0 (partition-rule new-rule1 comp-rules))
-        (define srules1 (partition-rule new-rule2 comp-rules))
+        (match-define (cons new-rule1 new-rule2) (merge-two-clauses cl0 cl1 cl-rest heads rule-prov))
+        (define srules0 (partition-rule new-rule1 rule-prov comp-rules))
+        (define srules1 (partition-rule new-rule2 rule-prov comp-rules))
         (set-union srules0 srules1)]
       [else
         (match-define (cons inc-part exc-part) part)
@@ -376,8 +375,8 @@
           (format "bad partitioning, clause list not grounded: \n~a" (pretty-format (strip-prov inc-part))))
         (assert (clause-list-grounded exc-part comp-rules)
           (format "bad partitioning, clause list not grounded: \n~a" (pretty-format (strip-prov exc-part))))
-        (define inter-rel0 (gensymb '$inter-body))
-        (define inter-rel1 (gensymb '$inter-body))
+        (define inter-rel0 (gensymb (string->symbol (format "$rule~a-inter-body" (rule-prov->id rule-prov)))))
+        (define inter-rel1 (gensymb (string->symbol (format "$rule~a-inter-body" (rule-prov->id rule-prov)))))
         (define external-vars0
           (set->list (set-intersect (cl-lst-vars (set->list inc-part))
                                     (cl-lst-vars (set->list (set-union exc-part heads))))))
@@ -396,7 +395,7 @@
                                                     ,pos))
                                               ,pos))
                                 ,inc-part)
-                          comp-rules))
+                          rule-prov comp-rules))
         (define rules1
           (partition-rule `(rule ,(set `(prov ((prov = ,pos)
                                               (prov ,(gensymb '$_) ,pos)
@@ -409,7 +408,7 @@
                                                     ,pos))
                                               ,pos))
                                 ,exc-part)
-                            comp-rules))
+                            rule-prov comp-rules))
         (define join-rule
           `(rule 
             ,(set `(prov ((prov = ,pos) (prov ,(gensymb '$_) ,pos) (prov ((prov ,rel ,relpos) ,@vals) ,pos)) ,pos))
@@ -427,34 +426,39 @@
                                         external-vars1))
                                 ,pos))
                         ,pos))))
-    (set-union rules0 rules1 (partition-rule join-rule comp-rules))])]
+    (set-union rules0 rules1 (partition-rule join-rule rule-prov comp-rules))])]
    [`(rule ,heads ,bodys)
    #:when (and (< 1 (set-count heads))
               (>= 1 (set-count bodys)))
-    (define dep-graph
+    (define heads-lst (set->list heads))
+    ;; If cl1 depends on cl2, there is an edge cl1 -> cl2
+    (define dep-graph (get-dep-graph heads))
+    #;(define dep-graph
       (foldl (λ (head-cl gr)
               (match-define (list id _rel xs) (clause-rel-args head-cl))
               (foldl (λ (head-cl+ gr)
                         (match-define (list id+ _rel+ xs+) (clause-rel-args head-cl+))
-                        (if (member id xs+)
+                        (if (member id+ xs)
                             (hash-set gr head-cl (set-add (hash-ref gr head-cl) head-cl+))
                             gr))
                      (hash-set gr head-cl (hash-ref gr head-cl set))
                      (set->list heads)))
             (hash)
             (set->list heads)))
-    (define (get-deps cl)
-      (foldl (λ (cl+ deps) (if (set-member? (hash-ref dep-graph cl+) cl) (set-add deps cl+) deps))
-             (set)
-             (hash-keys dep-graph)))
+    (define (get-deps cl) (hash-ref dep-graph cl))
 
     ; Check for cycles in the dep-graph and issue an error:
-    (for ([head-cl (set->list heads)])
+    #;(for ([head-cl (set->list heads)])
       (define head-cl-deps ((transitive-closure get-deps) head-cl))
       (when (set-member? head-cl-deps head-cl)
         (pretty-error-current (prov->pos head-cl) 
                               "Circular dependencies among head cluases" #:exit #t)))
     (define first-stratum (filter (λ (cl) (set-empty? (get-deps cl))) (set->list heads)))
+    ; (printf "first stratum count: ~a\n" (length first-stratum))
+    (when (and (empty? first-stratum) (not (empty? heads-lst)))
+      (pretty-error-current
+        (prov->pos (car heads-lst))
+        "Circular dependencies among head clauses" #:exit #t))
     (define first-stratum-set (list->set first-stratum))
     (define rest-heads-set (set-subtract heads first-stratum-set))
 
@@ -475,7 +479,7 @@
         (define rule-for-remaining-heads
           (ir-fixed-replace-repeated-vars-in-body-clauses
             `(rule ,rest-heads-set ,(set-union bodys first-stratum-set))))
-        (foldl set-union (set) (map (app partition-rule _ comp-rules) 
+        (foldl set-union (set) (map (app partition-rule _ rule-prov comp-rules) 
                                 (cons rule-for-remaining-heads first-stratum-rules)))]
      [else 
       (define dummy-pos (prov->pos (car first-stratum)))
@@ -488,7 +492,7 @@
       (define rule-for-remaining-heads
         `(rule ,rest-heads-set ,(set first-stratum-replacement-clause)))
       
-      (foldl set-union (set) (map (app partition-rule _ comp-rules) 
+      (foldl set-union (set) (map (app partition-rule _ rule-prov comp-rules) 
                                   (append 
                                     (if (not (set-empty? rest-heads-set))
                                       (list rule-for-remaining-heads  rule-for-replacement-clause) (list)) 
@@ -513,7 +517,7 @@
                                                                 shared-vars))
                                                         ,pos))
                                                 ,pos)))
-                              comp-rules))
+                              rule-prov comp-rules))
           (define srules1
             (partition-rule `(rule ,(set `(prov ((prov = ,pos)
                                                   (prov ,(gensymb '$_) ,pos)
@@ -526,7 +530,7 @@
                                                         ,pos))
                                                 ,pos))
                                     ,bodys)
-                              comp-rules))
+                              rule-prov comp-rules))
           (set-union srules0 srules1)])]))
 
 ;; creates a hash for builtins:  rel-arity? -> (set rel-version?)
@@ -710,3 +714,50 @@
 (define (comp/agg-clause? cl)
   (match-define (list id rel args) (clause-rel-args cl))
   (comp-or-agg-rel-arity? rel))
+
+
+
+;; returns the dependency graph of the set of head clauses
+
+(define _dep-graph-cache (make-hash))
+(define (_get-dep-graph heads)
+  (define res
+    (foldl (λ (head-cl gr)
+          (match-define (list id _rel xs) (clause-rel-args head-cl))
+          (foldl (λ (head-cl+ gr)
+                    (match-define (list id+ _rel+ xs+) (clause-rel-args head-cl+))
+                    (if (member id+ xs)
+                        (hash-set gr head-cl (set-add (hash-ref gr head-cl) head-cl+))
+                        gr))
+                  (hash-set gr head-cl (hash-ref gr head-cl set))
+                  (set->list heads)))
+        (hash)
+        (set->list heads)))
+  (define (stratified-dep-graphs current-graph)
+    (cond 
+      [(hash-empty? current-graph) (void)]
+      [else 
+        (define current-heads (hash-keys current-graph))
+        ; (printf "HERE!\n")
+        (define first-stratum (filter (λ (cl) (set-empty? (hash-ref current-graph cl))) current-heads))
+        (define first-stratum-set (list->set first-stratum))
+        (define rest-heads-set (set-subtract (list->set current-heads) first-stratum-set))
+        ; (printf "HERE 2!\n")
+        (define rest-heads-graph (foldl
+          (λ (head-cl new-gr) (hash-set new-gr head-cl (set-subtract (hash-ref current-graph head-cl) first-stratum-set)))
+          (hash)
+          (set->list rest-heads-set)))
+        (hash-set! _dep-graph-cache rest-heads-set rest-heads-graph)
+        (stratified-dep-graphs rest-heads-graph)]))
+  (stratified-dep-graphs res)
+  res)
+
+(define (get-dep-graph heads)
+  (define cached (hash-ref _dep-graph-cache heads #f))
+  ; (when cached (printf "dep-graph cached for ~a heads\n" (set-count heads))) 
+  (or cached
+    (_get-dep-graph heads)))
+
+(define (rule-prov->id rule-prov)
+  (match-define `(rule-prov ir-flat ,fixed-rule ,module ,source-id) rule-prov)
+  source-id)
