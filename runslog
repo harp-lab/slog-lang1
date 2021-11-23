@@ -64,11 +64,12 @@ def ingest_facts(factloc, inputloc, tsv_bin_path):
         table = tables.get((relname, arity))
         if not table:
             print(f"`{relname}` with arity `{arity}` not found in slogfile, but used as input.")
-            # should we continue without it?
-            return None
-        tabletag = table[0]
-        tableloc = os.path.join(inputloc, table[1])
-        index = ",".join(str(i) for i in range(1, arity+1))
+            tabletag = str(max([int(t[0]) for t in tables.values()]) + 1)
+            print(f"assign a new tag `{tabletag}` to `{relname}` with arity `{arity}`")
+            tableloc = os.path.join(inputloc, f"{tabletag}.{relname}.{arity}.table")
+        else:
+            tabletag = table[0]
+            tableloc = os.path.join(inputloc, table[1])
         try:
             # idk why 16 is buckets, got from rpc.py
             subprocess.check_output([tsv_bin_path, factfile, str(arity),
@@ -117,12 +118,13 @@ def run_local(file, outloc, factloc, cores, verbose, slog_root=None, compile_bac
 
     try:
         start = time.time()
-        subprocess.check_output(["racket", "compiler/slog.rkt", "-c",
-                                 "--output-code", outloc, "--output-db", checkpointloc,
-                                 "--input-db", inputloc, file],
+        output = subprocess.check_output(["racket", "compiler/slog.rkt", "-c", "--ps",
+                                          "--output-code", outloc, "--output-db", checkpointloc,
+                                          "--input-db", inputloc, file],
                                 stderr=subprocess.STDOUT)
         end = time.time()
         if verbose:
+            print(output.decode())
             print(f"Time taken: {end - start}")
     except subprocess.CalledProcessError as e:
         print(f"Slog->C++ compilation failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
