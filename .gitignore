@@ -12,3 +12,5 @@ metadatabase/database.sqlite3
 env/
 out
 .cache
+massif.*
+gmon.out
