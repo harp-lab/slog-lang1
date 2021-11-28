@@ -6,6 +6,7 @@ from functools import lru_cache
 from ftplib import FTP
 import hashlib
 import os
+from re import T
 import sys
 import time
 
@@ -16,6 +17,7 @@ from slog.common import rel_name_from_file, make_stub, PING_INTERVAL
 from slog.common.elaborator import Elaborator
 from slog.common.tuple import parse_query_result, pretty_str_tuples
 from slog.daemon.const import FTP_DEFAULT_PWD, FTP_DEFAULT_USER, STATUS_PENDING, STATUS_FAILED, STATUS_RESOLVED, STATUS_NOSUCHPROMISE
+from slog.daemon.util import get_relation_info
 import slog.protobufs.slog_pb2 as slog_pb2
 
 CSV_CHUNK_SIZE = 1024
@@ -84,16 +86,18 @@ class SlogClient:
     Client to a slog server.
     """
 
-    def __init__(self, server="localhost", rpc_port=5108, ftp_port=2121):
+    def __init__(self, server="localhost", rpc_port=5108, ftp_port=2121, local_db_path=None):
         self._channel = None
         self._stub = None
         self.server_addr = server
         self.ftp_port = ftp_port
-        try:
-            self.connect(f"{server}:{rpc_port}")
-        except grpc.RpcError:
-            print("Can't connect to slog daemon server")
-            sys.exit(1)
+        self.local_db_path = local_db_path
+        if not local_db_path:
+            try:
+                self.connect(f"{server}:{rpc_port}")
+            except grpc.RpcError:
+                print("Can't connect to slog daemon server")
+                sys.exit(1)
         self.lasterr = None
         self.relations = []
         self.unroll_depth = 5
@@ -105,6 +109,9 @@ class SlogClient:
         self.all_db = []
         # map of tuple with it's print name
         self.tuple_printed_id_map = {}
+        if local_db_path:
+            self.load_relations(None)
+            self._update_intern_strings(None)
 
     def connect(self, server):
         """ Reconnect to the rpc server """
@@ -301,6 +308,15 @@ class SlogClient:
 
     def _update_intern_strings(self, db_id):
         """ update cached string.csv data """
+        if self.local_db_path:
+            with open(os.path.join(self.local_db_path, '$strings.csv'), 'r') as string_file:
+                for s_line in string_file:
+                    if s_line.strip() == '':
+                        continue
+                    sid = s_line.split('\t')[0]
+                    sv = s_line.split('\t')[1]
+                    self.intern_string_dict[int(sid)] = sv.strip()
+            return
         req = slog_pb2.StringRequest()
         req.database_id = db_id
         for sres in self._stub.GetStrings(req):
@@ -333,6 +349,14 @@ class SlogClient:
 
     def load_relations(self, db_id):
         """ get all relation inside a database """
+        if self.local_db_path:
+            for table_file in os.listdir(self.local_db_path):
+                if table_file.endswith('.table') or table_file.endswith('.table_full'):
+                    rel_info = get_relation_info(os.path.join(self.local_db_path, table_file))
+                    self.relations.append([rel_info['name'], rel_info['arity'],
+                                           rel_info['tag'], rel_info['num_tuples']])
+            # print(self.relations)
+            return
         req = slog_pb2.DatabaseRequest()
         req.database_id = db_id
         res = self._stub.GetRelations(req)
@@ -380,6 +404,28 @@ class SlogClient:
         if tag in tuples_map.keys():
             return tuples_map
         tuples_map[tag] = []
+        if self.local_db_path:
+            # local mode
+            target_file = None
+            for table_file in os.listdir(self.local_db_path):
+                if not (table_file.endswith('.table') or table_file.endswith('.table_full')):
+                    continue 
+                if int(table_file.split('.')[0]) == tag:
+                    target_file = table_file
+                    break
+            arity = int(target_file.split('.')[-2])
+            with open(os.path.join(self.local_db_path, target_file), 'rb') as bin_file:
+                bin_bytes = bin_file.read()
+                u64_buf = []
+                for i in range(0, len(bin_bytes), 8):
+                    raw_u64 = int.from_bytes(bin_bytes[i:i+8], 'little', signed=False)
+                    u64_buf.append(raw_u64)
+                    if len(u64_buf) == arity + 1:
+                        tuples_map[tag].append(u64_buf[-1])
+                        for u64 in u64_buf[:-1]:
+                            tuples_map[tag].append(u64)
+                        u64_buf = []
+            return
         req = slog_pb2.RelationRequest()
         req.database_id = db_id
         req.tag = tag
@@ -408,7 +454,7 @@ class SlogClient:
         if len(rels) == 0:
             writer.write("No relation named {} in the current database".format(name))
             return []
-        tuples_map = self._dump_tuples(name, self.cur_db)          
+        tuples_map = self._dump_tuples(name, self.cur_db)
         tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
         slog_tuples = parse_query_result(tuples_map, tag_map, self.intern_string_dict,
                                          self.tuple_printed_id_map)
@@ -534,4 +580,3 @@ class SlogClient:
                                    tag_map, self.tuple_printed_id_map)
         writer.write(pp_str[0])
         return self.tuple_printed_id_map[printed_id]
-

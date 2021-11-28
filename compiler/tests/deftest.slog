@@ -169,27 +169,33 @@
 
 [(def_used_return_val_reg EA_def EA_call Reg EA_used Index_used)
  <--
+ (block_last_def CalleeReturnBlock_end EA_def Reg)
  (arch.return_val_reg Reg)
  (def_used_intra EA_call Reg EA_used Index_used)
+ --
  (direct_call EA_call Callee)
  (fde_addresses Callee End)
- (arch.return CalleeReturn)
  (<= Callee CalleeReturn)
  (< CalleeReturn End)
+ --
+ (arch.return CalleeReturn)
  (code_in_block CalleeReturn CalleeReturnBlock)
- (block_last_instruction CalleeReturnBlock CalleeReturnBlock_end)
- (block_last_def CalleeReturnBlock_end EA_def Reg)]
+ (block_last_instruction CalleeReturnBlock CalleeReturnBlock_end)]
+
 [(def_used_return_val_reg EA_def EA_call Reg EA_used Index_used)
  <--
+ (~ block_last_def CalleeReturnBlock_end _ Reg)
+ --
  (arch.return_val_reg Reg)
  (def_used_intra EA_call Reg EA_used Index_used)
+ --
+ (last_def CalleeReturnBlock EA_def Reg)
+ (block_last_instruction CalleeReturnBlock CalleeReturnBlock_end)
+ (code_in_block CalleeReturn CalleeReturnBlock)
+ --
  (direct_call EA_call Callee)
  (fde_addresses Callee End)
  (arch.return CalleeReturn)
  (<= Callee CalleeReturn)
- (< CalleeReturn End)
- (code_in_block CalleeReturn CalleeReturnBlock)
- (block_last_instruction CalleeReturnBlock CalleeReturnBlock_end)
- (~ block_last_def CalleeReturnBlock_end _ Reg)
- (last_def CalleeReturnBlock EA_def Reg)]
+ (< CalleeReturn End)]
 
