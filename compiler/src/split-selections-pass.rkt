@@ -487,21 +487,3 @@
       (hash-keys all-aggregators)))
   (car matching-aggregators))
 
-
-(module+ test
-  (require rackunit)
-  (test-case "test-admissible-comp-rel-indices?"
-    (define rules
-      (list
-      `(crule (prov ((prov = _) (prov _3 _) (prov ((prov (rel-arity factorial 2 comp) _) (prov x _) (prov res _)) _)) _)
-             ,(set '(prov ((prov = _) (prov _6 _) (prov ((prov (rel-arity sub1 2 comp) _) (prov x _) (prov x-1 _)) _)) _) 
-                   '(prov ((prov = _) (prov _4 _) (prov ((prov (rel-arity * 3 comp) _) (prov x _) (prov x-1fac _) (prov res _)) _)) _) 
-                   '(prov ((prov = _) (prov _5 _) (prov ((prov (rel-arity factorial 2 comp) _) (prov x-1 _) (prov x-1fac _)) _)) _) 
-                   '(prov ((prov = _) (prov _7 _) (prov ((prov (rel-arity > 2 comp) _) (prov x _) (prov 0 _)) _)) _)))
-
-      `(crule (prov ((prov = _) (prov _0 _) (prov ((prov (rel-arity factorial 2 comp) _) (prov x _) (prov 1 _)) _)) _) 
-             ,(set '(prov ((prov = _) (prov _1 _) (prov ((prov (rel-arity = 2 comp) _) (prov x _) (prov 0 _)) _)) _)))))
-    
-    (printf "~a\n" (get-ir-select-rules-for-comp-rel `(rel-arity factorial 2 comp) '(1) rules))
-    (check-true (admissible-comp-rel-indices? '(rel-arity factorial 2 comp) (set 1) rules))
-    #;(check-false (admissible-comp-rel-indices? '(rel-arity factorial 2 comp) (set) rules))))

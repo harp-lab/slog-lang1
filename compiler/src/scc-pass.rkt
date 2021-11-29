@@ -210,7 +210,6 @@
 (define (rule-body-rel-selects-w/prov rule)
   (match rule
     [`(srule ,_ (prov (,bs ,_ ...) ,_) ...) bs]
-    ; [`(srule ,_ (prov (,b0 ,_ ...) ,_) (prov (,b1 ,_ ...) ,_)) (list b0 b1)]
     [`(arule ,_ (prov (,b0 ,_ ...) ,_)) (list b0)]))
 
 (define (body-agg-rel-selects-w/prov rule)

@@ -1,6 +1,9 @@
 #lang racket
 ;; Utility functions that are independent of slog
-(require racket/exn)
+(require racket/exn
+         racket/future
+         rparallel
+         pmap)
 
 (provide 
     iterate-to-fixed-point
@@ -26,7 +29,11 @@
     string-replace-all
     findf-map
     hash-map-keys
-    list->hash)
+    list->hash
+    set-filter
+    argmax2
+    parallel-argmax2
+)
 
 (require (for-syntax racket))
 (require (for-syntax syntax/parse))
@@ -240,3 +247,58 @@
 
 (define (list->hash list)
   (make-immutable-hash list))
+
+(define (set-filter f s)
+  (define res (set))
+  (set-for-each s (λ (x) 
+    (when (f x) (set! res (set-add res x)))))
+  res)
+
+
+;; like argmax, except it returns (cons best-score best)
+(define (argmax2 proc lst)
+  (match-define (cons fst-score fst) (cons (proc (car lst)) (car lst)))
+  (foldl (λ (x accu)
+          (match-define (cons best-score _best) accu)
+          (define x-score (proc x))
+          (if (> x-score best-score)
+            (cons x-score x)
+            accu))
+    (cons fst-score fst)
+    (cdr lst)))
+
+(define (parallel-argmax2 proc lst)
+  (define scored (better-parallel-map (λ (x) (cons (proc x) x)) lst))
+  (argmax car scored))
+
+(define core-count (processor-count))
+
+(define (better-parallel-map f lst)
+  (define lst-v (list->vector lst))
+  (define chunks-count (min core-count (vector-length lst-v)))
+  (define chunk-size (if (equal? chunks-count 0) 0 (ceiling (/ (vector-length lst-v) chunks-count))))
+  (define chunks (make-vector chunks-count))
+  (match-define _ 
+    (foldl (λ (chunk-index v)
+              (define split-point (min chunk-size (vector-length v)))
+              (define-values (chunk new-v) (vector-split-at v split-point))
+              (vector-set! chunks chunk-index chunk)
+              new-v)
+    lst-v
+    (range 0 chunks-count)))
+  ; (printf "chunk-size ~a\n" chunk-size)
+  (define mapped-chunks (parallel-map (λ (chunk) (vector-map f chunk)) (vector->list chunks)))
+  (define res (foldr (λ (chunk accu) (append (vector->list chunk) accu))
+         (list)
+         mapped-chunks))
+  #;(assert (equal? (length res) (vector-length lst-v))
+          (format "expected len: ~a, actual len: ~a. \nexpected res: ~a\nactual res: ~a\n" (vector-length lst-v) (length res) (map f lst) res))
+  res)
+
+(module+ test
+  (require rackunit)
+  (check-equal? (better-parallel-map add1 '()) (map add1 '()))
+  (check-equal? (better-parallel-map add1 (range 0 10)) (map add1 (range 0 10)))
+  (check-equal? (better-parallel-map add1 (range 0 30)) (map add1 (range 0 30)))
+  (check-equal? (better-parallel-map add1 (range 0 21)) (map add1 (range 0 21)))
+  (check-equal? (better-parallel-map add1 (range 0 16)) (map add1 (range 0 16))))

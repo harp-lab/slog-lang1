@@ -46,6 +46,7 @@
 
 (define (clause-rel-args cl [rel? any/c])
   (define my-rel? rel?)
+  (define pos? (λ _ #t))
   (match cl
     [`(prov ((prov = ,(? pos?))
                   (prov ,(? var? id) ,(? pos?))
@@ -66,6 +67,7 @@
 (define (ir-flat-clause-rel-args cl) (clause-rel-args cl ir-flat-rel?))
 
 (define (clause-rel-args-w/prov cl rel?)
+  (define pos? (λ _ #t))
   (match cl
     [`(prov ((prov = ,(? pos?))
               ,(? (prov-of var?) id)

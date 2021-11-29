@@ -9,7 +9,7 @@ RUN apt-get update -y && apt-get install -y clang-format clang-tidy clang-tools 
             llvm-dev llvm-runtime llvm python-clang mcpp cmake racket build-essential mpich z3 \
             git python3-pip sqlite3 ninja-build valgrind apt-utils
 RUN raco setup --doc-index --force-user-docs
-RUN raco pkg install --batch --deps search-auto binaryio graph
+RUN raco pkg install --batch --deps search-auto binaryio graph rparallel pmap
 
 ENV OMPI_ALLOW_RUN_AS_ROOT=1
 ENV OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1

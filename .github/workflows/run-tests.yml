@@ -49,6 +49,9 @@ jobs:
       - name: Compiler tests with --merge-builtins
         run: docker run --rm --entrypoint racket slog-ci-test /slog/compiler/unit-tests/tests.rkt -c --merge-builtins --run-slow-tests
 
+      - name: Compiler unit tests
+        run: docker run --rm --entrypoint raco slog-ci-test test /slog/compiler/src/generic-utils.rkt
+
       - name: C++ compilation tests
         run: docker run --rm --entrypoint bash slog-ci-test /slog/compiler/unit-tests/cpp_compilation_tests.sh
 
