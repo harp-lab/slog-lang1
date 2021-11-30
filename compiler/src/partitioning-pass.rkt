@@ -12,7 +12,8 @@
          clause-rel-args
          clause-rel-args-w/prov)
 
-(require racket/hash)
+(require racket/hash
+         racket/random)
 
 (require "lang-predicates.rkt")
 (require "utils.rkt")
@@ -40,7 +41,7 @@
     (match-define (cons rule rule-prov) rule+prov)
     (match-define `(rule-prov ir-flat ,fixed-rule ,module ,source-id) rule-prov)
     (match-define `(rule ,heads ,bodys) rule)
-    (define ungrounded-vars (clause-list-ungrounded-vars bodys comp-rules))
+    (define ungrounded-vars (clause-list-ungrounded-vars (set->list bodys) comp-rules))
     (when (not (set-empty? ungrounded-vars))
       (pretty-rule-error ir rule-prov 
                          (format "ungrounded variable(s): ~a" (intercalate ", " (set->list ungrounded-vars)))
@@ -77,31 +78,12 @@
     ,comp-rules-h+))
 
 (define (clause-args cl)
-  (match cl
-         [`(prov ((prov = ,(? pos?))
-                  (prov ,(? var? id) ,(? pos?))
-                  (prov ((prov ,(? rel-arity?) ,(? pos?))
-                         (prov ,(? arg? xs) ,(? pos?))
-                         ...)
-                        ,(? pos?)))
-                 ,(? pos?))
-         (list->set (cons id xs))]
-         [`(prov ((prov ,(? rel-arity?) ,(? pos?))
-                  (prov ,(? arg? xs) ,(? pos?))
-                  ...)
-                 ,(? pos?))
-         (list->set xs)]
-         [`(prov ((prov = ,_) (prov ,(? symbol? x) ,_) (prov ,(? arg? y) ,_)) ,_)
-          (set x y)]
-         [`(prov ((prov = ,_) (prov ,(? symbol? x) ,_) (prov (,(? symbol? y)) ,_)) ,_)
-          (set x)]
-         [`(prov ((prov =/= ,_) (prov ,(? symbol? x) ,_) (prov ,(? arg? y) ,_)) ,_)
-          (set x y)]
-         [`(prov ,stx ,pos) (pretty-error-current pos (format "Not a valid clause: ~a" cl))]))
+  (match-define (list id rel args) (ir-fixed-clause-rel-args cl))
+  (list->set (cons id args)))
 
 ; computes a set of unique variables for the clause
-(define (clause-vars cl) 
-  (list->set (filter var? (set->list (clause-args cl)))))
+(define (clause-vars cl)
+  (set-filter var? (clause-args cl)))
 
 ; returns the clause id var, relation and list of args of a clause
 (define clause-rel-args ir-fixed-clause-rel-args)
@@ -146,17 +128,19 @@
 
 (define (compute-partition-affinity part comp-rules)
   (match-define (cons inc exc) part)
-  (define (grounded) (and (clause-list-grounded inc comp-rules) (clause-list-grounded exc comp-rules)))
+  (define inc-lst (set->list inc))
+  (define exc-lst (set->list exc))
+  (define (grounded) (and (clause-list-grounded inc-lst comp-rules) (clause-list-grounded exc-lst comp-rules)))
   (cond 
     ;; not allowing cartesian products when partitioning rules
-    [(< 0 (set-count (set-intersect (cl-lst-vars (set->list inc)) (cl-lst-vars (set->list exc))))) -inf.0] 
+    [(< 0 (set-count (set-intersect (cl-lst-vars inc-lst) (cl-lst-vars exc-lst)))) -inf.0] 
     [(not (grounded)) -inf.0]
-    [(or (andmap comp/agg-clause? (set->list inc)) (andmap comp/agg-clause? (set->list exc))) -inf.0]
+    [(or (andmap comp/agg-clause? inc-lst) (andmap comp/agg-clause? exc-lst)) -inf.0]
     [else
       ;; equal to |(inc-vars ∪ exc-vars) - (inc-vars ∩ exc-vars)|, 
       ;; which is effectively the same as - |(inc-vars ∩ exc-vars)|
-      (+ (internal-vars-count (set->list inc) (set->list exc))
-          (internal-vars-count (set->list exc) (set->list inc)))]))
+      (+ (internal-vars-count inc-lst exc-lst)
+          (internal-vars-count exc-lst inc-lst))]))
 
 ; Function for taking a set and returning a set of pairs of sets, for all ways of choosing n elements
 (define (choose-n st n)
@@ -172,6 +156,25 @@
                                 (set)
                                 (set->list exc))]))
                 (set->list (choose-n st (- n 1)))))))
+
+;; computes C(n, k): the number of ways to pick k elements out of a set of size n.
+(define (choose n k)
+  (/ (foldl * 1 (range (add1 (- n k)) (add1 n)))
+     (foldl * 1 (range 1 (add1 k)))))
+
+;; given a vector and a `k`, returns the `i`th element of a list containing all ways to
+;; pick k items (unordered) out of the vector. 
+(define (choose-k-ith-element vec n i)
+  (cond 
+    [(= n 0) (list)]
+    [else 
+      (define choose-n-1-size (choose (sub1 (vector-length vec)) (sub1 n)))
+      (cond
+        [(< i choose-n-1-size) ;; first one included
+        (cons (vector-ref vec 0) (choose-k-ith-element (vector-drop vec 1) (sub1 n) i))]
+        [else ;; first one excluded
+        (choose-k-ith-element (vector-drop vec 1) n (- i choose-n-1-size))])]))
+
 
 ;; breaks down a rule of the form (cl0 cl1 cl-lst... --> heads) into two rules: (cl0 cl1 --> GEN-CLAUSE) (GEN-CLAUSE cl-lst... --> heads)
 (define/contract-cond (merge-two-clauses cl0 cl1 cl-lst heads rule-prov)
@@ -335,32 +338,41 @@
               (< 3 (set-count bodys)))
     ; (assert (clause-list-grounded bodys comp-rules) (intercalate "\n" (map strip-prov (set->list bodys))))
     (match-define `(prov ((prov = ,=pos) (prov ,x ,xpos) (prov ((prov ,rel ,relpos) ,vals ...) ,clspos)) ,pos) 
-            (set-first heads))
-        (define part-size-ideal (max 2 (min 4 (floor (/ (set-count bodys) 2)))))
+      (set-first heads))
+    (define part-size-ideal (max 2 (min 4 (floor (/ (set-count bodys) 2)))))
+    ; (define before-part (current-inexact-milliseconds))
+    (define bodys-lst (set->list bodys))
+    (define bodys-vec (list->vector bodys-lst))
     (match-define (list score part _)
       (foldl (λ (part-size score-part)
                 (match-define (list score part keep-looking) score-part)
-                (if (not keep-looking)
-                    score-part
-                    (match-let*
-                      ([all-parts (choose-n bodys part-size)]
-                       [most-parts (if (> (set-count all-parts) 200)
-                                        (take (shuffle (set->list all-parts)) 200)
-                                        (set->list all-parts))]
-                       [(cons res-score res-part)
-                        (foldl (lambda (part best)
-                                (match-define (cons bscore bpart) best)
-                                (define score (compute-partition-affinity part comp-rules))
-                                (if (> score bscore) (cons score part) best))
-                               (cons -inf.0 'N/A)
-                               most-parts)])
-                      (if (> res-score score) (list res-score res-part #t) (list score part #f)))))
+                (cond [(not keep-looking) score-part]
+                 [else
+                  ; (define before-most-parts (current-inexact-milliseconds))
+                  (define parts-count (choose (set-count bodys) part-size))
+                  (define most-parts (if (> parts-count 200)
+                    (map (λ (ind) 
+                            (define inc-set (list->set (choose-k-ith-element bodys-vec part-size ind)))
+                            (define exc (filter (λ (cl) (not (set-member? inc-set cl))) bodys-lst))
+                            (cons inc-set (set->list exc))) 
+                         (random-sample parts-count 200 #:replacement? #f))
+                    (set->list (choose-n bodys part-size))))
+                  ; (define most-parts-took (- (current-inexact-milliseconds) before-most-parts))
+                  (match-define (cons res-score res-part)
+                    (if (empty? most-parts)
+                        (cons -inf.0 'N/A)
+                        (parallel-argmax2 (app compute-partition-affinity _ comp-rules) most-parts)))
+                  (if (> res-score score) (list res-score res-part #t) (list score part #f))]))
              (list -inf.0 'N/A #t)
              (range 2 (add1 part-size-ideal))))
+    ; (define part-took (- (current-inexact-milliseconds) before-part))
+    ; (printf "part took for ~a bodys: ~a \n" (set-count bodys) (~r part-took #:precision 0))
     (cond
       [(= score -inf.0) ;; the rule cannot be partitioned into two rules and a merge
         (define parts (choose-n bodys 2))
-        (define good-partition (argmax (λ (part) (compute-sequential-partition-affinity (car part) (cdr part) comp-rules)) (set->list parts)))
+        (match-define (cons good-score good-partition) 
+          (parallel-argmax2 (λ (part) (compute-sequential-partition-affinity (car part) (cdr part) comp-rules)) 
+                            (set->list parts)))
         (match-define (cons cl-chosen cl-rest) good-partition)
         (match-define (list cl0 cl1) (set->list cl-chosen))
         (match-define (cons new-rule1 new-rule2) (merge-two-clauses cl0 cl1 cl-rest heads rule-prov))
@@ -369,19 +381,21 @@
         (set-union srules0 srules1)]
       [else
         (match-define (cons inc-part exc-part) part)
+        (define inc-part-lst (set->list inc-part))
+        (define exc-part-lst (set->list exc-part))
         (assert (and (>= (set-count inc-part) 2) (>= (set-count exc-part) 2))
                 (format "bad partitioning. \ninc-part: ~a \nexc-part: ~a" inc-part exc-part))
-        (assert (clause-list-grounded inc-part comp-rules)
-          (format "bad partitioning, clause list not grounded: \n~a" (pretty-format (strip-prov inc-part))))
-        (assert (clause-list-grounded exc-part comp-rules)
-          (format "bad partitioning, clause list not grounded: \n~a" (pretty-format (strip-prov exc-part))))
+        (assert (clause-list-grounded inc-part-lst comp-rules)
+          (format "bad partitioning, clause list not grounded: \n~a" (pretty-format (strip-prov inc-part-lst))))
+        (assert (clause-list-grounded exc-part-lst comp-rules)
+          (format "bad partitioning, clause list not grounded: \n~a" (pretty-format (strip-prov exc-part-lst))))
         (define inter-rel0 (gensymb (string->symbol (format "$rule~a-inter-body" (rule-prov->id rule-prov)))))
         (define inter-rel1 (gensymb (string->symbol (format "$rule~a-inter-body" (rule-prov->id rule-prov)))))
         (define external-vars0
-          (set->list (set-intersect (cl-lst-vars (set->list inc-part))
+          (set->list (set-intersect (cl-lst-vars inc-part-lst)
                                     (cl-lst-vars (set->list (set-union exc-part heads))))))
         (define external-vars1
-          (set->list (set-intersect (cl-lst-vars (set->list exc-part))
+          (set->list (set-intersect (cl-lst-vars exc-part-lst)
                                     (cl-lst-vars (set->list (set-union inc-part heads))))))
         (define rules0
           (partition-rule `(rule ,(set `(prov ((prov = ,pos)
@@ -546,7 +560,7 @@
   (set-empty? (clause-list-ungrounded-vars cl-lst comp-rules)))
 
 (define (clause-list-ungrounded-vars cl-lst comp-rules)
-  (define clauses-rel-args (map clause-rel-args (set->list cl-lst)))
+  (define clauses-rel-args (map clause-rel-args cl-lst))
   (define all-args (foldl (λ (rel-args accu) (match rel-args [(list id rel args) (append accu (cons id args))])) (list) clauses-rel-args))
   (define all-vars (list->set (filter (not/c lit?) all-args)))
   
@@ -738,11 +752,9 @@
       [(hash-empty? current-graph) (void)]
       [else 
         (define current-heads (hash-keys current-graph))
-        ; (printf "HERE!\n")
         (define first-stratum (filter (λ (cl) (set-empty? (hash-ref current-graph cl))) current-heads))
         (define first-stratum-set (list->set first-stratum))
         (define rest-heads-set (set-subtract (list->set current-heads) first-stratum-set))
-        ; (printf "HERE 2!\n")
         (define rest-heads-graph (foldl
           (λ (head-cl new-gr) (hash-set new-gr head-cl (set-subtract (hash-ref current-graph head-cl) first-stratum-set)))
           (hash)

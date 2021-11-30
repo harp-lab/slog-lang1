@@ -440,12 +440,15 @@
 
 (define (_get-func-for-builtin-with-extended-indices requested-bi)
  (match-define `(rel-version ,name ,arity ,indices comp) requested-bi)
- (match-define (cons matching-bi matching-bi-func)
+ (define matching
   (findf (λ (bi-func)
             (match-define `(rel-version ,bi-name ,bi-arity ,bi-indices comp) (car bi-func))
             (equal? (list bi-name bi-arity (list->set bi-indices))
                     (list name arity (list->set indices))))
           (hash->list builtins-as-rels)))
+ (when (not matching)
+  (error (format "no matching builtin for ~a\n" requested-bi))) 
+ (match-define (cons matching-bi matching-bi-func) matching)
   (match-define `(rel-version ,matching-name ,matching-arity ,matching-indices comp) matching-bi)
   (cond 
     [(equal? matching-indices indices) matching-bi-func]
