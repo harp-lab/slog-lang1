@@ -215,6 +215,9 @@
             (match-define `(prov (,new-tag ,new-cl1 ,new-cls ...) ,new-pos) clause-desugared)
             (cons `(prov ((agg ,new-tag ,new-cl1) ,@new-cls) ,new-pos) new-rules)]
           [else (cons cl (list))])]
+      [`(INNER-RULE ,inner-rule)
+       (match-define (cons inner-rule-fixed new-rules) (fix-aggregators inner-rule))
+       (cons `(INNER-RULE ,inner-rule-fixed) new-rules)]
       [else (cons cl (list))]))
   (match-define `(prov ,items ,pos) rule)
   (match-define (cons new-clauses extra-rules)

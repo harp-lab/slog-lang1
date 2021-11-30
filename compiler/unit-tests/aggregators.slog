@@ -101,3 +101,18 @@
  (~ f-bar y 100 x)
  -->
  (f-res x y)]
+
+
+;; G ------------------------------------------------------
+;; interaction of aggregators and --
+(g-foo 1 2)
+(g-foo 1 4)
+
+(g-bar 2 100 1)
+(g-bar 4 200 1)
+
+[(g-foo x y)
+ --
+ (~ g-bar y 100 x)
+ -->
+ (g-res x y)]
