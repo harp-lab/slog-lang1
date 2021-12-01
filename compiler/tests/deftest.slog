@@ -131,15 +131,15 @@
  (block_last_def Block_end EA_def Reg)
  (~ must_def Block_end Reg)
  (block_next Block_end Block)
- (~ flow_def Block_end Reg Block _)
- ]
+ (~ flow_def Block_end Reg Block _)]
 
 [(last_def Block_next EA_def Reg)
  <--
+ (block_next Block_end Block_next)
+ --
  (last_def Block EA_def Reg)
  (~ defined_in_block Block Reg)
  (block_last_instruction Block Block_end)
- (block_next Block_end Block_next)
  (~ flow_def Block_end Reg Block _)]
 
 [(last_def Block_next Block_end Reg)
@@ -155,6 +155,7 @@
 [(def_used_intra EA_def Reg EA_used Index)
  <--
  (last_def Block EA_def Reg)
+ --
  (code_in_block EA_used Block)
  (~ block_last_def EA_used _ Reg)
  (used EA_used Reg Index)]
@@ -169,10 +170,10 @@
 
 [(def_used_return_val_reg EA_def EA_call Reg EA_used Index_used)
  <--
- (block_last_def CalleeReturnBlock_end EA_def Reg)
- (arch.return_val_reg Reg)
  (def_used_intra EA_call Reg EA_used Index_used)
  --
+ (block_last_def CalleeReturnBlock_end EA_def Reg)
+ (arch.return_val_reg Reg)
  (direct_call EA_call Callee)
  (fde_addresses Callee End)
  (<= Callee CalleeReturn)
@@ -184,10 +185,11 @@
 
 [(def_used_return_val_reg EA_def EA_call Reg EA_used Index_used)
  <--
- (~ block_last_def CalleeReturnBlock_end _ Reg)
+ (def_used_intra EA_call Reg EA_used Index_used)
  --
  (arch.return_val_reg Reg)
- (def_used_intra EA_call Reg EA_used Index_used)
+ --
+ (~ block_last_def CalleeReturnBlock_end _ Reg)
  --
  (last_def CalleeReturnBlock EA_def Reg)
  (block_last_instruction CalleeReturnBlock CalleeReturnBlock_end)

@@ -9,6 +9,17 @@
 #include <iostream>
 #include <array>
 
+using local_agg_res_t = uint64_t;
+
+typedef local_agg_res_t *local_agg_func_t (_BTree* agg_rel, const uint64_t* data);
+
+typedef local_agg_res_t *reduce_agg_func_t (local_agg_res_t x, local_agg_res_t y);
+
+typedef int *global_agg_func_t (uint64_t* data, local_agg_res_t agg_data, int agg_data_count, uint64_t* output); 
+
+void parallel_copy_aggregate(relation rel, relation agg_rel, relation target_rel, 
+                             local_agg_func_t local_agg_func, reduce_agg_func_t reduce_agg_func, global_agg_func_t global_agg_fun);
+
 // #include "../../src/test_header.h"
 #include "../../src/builtins.cpp"
 

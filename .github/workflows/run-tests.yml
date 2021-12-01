@@ -58,6 +58,9 @@ jobs:
       - name: Compile hashes
         run: docker run --rm --entrypoint bash slog-ci-test /slog/slog/tests/run_test.sh compile_hashes
 
+      - name: Backend tests
+        run: docker run --rm --entrypoint bash slog-ci-test /slog/slog/tests/run_test.sh size_compare 
+
       # TODO: Backend tests (Yihao working on them)
 
     # TODO: integrate benchmarking into CI,
