@@ -6,7 +6,7 @@
 #include <iostream>
 #include <array>
 
-#include "../../src/builtins.cpp"
+#include "../../src/builtins_t.cpp"
 
 struct TestBTree : public _BTree {
   vector<u64> row;
