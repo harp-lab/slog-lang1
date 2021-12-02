@@ -44,7 +44,7 @@ class SizeCompareTest(Test):
                 if count != expected_count:
                     self.fail(f"path should have {expected_count}, but get {count}")
                 else:
-                    self.success()
+                    print(f"{slogpath} success!")
         if not out_found:
             self.fail(f"path should have {expected_count}, but get 0")
 
