@@ -20,7 +20,8 @@ class SizeCompareTest(Test):
     """
     Test if backend compiler produce correct size
     """
-
+    def __init__(self):
+        super().__init__("localhost", ("Backend integration test"))
 
     def check_count(self, slogpath, factpath, rel_name, arity, expected_count):
         """ transitive closure """
