@@ -34,7 +34,7 @@ class SizeCompareTest(Test):
         except subprocess.CalledProcessError as e:
             self.fail(f"Slog file failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
             # return False
-        checkpoint_path = f"{WORKDIR}/out/checkpoint/checkpoint-final"
+        checkpoint_path = f"{WORKDIR}/out/checkpoints/checkpoint-final"
         out_found = False
         for fp in os.listdir(checkpoint_path):
             if fp.find(f"{rel_name}.{arity}"):

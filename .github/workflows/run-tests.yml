@@ -55,8 +55,8 @@ jobs:
       - name: C++ compilation tests
         run: docker run --rm --entrypoint bash slog-ci-test /slog/compiler/unit-tests/cpp_compilation_tests.sh
 
-      - name: Compile hashes
-        run: docker run --rm --entrypoint bash slog-ci-test /slog/slog/tests/run_test.sh compile_hashes
+      # - name: Compile hashes
+      #   run: docker run --rm --entrypoint bash slog-ci-test /slog/slog/tests/run_test.sh compile_hashes
 
       - name: Backend tests
         run: docker run --rm --entrypoint bash slog-ci-test /slog/slog/tests/run_test.sh size_compare 
