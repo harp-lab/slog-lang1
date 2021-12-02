@@ -30,7 +30,7 @@ class SizeCompareTest(Test):
             print([RUNSLOG_PATH, "-v", "-j", "4", "-f", factpath, slogpath, f"{WORKDIR}/out"])
             exec_out = subprocess.check_output(
                 [RUNSLOG_PATH, "-v", "-j", "4", "-f", factpath, slogpath, f"{WORKDIR}/out"],
-                cwd=WORKDIR, stderr=subprocess.STDOUT)
+                 stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
             self.fail(f"Slog file failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
             # return False
