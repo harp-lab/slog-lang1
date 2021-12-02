@@ -49,7 +49,6 @@ class SizeCompareTest(Test):
             self.fail(f"path should have {expected_count}, but get 0")
 
     def run_test(self, writer):
-        """"""
         for test_name in os.listdir(TEST_DIR):
             writer.write(f"Now testing {test_name} ...")
             testcase_dir = f'{TEST_DIR}/{test_name}'
@@ -61,5 +60,8 @@ class SizeCompareTest(Test):
                     self.check_count(f'{testcase_dir}/{test_name}.slog',
                                      f'{testcase_dir}/input',
                                      rel_name, arity, expected)
+        if os.path.exists(f"{WORKDIR}/out"):
+            shutil.rmtree(f"{WORKDIR}/out")
+        self.success()
 
 SizeCompareTest().test()
