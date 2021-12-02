@@ -24,12 +24,11 @@ class SizeCompareTest(Test):
         super().__init__("localhost", ("Backend integration test"))
 
     def check_count(self, slogpath, factpath, rel_name, arity, expected_count):
-        """ transitive closure """
         if os.path.exists(f"{WORKDIR}/out"):
             shutil.rmtree(f"{WORKDIR}/out")
         try:
             exec_out = subprocess.check_output(
-                [RUNSLOG_PATH, "-j", "4", "-f", factpath, slogpath, f"{WORKDIR}/out"],
+                [RUNSLOG_PATH, "-v", "-j", "4", "-f", factpath, slogpath, f"{WORKDIR}/out"],
                 cwd=WORKDIR, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
             self.fail(f"Slog file failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
