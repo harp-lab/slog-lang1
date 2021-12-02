@@ -14,6 +14,7 @@ from slog.tests.test import Test
 
 RUNSLOG_PATH = "/slog/runslog"
 WORKDIR = "/slog"
+TEST_DIR = "/slog/slog/tests/testcase"
 
 class SizeCompareTest(Test):
     """
@@ -47,17 +48,16 @@ class SizeCompareTest(Test):
 
     def run_test(self, writer):
         """"""
-        writer.write("testing `tc` ...")
-        self.check_count(
-            f"{WORKDIR}/compiler/tests/tc.slog",
-            f"{WORKDIR}/slog/test/csv/tc",
-            "path", 2,
-            219126)
-        writer.write("testing `deftest` ...")
-        self.check_count(
-            f"{WORKDIR}/compiler/tests/deftest.slog",
-            f"{WORKDIR}/slog/test/csv/cgc_def",
-            "def_used", 4,
-            7128)
+        for test_name in os.listdir(TEST_DIR):
+            writer.write(f"Now testing {test_name} ...")
+            testcase_dir = f'{TEST_DIR}/{test_name}'
+            with open(f'{testcase_dir}/ground_truth') as truth_file:
+                for line in truth_file:
+                    rel_name = line.split(',')[0].strip()
+                    arity = line.split(',')[1].strip()
+                    expected = int(line.split(',')[2].strip())
+                    self.check_count(f'{testcase_dir}/{test_name}.slog',
+                                     f'{testcase_dir}/input',
+                                     rel_name, arity, expected)
 
-SizeCompareTest.test()
+SizeCompareTest().test()
