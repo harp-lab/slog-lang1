@@ -27,6 +27,7 @@ class SizeCompareTest(Test):
         if os.path.exists(f"{WORKDIR}/out"):
             shutil.rmtree(f"{WORKDIR}/out")
         try:
+            print([RUNSLOG_PATH, "-v", "-j", "4", "-f", factpath, slogpath, f"{WORKDIR}/out"])
             exec_out = subprocess.check_output(
                 [RUNSLOG_PATH, "-v", "-j", "4", "-f", factpath, slogpath, f"{WORKDIR}/out"],
                 cwd=WORKDIR, stderr=subprocess.STDOUT)
@@ -36,7 +37,7 @@ class SizeCompareTest(Test):
         checkpoint_path = f"{WORKDIR}/out/checkpoints/checkpoint-final"
         out_found = False
         for fp in os.listdir(checkpoint_path):
-            if fp.find(f"{rel_name}.{arity}"):
+            if fp.find(f".{rel_name}.{arity}") > 0:
                 out_found = True
                 count = get_relation_info(os.path.join(checkpoint_path, fp))['num_tuples']
                 if count != expected_count:
