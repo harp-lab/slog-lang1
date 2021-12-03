@@ -10,10 +10,13 @@
 (provide partitioning-pass
          admissible-comp-rel-indices?
          clause-rel-args
-         clause-rel-args-w/prov)
+         clause-rel-args-w/prov
+         partitioning-used-randomness)
 
 (require racket/hash
          racket/random)
+
+(define partitioning-used-randomness #f)
 
 (require "lang-predicates.rkt")
 (require "utils.rkt")
@@ -213,9 +216,9 @@
 ; partitions a rule into a set of unary or binary rules in the ir-small format
 (define/contract-cond (partition-rule rule rule-prov comp-rules)
   (-> ir-fixed-rule? list? any/c (set/c ir-small-rule?))
-  #;(assert (ir-fixed-rule? rule) (format "bad ir-fixed-rule: ~a" (strip-prov rule)))
+  (assert (ir-fixed-rule? rule) (format "bad ir-fixed-rule: ~a" (strip-prov rule)))
   (define res (_partition-rule rule rule-prov comp-rules))
-  #;(for ([r (set->list res)])
+  (for ([r (set->list res)])
     (assert (ir-small-rule? r) (format "bad ir-small-rule: ~a" (strip-prov r))))
   res)
 
@@ -343,6 +346,7 @@
     ; (define before-part (current-inexact-milliseconds))
     (define bodys-lst (set->list bodys))
     (define bodys-vec (list->vector bodys-lst))
+    (define random-partiion #f)
     (match-define (list score part _)
       (foldl (λ (part-size score-part)
                 (match-define (list score part keep-looking) score-part)
@@ -350,13 +354,15 @@
                  [else
                   ; (define before-most-parts (current-inexact-milliseconds))
                   (define parts-count (choose (set-count bodys) part-size))
-                  (define most-parts (if (> parts-count 200)
-                    (map (λ (ind) 
+                  (define most-parts (cond 
+                    [(> parts-count 200)
+                     (set! random-partiion #t)
+                     (map (λ (ind) 
                             (define inc-set (list->set (choose-k-ith-element bodys-vec part-size ind)))
                             (define exc (filter (λ (cl) (not (set-member? inc-set cl))) bodys-lst))
-                            (cons inc-set (set->list exc))) 
-                         (random-sample parts-count 200 #:replacement? #f))
-                    (set->list (choose-n bodys part-size))))
+                            (cons inc-set (list->set exc))) 
+                         (random-sample parts-count 200 #:replacement? #f))]
+                    [else (set->list (choose-n bodys part-size))]))
                   ; (define most-parts-took (- (current-inexact-milliseconds) before-most-parts))
                   (match-define (cons res-score res-part)
                     (if (empty? most-parts)
@@ -380,6 +386,7 @@
         (define srules1 (partition-rule new-rule2 rule-prov comp-rules))
         (set-union srules0 srules1)]
       [else
+        (when random-partiion (set! partitioning-used-randomness #t))
         (match-define (cons inc-part exc-part) part)
         (define inc-part-lst (set->list inc-part))
         (define exc-part-lst (set->list exc-part))

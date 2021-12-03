@@ -12,6 +12,7 @@
 (require "src/interpreter.rkt")
 (require "src/slog-params.rkt")
 (require "src/slog-debug.rkt")
+(require "src/partitioning-pass.rkt")
 
 (random-seed 0)
 
@@ -94,6 +95,9 @@
 (define compilation-time (- (current-inexact-milliseconds) before))
 (when (> compilation-time 0)
   (printf "parsing + compilation took ~a ms.\n" (~r compilation-time #:precision 0))) 
+
+(when partitioning-used-randomness
+  (printf "partitioning-pass used randomness!\n"))
 
 (define (rule-type rule)
   (match rule

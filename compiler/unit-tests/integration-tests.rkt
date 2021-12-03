@@ -277,7 +277,12 @@
     (slog-behavior-test-case
     "normalizer.slog"
     '(file "normalizer.slog")
-    '(file "normalizer.slog.tests")))
+    '(file "normalizer.slog.tests"))
+    
+    (slog-behavior-test-case
+    "big-joins.slog"
+    '(file "big-joins.slog")
+    '(file "big-joins.slog.tests")))
 
 
 ;; tests that take longer

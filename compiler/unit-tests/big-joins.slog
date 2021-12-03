@@ -1,0 +1,20 @@
+;; A ------------------------------------------------------
+(a-foo 1)
+[(a-bar x1 x15)
+ <--
+ (a-foo x1)
+ (a-foo x2)
+ (a-foo x3)
+ (a-foo x4)
+ (a-foo x5)
+ (a-foo x6)
+ (a-foo x7)
+ (a-foo x8)
+ (a-foo x9)
+ (a-foo x10)
+ (a-foo x11)
+ (a-foo x12)
+ (a-foo x13)
+ (a-foo x14)
+ (a-foo x15)
+]
