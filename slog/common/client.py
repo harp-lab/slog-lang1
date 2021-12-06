@@ -365,7 +365,7 @@ class SlogClient:
     def print_all_relations(self, writer: Writer):
         """ print all relation """
         total_tuples = 0
-        for rel in self.relations:
+        for rel in sorted(self.relations, key=lambda rel: rel[3]):
             writer.write(f"Relation >>> Name: {rel[0]}\t Arity: {rel[1]}\t Tag: {rel[2]}\t "
                          f"Tuples: {rel[3]}.")
             total_tuples += rel[3]
