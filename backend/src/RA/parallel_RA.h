@@ -53,6 +53,13 @@ public:
     virtual relation* get_copy_filter_output(){return NULL;}
     virtual void get_copy_filter_rename_index(int** projection_reorder_index_array, int* projection_reorder_index_array_length) {return;}
 
+    // negation function
+    virtual relation* get_negation_input() {return NULL;}
+    virtual relation* get_negation_output() {return NULL;}
+    virtual relation* get_negation_target() {return NULL;}
+    virtual void get_negation_projection_index(std::vector<int>* projection_reorder_index_array) {return;}
+
+
 
     /// copy generate functions
     virtual relation* get_copy_generate_input(){return NULL;}

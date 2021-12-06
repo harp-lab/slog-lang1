@@ -75,10 +75,18 @@ HELP = '''
     fresh                               go back to empty database
 '''
 
+HELP_RUNSLOG = '''
+    help                print help info
+    dump <rel>          dump all facts inside a relation
+    relations           print all relation meta info in current database
+'''
+
 CMD = ['help', 'run', 'connect', 'dump', 'showdb', 'relations',
        'load', 'compile', 'tag', 'switch', 'fact-depth',
        'fact-cardi', 'clear', 'fresh']
 
+# in run slog CLI, you can only do fact dumping, we need better pagenation
+CMD_RUNSLOG = ['help',  'dump', 'relations']
 
 kb = KeyBindings()
 
@@ -122,8 +130,14 @@ def exec_command(client: SlogClient, raw_input: str):
     # normal command
     cmd = raw_input.split(' ')[0].strip()
     args = [r.strip() for r in raw_input.split(' ')[1:] if r.strip() != '']
+    if client.local_db_path and cmd not in CMD_RUNSLOG:
+        print("This command is not supported in runslog REPL")
+        return
     if cmd == 'help':
-        print(HELP)
+        if client.local_db_path:
+            print(HELP_RUNSLOG)
+        else:
+            print(HELP)
     elif cmd == 'fresh':
         client.fresh()
     elif cmd == 'showdb':
@@ -144,6 +158,9 @@ def exec_command(client: SlogClient, raw_input: str):
         if len(args) == 1:
             client.dump_relation_by_name(args[0], ConsoleWriter())
         elif len(args) == 2:
+            if client.local_db_path:
+                print("runlsog can only print data in current database!")
+                return
             if args[1].startswith('"') and args[1].endswith('"'):
                 with open(args[1][1:-1], 'w') as out_f:
                     client.dump_relation_by_name(args[0], FileWriter(out_f))
@@ -215,11 +232,12 @@ def exec_command(client: SlogClient, raw_input: str):
 class Repl:
     """ Slog REPL """
 
-    def __init__(self, server, rpc_port, ftp_port):
+    def __init__(self, server=None, rpc_port=None, ftp_port=None, local_db_path=None):
         # TODO: init the SlogClient
-        self.client = SlogClient(server, rpc_port, ftp_port)
-        self.ftp_port = ftp_port
+        self.local_db_path = local_db_path
         self.prompt_session = PromptSession(history=FileHistory("./.slog-history"))
+        self.client = SlogClient(server, rpc_port, ftp_port, local_db_path)
+        self.ftp_port = ftp_port
         print(BANNER_LOGO)
         print(BANNER)
 
@@ -237,6 +255,8 @@ class Repl:
 
     def get_front(self):
         """ get prompt prefix mark """
+        if self.local_db_path:
+            return "LOCAL"
         if not self.client.cur_db:
             return "⊥"
         if not self.client.connected():
@@ -246,6 +266,10 @@ class Repl:
 
     def bottom_toolbar(self):
         """ prompt toolkit bottom bar setting """
+        if self.local_db_path:
+            return HTML('<style color="lightgreen">'
+                        '[host: <b>LOCAL</b>]'
+                        '</style>')
         if self.client.connected():
             return HTML('<style color="lightgreen">'
                         '[host: <b>{}</b> ping: {:.2f} ms]  [?? jobs in queue]'
@@ -266,7 +290,8 @@ class Repl:
                 # ignore internal relation in autocomplete
                 relation_names = [r[0] for r in self.client.relations if not r[0].startswith('$')]
                 # completer = WordCompleter(relation_names)
-                self.client.update_dbs()
+                if not self.local_db_path:
+                    self.client.update_dbs()
                 completer_map = {cmd: None for cmd in CMD}
                 completer_map['dump'] = FuzzyWordCompleter(relation_names)
                 possible_db_hash = [db[0][:6] for db in self.client.all_db]
@@ -274,20 +299,21 @@ class Repl:
                 for db_info in self.client.all_db:
                     if db_info[1].strip() != "":
                         possible_db_tag.append(db_info[1])
-                completer_map['run'] = merge_completers([
-                    StringPathCompeleter(),
-                    FuzzyWordCompleter(possible_db_hash+possible_db_tag)])
-                completer_map['tag'] = SequencialCompleter([
-                    FuzzyWordCompleter(possible_db_hash),
-                    PrefixWordCompleter('"', possible_db_tag)])
-                completer_map['load'] = StringPathCompeleter()
-                completer_map['compile'] = StringPathCompeleter()
-                completer_map['switch'] = FuzzyWordCompleter(possible_db_hash + possible_db_tag)
-                relname_par_completer = WordCompleter([f"({n}" for n in relation_names])
-                for rname in relation_names:
-                    completer_map[f'?({rname}'] = relname_par_completer
-                    completer_map[f'({rname}'] = relname_par_completer
-                    completer_map[f'[({rname}'] = relname_par_completer
+                if self.local_db_path is None:
+                    completer_map['run'] = merge_completers([
+                        StringPathCompeleter(),
+                        FuzzyWordCompleter(possible_db_hash+possible_db_tag)])
+                    completer_map['tag'] = SequencialCompleter([
+                        FuzzyWordCompleter(possible_db_hash),
+                        PrefixWordCompleter('"', possible_db_tag)])
+                    completer_map['load'] = StringPathCompeleter()
+                    completer_map['compile'] = StringPathCompeleter()
+                    completer_map['switch'] = FuzzyWordCompleter(possible_db_hash + possible_db_tag)
+                    relname_par_completer = WordCompleter([f"({n}" for n in relation_names])
+                    for rname in relation_names:
+                        completer_map[f'?({rname}'] = relname_par_completer
+                        completer_map[f'({rname}'] = relname_par_completer
+                        completer_map[f'[({rname}'] = relname_par_completer
                 completer = NestedCompleter(completer_map)
                 text = self.prompt_session.prompt(
                     'σλoγ [{}] » '.format(front),
@@ -317,6 +343,7 @@ if __name__ == "__main__":
                             help="rpc port on <server_addr>")
     arg_parser.add_argument('--ftp_port', dest='ftp_port', type=int, default=2121,
                             help="ftp port on <server_addr>")
+    # arg_parser.add_argument('-f')
     args = arg_parser.parse_args()
     repl = Repl(args.server_addr, args.rpc_port, args.ftp_port)
     try:

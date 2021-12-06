@@ -1,0 +1,6 @@
+
+[(path x y) <-- (edge x y)]
+
+[(path x z) <-- (path x y) (edge y z)]
+
+[(midway x y) <-- (path x y) (~ edge x y)]

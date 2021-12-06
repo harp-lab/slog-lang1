@@ -134,7 +134,7 @@ class CompileTask(Task):
         print("running cmake now.")
         # Now run cmake
         try:
-            cmake = ["cmake", "-G", "Ninja", "-Bbuild",  "-DCMAKE_BUILD_TYPE=Release", "."]
+            cmake = ["cmake", "-G", "Ninja", "-Bbuild",  "-DCMAKE_BUILD_TYPE=RelWithDebInfo", "."]
             # cmake = ["cmake", "-G", "Ninja", "-Bbuild",  "."]
             result = subprocess.run(
                 cmake, cwd=build_dir, stdout=subprocess.PIPE,
@@ -147,7 +147,7 @@ class CompileTask(Task):
         self.log("cmake completed successfully")
         try:
             make = ["cmake", "--build", f"{os.path.realpath(build_dir)}/build",
-                    "--config", "Release", "--"]
+                    "--config", "RelWithDebInfo", "--"]
                     # "--"]
             result = subprocess.run(
                 make, cwd=build_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -263,10 +263,12 @@ class RunTask(Task):
         if cores == 1:
             # _proc = subprocess.Popen(["valgrind", "--leak-check=full", "./target", in_db_dir, out_db_dir],
             _proc = subprocess.Popen(["./target", in_db_dir, out_db_dir],
+            # _proc = subprocess.Popen(["mpirun", "-n", "1", "./target", in_db_dir, out_db_dir],
                                     stdin=PIPE, stdout=PIPE, stderr=open(stderrpath, 'w'),
                                     cwd=f"{build_dir}/build", env=env)
         else:
             _proc = subprocess.Popen(["mpirun", "-n", str(cores), "./target", in_db_dir, out_db_dir],
+            # _proc = subprocess.Popen(["mpirun", "-n", str(cores), "valgrind", "--leak-check=full", "./target", in_db_dir, out_db_dir],
                                     stdin=PIPE, stdout=PIPE, stderr=open(stderrpath, 'w'),
                                     cwd=f"{build_dir}/build", env=env)
         with open(stdoutpath, 'w') as stdout_f:

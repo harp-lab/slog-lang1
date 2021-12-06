@@ -79,11 +79,10 @@ def compute_relation_row_size(datafile, arity):
 def get_relation_info(datapath):
     """ get the basic infomation of a relation form it's path """
     fname = os.path.basename(datapath)
-    print(fname)
-    if not fname.endswith('.table'):
+    if not fname.endswith('.table') and not fname.endswith('.table_full'):
         return False
     else:
-        fname = fname[:-6]
+        fname = fname[:fname.rfind('.')]
     tag_s = fname.split('.')[0]
     arity_s = fname.split('.')[-1]
     rel_name = fname[len(tag_s)+1:-len(arity_s)-1]

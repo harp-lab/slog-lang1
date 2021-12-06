@@ -1,0 +1,27 @@
+; .type set <: symbol
+
+; .decl X(node1:set, node2:set)
+; .decl Y(node1:set, node2:set)
+; .output Y()
+; .decl Z(node1:set, node2:set)
+; .output Z()
+
+; Y(a,b) :- X(a,b).
+[(relY a b) <-- (relX a b)]
+; Y(a,c) :- X(a,b), Y(b,c).
+[(relY a c) <-- (relX a b) (relY b c)]
+; Z(a,b) :- !X(a,b), Y(a,b).
+[(relZ a b) <-- (~ relX a b) (relY a b)]
+
+; X("a","b").
+(relX 1 2)
+; X("b","d").
+(relX 2 4)
+
+; .output X()
+; (relX 1 2)
+; (relX 2 4)
+; (relY 1 2)
+; (relY 2 4)
+; (relY 1 4)
+; (relZ 1 4)

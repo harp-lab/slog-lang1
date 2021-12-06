@@ -212,19 +212,14 @@ void file_to_slog(char *input_file, char *output_file,
 			getline(row_stream, col, '\t');
 			if (col_count >= column_order.size() - 1)
 			{
-				// cerr << "should have " << column_order.size() - 1
-				// 	 << " columns, but found " << col_count + 1 << " cols on first row.\n";
-				// cerr << "line: " << row << endl;
-				// cerr << "note: make sure to include the 0 column for new fact IDs.\n";
-				// exit(1);
 				break;
 			}
 			try
 			{
 				// TODO: support float later
 				// FIXME: detect empty space here!
-				u64 u64_v = stoull(col);
-				tuple_buffer[col_count] = u64_v;
+				u64 u64_v = stoi(col);
+				tuple_buffer[col_count] = TUPLE_MASK & u64_v;
 				// cout << "number at " << col_count << " : " << u64_v << endl;
 			}
 			catch (...)

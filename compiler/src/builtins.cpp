@@ -177,16 +177,16 @@ template<typename TState> inline TState builtin_nop(const u64* data, TState init
 
 //////////////////// AGGREGATORS ////////////////////
 
-using local_agg_res_t = u64;
+// using local_agg_res_t = u64;
 struct _BTree {
   virtual bool has_key(const u64* key) = 0;
 };
 
-typedef local_agg_res_t *local_agg_func_t (_BTree* agg_rel, const u64* data);
+// typedef local_agg_res_t *local_agg_func_t (_BTree* agg_rel, const u64* data);
 
-typedef local_agg_res_t *reduce_agg_func_t (local_agg_res_t x, local_agg_res_t y);
+// typedef local_agg_res_t *reduce_agg_func_t (local_agg_res_t x, local_agg_res_t y);
 
-typedef int *global_agg_func_t (u64* data, local_agg_res_t agg_data, int agg_data_count, u64* output); 
+// typedef int *global_agg_func_t (u64* data, local_agg_res_t agg_data, int agg_data_count, u64* output); 
 
 // void parallel_copy_aggregate(relation rel, relation agg_rel, relation target_rel, 
 //                              local_agg_func_t local_agg_func, reduce_agg_func_t reduce_agg_func, global_agg_func_t global_agg_fun);

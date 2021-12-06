@@ -46,7 +46,9 @@ def parse_tuple_row(u64_list, rel_name, intern_string_dict) -> SlogTuple:
     for u64 in u64_list[1:]:
         val_tag = u64 >> 46
         if val_tag == INT_TAG:
-            attr_val = u64 & VAL_MASK
+            attr_val = (u64 & VAL_MASK)
+            if attr_val > 2 ** 31:
+                attr_val = attr_val - 2 ** 32
         elif val_tag == STRING_TAG:
             attr_val = intern_string_dict[u64 & VAL_MASK]
         else:

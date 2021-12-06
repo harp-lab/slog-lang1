@@ -10,6 +10,8 @@
 (require "src/interpreter.rkt")
 (require "src/slog-params.rkt")
 
+(check-cond-contracts #f)
+
 (random-seed 0)
 
 (define file-path

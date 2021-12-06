@@ -1,0 +1,19 @@
+
+(block_last_def 1 2 3)
+(block_last_def 2 6 4)
+(block_last_def 3 7 9)
+(block_last_def 11 12 13)
+(must_def 1 3)
+; (must_def 2 4)
+(flow_def 2 4 5 100)
+(flow_def 3 4 6 101)
+(block_next 3 6)
+
+
+[(last_def Block EA_def Reg)
+ <--
+ (block_last_def Block_end EA_def Reg)
+ (~ must_def Block_end Reg)
+ (block_next Block_end Block)
+ (~ flow_def Block_end Reg Block _)
+ ]

@@ -576,10 +576,10 @@ void relation::load_data_from_file()
         // if file not exists don't IO
         return;
     }
-    std::cout << "relation with tag :" << this->get_intern_tag() << " "
-              << "filename :" << this->get_filename() << " "
-            //   << "c++ object " << this
-              << "start normal IO" << std::endl;
+    // std::cout << "relation with tag :" << this->get_intern_tag() << " "
+    //           << "filename :" << this->get_filename() << " "
+    //         //   << "c++ object " << this
+    //           << "start normal IO" << std::endl;
     /// reading from file
     if (initailization_type != -1)
     {

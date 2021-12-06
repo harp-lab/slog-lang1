@@ -1,0 +1,26 @@
+; .type Set <: symbol
+
+; .decl X(node1:Set, node2:Set)
+; .output X()
+; .decl Y(node1:Set, node2:Set)
+; .output Y()
+; .decl Z(node1:Set, node2:Set)
+; .output Z()
+
+; // Negation
+; Y(a,b) :- X(a,b).
+[(relY a b) <-- (relX a b)]
+; Y(a,c) :- X(a,b), Y(b,c).
+[(relY a c) <-- (relX a b) (relY b c)]
+
+; //// As X contains ("a","b")
+; //// generate empty set
+; Z(a,b) :- !X("a","b"), Y(a,b).
+[(relZ a b) <-- (~ relX 1 2) (relY a b)]
+
+; X("a","b").
+(relX 1 2)
+; X("b","c").
+(relX 2 3)
+; X("c","d").
+(relX 3 4)

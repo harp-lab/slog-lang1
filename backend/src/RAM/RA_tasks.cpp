@@ -171,6 +171,26 @@ u64 RAM::intra_bucket_comm_execute()
             continue;
         }
 
+        else if ((*it)->get_RA_type() == NEGATION)
+        {
+            parallel_join_negate* current_ra = (parallel_join_negate*) *it;
+            relation* input_rel = current_ra->get_negation_input();
+            relation* target_rel = current_ra->get_negation_target();
+
+            // negation can only be a right like join, all process need to know negated rule
+            intra_bucket_comm(get_bucket_count(),
+                              target_rel->get_full(),
+                              target_rel->get_distinct_sub_bucket_rank_count(),
+                              target_rel->get_distinct_sub_bucket_rank(),
+                              target_rel->get_bucket_map(),
+                              input_rel->get_distinct_sub_bucket_rank_count(),
+                              input_rel->get_distinct_sub_bucket_rank(),
+                              input_rel->get_bucket_map(),
+                              &intra_bucket_buf_output_size[counter],
+                              &intra_bucket_buf_output[counter],
+                              mcomm.get_local_comm());
+            total_data_moved = total_data_moved + intra_bucket_buf_output_size[counter];
+        }
         /// Intra-bucket comm for joins
         else if ((*it)->get_RA_type() == JOIN)
         {
@@ -418,6 +438,58 @@ u32 RAM::local_compute(int* offset)
             }
         }
 
+        else if ((*it)->get_RA_type() == NEGATION)
+        {
+            // compute negation
+            // std::cout << "local compute negation" << std::endl;
+            parallel_join_negate* current_ra = (parallel_join_negate*) *it;
+            relation* output_relation = current_ra->get_negation_output();
+            relation* input_relation = current_ra->get_negation_input();
+            relation* target_relation = current_ra->get_negation_target();
+            std::vector<int> reorder_map_array;
+            current_ra->get_negation_projection_index(&reorder_map_array);
+            int join_column_count = target_relation->get_join_column_count();
+
+            shmap_relation* input_rel_trie = NULL;
+            int input_size = 0;
+            if  (current_ra->get_src_graph_type() == DELTA)
+            {
+                input_rel_trie = input_relation->get_delta();
+                input_size = input_relation->get_delta_element_count();
+            }
+            else
+            {
+                input_rel_trie = input_relation->get_full();
+                input_size = input_relation->get_full_element_count();
+            }
+            if (intra_bucket_buf_output_size[counter] == 0)
+            {
+                current_ra->local_copy(
+                    get_bucket_count(), input_rel_trie,
+                    input_relation->get_bucket_map(), output_relation,
+                    reorder_map_array, output_relation->get_arity(),
+                    input_relation->get_join_column_count(),
+                    compute_buffer, counter);
+                join_completed = true;
+            }
+            else
+            {
+                join_completed = join_completed & current_ra->local_negation(
+                    threshold,&(offset[counter]),
+                    RIGHT,
+                    get_bucket_count(),
+                    intra_bucket_buf_output_size[counter],
+                    target_relation->get_arity()+1, intra_bucket_buf_output[counter],
+                    input_rel_trie, input_size,
+                    input_relation->get_arity()+1,
+                    reorder_map_array,
+                    output_relation,
+                    compute_buffer,
+                    counter,
+                    join_column_count);
+            }
+        }
+
         else if ((*it)->get_RA_type() == FACT)
         {
             fact* current_ra = (fact*) *it;
@@ -571,8 +643,10 @@ u32 RAM::local_compute(int* offset)
         for (std::vector<parallel_RA*>::iterator it = RA_list.begin() ; it != RA_list.end(); ++it)
         {
             parallel_RA* current_ra = *it;
-            if (current_ra->get_RA_type() == JOIN)
+            if (current_ra->get_RA_type() == JOIN || current_ra->get_RA_type() == NEGATION)
+            {
                 delete[] intra_bucket_buf_output[counter];
+            }
 
             offset[counter] = 0;
             counter++;
@@ -639,6 +713,8 @@ void RAM::local_insert_in_newt_comm_compaction(std::map<u64, u64>& intern_map)
             output = RA_list[ra_id]->get_copy_output();
         else if (RA_list[ra_id]->get_RA_type() == COPY_FILTER)
             output = RA_list[ra_id]->get_copy_filter_output();
+        else if (RA_list[ra_id]->get_RA_type() == NEGATION)
+            output = RA_list[ra_id]->get_negation_output();
         else if (RA_list[ra_id]->get_RA_type() == JOIN)
             output = RA_list[ra_id]->get_join_output();
         else if (RA_list[ra_id]->get_RA_type() == COPY_GENERATE)
@@ -648,7 +724,7 @@ void RAM::local_insert_in_newt_comm_compaction(std::map<u64, u64>& intern_map)
         else
             output = RA_list[ra_id]->get_acopy_output();
 
-        if (RA_list[ra_id]->get_RA_type() == COPY || RA_list[ra_id]->get_RA_type() == JOIN || RA_list[ra_id]->get_RA_type() == COPY_FILTER || RA_list[ra_id]->get_RA_type() == COPY_GENERATE || RA_list[ra_id]->get_RA_type() == FACT)
+        if (RA_list[ra_id]->get_RA_type() == COPY || RA_list[ra_id]->get_RA_type() == JOIN || RA_list[ra_id]->get_RA_type() == NEGATION || RA_list[ra_id]->get_RA_type() == COPY_FILTER || RA_list[ra_id]->get_RA_type() == COPY_GENERATE || RA_list[ra_id]->get_RA_type() == FACT)
         {
             u32 width = output->get_arity();
             u64 tuple[width + 1];
@@ -768,6 +844,8 @@ void RAM::local_insert_in_newt(std::map<u64, u64>& intern_map)
                 output = RA_list[r]->get_copy_output();
             else if (RA_list[r]->get_RA_type() == COPY_FILTER)
                 output = RA_list[r]->get_copy_filter_output();
+            else if (RA_list[r]->get_RA_type() == NEGATION)
+                output = RA_list[r]->get_negation_output();
             else if (RA_list[r]->get_RA_type() == JOIN)
                 output = RA_list[r]->get_join_output();
             else if (RA_list[r]->get_RA_type() == COPY_GENERATE)
@@ -775,7 +853,7 @@ void RAM::local_insert_in_newt(std::map<u64, u64>& intern_map)
             else
                 output = RA_list[r]->get_acopy_output();
 
-            if (RA_list[r]->get_RA_type() == COPY || RA_list[r]->get_RA_type() == JOIN || RA_list[r]->get_RA_type() == COPY_FILTER || RA_list[r]->get_RA_type() == COPY_GENERATE)
+            if (RA_list[r]->get_RA_type() == COPY || RA_list[r]->get_RA_type() == JOIN || RA_list[r]->get_RA_type() == NEGATION || RA_list[r]->get_RA_type() == COPY_FILTER || RA_list[r]->get_RA_type() == COPY_GENERATE)
             {
                 u32 width = output->get_arity();
                 u64 tuple[width + 1];
