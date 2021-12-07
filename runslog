@@ -80,6 +80,36 @@ def ingest_facts(factloc, inputloc, tsv_bin_path):
             return None
     return True
 
+def ensure_backend_built(compile_backend, tsv_bin_path, backend_build_dir, backend_dir, cores, cmake_prof_opt, cmake_build_mode, verbose):
+    # check if we need to compile.
+    if os.path.exists(tsv_bin_path) and not compile_backend:
+        if verbose:
+            print("Not compiling backend.")
+        return
+
+    if verbose:
+        print("Compiling slog MPI backend")
+    try:
+        start = time.time()
+        # clean build directory
+        shutil.rmtree(backend_build_dir, ignore_errors=True)
+        cmake_config_cmd = ["cmake", "--no-warn-unused-cli",
+                    "-DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE",
+                    f"-DCMAKE_BUILD_TYPE:STRING={cmake_build_mode}",
+                    "-DCMAKE_C_COMPILER:FILEPATH=mpicc",
+                    "-B"+backend_build_dir, "-H"+backend_dir,
+                    "-G", "Ninja"] + cmake_prof_opt
+        subprocess.check_output(cmake_config_cmd,
+                                stderr=subprocess.STDOUT)
+        subprocess.check_output(["cmake", "--build", backend_build_dir,
+                                 "--config", cmake_build_mode, "--target", "all",
+                                 "-j", f"{cores}"], stderr=subprocess.STDOUT)
+        end = time.time()
+        if verbose:
+            print(f"Time taken: {end - start}")
+    except subprocess.CalledProcessError as e:
+        print(f"Compiling Compiling slog MPI backend failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
+
 
 def run_local(file, outloc, factloc, cores, verbose, slog_root=None, compile_backend=False,
               debug_flag=False, profile_flag=False, repl_flag=False):
@@ -145,30 +175,8 @@ def run_local(file, outloc, factloc, cores, verbose, slog_root=None, compile_bac
         print(f"Slog->C++ compilation failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
         return
 
-    #2: Shell out to cmake to compile tsv_to_bin
-    if compile_backend:
-        if verbose:
-            print("Compiling slog MPI backend")
-        try:
-            start = time.time()
-            # clean build directory
-            shutil.rmtree(backend_build_dir, ignore_errors=True)
-            cmake_config_cmd = ["cmake", "--no-warn-unused-cli",
-                                "-DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE",
-                                f"-DCMAKE_BUILD_TYPE:STRING={cmake_build_mode}",
-                                "-DCMAKE_C_COMPILER:FILEPATH=mpicc",
-                                "-B"+backend_build_dir, "-H"+backend_dir,
-                                "-G", "Ninja"] + cmake_prof_opt
-            subprocess.check_output(cmake_config_cmd,
-                                    stderr=subprocess.STDOUT)
-            subprocess.check_output(["cmake", "--build", backend_build_dir,
-                                     "--config", cmake_build_mode, "--target", "all",
-                                     "-j", f"{cores}"], stderr=subprocess.STDOUT)
-            end = time.time()
-            if verbose:
-                print(f"Time taken: {end - start}")
-        except subprocess.CalledProcessError as e:
-            print(f"Compiling Compiling slog MPI backend failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
+    #2: Shell out to cmake to compile backend + utilities (tsv_to_bin)
+    ensure_backend_built(compile_backend, tsv_bin_path, backend_build_dir, backend_dir, cores, cmake_prof_opt, cmake_build_mode, verbose)
 
     #3: Shell out to tsv_to_bin to convert fact directory to bin
     if verbose:
