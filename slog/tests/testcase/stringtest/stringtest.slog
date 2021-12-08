@@ -1,0 +1,8 @@
+;; a string test
+;; bar is in input
+
+(bar "foo")
+(bar "bar")
+(foo 2 "bar")
+
+[(foobar x y) <-- (foo x y) (bar y)]

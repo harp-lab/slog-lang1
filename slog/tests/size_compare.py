@@ -5,7 +5,6 @@ Yihao Sun
 """
 
 import os
-from posixpath import relpath
 import subprocess
 import shutil
 from slog.daemon.util import get_relation_info

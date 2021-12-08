@@ -1,4 +1,5 @@
 // builtins.cpp
+#include <cstddef>
 #include <vector>
 #include <string>
 #include <cassert>
@@ -6,14 +7,17 @@
 #include <array>
 #include <functional>
 #include <tuple>
+#include <functional>
 
 using namespace std;
 #define u64  uint64_t
+#define u32  uint32_t
 using i64 = int64_t;
 
 const u64 tag_mask = 0xffffc00000000000;
 const u64 tag_position = 46;
 const u64 int_tag = 0;
+const u64 str_tag = 2;
 
 inline bool is_number(u64 datum) {
   // cout << "is_number(" << datum << "): " << (datum >> tag_position == int_tag) << "\n";
@@ -30,7 +34,12 @@ inline u64 number_to_datum(i64 number) {
 }
 const auto n2d = number_to_datum;
 
-
+inline u64 string_to_datum(std::string str)
+{
+  u32 str_hash = std::hash<std::string>{}(str);
+  return (str_hash & ~tag_mask) | (str_tag << tag_position);
+}
+const auto s2d = string_to_datum;
 
 
 vector<array<u64,2>> builtin_div_rem(const u64* const data){
