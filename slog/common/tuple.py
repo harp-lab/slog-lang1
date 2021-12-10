@@ -5,9 +5,10 @@ Yihao Sun
 '''
 
 
-TAG_MASK = 0xFFFFC00000000000
-BUCKET_MASK = 0x00003FFFF0000000
+TAG_MASK =      0xFFFFC00000000000
+BUCKET_MASK =   0x00003FFFF0000000
 TUPLE_ID_MASK = 0xFFFFFFFFF0000000
+U32_MASK =      0x00000000FFFFFFFF
 VAL_MASK = ~ TAG_MASK
 INT_TAG = 0
 STRING_TAG = 2
@@ -50,7 +51,7 @@ def parse_tuple_row(u64_list, rel_name, intern_string_dict) -> SlogTuple:
             if attr_val > 2 ** 31:
                 attr_val = attr_val - 2 ** 32
         elif val_tag == STRING_TAG:
-            attr_val = intern_string_dict[u64 & VAL_MASK]
+            attr_val = intern_string_dict[u64 & U32_MASK]
         else:
             # relation
             bucket_id = (u64 & BUCKET_MASK) >> 28

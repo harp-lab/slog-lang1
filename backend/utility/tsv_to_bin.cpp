@@ -2,6 +2,7 @@
 // Subsequently by Kris Micinski
 // Convert Souffle CSV (tab-separated value) files to Slog input tuple files
 // compile with >= c++14
+#include <cstddef>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -18,6 +19,8 @@
 #include <unordered_map>
 #include <vector>
 #include <filesystem>
+#include <functional>
+#include <unordered_set>
 
 #include "../src/compat.h"
 
@@ -38,8 +41,7 @@
 using namespace std;
 
 // globals
-unordered_map<string, long> strings_map;
-long max_string_id = 0;
+unordered_set<string> strings_set;
 long current_tuple_id = 0;
 unsigned arity;
 unsigned index_length = 0;
@@ -146,14 +148,15 @@ void read_strings(string filename)
 		{
 			getline(row_stream, string_id, '\t');
 			getline(row_stream, string_value, '\t');
-			long id = stoi(string_id);
-			if (id < 0)
-			{
-				cerr << "error: ID < 0 is not allowed" << endl;
-				exit(1);
-			}
-			strings_map[string_value] = id;
-			max_string_id = max(max_string_id, id);
+			// long id = stoi(string_id);
+			// if (id < 0)
+			// {
+			// 	cerr << "error: ID < 0 is not allowed" << endl;
+			// 	exit(1);
+			// }
+			// strings_map[string_value] = id;
+			strings_set.insert(string_value);
+			// max_string_id = max(max_string_id, id);
 		}
 		catch (const exception &exc)
 		{
@@ -170,9 +173,15 @@ void write_interned_pools()
 {
 	// const string strings_file = "./$strings.csv";
 	int strings = open(string_intern_file_path.c_str(), O_CREAT | O_RDWR, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-	for (const auto &[key, value] : strings_map)
+	// for (const auto &[key, value] : strings_map)
+	// {
+	// 	string s = to_string(value) + "\t" + key + "\n";
+	// 	write(strings, s.c_str(), s.length());
+	// }
+	for (const auto &str_data : strings_set)
 	{
-		string s = to_string(value) + "\t" + key + "\n";
+		u32 str_id = hash<string>{}(str_data);
+		string s = to_string(str_id) + "\t" + str_data + "\n";
 		write(strings, s.c_str(), s.length());
 	}
 }
@@ -186,7 +195,7 @@ void file_to_slog(char *input_file, char *output_file,
 
 	ifstream fp_in(input_file);
 	int fp_out = open(output_file, O_CREAT | O_RDWR | O_APPEND, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-	size_t lineno = 0;
+	u32 lineno = 0;
 	// string prev_left;
 	stringstream buf_stream;
 	buf_stream << fp_in.rdbuf();
@@ -199,11 +208,6 @@ void file_to_slog(char *input_file, char *output_file,
 			// empty line at the end of file
 			continue;
 		}
-		// if (prev_left != "")
-		// {
-		// 	row = prev_left + row;
-		// 	prev_left = "";
-		// }
 		istringstream row_stream(row);
 		string col;
 		int col_count = 0;
@@ -225,32 +229,16 @@ void file_to_slog(char *input_file, char *output_file,
 			catch (...)
 			{
 				// if not number all goes to string
-				auto itr = strings_map.find(col);
 				u64 u64_v = STRING_TAG;
 				u64_v <<= TUPLE_MASK_LENGTH + BUCKET_MASK_LENGTH;
-				if (itr == strings_map.end())
-				{
-					long new_id = max_string_id + 1;
-					strings_map[col] = new_id;
-					max_string_id = new_id;
-					u64_v |= new_id;
-				}
-				else
-				{
-					u64_v |= strings_map[col];
-				}
+				u32 new_id = hash<string>{}(col);
+				strings_set.insert(col);
+				u64_v |= new_id;
 				// cout << "string at " << col_count << " : " << col << endl;
 				tuple_buffer[col_count] = u64_v;
 			}
 			col_count++;
 		}
-		// if (col_count < column_order.size())
-		// {
-		// 	// incomplete line
-		// 	prev_left = row;
-		// 	col_count = 0;
-		// 	continue;
-		// }
 
 		u64 tid = rel_tag;
 		tid <<= (TUPLE_MASK_LENGTH + BUCKET_MASK_LENGTH);
