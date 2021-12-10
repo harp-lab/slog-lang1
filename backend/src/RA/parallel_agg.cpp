@@ -29,9 +29,9 @@ bool parallel_join_negate::local_negation(
         if (input0_buffer_size != 0)
         {
             negated_target = new shmap_relation;
+            u64 prefix[join_column_count];
             for (int k1 = *offset; k1 < input0_buffer_size; k1 = k1 + input0_buffer_width)
             {
-                u64 prefix[join_column_count];
                 // std::cout << "NEG PREFIX  ";
                 for (int jc=0; jc < join_column_count; jc++)
                 {
@@ -41,26 +41,28 @@ bool parallel_join_negate::local_negation(
                 // std::cout << std::endl;
                 negated_target->insert_tuple_from_array(prefix, join_column_count);
             }
+            // std::cout << "u64 in negation buffer " << input0_buffer_size - (*offset) << std::endl;
         }
         else {
             // should fail here !!!
             std::cout << "shouldn't be here..." << std::endl;
             return false;
         }
-        
-        for (int k1 = *offset; k1 < input0_buffer_size; k1 = k1 + input0_buffer_width)
+        for (u32 bucket_id = 0; bucket_id < buckets; bucket_id++)
         {
-            u64 bucket_id = tuple_hash(input0_buffer + k1, join_column_count) % buckets;
             input1[bucket_id].as_all_to_allv_right_outer_join_buffer(
-                negated_target, join_buffer, input0_buffer + k1, input0_buffer_width,
-                input1_buffer_width, counter, buckets, output_sub_bucket_count,
+                negated_target, join_buffer,
+                counter, buckets, output_sub_bucket_count,
                 output_sub_bucket_rank, reorder_map_array, join_column_count,
                 output->get_arity(),
                 output->get_join_column_count(), output->get_is_canonical());
         }
     }
     if (negated_target != NULL)
+    {
+        negated_target->remove_tuple();
         delete negated_target;
+    }
     return true;
 }
 

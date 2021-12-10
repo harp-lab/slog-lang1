@@ -441,7 +441,6 @@ u32 RAM::local_compute(int* offset)
         else if ((*it)->get_RA_type() == NEGATION)
         {
             // compute negation
-            // std::cout << "local compute negation" << std::endl;
             parallel_join_negate* current_ra = (parallel_join_negate*) *it;
             relation* output_relation = current_ra->get_negation_output();
             relation* input_relation = current_ra->get_negation_input();

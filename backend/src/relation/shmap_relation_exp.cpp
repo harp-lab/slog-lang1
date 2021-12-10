@@ -6,6 +6,7 @@
 
 
 #include "../parallel_RA_inc.h"
+#include "shmap_relation.h"
 #include <iostream>
 #include <iterator>
 #include <vector>
@@ -39,7 +40,22 @@ bool shmap_relation::insert_tuple_from_array(u64* t, int arity)
     return counter;
 }
 
-
+int shmap_relation::count()
+{
+    shmap_relation *node = this;
+    int cnt = 0;
+    for (auto nxt = node->next.begin(); nxt; nxt.next())
+    {
+        //std::cout << "Delete value " << nxt.key() << std::endl;
+        cnt++;
+        shmap_relation *nxt_trie = nxt.val();
+        if (nxt_trie != NULL)
+        {
+            cnt = cnt + nxt_trie->count();
+        }
+    }
+    return cnt;
+}
 
 void shmap_relation::remove_tuple()
 {
@@ -408,8 +424,8 @@ void shmap_relation::as_all_to_allv_right_join_buffer_helper(shmap_relation*& cu
 
 
 void shmap_relation::as_all_to_allv_right_outer_join_buffer(
-    shmap_relation* neg_target, all_to_allv_buffer& join_buffer, u64 *input0_buffer,
-    int input0_buffer_width, int input1_buffer_width, int ra_id, u32 buckets,
+    shmap_relation* neg_target, all_to_allv_buffer& join_buffer,
+    int ra_id, u32 buckets,
     u32* output_sub_bucket_count, u32** output_sub_bucket_rank, std::vector<int>& reorder_map,
     int join_column_count, int out_arity,
     int head_rel_hash_col_count, bool canonical)
@@ -433,8 +449,7 @@ void shmap_relation::as_all_to_allv_right_outer_join_buffer(
         return;
     }
     as_all_to_allv_right_outer_join_buffer_helper(
-        neg_target, m_trie, init_path, join_buffer, input0_buffer,
-        input0_buffer_width, input1_buffer_width,
+        neg_target, m_trie, init_path, join_buffer,
         ra_id, buckets,
         output_sub_bucket_count, output_sub_bucket_rank,
         reorder_map, join_column_count,
@@ -445,8 +460,7 @@ void shmap_relation::as_all_to_allv_right_outer_join_buffer(
 void shmap_relation::as_all_to_allv_right_outer_join_buffer_helper(
     shmap_relation* neg_target,
     shmap_relation*& cur_trie, std::vector<u64>& cur_path,
-    all_to_allv_buffer& join_buffer, u64 *input0_buffer,
-    int input0_buffer_width, int input1_buffer_width,
+    all_to_allv_buffer& join_buffer,
     int ra_id, u32 buckets,
     u32* output_sub_bucket_count, u32** output_sub_bucket_rank,
     std::vector<int> &reorder_map, int join_column_count,
@@ -468,8 +482,7 @@ void shmap_relation::as_all_to_allv_right_outer_join_buffer_helper(
         {
             //prefix match recursive down to check prefix
             as_all_to_allv_right_outer_join_buffer_helper(
-                (*nxt_neg), nxt_trie, cur_path, join_buffer, input0_buffer,
-                input0_buffer_width, input1_buffer_width,
+                (*nxt_neg), nxt_trie, cur_path, join_buffer,
                 ra_id, buckets,
                 output_sub_bucket_count, output_sub_bucket_rank,
                 reorder_map, join_column_count,
