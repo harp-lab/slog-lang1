@@ -97,7 +97,17 @@ bool parallel_join::local_join(int threshold, int* offset,
 {
     join_buffer.width[counter] = reorder_map_array.size();
 
-    shmap_relation deduplicate;
+    // maybe should be same type of input1 relation?
+    trie_relation deduplicate;
+    // if (input1->data_structure_type == BTREE)
+    // {
+    //     btree_relation deduplicate(input1->arity);
+    // }
+    // else
+    // {
+    //     trie_relation deduplicate(input1->arity);
+    // }
+
     u32* output_sub_bucket_count = output->get_sub_bucket_per_bucket_count();
     u32** output_sub_bucket_rank = output->get_sub_bucket_rank();
 

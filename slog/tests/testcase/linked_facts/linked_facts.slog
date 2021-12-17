@@ -1,0 +1,8 @@
+
+;; Transitive closure
+[(path x y) <-- (edge x y)]
+[(path x z) <-- (path x y) (path y z)]
+
+[(midway x) <-- (edge x y) (=/= x y)]
+[(dead_end x) <-- (~ midway x) (edge _ x)]
+

@@ -25,7 +25,8 @@
 #include "comm/all_to_all_comm.h"
 #include "relation/google_btree_relation.h"
 #include "relation/shmap_relation.h"
-
+#include "relation/btree_relation.h"
+#include "relation/trie_relation.h"
 
 
 #include "relation/balanced_hash_relation.h"

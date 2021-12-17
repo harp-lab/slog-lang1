@@ -13,6 +13,8 @@ enum {LEFT=0, RIGHT};
 enum {DELTA=0, FULL, FULL_AND_DELTA};
 enum {COPY=0, COPY_FILTER, COPY_GENERATE, ACOPY, JOIN, FACT, NEGATION};
 enum {STATIC=0, DYNAMIC};
+// relation data structure type 
+enum {BTREE=0, TRIE};
 
 class relation
 {
@@ -35,6 +37,7 @@ private:
 #ifdef GOOGLE_MAP
     google_relation *newt;                     /// Newt
 #else
+    // std::vector<shmap_relation> newt;
     shmap_relation *newt;                     /// Newt
 #endif
     u32 newt_element_count;
@@ -45,6 +48,7 @@ private:
     google_relation *full;                     /// Full
 #else
     shmap_relation *full;                     /// Full
+    // std::vector<shmap_relation> full;
 #endif
     u32 full_element_count;
     u32 **full_sub_bucket_element_count;
@@ -54,6 +58,7 @@ private:
     google_relation *delta;                    /// Delta
 #else
     shmap_relation *delta;                     /// Delta
+    // std::vector<shmap_relation> delta;
 #endif
     u32 delta_element_count;
     u32 **delta_sub_bucket_element_count;
@@ -70,6 +75,7 @@ private:
 
     mpi_comm mcomm;                             /// comm related
     parallel_io file_io;                        /// to handle parallel IO
+    int data_structure_type = TRIE;                    /// type of data structure for this relation
 
     bool offset_io;
     bool share_io;
@@ -89,24 +95,27 @@ public:
     /// "rel_path_2_1_2": name of relation
     /// "/var/tmp/g13236/path_2_1_2": location of data file that gets loaded in the relation
     /// FULL: load in FULL (other option is to loadin DELTA, but we alwys load in FULL)
-    relation (u32 jcc, bool is_c, u32 ar, u32 tg, std::string fname, int version)
-        :join_column_count(jcc), is_canonical(is_c), arity(ar), intern_tag(tg), initailization_type(version), filename(fname)
+    relation (u32 jcc, bool is_c, u32 ar, u32 tg, std::string fname, int version, int data_structure=TRIE)
+        :join_column_count(jcc), is_canonical(is_c), arity(ar), intern_tag(tg), initailization_type(version), filename(fname),
+         data_structure_type(data_structure) 
     {
         //fact_load = false;
         full_element_count=0;
         delta_bucket_element_count=0;
     }
 
-    relation (u32 jcc, bool is_c, u32 ar, u32 tg, std::string did, std::string fname, int version)
-        :join_column_count(jcc), is_canonical(is_c), arity(ar), intern_tag(tg), debug_id(did), initailization_type(version), filename(fname)
+    relation (u32 jcc, bool is_c, u32 ar, u32 tg, std::string did, std::string fname, int version, int data_structure=TRIE)
+        :join_column_count(jcc), is_canonical(is_c), arity(ar), intern_tag(tg), debug_id(did), initailization_type(version), filename(fname),
+         data_structure_type(data_structure)
     {
         //fact_load = false;
         full_element_count=0;
         delta_bucket_element_count=0;
     }
 
-    relation (u32 jcc, bool is_c, u32 ar, u32 tg, int version)
-        :join_column_count(jcc), is_canonical(is_c), arity(ar), intern_tag(tg), initailization_type(version), filename("")
+    relation (u32 jcc, bool is_c, u32 ar, u32 tg, int version, int data_structure=TRIE)
+        :join_column_count(jcc), is_canonical(is_c), arity(ar), intern_tag(tg), initailization_type(version), filename(""),
+         data_structure_type(data_structure)
     {
         //fact_load = false;
         full_element_count=0;

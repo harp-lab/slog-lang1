@@ -6,7 +6,14 @@
 
 
 #include "../parallel_RA_inc.h"
+#include "balanced_hash_relation.h"
+#include "btree_relation.h"
+#include "trie_relation.h"
+#include <cstddef>
+#include <cstdlib>
 #include <filesystem>
+#include <iostream>
+#include <memory>
 
 u32 relation::get_global_delta_element_count()
 {
@@ -648,9 +655,32 @@ void relation::initialize_relation(mpi_comm& mcomm, std::map<u64, u64>& intern_m
     full = new google_relation[buckets];
     newt = new google_relation[buckets];
 #else
-    delta = new shmap_relation[buckets];
-    full = new shmap_relation[buckets];
-    newt = new shmap_relation[buckets];
+    if (data_structure_type == BTREE)
+    {
+        delta = new btree_relation[buckets];
+        full = new btree_relation[buckets];
+        newt = new btree_relation[buckets];
+        for (size_t i=0; i < buckets; i++)
+        {
+            delta[i] = btree_relation(arity);
+            full[i] = btree_relation(arity);
+            newt[i] = btree_relation(arity);
+        }
+    }
+    else 
+    {
+        std::cout << this->intern_tag << " creating  relation object!" << "buckect count " << buckets << std::endl;
+        delta = new trie_relation[buckets];
+        full = new trie_relation[buckets];
+        newt = new trie_relation[buckets];
+        for (size_t i=0; i < buckets; i++)
+        {
+            delta[i].arity = arity;
+            full[i].arity = arity;
+            newt[i].arity = arity;
+        }
+    }
+    
 #endif
 
     sub_bucket_per_bucket_count = new u32[buckets];
@@ -773,7 +803,11 @@ void relation::populate_full(int buffer_size, u64* buffer)
         for (u32 a = i; a < i + arity + 1; a++)
             t[a-i] = buffer[a];
 
-        if (full[bucket_id].insert_tuple_from_array(t, (arity+1)) == true)
+        // std::cout << " bucket size " << buckets << " bucket_id " << bucket_id << std::endl;
+        // u64 tmp[3] =  {1,1,1};
+        // std::cout << "null? " << full[bucket_id].insert_tuple_from_array(tmp, 3) << std::endl;
+        // TODO: why arity  + 1???? in insert function it always use arity-1!!
+        if (full[bucket_id]->insert_tuple_from_array(t, (arity+1)) == true)
         {
             full_element_count++;
             full_bucket_element_count[bucket_id]++;
@@ -1259,6 +1293,10 @@ void relation::local_insert_in_delta()
     MPI_Comm_rank(mcomm.get_comm(), &rank);
     u32 buckets = get_bucket_count();
 
+    // for (size_t i = 0; i < buckets; i++)
+    // {
+    //     delta[i].remove_tuple();
+    // }
     delete[] delta;
 
 
@@ -1310,7 +1348,22 @@ void relation::local_insert_in_delta()
 #ifdef GOOGLE_MAP
     newt = new google_relation[buckets];
 #else
-    newt = new shmap_relation[buckets];
+    if (data_structure_type == BTREE)
+    {
+        newt = new btree_relation[buckets];
+        for (size_t i=0; i < buckets; i++)
+        {
+            newt[i] = btree_relation(arity);
+        }
+    }
+    else 
+    {
+        newt = new trie_relation[buckets];
+        // for (size_t i=0; i < buckets; i++)
+        // {
+        //     newt[i] = trie_relation(arity);
+        // }
+    }
 #endif
 
     //for(u32 i=0; i<buckets; i++)
