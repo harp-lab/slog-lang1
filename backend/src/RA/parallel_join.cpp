@@ -6,6 +6,7 @@
 
 
 #include "../parallel_RA_inc.h"
+#include <iostream>
 
 #ifdef GOOGLE_MAP
 bool parallel_join::local_join(int threshold, int* offset,
@@ -98,7 +99,8 @@ bool parallel_join::local_join(int threshold, int* offset,
     join_buffer.width[counter] = reorder_map_array.size();
 
     // maybe should be same type of input1 relation?
-    trie_relation deduplicate;
+    shmap_relation deduplicate;
+    deduplicate.arity = input1->arity;
     // if (input1->data_structure_type == BTREE)
     // {
     //     btree_relation deduplicate(input1->arity);

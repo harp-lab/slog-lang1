@@ -4,6 +4,7 @@
  */
 
 #include "../parallel_RA_inc.h"
+#include <iostream>
 
 
 
@@ -202,6 +203,7 @@ void intra_bucket_comm(u32 buckets,
 
         // size of data to be sent
         input_buffer_size[i] = (&input_buffer[i])->size / sizeof(u64);
+        // std::cout << input_buffer[i].size << " size data transfered >> " << std::endl; 
         total_send_buffer_size = total_send_buffer_size + input_buffer_size[i];
 
         meta_buffer_size[i] = new u32[input_distinct_sub_bucket_rank_count[i]];

@@ -95,7 +95,7 @@ public:
     /// "rel_path_2_1_2": name of relation
     /// "/var/tmp/g13236/path_2_1_2": location of data file that gets loaded in the relation
     /// FULL: load in FULL (other option is to loadin DELTA, but we alwys load in FULL)
-    relation (u32 jcc, bool is_c, u32 ar, u32 tg, std::string fname, int version, int data_structure=TRIE)
+    relation (u32 jcc, bool is_c, u32 ar, u32 tg, std::string fname, int version, int data_structure=BTREE)
         :join_column_count(jcc), is_canonical(is_c), arity(ar), intern_tag(tg), initailization_type(version), filename(fname),
          data_structure_type(data_structure) 
     {
@@ -104,7 +104,7 @@ public:
         delta_bucket_element_count=0;
     }
 
-    relation (u32 jcc, bool is_c, u32 ar, u32 tg, std::string did, std::string fname, int version, int data_structure=TRIE)
+    relation (u32 jcc, bool is_c, u32 ar, u32 tg, std::string did, std::string fname, int version, int data_structure=BTREE)
         :join_column_count(jcc), is_canonical(is_c), arity(ar), intern_tag(tg), debug_id(did), initailization_type(version), filename(fname),
          data_structure_type(data_structure)
     {
@@ -113,7 +113,7 @@ public:
         delta_bucket_element_count=0;
     }
 
-    relation (u32 jcc, bool is_c, u32 ar, u32 tg, int version, int data_structure=TRIE)
+    relation (u32 jcc, bool is_c, u32 ar, u32 tg, int version, int data_structure=BTREE)
         :join_column_count(jcc), is_canonical(is_c), arity(ar), intern_tag(tg), initailization_type(version), filename(""),
          data_structure_type(data_structure)
     {

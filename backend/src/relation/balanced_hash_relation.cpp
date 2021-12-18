@@ -13,6 +13,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
+#include <iterator>
 #include <memory>
 
 u32 relation::get_global_delta_element_count()
@@ -662,24 +663,24 @@ void relation::initialize_relation(mpi_comm& mcomm, std::map<u64, u64>& intern_m
         newt = new btree_relation[buckets];
         for (size_t i=0; i < buckets; i++)
         {
-            delta[i] = btree_relation(arity);
-            full[i] = btree_relation(arity);
-            newt[i] = btree_relation(arity);
-        }
-    }
-    else 
-    {
-        std::cout << this->intern_tag << " creating  relation object!" << "buckect count " << buckets << std::endl;
-        delta = new trie_relation[buckets];
-        full = new trie_relation[buckets];
-        newt = new trie_relation[buckets];
-        for (size_t i=0; i < buckets; i++)
-        {
             delta[i].arity = arity;
             full[i].arity = arity;
             newt[i].arity = arity;
         }
     }
+    // else 
+    // {
+    //     std::cout << this->intern_tag << " creating  relation object!" << "buckect count " << buckets << std::endl;
+    //     delta = new trie_relation[buckets];
+    //     full = new trie_relation[buckets];
+    //     newt = new trie_relation[buckets];
+    //     for (size_t i=0; i < buckets; i++)
+    //     {
+    //         delta[i].arity = arity;
+    //         full[i].arity = arity;
+    //         newt[i].arity = arity;
+    //     }
+    // }
     
 #endif
 
@@ -807,13 +808,26 @@ void relation::populate_full(int buffer_size, u64* buffer)
         // u64 tmp[3] =  {1,1,1};
         // std::cout << "null? " << full[bucket_id].insert_tuple_from_array(tmp, 3) << std::endl;
         // TODO: why arity  + 1???? in insert function it always use arity-1!!
-        if (full[bucket_id]->insert_tuple_from_array(t, (arity+1)) == true)
+        if (full[bucket_id].insert_tuple_from_array(t, (arity+1)) == true)
         {
+            // std::cout << " bucket size " << buckets << " bucket_id " << bucket_id << std::endl;
             full_element_count++;
             full_bucket_element_count[bucket_id]++;
             counter++;
         }
     }
+    // for(size_t i=0; i < buckets ; i++)
+    // {
+    //     for(const auto &tp : full[i])
+    //     {
+    //         std::cout << "t>>>";
+    //         for (const auto &v: tp)
+    //         {
+    //             std::cout << v << " ";
+    //         }
+    //         std::cout << std::endl;
+    //     }
+    // }
 }
 
 
@@ -1353,12 +1367,12 @@ void relation::local_insert_in_delta()
         newt = new btree_relation[buckets];
         for (size_t i=0; i < buckets; i++)
         {
-            newt[i] = btree_relation(arity);
+            newt[i].arity = arity;
         }
     }
     else 
     {
-        newt = new trie_relation[buckets];
+        // newt = new trie_relation[buckets];
         // for (size_t i=0; i < buckets; i++)
         // {
         //     newt[i] = trie_relation(arity);

@@ -11,8 +11,12 @@
  */
 
 #include "../parallel_RA_inc.h"
-#include "btree_relation.h"
 #include "shmap_relation.h"
+#include <cassert>
+#include <cstddef>
+#include <iostream>
+#include <souffle/utility/Iteration.h>
+
 // #include <cstddef>
 // #include <limits>
 
@@ -20,16 +24,16 @@
 // #define MIN_U64 std::numeric_limits<uint64_t>.min()
 
 
-btree_relation::btree_relation(int arity)
+shmap_relation::shmap_relation(int arity)
 {
     this->arity = arity;
     data_structure_type = BTREE;
 }
 
-souffle::range<btree_relation::iterator> btree_relation::lowerUpperRange(
+souffle::range<shmap_relation::iterator> shmap_relation::lowerUpperRange(
     const t_tuple &lower, const t_tuple &upper, context &h)
 {
-    btree_relation::t_comparator comparator;
+    shmap_relation::t_comparator comparator;
     int cmp = comparator(lower, upper);
     if (cmp == 0) {
       auto pos = ind.find(lower, h.hints_0_lower);
@@ -47,42 +51,75 @@ souffle::range<btree_relation::iterator> btree_relation::lowerUpperRange(
                                ind.upper_bound(upper, h.hints_0_upper));
 }
 
-bool btree_relation::insert_tuple_from_array(u64 *t, int arity)
+bool shmap_relation::insert_tuple_from_array(u64 *t, int width)
 {
-    // std::cout << "inserting ..." << std::endl;
-    t_tuple tp(t, t+arity-1);
+    // for (int i=0; i < arity; i++)
+    //    std::cout << "Insert newt " << t[i] << "\t";
+    // std::cout << "\n";
+    t_tuple tp(t, t+width);
 
     return insert(tp);
 }
 
-int btree_relation::count()
+int shmap_relation::count()
 {
     return size();
 }
 
-void btree_relation::remove_tuple()
+void shmap_relation::remove_tuple()
 {
     this->purge();
 }
 
-bool btree_relation::find_tuple_from_array(u64 *t, int arity)
+bool shmap_relation::find_tuple_from_array(u64 *t, int width)
 {
-    t_tuple tp(t, t+arity);
-    return this->contains(tp);
+    t_tuple upper_bound(arity+1, std::numeric_limits<u64>::max());
+    t_tuple lower_bound(arity+1, std::numeric_limits<u64>::min());
+    for (size_t i=0; i < width; i++)
+    {
+        upper_bound[i] = t[i];
+        lower_bound[i] = t[i];
+    }
+    auto range = souffle::make_range(ind.lower_bound(lower_bound),
+                                     ind.upper_bound(upper_bound));
+    return !range.empty();
+    // return this->contains(tp);
 }
 
 // NOTE: prefix in this function is useless and also actually never use in other code
-void btree_relation::as_vector_buffer_recursive(vector_buffer *vb, std::vector<u64> prefix)
+void shmap_relation::as_vector_buffer_recursive(vector_buffer *vb, std::vector<u64> prefix)
 {
-    iterator cur = this->begin();
-    while (cur != this->end()) {
-        vb->vector_buffer_append((const unsigned char*)(&(*cur)), sizeof(u64)*this->arity);
-        ++cur;
+    // t_tuple upper_bound(arity+1, std::numeric_limits<u64>::max());
+    // t_tuple lower_bound(arity+1, std::numeric_limits<u64>::min());
+    // for(size_t i = 0; i < prefix.size(); i++)
+    // {
+    //     if (i >= arity+1)
+    //     {
+    //         break;
+    //     }
+    //     upper_bound[i] = prefix[i];
+    //     lower_bound[i] = prefix[i];
+    // }
+    if (this->empty())
+    {
+        return;
+    }
+    for (const auto &cur_path : (*this))
+    {
+        // std::cout << "tuple >> ";
+        u64 path[cur_path.size()];
+        for (u32 i = 0; i < cur_path.size(); i++)
+        {
+            path[i] = cur_path[i];
+            // std::cout << cur_path[i] << " ";
+        }
+        // std::cout << std::endl;
+        vb->vector_buffer_append((const unsigned char*)path, sizeof(u64)*cur_path.size());
     }
 }
 
 // NOTE: prefix in this function is useless and also actually never use in other code
-void btree_relation::as_all_to_allv_acopy_buffer(
+void shmap_relation::as_all_to_allv_acopy_buffer(
     all_to_allv_buffer &buffer,
     std::vector<u64> prefix, // useless
     std::vector<int> reorder_map,
@@ -93,8 +130,16 @@ void btree_relation::as_all_to_allv_acopy_buffer(
     int head_rel_hash_col_count,
     bool canonical)
 {
+    if (size() == 0)
+        return;
     for (const t_tuple &cur_path : (*this))
     {
+        // std::cout << "acopy >> ";
+        // for (const auto &v: cur_path)
+        // {
+        //     std::cout << v << " ";
+        // }
+        // std::cout << std::endl;
         u64 reordered_cur_path[buffer.width[ra_id]];
         for (int j =0; j < buffer.width[ra_id]; j++)
             reordered_cur_path[j] = cur_path[reorder_map[j]];
@@ -115,7 +160,7 @@ void btree_relation::as_all_to_allv_acopy_buffer(
     }
 }
 
-void btree_relation::as_all_to_allv_copy_buffer(
+void shmap_relation::as_all_to_allv_copy_buffer(
     all_to_allv_buffer &buffer,
     std::vector<u64> prefix,        // useless arg
     std::vector<int> reorder_map,
@@ -126,6 +171,8 @@ void btree_relation::as_all_to_allv_copy_buffer(
     int head_rel_hash_col_count,
     bool canonical)
 {
+    if (size() == 0)
+        return;
     for (const t_tuple &cur_path : (*this))
     {
         u64 reordered_cur_path[buffer.width[ra_id]];
@@ -136,11 +183,11 @@ void btree_relation::as_all_to_allv_copy_buffer(
         uint64_t sub_bucket_id=0;
         if (canonical == false && arity != 0 && arity >= head_rel_hash_col_count)
             sub_bucket_id = tuple_hash(reordered_cur_path + head_rel_hash_col_count, arity-head_rel_hash_col_count) % output_sub_bucket_count[bucket_id];
-
-        //std::cout << "Copy size " << buffer.width[ra_id] << std::endl;
-        //std::cout << "Copy happening " << cur_path[0] << " " << cur_path[1] <<  std::endl;
-        //std::cout << "Copy happening " << reordered_cur_path[0] << " " << reordered_cur_path[1] <<  std::endl;
-        //std::cout << "Bucket id " << bucket_id << " sub bucket id " <<sub_bucket_id << std::endl;
+        // std::cout << " copyed " << std::endl;
+        // std::cout << "Copy size " << buffer.width[ra_id] << std::endl;
+        // std::cout << "Copy happening " << cur_path[0] << " " << cur_path[1] <<  std::endl;
+        // std::cout << "Copy happening " << reordered_cur_path[0] << " " << reordered_cur_path[1] <<  std::endl;
+        // std::cout << "Bucket id " << bucket_id << " sub bucket id " <<sub_bucket_id << std::endl;
         int index = output_sub_bucket_rank[bucket_id][sub_bucket_id];
         buffer.local_compute_output_size_rel[ra_id] = buffer.local_compute_output_size_rel[ra_id] + buffer.width[ra_id];
         buffer.local_compute_output_size_total = buffer.local_compute_output_size_total + buffer.width[ra_id];
@@ -152,7 +199,7 @@ void btree_relation::as_all_to_allv_copy_buffer(
     }
 }
 
-void btree_relation::as_all_to_allv_copy_filter_buffer(
+void shmap_relation::as_all_to_allv_copy_filter_buffer(
     all_to_allv_buffer &buffer,
     std::vector<u64> prefix,
     std::vector<int> reorder_map,
@@ -164,6 +211,8 @@ void btree_relation::as_all_to_allv_copy_filter_buffer(
     int head_rel_hash_col_count,
     bool canonical)
 {
+    if (size() == 0)
+        return;
     for (const t_tuple &cur_path : (*this))
     {
         u64 reordered_cur_path[buffer.width[ra_id]];
@@ -192,7 +241,7 @@ void btree_relation::as_all_to_allv_copy_filter_buffer(
     }
 }
 
-void btree_relation::as_all_to_allv_copy_generate_buffer(
+void shmap_relation::as_all_to_allv_copy_generate_buffer(
     all_to_allv_buffer &buffer,
     std::vector<u64> prefix,
     int ra_id, u32 buckets,
@@ -202,6 +251,8 @@ void btree_relation::as_all_to_allv_copy_generate_buffer(
     int (*lambda)(const u64 *const, u64 *const),
     int head_rel_hash_col_count, bool canonical)
 {
+    if (size() == 0)
+        return;
     for (const t_tuple &cur_path : (*this))
     {
         u64 reordered_cur_path[buffer.width[ra_id]];
@@ -229,7 +280,7 @@ void btree_relation::as_all_to_allv_copy_generate_buffer(
     }
 }
 
-void btree_relation::as_all_to_allv_right_join_buffer(
+void shmap_relation::as_all_to_allv_right_join_buffer(
     std::vector<u64> prefix,
     all_to_allv_buffer &join_buffer,
     u64 *input0_buffer,
@@ -247,21 +298,30 @@ void btree_relation::as_all_to_allv_right_join_buffer(
     int head_rel_hash_col_count,
     bool canonical)
 {
+    if (size() == 0)
+        return;
     // construct range
-    t_tuple upper_bound(arity, std::numeric_limits<u64>::max());
-    t_tuple lower_bound(arity, std::numeric_limits<u64>::min());
+    t_tuple upper_bound(arity+1, std::numeric_limits<u64>::max());
+    t_tuple lower_bound(arity+1, std::numeric_limits<u64>::min());
     for(size_t i = 0; i < prefix.size(); i++)
     {
-        if (i >= arity)
-        {
-            break;
-        }
         upper_bound[i] = prefix[i];
         lower_bound[i] = prefix[i];
     }
-    auto joined_range = lowerUpperRange(upper_bound, lower_bound);
+    auto joined_range = lowerUpperRange(lower_bound, upper_bound);
     for(const auto &cur_path : joined_range)
     {
+        // std::cout << "found ";
+        // for (auto v: cur_path)
+        // {
+        //     std::cout << v << " ";
+        // }
+        // std::cout << " with prefix ";
+        // for (auto v: prefix)
+        // {
+        //     std::cout << v << " ";
+        // }
+        // std::cout << std::endl;
         u64 projected_path[join_buffer.width[ra_id]];
         u64 reordered_cur_path[input0_buffer_width + input1_buffer_width - join_column_count];
         for (int i = 0; i < input1_buffer_width; i++)
@@ -296,7 +356,7 @@ void btree_relation::as_all_to_allv_right_join_buffer(
     }
 }
 
-void btree_relation::as_all_to_allv_left_join_buffer(
+void shmap_relation::as_all_to_allv_left_join_buffer(
     std::vector<u64> prefix,
     all_to_allv_buffer &join_buffer,
     u64 *input0_buffer, int input0_buffer_width,
@@ -312,19 +372,17 @@ void btree_relation::as_all_to_allv_left_join_buffer(
     int head_rel_hash_col_count,
     bool canonical)
 {
+    if (size() == 0)
+        return;
     // construct range
-    t_tuple upper_bound(arity, std::numeric_limits<u64>::max());
-    t_tuple lower_bound(arity, std::numeric_limits<u64>::min());
+    t_tuple upper_bound(arity+1, std::numeric_limits<u64>::max());
+    t_tuple lower_bound(arity+1, std::numeric_limits<u64>::min());
     for(size_t i = 0; i < prefix.size(); i++)
     {
-        if (i >= arity)
-        {
-            break;
-        }
         upper_bound[i] = prefix[i];
         lower_bound[i] = prefix[i];
     }
-    auto joined_range = lowerUpperRange(upper_bound, lower_bound);
+    auto joined_range = lowerUpperRange(lower_bound, upper_bound);
     for(const auto &cur_path : joined_range)
     {
         u64 projected_path[join_buffer.width[ra_id]];
@@ -362,7 +420,7 @@ void btree_relation::as_all_to_allv_left_join_buffer(
     }
 }
 
-void btree_relation::as_all_to_allv_right_outer_join_buffer(
+void shmap_relation::as_all_to_allv_right_outer_join_buffer(
     u64 *input0_buffer, int input0_buffer_size, int input0_buffer_width,
     int *offset,
     all_to_allv_buffer &join_buffer,
@@ -376,7 +434,7 @@ void btree_relation::as_all_to_allv_right_outer_join_buffer(
     bool canonical)
 {
     // should I reconstruct the btree here? is there better data structure here?
-    btree_relation negated_target(join_column_count);
+    shmap_relation negated_target(join_column_count);
     for (int k1 = *offset; k1 < input0_buffer_size; k1 = k1 + input0_buffer_width)
     {
         // std::cout << "NEG PREFIX  ";
@@ -400,8 +458,8 @@ void btree_relation::as_all_to_allv_right_outer_join_buffer(
 
             uint64_t bucket_id = tuple_hash(reordered_cur_path, head_rel_hash_col_count) % buckets;
             uint64_t sub_bucket_id=0;
-            if (canonical == false && arity != 0 && arity >= head_rel_hash_col_count)
-                sub_bucket_id = tuple_hash(reordered_cur_path + head_rel_hash_col_count, arity-head_rel_hash_col_count) % output_sub_bucket_count[bucket_id];
+            if (canonical == false && out_airty != 0 && out_airty >= head_rel_hash_col_count)
+                sub_bucket_id = tuple_hash(reordered_cur_path + head_rel_hash_col_count, out_airty-head_rel_hash_col_count) % output_sub_bucket_count[bucket_id];
 
             //std::cout << "Copy size " << buffer.width[ra_id] << std::endl;
             //std::cout << "Copy happening " << cur_path[0] << " " << cur_path[1] <<  std::endl;

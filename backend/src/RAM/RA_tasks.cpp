@@ -6,6 +6,7 @@
 
 
 #include "../parallel_RA_inc.h"
+#include <iostream>
 
 RAM::~RAM()
 {
@@ -198,6 +199,7 @@ u64 RAM::intra_bucket_comm_execute()
             relation* input0 = current_ra->get_join_input0();
             relation* input1 = current_ra->get_join_input1();
 
+            // std::cout << "join " << input0->get_intern_tag() << " and " << input1->get_intern_tag() << std::endl;
             /// Join between delta and delta
             if (current_ra->get_join_input0_graph_type() == DELTA && current_ra->get_join_input1_graph_type() == DELTA)
             {
@@ -355,7 +357,7 @@ u32 RAM::local_compute(int* offset)
             current_ra->get_copy_rename_index(&reorder_map_array);
             relation* output_relation = current_ra->get_copy_output();
             relation* input_relation = current_ra->get_copy_input();
-
+            // u32 size_before = compute_buffer.local_compute_output_size_total;
             if (current_ra->get_copy_input0_graph_type() == DELTA)
             {
                 current_ra->local_copy(get_bucket_count(),
@@ -376,6 +378,7 @@ u32 RAM::local_compute(int* offset)
                                        input_relation->get_join_column_count(),
                                        compute_buffer, counter);
             }
+            // std::cout << compute_buffer.local_compute_output_size_total - size_before << " data copied " << std::endl;
         }
 
         else if ((*it)->get_RA_type() == COPY_FILTER)
