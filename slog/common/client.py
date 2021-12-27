@@ -458,11 +458,12 @@ class SlogClient:
         tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
         slog_tuples = parse_query_result(tuples_map, tag_map, self.intern_string_dict,
                                          self.tuple_printed_id_map)
-        pp_strs = pretty_str_tuples(slog_tuples, self.unroll_depth, self.group_cardinality,
-                                    tag_map, self.tuple_printed_id_map)
-        for pp_str in pp_strs:
-            writer.write(pp_str)
+        
         for rel in rels:
+            pp_strs = pretty_str_tuples(rel[2], slog_tuples, self.unroll_depth, self.group_cardinality,
+                                    tag_map, self.tuple_printed_id_map)
+            for pp_str in pp_strs:
+                writer.write(pp_str)
             r_tuple_size = len(tuples_map[rel[2]]) / (rel[1] + 1)
             writer.write(f"Relation name {name}, tag {rel[2]} has {int(r_tuple_size)} tuples")
         return slog_tuples
@@ -554,7 +555,7 @@ class SlogClient:
         if not query_res:
             return
         tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
-        pp_strs = pretty_str_tuples(query_res, self.unroll_depth, self.group_cardinality,
+        pp_strs = pretty_str_tuples(None, query_res, self.unroll_depth, self.group_cardinality,
                                     tag_map, self.tuple_printed_id_map)
         for pp_str in pp_strs:
             writer.write(pp_str)
@@ -576,7 +577,7 @@ class SlogClient:
             return
         tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
         slog_tuple = self.tuple_printed_id_map[printed_id]
-        pp_str = pretty_str_tuples([slog_tuple], self.unroll_depth, self.group_cardinality,
+        pp_str = pretty_str_tuples(None, [slog_tuple], self.unroll_depth, self.group_cardinality,
                                    tag_map, self.tuple_printed_id_map)
         writer.write(pp_str[0])
         return self.tuple_printed_id_map[printed_id]

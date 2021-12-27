@@ -1194,28 +1194,33 @@ int relation::insert_delta_in_full()
 {
     u32 insert_success = 0;
     u32 buckets = get_bucket_count();
-    vector_buffer *input_buffer = new vector_buffer[buckets];
+    // vector_buffer *input_buffer = new vector_buffer[buckets];
 
     for (u32 i = 0; i < buckets; i++)
     {
-        input_buffer[i].vector_buffer_create_empty();
+        // input_buffer[i].vector_buffer_create_empty();
         if (bucket_map[i] == 1)
         {
-            std::vector<u64> prefix = {};
-            delta[i].as_vector_buffer_recursive(&(input_buffer[i]), prefix);
-            for (u64 j = 0; j < (&input_buffer[i])->size / sizeof(u64); j=j+(arity+1))
+            // std::vector<u64> prefix = {};
+            // delta[i].as_vector_buffer_recursive(&(input_buffer[i]), prefix);
+            // for (u64 j = 0; j < (&input_buffer[i])->size / sizeof(u64); j=j+(arity+1))
+            // {
+            //     if (insert_in_full ( (u64*)( (input_buffer[i].buffer) + (j*sizeof(u64)) )) == true)
+            //         insert_success++;
+            // }
+            for(auto it=delta[i].begin(); it; it.next())
             {
-                if (insert_in_full ( (u64*)( (input_buffer[i].buffer) + (j*sizeof(u64)) )) == true)
+                if (insert_in_full (&it.val()[0]) == true)
                     insert_success++;
             }
             delta[i].remove_tuple();
 
-            input_buffer[i].vector_buffer_free();
+            // input_buffer[i].vector_buffer_free();
         }
     }
 
     set_delta_element_count(0);
-    delete[] input_buffer;
+    // delete[] input_buffer;
 
     return insert_success;
 }

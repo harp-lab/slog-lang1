@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <vector>
 struct shmap_relation {
 
     shmap<shmap_relation*> next = {};
@@ -17,7 +18,7 @@ struct shmap_relation {
     void remove_tuple_helper(shmap<void*> map);
     bool find_tuple_from_array(u64* t, int arity);
 
-    void as_vector_buffer_recursive(vector_buffer* vb, std::vector<u64> prefix);
+    void as_vector_buffer_recursive(vector_buffer* vb, std::vector<u64> &prefix);
     void as_vector_buffer_recursive_helper(shmap_relation*& cur_trie, std::vector<u64>& cur_path, vector_buffer*& result_vector);
 
     void as_all_to_allv_copy_buffer(all_to_allv_buffer& buffer, std::vector<u64> prefix, std::vector<int> reorder_map, int ra_id, u32 buckets, u32* output_sub_bucket_count, u32** output_sub_bucket_rank, u32 arity, u32 join_column_count, int head_rel_hash_col_count, bool canonical);
@@ -90,5 +91,66 @@ struct shmap_relation {
 
     void as_all_to_allv_copy_generate_buffer(all_to_allv_buffer& buffer, std::vector<u64> prefix, int ra_id, u32 buckets, u32* output_sub_bucket_count, u32** output_sub_bucket_rank, u32 arity, u32 join_column_count, int(*lambda)(const u64* const, u64* const), int head_rel_hash_col_count, bool canonical);
     void as_all_to_allv_copy_generate_buffer_helper(shmap_relation*& cur_trie, std::vector<u64>& cur_path, all_to_allv_buffer& buffer, int ra_id, u32 buckets, u32* output_sub_bucket_count, u32** output_sub_bucket_rank, u32 arity, u32 join_column_count, int(*lambda)(const u64* const, u64* const), int head_rel_hash_col_count, bool canonical);
+
+    struct iterator {
+        std::vector<u64> tuple_stack;
+        // shmap<shmap_relation*>* cur_shmap;
+        std::vector<shmap<shmap_relation*>::iter> shmap_stack;
+        shmap<shmap_relation*>::iter shmap_iter;
+
+        iterator(shmap_relation* start) {
+            shmap_relation* cur_shmap = start;
+            while (cur_shmap != NULL)
+            {
+                shmap_iter = cur_shmap->next.begin();
+                u64 tuple_data = shmap_iter.key();
+                tuple_stack.push_back(tuple_data);
+                cur_shmap = shmap_iter.val();
+                if (cur_shmap != NULL)
+                {
+                    shmap_stack.push_back(shmap_iter);
+                }
+            }
+        }
+
+        void next() {
+            while (!shmap_iter)
+            {
+                if (shmap_stack.size() == 0)
+                {
+                    return;
+                }
+                shmap_iter = shmap_stack.pop_back();
+                tuple_stack.pop_back();
+                // shmap_iter.next();
+            }
+            shmap_iter.next();
+            shmap_relation* cur_shmap = shmap_iter.val();
+            tuple_stack.push_back(shmap_iter.key());
+            while (cur_shmap != NULL)
+            {
+                shmap_iter = cur_shmap->next.begin();
+                u64 tuple_data = shmap_iter.key();
+                tuple_stack.push_back(tuple_data);
+                cur_shmap = shmap_iter.val();
+                if (cur_shmap != NULL)
+                {
+                    shmap_stack.push_back(shmap_iter);
+                }   
+            }
+        }
+
+        operator bool() const {
+            return (shmap_stack.size() != 0) && shmap_iter;
+        }
+
+        std::vector<u64> val() {
+            return tuple_stack;
+        }
+    }
+
+    iterator begin() {
+        return iterator(this);
+    }
 
 };

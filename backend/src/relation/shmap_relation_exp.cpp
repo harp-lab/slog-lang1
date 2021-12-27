@@ -22,12 +22,17 @@ bool shmap_relation::insert_tuple_from_array(u64* t, int arity)
     shmap_relation *node = this;
     for (int i = 0; i < arity-1; i++)
     {
-        if (node->next.find(t[i]) == NULL)
+        auto nxt = node->next.find(t[i]);
+        if (nxt == NULL)
         {
-            node->next.insert(t[i], new shmap_relation());
+            auto new_node = new shmap_relation();
+            node->next.insert(t[i], new_node);
             counter = true;
+            node = new_node;
         }
-        node = *((node->next).find(t[i]));
+        else {
+            node = *nxt;
+        }
     }
 
     if (node->next.find(t[arity-1]) == NULL)
@@ -93,7 +98,7 @@ bool shmap_relation::find_tuple_from_array(u64* t, int arity)
 
 
 
-void shmap_relation::as_vector_buffer_recursive(vector_buffer* vb, std::vector<u64> prefix)
+void shmap_relation::as_vector_buffer_recursive(vector_buffer* vb, std::vector<u64> &prefix)
 {
 
     shmap_relation *m_trie = this;
