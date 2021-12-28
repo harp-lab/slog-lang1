@@ -6,7 +6,10 @@
 
 
 #include "../parallel_RA_inc.h"
+#include <cassert>
+#include <cstddef>
 #include <filesystem>
+#include <iostream>
 
 u32 relation::get_global_delta_element_count()
 {
@@ -1210,7 +1213,19 @@ int relation::insert_delta_in_full()
             // }
             for(auto it=delta[i].begin(); it; it.next())
             {
-                if (insert_in_full (&it.val()[0]) == true)
+                auto tuple_d = it.val();
+                int arity = tuple_d.size();
+                u64 t[arity];
+                // std::cout << "insert into delta " << arity << " <<< ";
+                assert(arity < 10);
+                for (size_t i=0; i < arity; i++)
+                {
+                    t[i] = tuple_d.front();
+                    tuple_d.pop_front();
+                    // std::cout << t[i] << " ";
+                }
+                // std::cout << std::endl;
+                if (insert_in_full(t) == true)
                     insert_success++;
             }
             delta[i].remove_tuple();

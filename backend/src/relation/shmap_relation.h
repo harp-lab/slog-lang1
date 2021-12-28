@@ -7,7 +7,10 @@
 
 #pragma once
 
-#include <vector>
+#include "../parallel_RA_inc.h"
+#include <cassert>
+#include <cstddef>
+#include <deque>
 struct shmap_relation {
 
     shmap<shmap_relation*> next = {};
@@ -92,62 +95,70 @@ struct shmap_relation {
     void as_all_to_allv_copy_generate_buffer(all_to_allv_buffer& buffer, std::vector<u64> prefix, int ra_id, u32 buckets, u32* output_sub_bucket_count, u32** output_sub_bucket_rank, u32 arity, u32 join_column_count, int(*lambda)(const u64* const, u64* const), int head_rel_hash_col_count, bool canonical);
     void as_all_to_allv_copy_generate_buffer_helper(shmap_relation*& cur_trie, std::vector<u64>& cur_path, all_to_allv_buffer& buffer, int ra_id, u32 buckets, u32* output_sub_bucket_count, u32** output_sub_bucket_rank, u32 arity, u32 join_column_count, int(*lambda)(const u64* const, u64* const), int head_rel_hash_col_count, bool canonical);
 
-    struct iterator {
-        std::vector<u64> tuple_stack;
+    class iterator {
+        private:
+        std::deque<u64> tuple_stack;
         // shmap<shmap_relation*>* cur_shmap;
-        std::vector<shmap<shmap_relation*>::iter> shmap_stack;
-        shmap<shmap_relation*>::iter shmap_iter;
+        std::deque<shmap<shmap_relation*>::iter> shmap_stack;
+        // shmap<shmap_relation*>::iter shmap_iter;
 
-        iterator(shmap_relation* start) {
-            shmap_relation* cur_shmap = start;
+        public:
+        iterator(shmap_relation* cur_shmap) {
             while (cur_shmap != NULL)
             {
-                shmap_iter = cur_shmap->next.begin();
+                auto shmap_iter = cur_shmap->next.begin();
+                shmap_stack.push_back(shmap_iter);
+                if (!shmap_iter)
+                    break;
                 u64 tuple_data = shmap_iter.key();
                 tuple_stack.push_back(tuple_data);
                 cur_shmap = shmap_iter.val();
-                if (cur_shmap != NULL)
-                {
-                    shmap_stack.push_back(shmap_iter);
-                }
             }
         }
 
         void next() {
+            // assert(shmap_stack.size() < 5);
+            auto shmap_iter = shmap_stack.back();
+            shmap_iter.next();
             while (!shmap_iter)
             {
                 if (shmap_stack.size() == 0)
                 {
                     return;
                 }
-                shmap_iter = shmap_stack.pop_back();
+                shmap_iter = shmap_stack.back();
+                shmap_stack.pop_back();
                 tuple_stack.pop_back();
-                // shmap_iter.next();
+                shmap_iter.next();
             }
-            shmap_iter.next();
             shmap_relation* cur_shmap = shmap_iter.val();
             tuple_stack.push_back(shmap_iter.key());
+            shmap_stack.push_back(shmap_iter);
             while (cur_shmap != NULL)
             {
                 shmap_iter = cur_shmap->next.begin();
+                shmap_stack.push_back(shmap_iter);
+                if (!shmap_iter)
+                    break;
                 u64 tuple_data = shmap_iter.key();
                 tuple_stack.push_back(tuple_data);
-                cur_shmap = shmap_iter.val();
-                if (cur_shmap != NULL)
-                {
-                    shmap_stack.push_back(shmap_iter);
-                }   
+                cur_shmap = shmap_iter.val();              
             }
         }
 
         operator bool() const {
-            return (shmap_stack.size() != 0) && shmap_iter;
+            for (const auto& it: shmap_stack)
+            {
+                if (it)
+                    return true;
+            }
+            return false;
         }
 
-        std::vector<u64> val() {
+        std::deque<u64> val() {
             return tuple_stack;
         }
-    }
+    };
 
     iterator begin() {
         return iterator(this);

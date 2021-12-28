@@ -113,8 +113,8 @@ def count_tuples(slog_tuple: SlogTuple, max_depth, tag_map, printed_id_map, coun
                 if val is not None and  max_depth != 0:
                     count_tuples(val, max_depth-1, tag_map,printed_id_map, count_map, False)
 
-def pretty_str_tuples(rel_tag, slog_tuples, max_depth, cardinality, tag_map, printed_id_map):
-    """ pretty stringfy a list of tuples, (only stringfiy the tuple with `rel_tag` ) """
+def pretty_str_tuples(slog_tuples, max_depth, cardinality, tag_map, printed_id_map):
+    """ pretty stringfy a list of tuples """
     count_map = {}
     res = []
     for slog_tuple in slog_tuples:
@@ -125,14 +125,9 @@ def pretty_str_tuples(rel_tag, slog_tuples, max_depth, cardinality, tag_map, pri
             unfolded_ids.append(t_id)
     for p_id, val in printed_id_map.items():
         if val.tuple_id in unfolded_ids:
-            if not rel_tag:
-                pp_str = tuple_to_str(val, max_depth, cardinality, tag_map,
-                                    printed_id_map, count_map)
-                res.append(f"#{p_id}\t{pp_str}")
-            if rel_tag and p_id == rel_tag:
-                pp_str = tuple_to_str(val, max_depth, cardinality, tag_map,
-                                    printed_id_map, count_map)
-                res.append(f"#{p_id}\t{pp_str}")
+            pp_str = tuple_to_str(val, max_depth, cardinality, tag_map,
+                                  printed_id_map, count_map)
+            res.append(f"#{p_id}\t{pp_str}")
     return res
 
 def find_printed_id_by_val(printed_map, val):

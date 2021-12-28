@@ -23,7 +23,7 @@ from yaspin import yaspin
 from slog.common.client import SlogClient
 from slog.repl.repl import Repl
 
-def ingest_facts(factloc, inputloc, tsv_bin_path):
+def ingest_facts(factloc, inputloc, tsv_bin_path, cores):
     # -- go through every .table file in the input data
     # -- extract tag, relation name and arity.
     tables = {}
@@ -74,7 +74,7 @@ def ingest_facts(factloc, inputloc, tsv_bin_path):
         try:
             # idk why 16 is buckets, got from rpc.py
             subprocess.check_output([tsv_bin_path, factfile, str(arity),
-                                     tableloc, '16', str(tabletag), inputloc])
+                                     tableloc, str(cores), str(tabletag), inputloc])
         except subprocess.CalledProcessError as e:
             print(f"tsv_to_bin failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
             return None
@@ -126,7 +126,7 @@ def run_local(file, outloc, factloc, cores, verbose, slog_root=None, compile_bac
     else:
         cmake_prof_opt = []
     if debug_flag:
-        cmake_build_mode = "RelWithDebInfo"
+        cmake_build_mode = "Debug"
     else:
         cmake_build_mode = "RelWithDebInfo"
 
@@ -165,6 +165,7 @@ def run_local(file, outloc, factloc, cores, verbose, slog_root=None, compile_bac
         start = time.time()
         output = subprocess.check_output(["racket", "compiler/slog.rkt", "-c", "--ps", "-f",
                                           "--output-code", outloc, "--output-db", checkpointloc,
+                                          "--buckets", str(cores),
                                           "--input-db", inputloc, file],
                                 stderr=subprocess.STDOUT)
         end = time.time()
@@ -183,7 +184,7 @@ def run_local(file, outloc, factloc, cores, verbose, slog_root=None, compile_bac
         print("Calling tsv->bin")
     if factloc:
         start = time.time()
-        out = ingest_facts(factloc, inputloc, tsv_bin_path)
+        out = ingest_facts(factloc, inputloc, tsv_bin_path, cores)
         if not out:
             print("FAILURE TO INGEST FACTS!")
             return
