@@ -1211,13 +1211,12 @@ int relation::insert_delta_in_full()
             //     if (insert_in_full ( (u64*)( (input_buffer[i].buffer) + (j*sizeof(u64)) )) == true)
             //         insert_success++;
             // }
+            u64 t[arity];
             for(auto it=delta[i].begin(); it; it.next())
             {
                 auto tuple_d = it.val();
                 int arity = tuple_d.size();
-                u64 t[arity];
                 // std::cout << "insert into delta " << arity << " <<< ";
-                assert(arity < 10);
                 for (size_t i=0; i < arity; i++)
                 {
                     t[i] = tuple_d.front();

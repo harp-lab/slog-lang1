@@ -37,6 +37,7 @@ def ingest_facts(factloc, inputloc, tsv_bin_path, cores):
         arity = int(without_ext[aritystartloc+1:])
         relname = without_ext[tagendloc+1:aritystartloc]
         tables[(relname, arity)] = (tag, tablefile)
+    current_max_tag = max([int(t[0]) for t in tables.values()])
     # -- now look through the input .facts file(s) and run
     # -- tsv_to_bin on any.
     if not os.path.exists(factloc):
@@ -52,6 +53,15 @@ def ingest_facts(factloc, inputloc, tsv_bin_path, cores):
     else:
         # just add the file, dont check extension
         infacts.add(factloc)
+    # -- now copy all input table facts inside factloc but rearrange rel tag
+    for table_file in os.listdir(factloc):
+        extn = table_file[table_file.rfind('.'):]
+        if extn == '.table':
+            new_tag = current_max_tag + 1
+            current_max_tag = current_max_tag + 1
+            tb_name = table_file[table_file.find('.'):]
+            shutil.copy(os.path.join(factloc, table_file),
+                        os.path.join(inputloc, str(new_tag)+tb_name))
     for factfile in infacts:
         with open(factfile, 'r') as ff:
             first = ff.readline()
@@ -65,7 +75,8 @@ def ingest_facts(factloc, inputloc, tsv_bin_path, cores):
         table = tables.get((relname, arity))
         if not table:
             print(f"`{relname}` with arity `{arity}` not found in slogfile, but used as input.")
-            tabletag = str(max([int(t[0]) for t in tables.values()]) + 1)
+            tabletag = str(current_max_tag + 1)
+            current_max_tag = current_max_tag + 1
             print(f"assign a new tag `{tabletag}` to `{relname}` with arity `{arity}`")
             tableloc = os.path.join(inputloc, f"{tabletag}.{relname}.{arity}.table")
         else:
