@@ -15,7 +15,7 @@ bool parallel_join_negate::local_negation(
 {
     join_buffer.width[counter] = reorder_map_array.size();
 
-    shmap_relation* negated_target = NULL;
+    // shmap_relation* negated_target = NULL;
     u32* output_sub_bucket_count = output->get_sub_bucket_per_bucket_count();
     u32** output_sub_bucket_rank = output->get_sub_bucket_rank();
  
@@ -26,42 +26,17 @@ bool parallel_join_negate::local_negation(
     }
     if (join_order == RIGHT)
     {
-        if (input0_buffer_size != 0)
-        {
-            negated_target = new shmap_relation;
-            u64 prefix[join_column_count];
-            for (int k1 = *offset; k1 < input0_buffer_size; k1 = k1 + input0_buffer_width)
-            {
-                // std::cout << "NEG PREFIX  ";
-                for (int jc=0; jc < join_column_count; jc++)
-                {
-                    prefix[jc] = input0_buffer[k1 + jc];
-                    // std::cout << input0_buffer[k1 + jc] << " ";
-                }
-                // std::cout << std::endl;
-                negated_target->insert_tuple_from_array(prefix, join_column_count);
-            }
-            // std::cout << "u64 in negation buffer " << input0_buffer_size - (*offset) << std::endl;
-        }
-        else {
-            // should fail here !!!
-            std::cout << "shouldn't be here..." << std::endl;
-            return false;
-        }
         for (u32 bucket_id = 0; bucket_id < buckets; bucket_id++)
         {
             input1[bucket_id].as_all_to_allv_right_outer_join_buffer(
-                negated_target, join_buffer,
+                // negated_target,
+                input0_buffer, input0_buffer_size, input0_buffer_width, offset,
+                join_buffer,
                 counter, buckets, output_sub_bucket_count,
                 output_sub_bucket_rank, reorder_map_array, join_column_count,
                 output->get_arity(),
                 output->get_join_column_count(), output->get_is_canonical());
         }
-    }
-    if (negated_target != NULL)
-    {
-        negated_target->remove_tuple();
-        delete negated_target;
     }
     return true;
 }

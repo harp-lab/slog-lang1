@@ -654,6 +654,12 @@ void relation::initialize_relation(mpi_comm& mcomm, std::map<u64, u64>& intern_m
     delta = new shmap_relation[buckets];
     full = new shmap_relation[buckets];
     newt = new shmap_relation[buckets];
+
+    for (int i = 0 ; i < buckets; i++) {
+        delta[i].arity = arity;
+        full[i].arity = arity;
+        newt[i].arity = arity;
+    }
 #endif
 
     sub_bucket_per_bucket_count = new u32[buckets];
@@ -1211,20 +1217,10 @@ int relation::insert_delta_in_full()
             //     if (insert_in_full ( (u64*)( (input_buffer[i].buffer) + (j*sizeof(u64)) )) == true)
             //         insert_success++;
             // }
-            u64 t[arity];
-            for(auto it=delta[i].begin(); it; it.next())
+            for(auto it=delta[i].begin(); it != delta[i].end(); it++)
             {
-                auto tuple_d = it.val();
-                int arity = tuple_d.size();
-                // std::cout << "insert into delta " << arity << " <<< ";
-                for (size_t i=0; i < arity; i++)
-                {
-                    t[i] = tuple_d.front();
-                    tuple_d.pop_front();
-                    // std::cout << t[i] << " ";
-                }
-                // std::cout << std::endl;
-                if (insert_in_full(t) == true)
+                auto tuple_d = *it;
+                if (insert_in_full(tuple_d.data()) == true)
                     insert_success++;
             }
             delta[i].remove_tuple();
@@ -1330,6 +1326,10 @@ void relation::local_insert_in_delta()
     newt = new google_relation[buckets];
 #else
     newt = new shmap_relation[buckets];
+
+    for (int i = 0; i < buckets; i++) {
+        newt[i].arity = arity;
+    }
 #endif
 
     //for(u32 i=0; i<buckets; i++)
