@@ -627,7 +627,7 @@ u32 RAM::local_compute(int* offset)
     MPI_Allreduce(&total_join_tuples, &global_total_join_tuples, 1, MPI_INT, MPI_SUM, mcomm.get_local_comm());
     MPI_Allreduce(&join_tuples_duplicates, &global_join_tuples_duplicates, 1, MPI_INT, MPI_SUM, mcomm.get_local_comm());
     if (mcomm.get_rank() == 0)
-        std::cout << "Joins: " << global_total_join_tuples << " Duplicates " << global_join_tuples_duplicates << " ";
+        std::cout << "Joins: " << global_total_join_tuples << " Duplicates " << global_join_tuples_duplicates << " " << std::endl;
 #endif
 
     int global_synchronizer = 0;
@@ -787,7 +787,14 @@ void RAM::local_insert_in_newt_comm_compaction(std::map<u64, u64>& intern_map)
 
                     //if (RA_list[ra_id]->get_RA_type() == FACT)
                     //    std::cout << "FFFFFFFFFF "<< tuple[0] << " " << tuple[1] << " " << successful_insert << std::endl;
-                }
+                } 
+                // else {
+                    // std::cout << "insert fail ";
+                    // for (int i = 0; i < width; i++) {
+                    //     std::cout << cumulative_all_to_allv_buffer[i] << " ";
+                // }
+                // std::cout << std::endl;
+                // }
             }
         }
         else if (RA_list[ra_id]->get_RA_type() == ACOPY)
@@ -857,6 +864,7 @@ void RAM::local_insert_in_newt(std::map<u64, u64>& intern_map)
                 u32 width = output->get_arity();
                 u64 tuple[width + 1];
 
+
                 for (u32 x = 0; x < elements_to_read; x = x + width)
                 {
                     if (output->find_in_full(cumulative_all_to_allv_buffer_cmp[r] + x, width) == false &&
@@ -884,6 +892,8 @@ void RAM::local_insert_in_newt(std::map<u64, u64>& intern_map)
 
                         if (output->insert_in_newt(tuple) == true)
                             successful_insert++;
+                    } else {
+
                     }
                 }
             }
@@ -904,7 +914,7 @@ void RAM::local_insert_in_newt(std::map<u64, u64>& intern_map)
                     }
                 }
             }
-            //std::cout << output->get_debug_id() << " successful insert " << successful_insert << std::endl;
+            // std::cout << output->get_debug_id() << " successful insert " << successful_insert << std::endl;
         //}
         delete[] cumulative_all_to_allv_buffer_cmp[r];
     }

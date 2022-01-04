@@ -1217,9 +1217,14 @@ int relation::insert_delta_in_full()
             //     if (insert_in_full ( (u64*)( (input_buffer[i].buffer) + (j*sizeof(u64)) )) == true)
             //         insert_success++;
             // }
-            for(auto it=delta[i].begin(); it != delta[i].end(); it++)
+            for(auto it=delta[i].begin(); it != delta[i].end(); ++it)
             {
                 auto tuple_d = *it;
+                // std::cout << "inserting into delta ";
+                // for (auto v: tuple_d) {
+                //     std::cout << v << " ";
+                // }
+                // std::cout << std::endl;
                 if (insert_in_full(tuple_d.data()) == true)
                     insert_success++;
             }

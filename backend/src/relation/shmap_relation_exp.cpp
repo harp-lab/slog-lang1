@@ -12,6 +12,7 @@
 
 #include "../parallel_RA_inc.h"
 #include "shmap_relation.h"
+#include <iostream>
 
 
 
@@ -43,7 +44,18 @@ void shmap_relation::remove_tuple()
 
 bool shmap_relation::find_tuple_from_array(u64 *t, int width)
 {
-    return this->contains(t_tuple(t, t+width));
+    t_tuple upper_bound(arity+1, std::numeric_limits<u64>::max());
+    t_tuple lower_bound(arity+1, std::numeric_limits<u64>::min());
+    for(size_t i = 0; i < width; i++)
+    {
+        upper_bound[i] = t[i];
+        lower_bound[i] = t[i];
+    }
+    auto joined_range = lowerUpperRange(lower_bound, upper_bound);
+    if (joined_range.first == ind->end()) {
+        return false;
+    }
+    return true;
 }
 
 // NOTE: prefix in this function is useless and also actually never use in other code
@@ -258,8 +270,9 @@ void shmap_relation::as_all_to_allv_right_join_buffer(
         lower_bound[i] = prefix[i];
     }
     auto joined_range = lowerUpperRange(lower_bound, upper_bound);
-    for(auto cur_path = joined_range.first; cur_path != joined_range.second && cur_path != ind->end(); ++cur_path)
+    for(auto it = joined_range.first; it != joined_range.second && it != ind->end(); ++it)
     {
+        auto cur_path = *it;
         // std::cout << "found ";
         // for (auto v: cur_path)
         // {
@@ -274,7 +287,7 @@ void shmap_relation::as_all_to_allv_right_join_buffer(
         u64 projected_path[join_buffer.width[ra_id]];
         u64 reordered_cur_path[input0_buffer_width + input1_buffer_width - join_column_count];
         for (int i = 0; i < input1_buffer_width; i++)
-            reordered_cur_path[i] = (*cur_path)[i];
+            reordered_cur_path[i] = cur_path[i];
 
         for (int i = join_column_count; i < input0_buffer_width; i++)
             reordered_cur_path[input1_buffer_width + (i - join_column_count)] = input0_buffer[i];
@@ -300,9 +313,16 @@ void shmap_relation::as_all_to_allv_right_join_buffer(
             (*local_join_inserts)++;
             (*local_join_count)++;
         }
-        else
+        else {
             (*local_join_duplicates)++;
+            // std::cout << "duplicate facts ";
+            // for (auto v: projected_path) {
+            //     std::cout << v << "\t";
+            // }
+            // std::cout << std::endl;
+        }
     }
+    // std::cout << "inserted " << *local_join_inserts << std::endl;
 }
 
 void shmap_relation::as_all_to_allv_left_join_buffer(
@@ -321,6 +341,10 @@ void shmap_relation::as_all_to_allv_left_join_buffer(
     int head_rel_hash_col_count,
     bool canonical)
 {
+    // std::cout << "prefix >> ";
+    // for (auto x: prefix) {
+    //     std::cout << x << " ";
+    // }
     if (size() == 0)
         return;
     // construct range
@@ -332,15 +356,27 @@ void shmap_relation::as_all_to_allv_left_join_buffer(
         lower_bound[i] = prefix[i];
     }
     auto joined_range = lowerUpperRange(lower_bound, upper_bound);
-    for(auto cur_path = joined_range.first; cur_path != joined_range.second && cur_path != ind->end(); ++cur_path)
+    for(auto it = joined_range.first; it != joined_range.second && it != ind->end(); ++it)
     {
+        auto cur_path = *it;
+        // std::cout << "found ";
+        // for (auto v: cur_path)
+        // {
+        //     std::cout << v << " ";
+        // }
+        // std::cout << " with prefix ";
+        // for (auto v: prefix)
+        // {
+        //     std::cout << v << " ";
+        // }
+        // std::cout << std::endl;
         u64 projected_path[join_buffer.width[ra_id]];
         u64 reordered_cur_path[input0_buffer_width + input1_buffer_width - join_column_count];
         for (int i = 0; i < input0_buffer_width; i++)
             reordered_cur_path[i] = input0_buffer[i];
 
         for (int i = join_column_count; i < input1_buffer_width; i++)
-            reordered_cur_path[input0_buffer_width + (i - join_column_count)] = (*cur_path)[i];
+            reordered_cur_path[input0_buffer_width + (i - join_column_count)] = cur_path[i];
 
         for (int i =0; i < join_buffer.width[ra_id]; i++)
             projected_path[i] = reordered_cur_path[reorder_map[i]];
@@ -364,9 +400,16 @@ void shmap_relation::as_all_to_allv_left_join_buffer(
             (*local_join_inserts)++;
             (*local_join_count)++;
         }
-        else
+        else {
+            // std::cout << "duplicate facts ";
+            // for (auto v: projected_path) {
+            //     std::cout << v << "\t";
+            // }
+            // std::cout << std::endl;
             (*local_join_duplicates)++;
+        }
     }
+    // std::cout << "inserted " << *local_join_inserts << std::endl;
 }
 
 void shmap_relation::as_all_to_allv_right_outer_join_buffer(

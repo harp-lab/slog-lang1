@@ -17,7 +17,7 @@ struct shmap_relation {
 
     int data_structure_type;
 
-    using t_tuple = std::vector<uint64_t>;
+    using t_tuple = std::vector<u64>;
     struct t_comparator {
         // 0-arity compare will fail
         t_comparator() : n(-2) {}
@@ -31,9 +31,9 @@ struct shmap_relation {
                 size = n;
             for (int i=0; i < size; i++)
             {
-                if (a[i] > b[i])
-                    return true;
                 if (a[i] < b[i])
+                    return true;
+                if (a[i] > b[i])
                     return false;
             }
             return false;
@@ -43,7 +43,7 @@ struct shmap_relation {
     };
 
     // souffle use multi set for some relation
-    using t_ind = btree::btree_set<std::vector<uint64_t>, t_comparator>;
+    using t_ind = btree::btree_set<t_tuple, t_comparator>;
     t_ind* ind;
     using iterator = t_ind::iterator;
 
@@ -69,7 +69,33 @@ struct shmap_relation {
     // so only one version of this function
     std::pair<iterator, iterator> lowerUpperRange(const t_tuple &lower, const t_tuple &upper)
     {
-        return std::make_pair(ind->lower_bound(lower), ind->upper_bound(upper));
+        auto lower_it = ind->lower_bound(lower);
+        auto upper_it = ind->upper_bound(upper);
+        if (lower_it == ind->end() || upper_it == ind->end()) {
+            return std::make_pair(ind->end(), ind->end());
+        }
+        auto lower_v = *lower_it;
+        auto upper_v = *upper_it;
+        int valid = 0;
+        for (int i = 0; i < lower_v.size(); i++) {
+            if (lower_v[i] > upper_v[i]) {
+                valid = -1;
+                break;
+            }
+            if (lower_v[i] < upper_v[i]) {
+                valid = 1;
+                break;
+            }
+        }
+        if (valid == 1) {
+            return std::make_pair(lower_it, upper_it);
+        }
+        if (valid == 0) {
+            if (contains(lower)) {
+                return std::make_pair(lower_it, lower_it);
+            }
+        }
+        return std::make_pair(ind->end(), ind->end());
     }
 
 
