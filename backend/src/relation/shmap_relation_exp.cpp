@@ -12,6 +12,7 @@
 
 #include "../parallel_RA_inc.h"
 #include "shmap_relation.h"
+#include <cstddef>
 #include <iostream>
 
 
@@ -55,6 +56,7 @@ bool shmap_relation::find_tuple_from_array(u64 *t, int width)
     if (joined_range.first == ind->end()) {
         return false;
     }
+
     return true;
 }
 
@@ -444,7 +446,7 @@ void shmap_relation::as_all_to_allv_right_outer_join_buffer(
     for (const t_tuple &cur_path : (*this))
     {
         t_tuple joined_cur_path(cur_path.begin(), cur_path.begin() + join_column_count);
-        if (negated_target.contains(joined_cur_path))
+        if (!negated_target.contains(joined_cur_path))
         {
             u64 reordered_cur_path[join_buffer.width[ra_id]];
             for (u32 j =0; j < reorder_map.size(); j++)
@@ -470,4 +472,5 @@ void shmap_relation::as_all_to_allv_right_outer_join_buffer(
     
         }
     }
+    negated_target.purge();
 }

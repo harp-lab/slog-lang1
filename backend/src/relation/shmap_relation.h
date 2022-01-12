@@ -71,8 +71,11 @@ struct shmap_relation {
     {
         auto lower_it = ind->lower_bound(lower);
         auto upper_it = ind->upper_bound(upper);
-        if (lower_it == ind->end() || upper_it == ind->end()) {
+        if (lower_it == ind->end()) {
             return std::make_pair(ind->end(), ind->end());
+        }
+        if (upper_it == ind->end()) {
+            return std::make_pair(lower_it, upper_it);
         }
         auto lower_v = *lower_it;
         auto upper_v = *upper_it;
@@ -91,7 +94,7 @@ struct shmap_relation {
             return std::make_pair(lower_it, upper_it);
         }
         if (valid == 0) {
-            if (contains(lower)) {
+            if (ind->find(lower) != ind->end()) {
                 return std::make_pair(lower_it, lower_it);
             }
         }
