@@ -6,11 +6,11 @@ from functools import lru_cache
 from ftplib import FTP
 import hashlib
 import os
-from re import T
 import sys
 import time
 
 import grpc
+import psutil
 from six import MAXSIZE
 
 from slog.common import rel_name_from_file, make_stub, PING_INTERVAL
@@ -295,6 +295,8 @@ class SlogClient:
         req.cores = cores
         req.hashes.extend(program_hashes)
         # Get a promise for the running response
+        # this memory measure is very in precise make sure no other thing is running...
+        memory_prev = psutil.virtual_memory().used
         response = self._stub.RunHashes(req)
         writer.write(f"running promise is {response.promise_id}")
         if response.promise_id == MAXSIZE:
@@ -303,6 +305,9 @@ class SlogClient:
         out_db = self.run_until_promised(response.promise_id, PING_INTERVAL, writer)
         if not out_db:
             writer.write("Execution failed!")
+        memory_after = psutil.virtual_memory.used()
+        writer.write(f"System memory increase {(memory_after - memory_prev)/(1024*1024)}MB"
+                     " during running")
         self.update_dbs()
         return out_db
 
