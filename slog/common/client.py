@@ -305,7 +305,7 @@ class SlogClient:
         out_db = self.run_until_promised(response.promise_id, PING_INTERVAL, writer)
         if not out_db:
             writer.write("Execution failed!")
-        memory_after = psutil.virtual_memory.used()
+        memory_after = psutil.virtual_memory().used
         writer.write(f"System memory increase {(memory_after - memory_prev)/(1024*1024)}MB"
                      " during running")
         self.update_dbs()
