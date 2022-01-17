@@ -359,7 +359,9 @@
                   (compute-reordering-cpp (map second hvars) (map second bvars)))]))
 
 (define (literal->cpp-val lit)
-  (format "n2d(~a)" lit))
+  (match lit
+    [(? string?) (format "s2d(\"~a\")" lit)]
+    [else (format "n2d(~a)" lit)]))
 
 (define (compute-reordering-cpp to-xs from-xs)
   (define (index-of x [xs from-xs] [i 0])
@@ -438,7 +440,7 @@
                             (define arg (list-ref bvars1 arg-pos-in-bvars1))
                             (match arg
                               ; [(? lit?) (format "n2d(~a)" arg)]
-                              [(? string?) (format "n2d(\"~a\")" arg)]
+                              [(? string?) (format "s2d(\"~a\")" arg)]
                               [(? number?)  (format "n2d(~a)" arg)]
                               [else 
                                 (define arg-pos-in-bvars0 (index-of bvars0 arg))
@@ -505,7 +507,7 @@
                             (define arg (list-ref bvars1 arg-pos-in-bvars1))
                             (match arg
                               ; [(? lit?) (format "n2d(~a)" arg)]
-                              [(? string?) (format "n2d(\"~a\")" arg)]
+                              [(? string?) (format "s2d(\"~a\")" arg)]
                               [(? number?)  (format "n2d(~a)" arg)]
                               [else 
                                 (define arg-pos-in-bvars0 (index-of bvars0 arg))
@@ -542,7 +544,7 @@
                             (define arg (list-ref bvars1 arg-pos-in-bvars1))
                             (match arg
                               ; [(? lit?) (format "n2d(~a)" arg)]
-                              [(? string?) (format "n2d(\"~a\")" arg)]
+                              [(? string?) (format "s2d(\"~a\")" arg)]
                               [(? number?)  (format "n2d(~a)" arg)]
                               [else 
                                 (define arg-pos-in-bvars0 (index-of bvars0 arg))
@@ -668,6 +670,7 @@
     "[cl2func]" cl2func
     "[cl1func-input]" (intercalate ", " (map (λ (arg) (match arg
                                           [(? number? n) (format "n2d(~a)" n)]
+                                          [(? string? n) (format "s2d(\"~a\")" n)]
                                           [(? symbol?) (format "data[~a]" (index-of input-args arg))])) 
                                         (cl-input-args cl1)))
     "[cl1cb-params]" (intercalate2 ", " (map (app format "u64 arg~a" _) (range 0 (length (cl-output-args cl1)))))
@@ -675,6 +678,7 @@
     "[cl2func-input]" (intercalate ", "
                       (map (λ (arg) (match arg
                                       [(? number? n) (format "n2d(~a)" n)]
+                                      [(? string? n) (format "s2d(\"~a\")" n)]
                                       [(? symbol?) #:when (member arg input-args) 
                                         (format "cl1cb_state.original_data[~a]" (index-of input-args arg))]
                                       [(? symbol?) #:when (member arg (cl-output-args cl1)) 
@@ -732,6 +736,7 @@
    "[bclfunc]" bfunc
    "[bclfunc-input]" (intercalate ", " (map (λ (arg) (match arg
                                           [(? number? n) (format "n2d(~a)" n)]
+                                          [(? string? n) (format "s2d(\"~a\")" n)]
                                           [(? symbol?) (format "data[~a]" (index-of (cl-input-args hcl) arg))])) 
                                         (cl-input-args bcl)))
    "[bclcb-params]" (intercalate2 ", " (map (λ (x) (format "u64 arg~a" x)) (range 0 (length (cl-output-args bcl)))))
@@ -755,6 +760,7 @@
    "[original-callback-args]" (intercalate2 ", "
                                (map (λ (arg) (match arg
                                               [(? number? n) (format "n2d(~a)" n)]
+                                              [(? string? n) (format "s2d(\"~a\")" n)]
                                               [(? symbol?) #:when (member arg (cl-input-args hcl)) 
                                                 (format "bclcb_state.original_data[~a]" (index-of input-args arg))]
                                               [(? symbol?) #:when (member arg (cl-output-args bcl)) 
@@ -866,4 +872,4 @@
 (define (lit->cpp-datum lit)
   (match lit
     [(? number?) (format "n2d(~a)" lit)]
-    [(? string?) (format "throw \"cannot handle string literals yet! literal: ~a\"" lit)]))
+    [(? string?) (format "s2d(\"~a\")" lit)]))

@@ -8,11 +8,13 @@
 
 Slog runs on Racket.
 
-* Need binaryio, graph
+* Need binaryio, graph, rparallel, pmap
 
 ```sh
 raco pkg install binaryio
 raco pkg install graph
+raco pkg install rparallel
+raco pkg install pmap
 ```
 
 (This is incomplete, these instructions are just for running the interpreter.)
