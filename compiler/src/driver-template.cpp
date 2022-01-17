@@ -1,9 +1,12 @@
 // location of `parallel_RA_inc.h` here
 #include "~a"
 
+#include <iostream>
 #include <iterator>
 #include <sstream>
 #include <string>
+#include <unordered_set>
+#include <map>
 
 // builtins.cpp goes here!
 ~a
@@ -13,6 +16,7 @@
 
 int max_rel = 255;
 std::map<std::string, int> rel_tag_map;
+std::map<std::string, std::unordered_set<std::string>> rel_index_map;
 
 // load all relation inside input database
 void load_input_relation(std::string db_dir)
@@ -50,6 +54,12 @@ void load_input_relation(std::string db_dir)
 
 int get_tag_for_rel(std::string relation_name, std::string index_str) {
   std::string name_arity = relation_name + "__" + index_str;
+  if (rel_index_map.find(relation_name) != rel_index_map.end()) {
+    rel_index_map[relation_name].insert(index_str);
+  } else {
+    rel_index_map[relation_name] = {index_str};
+  }
+
   if (rel_tag_map.find(name_arity) != rel_tag_map.end())
   {
     // std::cout << "rel: " << name_arity << " " << rel_tag_map[name_arity] << std::endl;
@@ -87,6 +97,13 @@ int main(int argc, char **argv)
   lie->set_batch_size(1);
   lie->execute();
   lie->print_all_relation_size(); // Continuously print relation sizes
+
+  // print all variants(non-canonical index of each relation)
+  std::cout << "rel_name" << ",\t" << "indices\n"; 
+  for (auto const& rel_p : rel_index_map) {
+    std::cout << rel_p.first << ",\t" << rel_p.second.size() << "\n";
+  }
+  std::cout << std::endl;
 
   delete lie;
   mcomm.destroy();
