@@ -203,20 +203,22 @@
                             (match-let ([(list use-status2 _ _) rel-entry])
                               (equal? use-status2 'unused))))
                         (range (add1 scc-id) (hash-count scc-h))))
-              (define new-use-status
+              (define deletable-status
                 (cond
                   [(and (equal? use-status 'dynamic)
                         (internal-rel-name? rel-name)
                         (unused-after))
-                   'dynamic-to-be-deleted]
-                  [else use-status]))
-              (hash-set rel-h-accu rel (list new-use-status canonical-index indices)))
+                   'deletable]
+                  [else 'not-deletable]))
+              (hash-set rel-h-accu rel (list use-status deletable-status canonical-index indices)))
             (hash)
             (hash-keys rel-h)))
         (hash-set accu scc-id `(scc ,looping ,new-rel-h ,rules-h)))
       (hash)
       (range 0 (hash-count scc-h))))
-
+  
+  (assert (equal? (list->set (hash-keys scc-h)) (list->set (hash-keys updated-scc-h))))
+  
   `(ir-scc
     ,ir
     ,scc-dag
