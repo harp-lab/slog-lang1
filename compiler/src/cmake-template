@@ -4,6 +4,8 @@ project (~a)
 
 add_compile_options(--std=c++17 -lstdc++fs -Wno-strict-aliasing -Werror=class-memaccess -fpermissive)
 
+link_libraries(stdc++fs)
+
 find_package(MPI REQUIRED)
 # find_package(OpenMP)
 # if (OPENMP_FOUND)

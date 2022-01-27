@@ -35,6 +35,8 @@ file (GLOB source_files_wc110_10 "${tests_dir}/worstcase-110-terms-10-m.cpp")
 file (GLOB source_files_fv "${tests_dir}/freevars.cpp")
 file (GLOB source_files_kcfa "${tests_dir}/kcfa-tiny.cpp")
 
+link_libraries(stdc++fs)
+
 ADD_LIBRARY(parallel_RA "${source_files_parallel_RA}")
 
 # add_executable(ata ${source_files_ata})
