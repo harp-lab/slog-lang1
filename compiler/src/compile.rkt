@@ -57,7 +57,7 @@
       res))
   (parameterize ([current-source-tree source-tree])
     ((compose #;print-ir-incremental (time incrementalize-pass))
-     ((time scc-pass)
+     ((compose #;print-ir-scc (time scc-pass))
       ((compose #;print-ir-select (time split-selections-pass))
        ((compose #;print-ir-small (time partitioning-pass))
         ((compose #;print-ir-fixed (time remove-implicit-joins-pass))
@@ -240,13 +240,16 @@
                                        scc-id)
                                (foldl (lambda (rel-sel txt)
                                         (match-define `(rel-select ,rel-name ,rel-arity ,rel-selections ,rel-kind) rel-sel)
-                                        (string-append txt (format "~a->add_relation(~a, ~a);\n"
-                                                                   name
-                                                                   (rel->name rel-sel)
-                                                                   (let ([rel-a `(rel-arity ,rel-name ,rel-arity ,rel-kind)])
-                                                                     (if (eq? 'dynamic (first (hash-ref rel-h rel-a)))
-                                                                         "true"
-                                                                         "false")))))
+                                        (string-append 
+                                          txt 
+                                          (format "~a->add_relation(~a, ~a);\n"
+                                                  name
+                                                  (rel->name rel-sel)
+                                                  (let* ([rel-a `(rel-arity ,rel-name ,rel-arity ,rel-kind)]
+                                                        [use-status (first (hash-ref rel-h rel-a))])
+                                                    (if (member use-status (list 'dynamic 'dynamic-to-be-deleted))
+                                                        "true"
+                                                        "false")))))
                                       ""
                                       (set->list (all-needed-indices rules-h)))
                                (foldl (lambda (rule txt)

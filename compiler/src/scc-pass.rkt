@@ -80,11 +80,12 @@
   
   ;; Walk over the SCC graph (currently filled up with raw
   ;; rules) and canonicalize the rules to an ID.
+  ;; IDs are guaranteed to be in sorted order.
   (define scc->id
     (foldl (lambda (scc id scc->id) 
             (hash-set scc->id scc id))
             (hash)
-            (hash-keys scc-graph)
+            (topological-sort scc-graph)
             (range 0 (hash-count scc-graph))))
   ;; Assemble a dag of IDs by walking over the map and then
   ;; applying the map to the codomain.
@@ -107,7 +108,7 @@
     (foldl (lambda (next-rule h) (hash-set h next-rule (hash-ref rules-h next-rule)))
             (hash)
             (set->list scc)))
-  (define before (current-inexact-milliseconds))
+  ; (define before (current-inexact-milliseconds))
  
   (define rel-h-to-be-overridden 
     (foldl (λ (rel-arity accu)
@@ -185,10 +186,41 @@
   
   ; (printf "scc-pass partial ~a ms.\n" (- (current-inexact-milliseconds) before))
   
+  ;; in updated-scc-h, temporary relations (ones that can be garbage collected)
+  ;; are marked as such
+  (define updated-scc-h
+    (foldl (λ (scc-id accu)
+        (match-define `(scc ,looping ,rel-h ,rules-h) (hash-ref scc-h scc-id))
+        (define new-rel-h
+          (foldl (λ (rel rel-h-accu)
+              (match-define (and rel-arity `(rel-arity ,rel-name ,arity ,kind)) rel)
+              (match-define (list use-status canonical-index indices) (hash-ref rel-h rel))
+              (define (unused-after)
+                (andmap (λ (scc-id2)
+                          (match-define `(scc ,_ ,rel-h2 ,_) (hash-ref scc-h scc-id2))
+                          (define rel-entry (hash-ref rel-h2 rel-arity #f))
+                          (or (not rel-entry)
+                            (match-let ([(list use-status2 _ _) rel-entry])
+                              (equal? use-status2 'unused))))
+                        (range (add1 scc-id) (hash-count scc-h))))
+              (define new-use-status
+                (cond
+                  [(and (equal? use-status 'dynamic)
+                        (internal-rel-name? rel-name)
+                        (unused-after))
+                   'dynamic-to-be-deleted]
+                  [else use-status]))
+              (hash-set rel-h-accu rel (list new-use-status canonical-index indices)))
+            (hash)
+            (hash-keys rel-h)))
+        (hash-set accu scc-id `(scc ,looping ,new-rel-h ,rules-h)))
+      (hash)
+      (range 0 (hash-count scc-h))))
+
   `(ir-scc
     ,ir
     ,scc-dag
-    ,scc-h
+    ,updated-scc-h
     ,comp-rules-h))
 
 (define/contract-cond (rel-select-aggregated-rel rel-select)

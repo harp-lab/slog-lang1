@@ -11,14 +11,6 @@
 (require racket/hash)
 
 
-(define (internal-rel? rel-name)
-  (define rel-name-str (match (strip-prov rel-name)
-    [`(agg ,aggregator ,rel) "aggregator"]
-    [symbol (symbol->string symbol)]))
-  (and (string-prefix? rel-name-str "$")
-       (not (equal? rel-name-str "$lst"))
-       (not (equal? rel-name-str "$nil"))))
-
 (define/contract (optimization-pass ir)
   (-> ir-flat? ir-flat?)
   (match-define `(ir-flat ,source-tree ,rules-h ,comp-rules-h) ir)
@@ -152,7 +144,7 @@
 
 (define (remove-extra-internal-rels-step rules-h)
   (define all-rels (remove-duplicates (flat-map rule-rels (hash-keys rules-h))))
-  (define internal-rels (filter internal-rel? all-rels))
+  (define internal-rels (filter internal-rel-name? all-rels))
   (match-define (cons new-rules-h updated)
     (foldl
       (λ (rel accu)

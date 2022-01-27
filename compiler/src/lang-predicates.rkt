@@ -398,7 +398,7 @@
   (match scc
          [`(scc ,(or 'looping 'nonlooping)
                 ,(? (and/c (lambda (h) (andmap rel-arity? (hash-keys h)))
-                           (lambda (h) (andmap (cons/c (or/c 'static 'dynamic 'unused)
+                           (lambda (h) (andmap (cons/c rel-use-status?
                                                        (cons/c select-order?
                                                                (cons/c (set/c select-order?)
                                                                        null?)))
@@ -430,7 +430,7 @@
   (match scc
          [`(scc ,(or 'looping 'nonlooping)
                 ,(? (and/c (lambda (h) (andmap rel-arity? (hash-keys h)))
-                           (lambda (h) (andmap (cons/c (or/c 'static 'dynamic 'unused)
+                           (lambda (h) (andmap (cons/c rel-use-status?
                                                        (cons/c select-order?
                                                                (cons/c (set/c select-order?)
                                                                        null?)))
@@ -439,6 +439,9 @@
                            (lambda (h) (andmap rule-prov? (hash-values h))))))
           #t]
          [else #f]))
+
+(define rel-use-status?
+  (or/c 'static 'dynamic 'unused 'dynamic-to-be-deleted))
 
 (define (ir-incremental-rule? rule)
   (match rule
