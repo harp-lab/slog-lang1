@@ -179,7 +179,10 @@ def run_local(file, outloc, factloc, cores, verbose, slog_root=None, compile_bac
                                 stderr=subprocess.STDOUT)
         end = time.time()
         if verbose:
-            print(output.decode())
+            ov = output.decode()
+            print(ov)
+            with open(os.path.join(outloc, "compiler-out"), "w") as f:
+                f.write(ov)
             print(f"Time taken: {end - start}")
     except subprocess.CalledProcessError as e:
         print(f"Slog->C++ compilation failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
