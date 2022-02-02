@@ -398,10 +398,7 @@
   (match scc
          [`(scc ,(or 'looping 'nonlooping)
                 ,(? (and/c (lambda (h) (andmap rel-arity? (hash-keys h)))
-                           (lambda (h) (andmap (cons/c (or/c 'static 'dynamic 'unused)
-                                                       (cons/c select-order?
-                                                               (cons/c (set/c select-order?)
-                                                                       null?)))
+                           (lambda (h) (andmap (list/c rel-use-status? rel-deletable? select-order? (set/c select-order?))
                                                (hash-values h)))))
                 ,(? (and/c (lambda (h) (andmap ir-scc-rule? (hash-keys h)))
                            (lambda (h) (andmap rule-prov? (hash-values h))))))
@@ -430,15 +427,18 @@
   (match scc
          [`(scc ,(or 'looping 'nonlooping)
                 ,(? (and/c (lambda (h) (andmap rel-arity? (hash-keys h)))
-                           (lambda (h) (andmap (cons/c (or/c 'static 'dynamic 'unused)
-                                                       (cons/c select-order?
-                                                               (cons/c (set/c select-order?)
-                                                                       null?)))
+                           (lambda (h) (andmap (list/c rel-use-status? rel-deletable? select-order? (set/c select-order?))
                                                (hash-values h)))))
                 ,(? (and/c (lambda (h) (andmap ir-incremental-rule? (hash-keys h)))
                            (lambda (h) (andmap rule-prov? (hash-values h))))))
           #t]
          [else #f]))
+
+(define rel-use-status?
+  (or/c 'static 'dynamic 'unused))
+
+(define rel-deletable?
+  (or/c 'deletable 'not-deletable))
 
 (define (ir-incremental-rule? rule)
   (match rule
