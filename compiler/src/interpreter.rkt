@@ -200,7 +200,7 @@
   ;; This helper function allows handling inserting into either a
   ;; single selection or all selections at the same time.
   (define (helper rel-instance ids rel-name rel-arity select-orders)
-    (match-define `(,_ ,canonical-index ,_) (hash-ref (Ir-interp-rel-arity-map ir-interp) rel-arity))
+    (match-define `(,_ ,_ ,canonical-index ,_) (hash-ref (Ir-interp-rel-arity-map ir-interp) rel-arity))
     (match-define `(rel-instance ,fact-map ,relation-id ,next-id) rel-instance)
     (if (hash-ref fact-map ids #f)
         ;; If so, simply return that fact
@@ -383,7 +383,7 @@
           (match rel-arity
             [`(rel-arity ,rel-name ,arity ,kind)
              (match (hash-ref rel-arity-map rel-arity)
-               [`(,_ ,canonical-select-set ,select-orders)
+               [`(,_ ,_ ,canonical-select-set ,select-orders)
                 (foldl
                  (λ (select-order h)
                    (foldl
@@ -801,7 +801,7 @@
             (match-define `(rel-arity ,name ,arity ,kind) ra)
             ;; For each rel-arity key
             (match (hash-ref rel-arity-map ra)
-              [`(,_ ,canonical-index ,all-selections)
+              [`(,_ ,_ ,canonical-index ,all-selections)
                 (foldl
                 ;; For each selection
                 (lambda (selection indices-map)

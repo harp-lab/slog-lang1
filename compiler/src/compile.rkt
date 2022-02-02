@@ -57,7 +57,7 @@
       res))
   (parameterize ([current-source-tree source-tree])
     ((compose #;print-ir-incremental (time incrementalize-pass))
-     ((time scc-pass)
+     ((compose #;print-ir-scc (time scc-pass))
       ((compose #;print-ir-select (time split-selections-pass))
        ((compose #;print-ir-small (time partitioning-pass))
         ((compose #;print-ir-fixed (time remove-implicit-joins-pass))
@@ -102,7 +102,7 @@
                       (foldl (lambda (rel st)
                               (match rel
                                       [`(rel-arity ,nm ,arity ,kind)
-                                      (define sel-st (third (hash-ref rel-h rel)))
+                                      (define sel-st (fourth (hash-ref rel-h rel)))
                                       (foldl (lambda (sel st)
                                                 (set-add st `(rel-select ,nm ,arity ,sel ,kind)))
                                               st
@@ -231,31 +231,32 @@
            (set)
            (hash-keys rules-h)))
   (match scc
-         [`(scc ,looping ,rel-h ,rules-h)
-          (define name (symbol->string (gensym 'scc)))
-          (cons name
-                (string-append (format "\nRAM* ~a = new RAM(~a, ~a);\n"
-                                       name
-                                       (if (eq? looping 'looping) "true" "false")
-                                       scc-id)
-                               (foldl (lambda (rel-sel txt)
-                                        (match-define `(rel-select ,rel-name ,rel-arity ,rel-selections ,rel-kind) rel-sel)
-                                        (string-append txt (format "~a->add_relation(~a, ~a);\n"
-                                                                   name
-                                                                   (rel->name rel-sel)
-                                                                   (let ([rel-a `(rel-arity ,rel-name ,rel-arity ,rel-kind)])
-                                                                     (if (eq? 'dynamic (first (hash-ref rel-h rel-a)))
-                                                                         "true"
-                                                                         "false")))))
-                                      ""
-                                      (set->list (all-needed-indices rules-h)))
-                               (foldl (lambda (rule txt)
-                                        (string-append txt
-                                                       (format "~a->add_rule(~a);\n"
-                                                               name
-                                                               (slog-compile-rule-to-cpp rule comp-rels-func-names))))
-                                      ""
-                                      (hash-keys rules-h))))]))
+    [`(scc ,looping ,rel-h ,rules-h)
+     (define name (symbol->string (gensym 'scc)))
+     (cons name
+          (string-append (format "\nRAM* ~a = new RAM(~a, ~a);\n"
+                                  name
+                                  (if (eq? looping 'looping) "true" "false")
+                                  scc-id)
+                          (foldl (lambda (rel-sel txt)
+                                  (match-define `(rel-select ,rel-name ,rel-arity ,rel-selections ,rel-kind) rel-sel)
+                                  (define rel-a `(rel-arity ,rel-name ,rel-arity ,rel-kind))
+                                  (match-define (list use-status deletable-status canonical-index indices) (hash-ref rel-h rel-a))
+                                  (string-append 
+                                    txt 
+                                    (format "~a->add_relation(~a, ~a);\n"
+                                            name
+                                            (rel->name rel-sel)
+                                            (if (equal? use-status 'dynamic) "true" "false"))))
+                                ""
+                                (set->list (all-needed-indices rules-h)))
+                          (foldl (lambda (rule txt)
+                                  (string-append txt
+                                                  (format "~a->add_rule(~a);\n"
+                                                          name
+                                                          (slog-compile-rule-to-cpp rule comp-rels-func-names))))
+                                ""
+                                (hash-keys rules-h))))]))
 
 (define (rel-version->name rel-version)
   (match-define `(rel-version ,name ,arity ,ind ,ver) rel-version)

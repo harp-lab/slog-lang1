@@ -49,6 +49,8 @@
          print-ir-select
          print-ir-small
          print-ir-incremental
+         print-ir-scc
+         internal-rel-name?
          (all-from-out "generic-utils.rkt"))
 
 ; Helper for reading in all s-exprs from STDIN
@@ -800,6 +802,8 @@
   (for ([scc-id (hash-keys scc-h)])
     (match-define `(scc ,looping ,rel-h ,rules-h) (hash-ref scc-h scc-id))
     (pretty-print `(scc ,scc-id ,looping ... ...))
+    (printf "rel-h: \n")
+    (pretty-print rel-h)
     (map pretty-print
           (map strip-prov (hash-keys rules-h)))
     (newline))
@@ -827,3 +831,11 @@
       (pretty-print (strip-prov comp-rule))
       (newline)))
   ir)
+
+(define (internal-rel-name? rel-name)
+  (define rel-name-str (match (strip-prov rel-name)
+    [`(agg ,aggregator ,rel) "aggregator"]
+    [symbol (symbol->string symbol)]))
+  (and (string-prefix? rel-name-str "$")
+       (not (equal? rel-name-str "$lst"))
+       (not (equal? rel-name-str "$nil"))))
