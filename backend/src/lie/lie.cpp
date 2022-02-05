@@ -7,6 +7,8 @@
 
 #include "../parallel_RA_inc.h"
 #include <iostream>
+#include <tuple>
+#include <utility>
 //#include <experimental/filesystem>
 
 
@@ -148,10 +150,32 @@ void LIE::print_all_relation_size()
         if (mcomm.get_local_rank() == 0)
             std::cout << curr_relation->get_debug_id() << ": {" << curr_relation->get_arity() << "}. (" << global_total_facts[i] << " total facts)" << std::endl;
         total_facts = total_facts + global_total_facts[i];
+        rel_size_map[curr_relation->get_intern_tag()] = std::make_tuple(global_total_facts[i], curr_relation->get_arity(), curr_relation->is_intermediate_relation());
     }
 #endif
     if (mcomm.get_local_rank() == 0)
         std::cout << "Total facts across all relations " << total_facts << std::endl << std::endl;
+}
+
+void LIE::stat_intermediate()
+{
+    u64 intermediate_tuple_bytes = 0;
+    u64 actual_tuple_bytes = 0;
+    for (auto & tp : rel_size_map) {
+        bool is_interm = std::get<2>(tp.second);
+        u64 tuple_count = std::get<0>(tp.second);
+        int arity = std::get<1>(tp.second);
+        if (is_interm) {
+            intermediate_tuple_bytes += tuple_count * arity * 8;
+        } else {
+            actual_tuple_bytes += tuple_count * arity * 8;
+        }
+    }
+    if (mcomm.get_local_rank() == 0) {
+        std::cout << "Total actual facts: " <<  actual_tuple_bytes / (1024*1024) << " MB." << std::endl;
+        std::cout << "Total intermediate facts: " <<  intermediate_tuple_bytes / (1024*1024) << " MB." << std::endl;
+        std::cout << "Intermediate overhead ratio: " << intermediate_tuple_bytes * 1.0 / (actual_tuple_bytes + intermediate_tuple_bytes) << std::endl;
+    }
 }
 
 
@@ -525,7 +549,7 @@ bool LIE::execute ()
         /// loads new runnable task
         executable_task = one_runnable_tasks();
     }
-    print_all_relation_size();
+    // print_all_relation_size();
 
     write_final_checkpoint_dump();
 
