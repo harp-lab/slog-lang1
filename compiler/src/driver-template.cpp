@@ -96,7 +96,8 @@ int main(int argc, char **argv)
   lie->set_comm(mcomm);
   lie->set_batch_size(1);
   lie->execute();
-  lie->print_all_relation_size(); // Continuously print relation sizes
+  lie->print_all_relation_size(); // Continuously print relation sizes 
+  lie->stat_intermediate();
 
   // print all variants(non-canonical index of each relation)
   std::cout << "rel_name" << ",\t" << "indices\n"; 

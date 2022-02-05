@@ -69,6 +69,8 @@ private:
 
     int cp_iteration;
 
+    std::map<int, std::tuple<u64, int , bool>> rel_size_map;   // {rel_tag |-> (size, arity, intermediate?)}
+
 public:
 
     ~LIE();
@@ -173,6 +175,9 @@ public:
     void write_checkpoint_dump(int loop_counter, std::vector<int> executed_scc_id, int scc_id);
 
     void create_checkpoint_dump(int loop_counter, int scc_id);
+
+    // print some infomation about how the overhead of intermediate relation
+    void stat_intermediate();
 };
 
 #endif

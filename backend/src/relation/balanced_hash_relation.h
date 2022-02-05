@@ -8,6 +8,8 @@
 #pragma once
 
 #include "../ds.h"
+#include <algorithm>
+#include <string>
 
 enum {LEFT=0, RIGHT};
 enum {DELTA=0, FULL, FULL_AND_DELTA};
@@ -246,4 +248,14 @@ public:
     /// for load balancing (implemented in relation_load_balance.cpp)
     bool load_balance_merge_full_and_delta(float rf);
     bool load_balance_split_full_and_delta(float rf);
+
+    // check if a relation is intermediate relation (which means either non-canonical index or relation generated 
+    // by slog compiler)
+    bool is_intermediate_relation() {
+        auto found_doller = debug_id.find('$');
+        if (found_doller != std::string::npos) {
+            return true;
+        }
+        return !is_canonical;
+    }
 };
