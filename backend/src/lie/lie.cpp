@@ -6,7 +6,11 @@
 
 
 #include "../parallel_RA_inc.h"
+#include <algorithm>
+#include <cstddef>
+#include <filesystem>
 #include <iostream>
+#include <mpi.h>
 //#include <experimental/filesystem>
 
 
@@ -66,11 +70,25 @@ RAM* LIE::one_runnable_tasks()
 
 void LIE::update_task_graph(RAM* executable_task)
 {
-    for (u32 i=0; i < lie_sccs_count; i++)
+    for (u32 i=0; i < lie_sccs.size(); i++)
     {
         if (lie_sccs[i] == executable_task)
         {
             taskgraph.erase(lie_sccs[i]);
+            // check if relation in this scc need gc
+            auto gc_rels = executable_task->get_gc_relation();
+            for (int j=0; j < gc_rels.size(); j++) {
+                auto pos = std::find(lie_relations.begin(), lie_relations.end(), gc_rels[j]);
+                if (pos != lie_relations.end()) {
+                    lie_relations.erase(pos);
+                }
+                // before finalize, print rel size and dump to disk first
+                write_final_checkpoint_dump(gc_rels[j]);
+                print_relation_size(gc_rels[j]);
+                gc_rels[j]->finalize_relation();
+                delete gc_rels[j];
+                gc_rels[j] = NULL;
+            }
             delete lie_sccs[i];
             lie_sccs[i] = NULL;
         }
@@ -131,18 +149,18 @@ void LIE::print_all_relation()
 void LIE::print_all_relation_size()
 {
     u64 total_facts=0;
-    u64 local_facts[lie_relation_count];
-    for (u32 i = 0 ; i < lie_relation_count; i++)
+    u64 local_facts[lie_relations.size()];
+    for (u32 i = 0 ; i < lie_relations.size(); i++)
     {
         relation* curr_relation = lie_relations[i];
         local_facts[i] = curr_relation->get_full_element_count();
         //local_facts[i] = local_facts[i] + curr_relation->get_delta_element_count();
     }
 
-    u64 global_total_facts[lie_relation_count];
-    MPI_Allreduce(local_facts, global_total_facts, lie_relation_count, MPI_UNSIGNED_LONG_LONG, MPI_SUM, mcomm.get_local_comm());
+    u64 global_total_facts[lie_relations.size()];
+    MPI_Allreduce(local_facts, global_total_facts, lie_relations.size(), MPI_UNSIGNED_LONG_LONG, MPI_SUM, mcomm.get_local_comm());
 #if 1
-    for (u32 i = 0 ; i < lie_relation_count; i++)
+    for (u32 i = 0 ; i < lie_relations.size(); i++)
     {
         relation* curr_relation = lie_relations[i];
         if (mcomm.get_local_rank() == 0)
@@ -150,10 +168,18 @@ void LIE::print_all_relation_size()
         total_facts = total_facts + global_total_facts[i];
     }
 #endif
-    if (mcomm.get_local_rank() == 0)
-        std::cout << "Total facts across all relations " << total_facts << std::endl << std::endl;
+    // if (mcomm.get_local_rank() == 0)
+    //     std::cout << "Total facts across all relations " << total_facts << std::endl << std::endl;
 }
 
+void LIE::print_relation_size(relation* rel) {
+    u64 local_count = rel->get_full_element_count();
+    u64 global_count = 0;
+    MPI_Reduce(&local_count, &global_count, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, mcomm.get_local_comm());
+    if (mcomm.get_local_rank() == 0) {
+        std::cout << rel->get_debug_id() << ": {" << rel->get_arity() << "}. (" << global_count << " total facts)" << std::endl;
+    }
+}
 
 
 void LIE::write_checkpoint_dump(int loop_counter, std::vector<int> executed_scc_id, int scc_id)
@@ -180,7 +206,7 @@ void LIE::write_checkpoint_dump(int loop_counter, std::vector<int> executed_scc_
     std::string dir_name;
     dir_name = output_dir + "/checkpoint-" + std::to_string(scc_id) + "-" + std::to_string(loop_counter);
     //std::cout << " output_dir name "<< dir_name << std::endl;
-    for (u32 i = 0 ; i < lie_relation_count; i++)
+    for (u32 i = 0 ; i < lie_relations.size(); i++)
     {
         //std::cout << "Name " << lie_relations[i]->get_filename() << std::endl;
         //if(lie_relations[i]->get_debug_id() == "rel_path_2_1_2")
@@ -198,7 +224,7 @@ void LIE::write_final_checkpoint_dump()
     if (mcomm.get_local_rank() == 0)
         std::filesystem::create_directories(dir_name.c_str());
     MPI_Barrier(mcomm.get_local_comm());
-    for (u32 i = 0 ; i < lie_relation_count; i++)
+    for (u32 i = 0 ; i < lie_relations.size(); i++)
     {
         if (lie_relations[i]->get_is_canonical() && lie_relations[i]->get_arity() != 0)
             lie_relations[i]->parallel_IO(dir_name);
@@ -206,6 +232,17 @@ void LIE::write_final_checkpoint_dump()
 #endif
 }
 
+void LIE::write_final_checkpoint_dump(relation* rel) {
+    std::string dir_name;
+    dir_name = output_dir + "/checkpoint-final";
+    std::filesystem::path dir_path(dir_name);
+    if (mcomm.get_local_rank() == 0 && (!std::filesystem::exists(dir_path))) {
+        std::filesystem::create_directories(dir_path);
+    }
+    MPI_Barrier(mcomm.get_local_comm());
+    if (rel->get_is_canonical() && rel->get_arity() != 0)
+        rel->parallel_IO(dir_name);
+}
 
 
 void LIE::create_checkpoint_dump(int loop_counter, int scc_id)
@@ -239,7 +276,7 @@ bool LIE::execute ()
 #endif
 
     /// Initialize all relations
-    for (u32 i = 0 ; i < lie_relation_count; i++)
+    for (u32 i = 0 ; i < lie_relations.size(); i++)
     {
         lie_relations[i]->set_restart_flag(restart_flag);
         lie_relations[i]->set_share_io(share_io);
@@ -525,7 +562,7 @@ bool LIE::execute ()
         /// loads new runnable task
         executable_task = one_runnable_tasks();
     }
-    print_all_relation_size();
+    // print_all_relation_size();
 
     write_final_checkpoint_dump();
 
@@ -547,7 +584,7 @@ bool LIE::execute ()
 
 LIE::~LIE ()
 {
-    for (u32 i = 0 ; i < lie_relation_count; i++)
+    for (u32 i = 0 ; i < lie_relations.size(); i++)
     {
         lie_relations[i]->finalize_relation();
         delete (lie_relations[i]);

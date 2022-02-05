@@ -128,6 +128,8 @@ public:
 
     void print_all_relation_size();
 
+    void print_relation_size(relation* rel);
+
     /// Sets the communicator object
     void set_comm(mpi_comm comm)   { mcomm = comm;  }
 
@@ -169,6 +171,8 @@ public:
     bool execute();
 
     void write_final_checkpoint_dump();
+
+    void write_final_checkpoint_dump(relation* rel);
 
     void write_checkpoint_dump(int loop_counter, std::vector<int> executed_scc_id, int scc_id);
 
