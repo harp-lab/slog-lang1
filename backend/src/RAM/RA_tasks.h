@@ -10,6 +10,7 @@
 
 
 
+#include <vector>
 class RAM
 {
 
@@ -26,6 +27,8 @@ private:
 
 
     u32 ram_relation_count;
+
+    std::vector<relation*> gc_relations;                     // the relation need to be gced after finish compute current SCC
     std::vector<relation*> ram_relations;
     //relation *ram_relations[1024];
     std::vector<bool> ram_relation_status;
@@ -79,7 +82,9 @@ public:
 
 
     /// add relations pertaining to this SCC
-    void add_relation(relation*& G, bool i_status);
+    void add_relation(relation*& G, bool i_status) { add_relation(G, i_status, false); }
+
+    void add_relation(relation*& G, bool i_status, bool gc_flag);
 
 
     /// add rule to the SCC
@@ -108,6 +113,8 @@ public:
 
 
     u32 get_ram_relation_count() {return ram_relation_count;}
+
+    std::vector<relation*>& get_gc_relation() { return gc_relations; }
 
 
     /// Spatial balancing of all relations
@@ -150,7 +157,8 @@ public:
     /// has fixed point reached
     void check_for_fixed_point(std::vector<u32>& history);
 
-
+    // check whether a relation in this scc
+    bool contains_relation(int tag);
 
     /// Start running this SCC (task) for "batck_size" iterations
     void execute_in_batches(std::string name, int batch_size, std::vector<u32>& history, std::map<u64, u64>& intern_map, int *loop_counter,int task_id, std::string output_dir, bool all_to_all_record, int sloav_mode, int* rotate_index_array, int** send_indexes, int *sendb_num);

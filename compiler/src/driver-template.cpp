@@ -105,6 +105,7 @@ int main(int argc, char **argv)
     std::cout << rel_p.first << ",\t" << rel_p.second.size() << "\n";
   }
   std::cout << std::endl;
+  // lie->print_all_relation_size(); // Continuously print relation sizes
 
   delete lie;
   mcomm.destroy();

@@ -31,11 +31,14 @@ RAM::RAM (bool ic, int r_id)
 /// Example
 /// rel_edge_2_2: relation that is being added to the SCC
 /// false: keep the delta and full the way they are (true: move whatever is in full to delta, once before the start of the fixed point loop)
-void RAM::add_relation(relation*& G, bool i_status)
+void RAM::add_relation(relation*& G, bool i_status, bool gc_flag)
 {
     //ram_relations[ram_relation_count] = G;
     ram_relations.push_back(G);
     ram_relation_status.push_back(i_status);
+    if (gc_flag) {
+        gc_relations.push_back(G);
+    }
     //ram_relation_status[ram_relation_count] = i_status;
     ram_relation_count++;
 }
@@ -1261,4 +1264,13 @@ void RAM::execute_in_batches_comm_compaction(std::string name, int batch_size, s
 
     if (logging == true)
         print_all_relation();
+}
+
+bool RAM::contains_relation(int tag) {
+    for (auto rel : ram_relations) {
+        if (rel->get_intern_tag() == tag) {
+            return true;
+        }
+    }
+    return false;
 }

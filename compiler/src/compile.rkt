@@ -232,7 +232,7 @@
            (hash-keys rules-h)))
   (match scc
     [`(scc ,looping ,rel-h ,rules-h)
-     (define name (symbol->string (gensym 'scc)))
+     (define name (format "scc~a" scc-id))
      (cons name
           (string-append (format "\nRAM* ~a = new RAM(~a, ~a);\n"
                                   name
@@ -244,10 +244,11 @@
                                   (match-define (list use-status deletable-status canonical-index indices) (hash-ref rel-h rel-a))
                                   (string-append 
                                     txt 
-                                    (format "~a->add_relation(~a, ~a);\n"
+                                    (format "~a->add_relation(~a, ~a, ~a);\n"
                                             name
                                             (rel->name rel-sel)
-                                            (if (equal? use-status 'dynamic) "true" "false"))))
+                                            (if (equal? use-status 'dynamic) "true" "false")
+                                            (if (equal? deletable-status 'deletable) "true" "false"))))
                                 ""
                                 (set->list (all-needed-indices rules-h)))
                           (foldl (lambda (rule txt)
