@@ -165,9 +165,6 @@ struct shmap_relation {
     ~shmap_relation()
     {
         ind->clear();
-        // int rank;
-        // MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        // std::cout << "default constructor " << rank <<std::endl;
         delete ind;
     }
 };

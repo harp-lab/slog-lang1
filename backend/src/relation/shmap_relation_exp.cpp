@@ -25,9 +25,6 @@ shmap_relation::shmap_relation(int arity)
 
 bool shmap_relation::insert_tuple_from_array(u64 *t, int width)
 {
-    // for (int i=0; i < width; i++)
-    //    std::cout << t[i] << "\t";
-    // std::cout << "arity " << arity << "\n";
     t_tuple tp(t, t+width);
 
     return insert(tp);
@@ -69,14 +66,11 @@ void shmap_relation::as_vector_buffer_recursive(vector_buffer *vb, std::vector<u
     }
     for (const auto &cur_path : (*this))
     {
-        // std::cout << "tuple >> ";
         u64 path[cur_path.size()];
         for (u32 i = 0; i < cur_path.size(); i++)
         {
             path[i] = cur_path[i];
-            // std::cout << cur_path[i] << " ";
         }
-        // std::cout << std::endl;
         vb->vector_buffer_append((const unsigned char*)path, sizeof(u64)*cur_path.size());
     }
 }
@@ -97,12 +91,6 @@ void shmap_relation::as_all_to_allv_acopy_buffer(
         return;
     for (const t_tuple &cur_path : (*this))
     {
-        // std::cout << "acopy >> ";
-        // for (const auto &v: cur_path)
-        // {
-        //     std::cout << v << " ";
-        // }
-        // std::cout << std::endl;
         u64 reordered_cur_path[buffer.width[ra_id]];
         for (int j =0; j < buffer.width[ra_id]; j++)
             reordered_cur_path[j] = cur_path[reorder_map[j]];
@@ -146,11 +134,6 @@ void shmap_relation::as_all_to_allv_copy_buffer(
         uint64_t sub_bucket_id=0;
         if (canonical == false && arity != 0 && arity >= head_rel_hash_col_count)
             sub_bucket_id = tuple_hash(reordered_cur_path + head_rel_hash_col_count, arity-head_rel_hash_col_count) % output_sub_bucket_count[bucket_id];
-        // std::cout << " copyed " << std::endl;
-        // std::cout << "Copy size " << buffer.width[ra_id] << std::endl;
-        // std::cout << "Copy happening " << cur_path[0] << " " << cur_path[1] <<  std::endl;
-        // std::cout << "Copy happening " << reordered_cur_path[0] << " " << reordered_cur_path[1] <<  std::endl;
-        // std::cout << "Bucket id " << bucket_id << " sub bucket id " <<sub_bucket_id << std::endl;
         int index = output_sub_bucket_rank[bucket_id][sub_bucket_id];
         buffer.local_compute_output_size_rel[ra_id] = buffer.local_compute_output_size_rel[ra_id] + buffer.width[ra_id];
         buffer.local_compute_output_size_total = buffer.local_compute_output_size_total + buffer.width[ra_id];
@@ -230,7 +213,6 @@ void shmap_relation::as_all_to_allv_copy_generate_buffer(
             if (canonical == false && arity != 0 && arity >= head_rel_hash_col_count)
                 sub_bucket_id = tuple_hash(reordered_cur_path + head_rel_hash_col_count, arity-head_rel_hash_col_count) % output_sub_bucket_count[bucket_id];
 
-            //std::cout << "CG bucket_id " << bucket_id << " sub_bucket_id " << sub_bucket_id << std::endl;
             int index = output_sub_bucket_rank[bucket_id][sub_bucket_id];
             buffer.local_compute_output_size_rel[ra_id] = buffer.local_compute_output_size_rel[ra_id] + buffer.width[ra_id];
             buffer.local_compute_output_size_total = buffer.local_compute_output_size_total + buffer.width[ra_id];
@@ -275,17 +257,6 @@ void shmap_relation::as_all_to_allv_right_join_buffer(
     for(auto it = joined_range.first; it != joined_range.second && it != ind->end(); ++it)
     {
         auto cur_path = *it;
-        // std::cout << "found ";
-        // for (auto v: cur_path)
-        // {
-        //     std::cout << v << " ";
-        // }
-        // std::cout << " with prefix ";
-        // for (auto v: prefix)
-        // {
-        //     std::cout << v << " ";
-        // }
-        // std::cout << std::endl;
         u64 projected_path[join_buffer.width[ra_id]];
         u64 reordered_cur_path[input0_buffer_width + input1_buffer_width - join_column_count];
         for (int i = 0; i < input1_buffer_width; i++)
@@ -317,11 +288,6 @@ void shmap_relation::as_all_to_allv_right_join_buffer(
         }
         else {
             (*local_join_duplicates)++;
-            // std::cout << "duplicate facts ";
-            // for (auto v: projected_path) {
-            //     std::cout << v << "\t";
-            // }
-            // std::cout << std::endl;
         }
     }
     // std::cout << "inserted " << *local_join_inserts << std::endl;
@@ -343,10 +309,6 @@ void shmap_relation::as_all_to_allv_left_join_buffer(
     int head_rel_hash_col_count,
     bool canonical)
 {
-    // std::cout << "prefix >> ";
-    // for (auto x: prefix) {
-    //     std::cout << x << " ";
-    // }
     if (size() == 0)
         return;
     // construct range
@@ -361,17 +323,6 @@ void shmap_relation::as_all_to_allv_left_join_buffer(
     for(auto it = joined_range.first; it != joined_range.second && it != ind->end(); ++it)
     {
         auto cur_path = *it;
-        // std::cout << "found ";
-        // for (auto v: cur_path)
-        // {
-        //     std::cout << v << " ";
-        // }
-        // std::cout << " with prefix ";
-        // for (auto v: prefix)
-        // {
-        //     std::cout << v << " ";
-        // }
-        // std::cout << std::endl;
         u64 projected_path[join_buffer.width[ra_id]];
         u64 reordered_cur_path[input0_buffer_width + input1_buffer_width - join_column_count];
         for (int i = 0; i < input0_buffer_width; i++)
@@ -403,11 +354,6 @@ void shmap_relation::as_all_to_allv_left_join_buffer(
             (*local_join_count)++;
         }
         else {
-            // std::cout << "duplicate facts ";
-            // for (auto v: projected_path) {
-            //     std::cout << v << "\t";
-            // }
-            // std::cout << std::endl;
             (*local_join_duplicates)++;
         }
     }
@@ -433,13 +379,6 @@ void shmap_relation::as_all_to_allv_right_outer_join_buffer(
     shmap_relation negated_target(join_column_count);
     for (int k1 = *offset; k1 < input0_buffer_size; k1 = k1 + input0_buffer_width)
     {
-        // std::cout << "NEG PREFIX  ";
-        // for (int jc=0; jc < join_column_count; jc++)
-        // {
-        //     prefix[jc] = input0_buffer[k1 + jc];
-        //     // std::cout << input0_buffer[k1 + jc] << " ";
-        // }
-        // std::cout << std::endl;
         negated_target.insert_tuple_from_array(input0_buffer+k1, join_column_count);
     }
 
@@ -457,10 +396,6 @@ void shmap_relation::as_all_to_allv_right_outer_join_buffer(
             if (canonical == false && out_airty != 0 && out_airty >= head_rel_hash_col_count)
                 sub_bucket_id = tuple_hash(reordered_cur_path + head_rel_hash_col_count, out_airty-head_rel_hash_col_count) % output_sub_bucket_count[bucket_id];
 
-            //std::cout << "Copy size " << buffer.width[ra_id] << std::endl;
-            //std::cout << "Copy happening " << cur_path[0] << " " << cur_path[1] <<  std::endl;
-            //std::cout << "Copy happening " << reordered_cur_path[0] << " " << reordered_cur_path[1] <<  std::endl;
-            //std::cout << "Bucket id " << bucket_id << " sub bucket id " <<sub_bucket_id << std::endl;
             int index = output_sub_bucket_rank[bucket_id][sub_bucket_id];
             join_buffer.local_compute_output_size_rel[ra_id] = join_buffer.local_compute_output_size_rel[ra_id] + join_buffer.width[ra_id];
             join_buffer.local_compute_output_size_total = join_buffer.local_compute_output_size_total + join_buffer.width[ra_id];
