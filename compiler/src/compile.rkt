@@ -625,7 +625,10 @@
 
 (define aggregators
   `((~ 1 (1) "agg_not_1_local" "agg_not_reduce" "agg_not_global")
-    (~ 2 (1 2) "agg_not_2_local" "agg_not_reduce" "agg_not_global")))
+    (~ 2 (1 2) "agg_not_2_local" "agg_not_reduce" "agg_not_global")
+    (sum 1 () "agg_sum_local" "agg_sum_reduce" "agg_sum_global")
+    (sum 2 (1) "agg_sum_local" "agg_sum_reduce" "agg_sum_global")
+    (sum 3 (1 2) "agg_sum_local" "agg_sum_reduce" "agg_sum_global")))
 
 (define (cl-input-args cl)
     (match cl

@@ -186,10 +186,19 @@ template<typename TState> inline TState builtin_nop(const u64* data, TState init
 
 //////////////////// AGGREGATORS ////////////////////
 
-// using local_agg_res_t = u64;
+
+struct _BTree_Iterator {
+  virtual u64* operator*() = 0;
+  virtual bool operator!=(const _BTree_Iterator& rhs) = 0;
+  virtual _BTree_Iterator& operator++() = 0;
+};
 struct _BTree {
   virtual bool has_key(const u64* key) = 0;
+  virtual _BTree_Iterator& begin() = 0;
+  virtual _BTree_Iterator& end() = 0;
 };
+
+using local_agg_res_t = u64;
 
 // typedef local_agg_res_t *local_agg_func_t (_BTree* agg_rel, const u64* data);
 
@@ -197,7 +206,7 @@ struct _BTree {
 
 // typedef int *global_agg_func_t (u64* data, local_agg_res_t agg_data, int agg_data_count, u64* output); 
 
-// void parallel_copy_aggregate(relation rel, relation agg_rel, relation target_rel, 
+// parallel_copy_aggregate(relation rel, relation agg_rel, relation target_rel, 
 //                              local_agg_func_t local_agg_func, reduce_agg_func_t reduce_agg_func, global_agg_func_t global_agg_fun);
 
 local_agg_res_t agg_not_reduce(local_agg_res_t x, local_agg_res_t y) {
@@ -220,6 +229,26 @@ template<typename TState> TState agg_not_global(u64* data, local_agg_res_t agg_d
     cout << "agg_not_global: calling callback!" << "\n";
     return callback(init_state);
   }
+}
+
+
+local_agg_res_t agg_sum_local(_BTree* rel, const u64* data) {
+  u64 sum = 0;
+  for (auto iter = rel->begin(); iter != rel->end(); iter++){
+    auto current = *iter;
+    if (is_number(*current)) {
+      sum += d2n(*current);
+    }
+  }
+  return sum;
+}
+
+local_agg_res_t agg_sum_reduce(local_agg_res_t x, local_agg_res_t y) {
+  return x + y;
+}
+
+template<typename TState> TState agg_sum_global(u64* data, local_agg_res_t agg_data, u64 agg_data_count, TState init_state, TState (*callback) (u64 res, TState state)){
+  return callback(n2d(agg_data), init_state);
 }
 
 // end of builtins.cpp
