@@ -312,16 +312,16 @@
            #:when (agg-rel-kind? ver)
           (match-define `(agg ,aggregated-rel) ver)
           ; (define bi-rel-select `(rel-select ,op ,op-arity ,op-indices comp))
-          (match-define (list local-cpp-func reduce-cpp-func global-cpp-func)
+          (match-define (list local-cpp-func special-agg reduce-cpp-func global-cpp-func)
             (generate-cpp-lambdas-for-rule-with-aggregator rule))
           ;parallel_copy_aggregate(relation rel, relation agg_rel, relation target_rel, char* ver,
           ;                    local_agg_func_t local_agg_func, reduce_agg_func_t reduce_agg_func, global_agg_func_t global_agg_fun);
-          (format "new parallel_copy_aggregate(~a, ~a, ~a, ~a, ~a, ~a, ~a)"
+          (format "new parallel_copy_aggregate(~a, ~a, ~a, ~a, ~a, ~a, ~a, ~a)"
                       (rel->name rel-sel)
                       (rel->name (strip-prov aggregated-rel))
                       (rel->name `(rel-select ,@(take (drop rel-ver0 1) 3) db))
                       (match (last rel-ver0) ['total "FULL"] ['delta "DELTA"] ['new "NEW"])
-                      local-cpp-func reduce-cpp-func global-cpp-func)]
+                      local-cpp-func special-agg reduce-cpp-func global-cpp-func)]
 
          [`(srule ,(? ir-incremental-hclause? `(prov ((prov ,(? rel-select? rel-sel) ,_) ,hvars ...) ,_))
                   ,(? ir-incremental-bclause? `(prov ((prov ,(? rel-version? rel-ver0) ,_) ,bvars0 ...) ,_))
@@ -397,9 +397,9 @@
                         (,rel-ver0 ,bvars0 ...)
                         ((rel-version ,bi-op ,op-arity ,new-indices ,kind) ,bvars1 ...)) (strip-prov r))
   (define best-match (get-matching-builtin-or-aggregator-spec `(rel-version ,bi-op ,op-arity ,new-indices ,kind)))
-  (match-define `(,name ,arity ,indices ,local-cpp-func ,reduce-cpp-func ,global-cpp-func) best-match)
+  (match-define `(,name ,arity ,indices ,local-cpp-func ,special-agg ,reduce-cpp-func ,global-cpp-func) best-match)
   (match-define (cons res-local-func res-global-func) (generate-cpp-lambdas-for-rule-with-aggregator-impl r indices local-cpp-func global-cpp-func))
-  (list res-local-func reduce-cpp-func res-global-func))
+  (list res-local-func special-agg reduce-cpp-func res-global-func))
 
 
 (define (generate-cpp-lambda-for-rule-with-builtin-impl r available-indices cpp-func-name)
@@ -625,11 +625,15 @@
     (not-number? 1 (1) "builtin_not_number_huh")))
 
 (define aggregators
-  `((~ 1 (1) "agg_not_1_local" "agg_not_reduce" "agg_not_global")
-    (~ 2 (1 2) "agg_not_2_local" "agg_not_reduce" "agg_not_global")
-    (sum 1 () "agg_sum_local" "agg_sum_reduce" "agg_sum_global")
-    (sum 2 (1) "agg_sum_local" "agg_sum_reduce" "agg_sum_global")
-    (sum 3 (1 2) "agg_sum_local" "agg_sum_reduce" "agg_sum_global")))
+  `((~ 1 (1) "agg_not_1_local" "SpecialAggregator::none" "agg_not_reduce" "agg_not_global")
+    (~ 2 (1 2) "agg_not_2_local" "SpecialAggregator::none" "agg_not_reduce" "agg_not_global")
+    ; (sum 1 () "agg_sum_local" "SpecialAggregator::none" "agg_sum_reduce" "agg_sum_global")
+    ; (sum 2 (1) "agg_sum_local" "SpecialAggregator::none" "agg_sum_reduce" "agg_sum_global")
+    ; (sum 3 (1 2) "agg_sum_local" "SpecialAggregator::none" "agg_sum_reduce" "agg_sum_global")
+    
+    (sum 1 () "agg_sum_local" "SpecialAggregator::sum" "nullptr" "agg_sum_global")
+    (sum 2 (1) "agg_sum_local" "SpecialAggregator::sum" "nullptr" "agg_sum_global")
+    (sum 3 (1 2) "agg_sum_local" "SpecialAggregator::sum" "nullptr" "agg_sum_global")))
 
 (define (cl-input-args cl)
     (match cl

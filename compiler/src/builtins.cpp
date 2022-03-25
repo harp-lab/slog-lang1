@@ -265,6 +265,10 @@ struct ReLData {
   virtual RelDataIterator& end() = 0;
 };
 
+enum class SpecialAggregator {
+  none,
+  sum,
+};
 // typedef local_agg_res_t *local_agg_func_t (ReLData& agg_rel, const u64* data);
 
 // typedef local_agg_res_t *reduce_agg_func_t (local_agg_res_t x, local_agg_res_t y);
@@ -272,7 +276,9 @@ struct ReLData {
 // typedef int *global_agg_func_t (u64* data, local_agg_res_t agg_data, int agg_data_count, u64* output); 
 
 // void parallel_copy_aggregate(relation rel, relation agg_rel, relation target_rel, 
-//                              local_agg_func_t local_agg_func, reduce_agg_func_t reduce_agg_func, global_agg_func_t global_agg_fun);
+//                              local_agg_func_t local_agg_func, 
+//                              SpecialAggregator special_agg, reduce_agg_func_t reduce_agg_func, 
+//                              global_agg_func_t global_agg_fun);
 
 local_agg_res_t agg_not_1_local(ReLData& rel, const u64* data){
   auto has_any = rel.begin() != rel.end();
