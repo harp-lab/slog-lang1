@@ -184,41 +184,11 @@ template<typename TState> inline TState builtin_nop(const u64* data, TState init
 }
 
 
-//////////////////// AGGREGATORS ////////////////////
-
-
-struct _BTree_Iterator {
-  virtual u64* operator*() = 0;
-  virtual bool operator!=(const _BTree_Iterator& rhs) = 0;
-  virtual _BTree_Iterator& operator++() = 0;
-};
-struct _BTree {
-  virtual bool has_key(const u64* key) = 0;
-  virtual _BTree_Iterator& begin() = 0;
-  virtual _BTree_Iterator& end() = 0;
-};
-
+//////////////////// AGGREGATORS  ////////////////////
 using local_agg_res_t = u64;
-
-// typedef local_agg_res_t *local_agg_func_t (_BTree* agg_rel, const u64* data);
-
-// typedef local_agg_res_t *reduce_agg_func_t (local_agg_res_t x, local_agg_res_t y);
-
-// typedef int *global_agg_func_t (u64* data, local_agg_res_t agg_data, int agg_data_count, u64* output); 
-
-// parallel_copy_aggregate(relation rel, relation agg_rel, relation target_rel, 
-//                              local_agg_func_t local_agg_func, reduce_agg_func_t reduce_agg_func, global_agg_func_t global_agg_fun);
 
 local_agg_res_t agg_not_reduce(local_agg_res_t x, local_agg_res_t y) {
   return x | y;
-}
-
-local_agg_res_t agg_not_1_local(_BTree* rel, const u64* data){
-  return rel->has_key(data)? (u64) true : (u64) false;
-}
-
-local_agg_res_t agg_not_2_local(_BTree* rel, const u64* data){
-  return rel->has_key(data)? (u64) true : (u64) false;
 }
 
 template<typename TState> TState agg_not_global(u64* data, local_agg_res_t agg_data, u64 agg_data_count, TState init_state, TState (*callback) (TState state)){
@@ -231,8 +201,47 @@ template<typename TState> TState agg_not_global(u64* data, local_agg_res_t agg_d
   }
 }
 
+local_agg_res_t agg_sum_reduce(local_agg_res_t x, local_agg_res_t y) {
+  return x + y;
+}
 
-local_agg_res_t agg_sum_local(_BTree* rel, const u64* data) {
+template<typename TState> TState agg_sum_global(u64* data, local_agg_res_t agg_data, u64 agg_data_count, TState init_state, TState (*callback) (u64 res, TState state)){
+  return callback(n2d(agg_data), init_state);
+}
+
+///////////////// OLD DESIGN ////////////////////////
+
+// struct _BTree_Iterator {
+//   virtual u64* operator*() = 0;
+//   virtual bool operator!=(const _BTree_Iterator& rhs) = 0;
+//   virtual _BTree_Iterator& operator++() = 0;
+// };
+// struct _BTree {
+//   virtual bool has_key(const u64* key) = 0;
+//   virtual _BTree_Iterator& begin() = 0;
+//   virtual _BTree_Iterator& end() = 0;
+// };
+
+// typedef local_agg_res_t *local_agg_func_t (_BTree* agg_rel, const u64* data);
+
+// typedef local_agg_res_t *reduce_agg_func_t (local_agg_res_t x, local_agg_res_t y);
+
+// typedef int *global_agg_func_t (u64* data, local_agg_res_t agg_data, int agg_data_count, u64* output); 
+
+// parallel_copy_aggregate(relation rel, relation agg_rel, relation target_rel, 
+//                              local_agg_func_t local_agg_func, reduce_agg_func_t reduce_agg_func, global_agg_func_t global_agg_fun);
+
+
+local_agg_res_t agg_not_1_local_OLD(_BTree* rel, const u64* data){
+  return rel->has_key(data)? (u64) true : (u64) false;
+}
+
+local_agg_res_t agg_not_2_local_OLD(_BTree* rel, const u64* data){
+  return rel->has_key(data)? (u64) true : (u64) false;
+}
+
+
+local_agg_res_t agg_sum_local_OLD(_BTree* rel, const u64* data) {
   u64 sum = 0;
   for (auto iter = rel->begin(); iter != rel->end(); iter++){
     auto current = *iter;
@@ -243,12 +252,45 @@ local_agg_res_t agg_sum_local(_BTree* rel, const u64* data) {
   return sum;
 }
 
-local_agg_res_t agg_sum_reduce(local_agg_res_t x, local_agg_res_t y) {
-  return x + y;
+//////////////////// AGGREGATORS Alternative design ////////////////////
+
+struct RelDataIterator {
+  virtual u64* operator*() = 0;
+  virtual bool operator!=(const RelDataIterator& rhs) = 0;
+  virtual RelDataIterator& operator++() = 0;
+};
+
+struct ReLData {
+  virtual RelDataIterator& begin() = 0;
+  virtual RelDataIterator& end() = 0;
+};
+
+// typedef local_agg_res_t *local_agg_func_t (ReLData& agg_rel, const u64* data);
+
+// typedef local_agg_res_t *reduce_agg_func_t (local_agg_res_t x, local_agg_res_t y);
+
+// typedef int *global_agg_func_t (u64* data, local_agg_res_t agg_data, int agg_data_count, u64* output); 
+
+// void parallel_copy_aggregate(relation rel, relation agg_rel, relation target_rel, 
+//                              local_agg_func_t local_agg_func, reduce_agg_func_t reduce_agg_func, global_agg_func_t global_agg_fun);
+
+local_agg_res_t agg_not_1_local(ReLData& rel, const u64* data){
+  auto has_any = rel.begin() != rel.end();
+  return has_any;
 }
 
-template<typename TState> TState agg_sum_global(u64* data, local_agg_res_t agg_data, u64 agg_data_count, TState init_state, TState (*callback) (u64 res, TState state)){
-  return callback(n2d(agg_data), init_state);
+local_agg_res_t agg_not_2_local(ReLData& rel, const u64* data){
+  return agg_not_1_local(rel, data);
 }
 
+local_agg_res_t agg_sum_local(ReLData& rel, const u64* data) {
+  u64 sum = 0;
+  for (auto iter = rel.begin(); iter != rel.end(); iter++){
+    auto current = *iter;
+    if (is_number(*current)) {
+      sum += d2n(*current);
+    }
+  }
+  return sum;
+}
 // end of builtins.cpp

@@ -493,7 +493,8 @@
   (define output-indices (filter (λ (i) (not (member i available-indices))) (range 0 arity)))
   (define diff-indices (filter (λ (i) (not (member i available-indices))) requested-indices))
 
-  (define local-lambda
+  ;; TODO remove if the new design is approved
+  #;(define local-lambda
     (string-replace-all 
     "[](_BTree* rel, const u64* const data) -> local_agg_res_t{
       auto args_for_old_bi = std::array<u64, [old-indices-size]> {[populate-args-for-old-bi-code]};
@@ -507,7 +508,6 @@
                             (define arg-pos-in-bvars1 (index-of requested-indices (list-ref available-indices i)))
                             (define arg (list-ref bvars1 arg-pos-in-bvars1))
                             (match arg
-                              ; [(? lit?) (format "n2d(~a)" arg)]
                               [(? string?) (format "s2d(\"~a\")" arg)]
                               [(? number?)  (format "n2d(~a)" arg)]
                               [else 
@@ -515,6 +515,7 @@
                                 (format "data[~a]" arg-pos-in-bvars0)])) 
                         (range 0 (length available-indices))))
   ))
+  (define local-lambda local-cpp-func-name)
   ; TODO maybe unify this with generate-cpp-lambda-for-rule-with-builtin-impl?
   (define global-lambda
   (string-replace-all 

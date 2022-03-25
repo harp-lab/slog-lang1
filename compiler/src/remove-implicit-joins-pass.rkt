@@ -100,7 +100,8 @@
 
   (define (db-clause? cl) 
     (match-define (list _ rel args) (ir-fixed-clause-rel-args cl))
-    (or (db-rel-arity? rel) (equal? (rel->name rel) '~)))
+    (define rel-kind (rel-arity->kind rel))
+    (or (db-rel-kind? rel-kind) (agg-rel-kind? rel-kind)))
   
   (define (step rule)
     (match-define `(rule ,heads ,bodys) rule)
@@ -131,7 +132,7 @@
         (assert (ir-fixed-clause? equals-clause) (strip-prov equals-clause))
         (define (update-clause cl) 
           (match-define (list _ rel _) (ir-fixed-clause-rel-args cl))
-          (if (db-clause? cl) ; TODO special case ~
+          (if (db-clause? cl)
               (rename-arg cl const (strip-prov const-var))
               cl))
         
