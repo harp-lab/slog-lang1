@@ -217,13 +217,13 @@
           ((rel-select bar 2 (1 2) db) x y)
           ((rel-version foo 2 (1 2) total) x y $_id)
           ((rel-version ~ 2 (1 2) (agg (rel-version aggregated 2 (1 2) total))) x 100 $_1))]
-  [(list local-lam1 _ global-lam1) (generate-cpp-lambdas-for-rule-with-aggregator rule1)]
+  [(list local-lam1 _ _ global-lam1) (generate-cpp-lambdas-for-rule-with-aggregator rule1)]
 
   [rule2 '(srule
           ((rel-select bar 2 (1 2) db) 1000 y x 10000 y)
           ((rel-version foo 2 (1 2) total) x y $_id)
           ((rel-version ~ 2 (1 2) (agg (rel-version aggregated 2 (1 2) total))) x 100 $_1))]
-  [(list local-lam2 _ global-lam2) (generate-cpp-lambdas-for-rule-with-aggregator rule2)]
+  [(list local-lam2 _ _ global-lam2) (generate-cpp-lambdas-for-rule-with-aggregator rule2)]
 
   [aggregators-test-template-file (file->string (get-path "./aggregators-tests-template.cpp"))]
   [output-file (format aggregators-test-template-file 
