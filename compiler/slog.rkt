@@ -14,6 +14,13 @@
 (require "src/slog-debug.rkt")
 (require "src/partitioning-pass.rkt")
 
+(require "src/organize-pass.rkt"
+         "src/static-unification-pass.rkt"
+         "src/optimization-pass.rkt"
+         "src/remove-implicit-joins-pass.rkt"
+         "src/fix-arities-pass.rkt")
+(require "src/abstract-interpreter.rkt")
+
 (random-seed 0)
 
 (define default-input-dir 'none)
@@ -39,7 +46,7 @@
     (slog-print-ir #t)]
    [("--ps" "--print-ir-small") "Print ir-small"
     (slog-print-ir-small #t)]
-   [("-p" "--print-ir-flat") "Print ir-flat"
+   [("-p" "--print-ir-fixed") "Print ir-fixed"
     (slog-print-ir-fixed #t)]
    [("--debug-smt") "Print debug informations about smt calls"
     (slog-debug-smt #t)]
@@ -70,6 +77,8 @@
    [("-i" "--interpret") "Run via the interpreter"
     (slog-interpret-mode #t)
     (slog-compile-mode #f)]
+   [("--ai") "Run the abstract interpreter"
+    (slog-abstract-interpretation-mode #t)]
    [("-d" "--debug") "Run via the interpreter with debugging"
     (slog-debug-mode #t)
     (slog-compile-mode #f)]
@@ -87,6 +96,19 @@
 (when (> parse-time 5000) 
   (printf "parsing took ~a ms\n" (~r parse-time #:precision 0)))
 (gensymb-forbid! (list->set (filter symbol? (flatten source-tree))))
+
+(when (slog-abstract-interpretation-mode)
+  (printf "Running abstract interpreter ...\n")
+  (define ir-fixed
+    ((compose #;print-ir-fixed fix-arities-pass)
+          (static-unification-pass
+            (organize-pass
+              source-tree))))
+  (when (slog-print-ir-fixed)
+    (void (print-ir-fixed ir-fixed)))
+  (define run-res (run-abstract ir-fixed))
+  (print-abstract-db run-res)
+  (exit))
 
 ; Compile program to the interpreted IR
 (define program

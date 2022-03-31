@@ -34,3 +34,4 @@
 (define slog-merge-builtins (make-parameter #f))
 (define check-cond-contracts (make-parameter #t))
 (define print-relations (make-parameter 'none))
+(define slog-abstract-interpretation-mode (make-parameter #f))

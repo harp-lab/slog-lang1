@@ -5,6 +5,7 @@
 
 (require "utils.rkt")
 (require "lang-predicates.rkt")
+(require "graphs.rkt")
 
 (provide 
   ir-flat-clause-rel-args
@@ -16,7 +17,9 @@
   ir-fixed-clause-rel-args-w/prov
   ir-flat-rules-h->head-rels
   ir-fixed-rules-h->head-rels
-  validate-source-tree-fact)
+  validate-source-tree-fact
+  ir-fixed-heads-dep-graph
+  ir-fixed-heads-sorted)
 
 (define (give-clause-id cl)
   (match cl
@@ -108,3 +111,24 @@
         (pretty-error program (prov->pos arg) (format "unbound variable: ~a" (strip-prov arg)) #:exit #t)]
       [(lit? (strip-prov arg)) #t]
       [(source-tree-hclause? arg) (validate-source-tree-fact program arg)])))
+
+
+;; If cl1 depends on cl2, there is an edge cl1 -> cl2
+(define (ir-fixed-heads-dep-graph heads)
+  (define res
+    (foldl (λ (head-cl gr)
+          (match-define (list id _rel xs) (ir-fixed-clause-rel-args head-cl))
+          (foldl (λ (head-cl+ gr)
+                    (match-define (list id+ _rel+ xs+) (ir-fixed-clause-rel-args head-cl+))
+                    (if (member id+ xs)
+                        (hash-set gr head-cl (set-add (hash-ref gr head-cl) head-cl+))
+                        gr))
+                  (hash-set gr head-cl (hash-ref gr head-cl set))
+                  (set->list heads)))
+        (hash)
+        (set->list heads)))
+  res)
+
+(define (ir-fixed-heads-sorted heads)
+  (define gr (ir-fixed-heads-dep-graph heads))
+  (reverse (topological-sort gr)))

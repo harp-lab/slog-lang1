@@ -20,7 +20,7 @@
 
 (define source-tree? (assertion->contract assert-source-tree?))
 
-(struct Module (raw-lines includes facts rules comp-rels) #:transparent)
+(struct Module (raw-lines includes facts rules comp-rels type-annotations) #:transparent)
 
 (define (assert-source-tree-module? stm)
   (match stm
@@ -28,7 +28,8 @@
                   #;includes (? (listof string?))
                   #;facts (? (set/c source-tree-fact?))
                   #;rules (and rules-h (? (and/c hash? immutable?)))
-                  #;comp-rels (? (set/c symbol?)))
+                  #;comp-rels (? (set/c symbol?))
+                  #;type-annotations any/c)
           (for ([k (hash-keys rules-h)]) (assert-pred nonnegative-integer? k))
           (for ([r (hash-values rules-h)]) (assert-pred source-tree-rule? r))]))
 

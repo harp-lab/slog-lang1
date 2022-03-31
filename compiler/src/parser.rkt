@@ -23,7 +23,7 @@
   (integer string id rel larr rarr dash-dash-token eq neq qlp notlp qp qb bp bdop qdop bb dots tor tand comp colon))
 
 ;; Empty tokens
-(define-empty-tokens empty-toks (lb rb lp rp lc rc EOF))
+(define-empty-tokens empty-toks (lb rb lp rp lc rc lpcolon type-kwd EOF))
 
 ;; Define some lexer macros and translations
 
@@ -43,8 +43,8 @@
   (num (number digit10))
   (identifier-characters
    (re-or (char-range "a" "z") (char-range "A" "Z") (char-range "α" "ω") (char-range "Α" "Ω") digit10 
-          "_" "-" "+" "/" "*" "." "@" "$" "%" "^" "~" "&" "|" "<" ">" "=" "?" "!" "'" ":"
-           "⊥" "⊤" "⋄")) 
+          "_" "-" "+" "/" "*" "." "@" "$" "%" "^" "~" "&" "|" "<" ">" "=" "?" "!" "'"
+           "⊥" "⊤" "⋄"))
   (identifier (re-+ identifier-characters)))
 
 ;; Lexer error handling
@@ -170,6 +170,7 @@
       ;; The hash of rules
       (define rules (make-hash))
       (define comp-rels-set (set))
+      (define type-annotations '())
       (define new-rule-key
         (let ([x 0]) (lambda () (set! x (+ x 1)) x)))
       
@@ -184,6 +185,8 @@
       ;; specific to that module).
       (define slog-lexer
         (lexer-src-pos
+         ("type"       (token-type-kwd))
+         ("(:"         (token-lpcolon))
          ("["          (token-lb))
          ("]"          (token-rb))
          ("("          (token-lp))
@@ -239,6 +242,22 @@
           [program   ([toplevel-stmt program] (void))
                      ([toplevel-stmt] (void))]
 
+          [type-annotation 
+            ([lpcolon id type* rp] `(: ,$2 ,@$3))
+            ([lpcolon lp id id* rp type* rp] `(: (,$3 ,@$4) ,@$6))
+            ([lp type-kwd id type rp] `(type ,$3 ,$4))
+            ([lp type-kwd lp id id* rp type rp] `(type (,$4 ,@$5) ,$7))]
+
+          [type
+            ([id] $1)
+            ([lp id type* rp] 
+              (cond 
+                [(equal? $2 '+) `(+ ,@$3)]
+                [(> (length $3) 0) `(,$2 ,@$3)]
+                [else #f]))]
+          
+          [type* ([type type*] (cons $1 $2))
+                 ([] '())]
           [rule
             ([lb rule-element+ rb] (wrap-prov
               $1-start-pos
@@ -370,7 +389,9 @@
                                 (let ([k (new-rule-key)])
                                   (hash-set! rules k $1)))))
                          ([comp-spec]
-                          (set! comp-rels-set (set-union (list->set $1) comp-rels-set))) ])))
+                          (set! comp-rels-set (set-union (list->set $1) comp-rels-set)))
+                         ([type-annotation]
+                          (set! type-annotations (cons $1 type-annotations)))])))
          
       (define parsed-slog
         (slog-parser (lambda () (slog-lexer input-port))))
@@ -409,7 +430,9 @@
          #;includes '()  ;; TODO: properly traverse to find includes, add them here, parse them too
          #;facts (list->set facts+)
          #;rules (copy-hash rules)
-         #;comp-rels comp-rels-set)))))
+         #;comp-rels comp-rels-set
+         #;type-annotations type-annotations)))))
+
 
 ;; Parse a single slog file into an output hash of modules.
 (define (parse-slog-file filename #:allow-$id [allow-$id #f])
