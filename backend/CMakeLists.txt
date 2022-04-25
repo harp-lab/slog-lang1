@@ -2,17 +2,17 @@ cmake_minimum_required (VERSION 3.9)
 
 project (BTree)
 
-add_compile_options(--std=c++17 -Wno-strict-aliasing -Werror=class-memaccess -fpermissive)
+add_compile_options(--std=c++17 -lstdc++fs -Wno-strict-aliasing -Werror=class-memaccess -fpermissive)
 
 find_package(MPI REQUIRED)
-find_package(OpenMP)
-if (OPENMP_FOUND)
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
-endif()
+# find_package(OpenMP)
+# if (OPENMP_FOUND)
+#     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+#     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+#     set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+# endif()
 
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++17 -Werror=class-memaccess -fpermissive")
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++17 -lstdc++fs -Werror=class-memaccess -fpermissive")
 set (source_dir "${PROJECT_SOURCE_DIR}/src")
 set (tests_dir "${PROJECT_SOURCE_DIR}/tests")
 set (data_dir "${PROJECT_SOURCE_DIR}/data")
@@ -34,6 +34,8 @@ file (GLOB source_files_wc110_9 "${tests_dir}/worstcase-110-terms-9-m.cpp")
 file (GLOB source_files_wc110_10 "${tests_dir}/worstcase-110-terms-10-m.cpp")
 file (GLOB source_files_fv "${tests_dir}/freevars.cpp")
 file (GLOB source_files_kcfa "${tests_dir}/kcfa-tiny.cpp")
+
+link_libraries(stdc++fs)
 
 ADD_LIBRARY(parallel_RA "${source_files_parallel_RA}")
 

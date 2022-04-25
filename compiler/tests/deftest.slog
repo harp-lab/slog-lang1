@@ -1,45 +1,53 @@
 
+; almost no difference
 [(local_next EA EA_next)
  <--
  (code_in_block EA Block)
+ --
  (may_fallthrough EA EA_next)
  (code_in_block EA_next Block)]
+ 
 
 [(inter_procedural_jump Src Dest)
  <--
  (unconditional_jump Src)
+ --
  (direct_jump Src Dest)
+ --
  (direct_call OtherSrc Dest)
  (code OtherSrc)]
 
 [(block_next EA Block2)
  <--
  (block_last_instruction _ EA)
+ --
  (may_fallthrough EA Block2)
  (block Block2)]
 
 [(block_next EA EA_next)
  <--
+ (~ inter_procedural_jump EA EA_next)
+ --
  (block_last_instruction _ EA)
- (~ arch.delay_slot _ EA)
- (direct_jump EA EA_next)
-;  ]
- (~ inter_procedural_jump EA EA_next)]
+ ; (~ arch.delay_slot _ EA)
+ (direct_jump EA EA_next)]
 
 
+; [(block_next EA EA_next)
+;  <--
+;  (block_last_instruction _ EA)
+;  (arch.delay_slot JumpEA EA)
+;  (direct_jump JumpEA EA_next)
+;  (~ inter_procedural_jump JumpEA EA_next)]
+
+
+; ////
 [(block_next EA EA_next)
  <--
+ (relative_address _ Size TableStart TableReference EA_next)
+ --
  (block_last_instruction _ EA)
- (arch.delay_slot JumpEA EA)
- (direct_jump JumpEA EA_next)
- (~ inter_procedural_jump JumpEA EA_next)]
-
-
-[(block_next EA EA_next)
- <--
- (block_last_instruction _ EA)
- (jump_table_start EA Size TableStart TableReference _)
- (relative_address _ Size TableStart TableReference EA_next)]
+ (jump_table_start EA Size TableStart TableReference _)]
 
 [(def EA Reg)
  <--
@@ -48,17 +56,19 @@
 
 [(def EA Reg)
  <--
+ (arch.function_non_maintained_reg Reg)
+ --
  (instruction EA _ _ Operation _ _ _ _ _ _)
  (arch.call_operation Operation)
 ; (~ arch.delay_slot _ EA)
- (arch.function_non_maintained_reg Reg)]
+ ]
 
-[(def EA Reg)
- <--
- (instruction Call _ _ Operation _ _ _ _ _ _)
- (arch.call_operation Operation)
- (arch.delay_slot Call EA)
- (arch.function_non_maintained_reg Reg)]
+; [(def EA Reg)
+;  <--
+;  (instruction Call _ _ Operation _ _ _ _ _ _)
+;  (arch.call_operation Operation)
+;  (arch.delay_slot Call EA)
+;  (arch.function_non_maintained_reg Reg)]
 
 [(def EA Reg)
  <--
@@ -67,20 +77,29 @@
 
 [(flow_def EA_jump Reg EA_target Immediate)
  <--
- (code EA)
- (cmp_immediate_to_reg EA Reg _ Immediate)
- (next EA EA_jump)
  (direct_jump EA_jump EA_target)
+ --
+ (cmp_immediate_to_reg EA Reg _ Immediate)
+ --
+ (code EA)
+ --
+ (next EA EA_jump)
+ --
  (instruction EA_jump _ _ Operation _ _ _ _ _ _)
  (arch.jump_equal_operation Operation)]
 
 [(flow_def EA_jump Reg EA_target Immediate)
  <--
- (code EA)
- (cmp_immediate_to_reg  EA Reg _ Immediate)
- (next EA EA_jump)
- (direct_jump EA_jump _)
  (next EA_jump EA_target)
+ --
+ (cmp_immediate_to_reg  EA Reg _ Immediate)
+ --
+ (code EA)
+ --
+ (next EA EA_jump)
+ --
+ (direct_jump EA_jump _)
+ --
  (instruction EA_jump _ _ Operation _ _ _ _ _ _)
  (arch.jump_unequal_operation Operation)]
 
@@ -116,9 +135,10 @@
 
 [(block_last_def EA_next EA_def Reg)
  <--
+ (local_next EA EA_next)
+ --
  (block_last_def EA EA_def Reg)
- (~ must_def EA Reg)
- (local_next EA EA_next)]
+ (~ must_def EA Reg)]
 
 [(last_def Block EA Reg)
  <--
@@ -128,19 +148,22 @@
 
 [(last_def Block EA_def Reg)
  <--
- (block_last_def Block_end EA_def Reg)
- (~ must_def Block_end Reg)
  (block_next Block_end Block)
- (~ flow_def Block_end Reg Block _)]
+ (~ flow_def Block_end Reg Block _)
+ --
+ (~ must_def Block_end Reg)
+ (block_last_def Block_end EA_def Reg)]
 
 [(last_def Block_next EA_def Reg)
  <--
  (block_next Block_end Block_next)
  --
- (last_def Block EA_def Reg)
- (~ defined_in_block Block Reg)
+ (~ flow_def Block_end Reg Block _)
+ --
  (block_last_instruction Block Block_end)
- (~ flow_def Block_end Reg Block _)]
+ --
+ (last_def Block EA_def Reg)
+ (~ defined_in_block Block Reg)]
 
 [(last_def Block_next Block_end Reg)
  <--
@@ -157,6 +180,7 @@
  (last_def Block EA_def Reg)
  --
  (code_in_block EA_used Block)
+ --
  (~ block_last_def EA_used _ Reg)
  (used EA_used Reg Index)]
 
@@ -172,32 +196,43 @@
  <--
  (def_used_intra EA_call Reg EA_used Index_used)
  --
- (block_last_def CalleeReturnBlock_end EA_def Reg)
- (arch.return_val_reg Reg)
  (direct_call EA_call Callee)
- (fde_addresses Callee End)
+ --
  (<= Callee CalleeReturn)
+ --
  (< CalleeReturn End)
  --
+ (fde_addresses Callee End)
+ --
+ (arch.return_val_reg Reg)
+ --
+ (block_last_def CalleeReturnBlock_end EA_def Reg)
+ --
+ (block_last_instruction CalleeReturnBlock CalleeReturnBlock_end)
+ --
  (arch.return CalleeReturn)
- (code_in_block CalleeReturn CalleeReturnBlock)
- (block_last_instruction CalleeReturnBlock CalleeReturnBlock_end)]
+ (code_in_block CalleeReturn CalleeReturnBlock)]
+
 
 [(def_used_return_val_reg EA_def EA_call Reg EA_used Index_used)
  <--
  (def_used_intra EA_call Reg EA_used Index_used)
  --
- (arch.return_val_reg Reg)
+ (direct_call EA_call Callee)
+ --
+ (<= Callee CalleeReturn)
+ --
+ (< CalleeReturn End)
+ --
+ (fde_addresses Callee End)
  --
  (~ block_last_def CalleeReturnBlock_end _ Reg)
  --
- (last_def CalleeReturnBlock EA_def Reg)
  (block_last_instruction CalleeReturnBlock CalleeReturnBlock_end)
- (code_in_block CalleeReturn CalleeReturnBlock)
  --
- (direct_call EA_call Callee)
- (fde_addresses Callee End)
+ (arch.return_val_reg Reg)
+ --
+ (last_def CalleeReturnBlock EA_def Reg)
+ --
  (arch.return CalleeReturn)
- (<= Callee CalleeReturn)
- (< CalleeReturn End)]
-
+ (code_in_block CalleeReturn CalleeReturnBlock)]

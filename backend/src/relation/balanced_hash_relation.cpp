@@ -6,7 +6,10 @@
 
 
 #include "../parallel_RA_inc.h"
+#include <cassert>
+#include <cstddef>
 #include <filesystem>
+#include <iostream>
 
 u32 relation::get_global_delta_element_count()
 {
@@ -651,6 +654,12 @@ void relation::initialize_relation(mpi_comm& mcomm, std::map<u64, u64>& intern_m
     delta = new shmap_relation[buckets];
     full = new shmap_relation[buckets];
     newt = new shmap_relation[buckets];
+
+    for (int i = 0 ; i < buckets; i++) {
+        delta[i].arity = arity;
+        full[i].arity = arity;
+        newt[i].arity = arity;
+    }
 #endif
 
     sub_bucket_per_bucket_count = new u32[buckets];
@@ -1194,28 +1203,39 @@ int relation::insert_delta_in_full()
 {
     u32 insert_success = 0;
     u32 buckets = get_bucket_count();
-    vector_buffer *input_buffer = new vector_buffer[buckets];
+    // vector_buffer *input_buffer = new vector_buffer[buckets];
 
     for (u32 i = 0; i < buckets; i++)
     {
-        input_buffer[i].vector_buffer_create_empty();
+        // input_buffer[i].vector_buffer_create_empty();
         if (bucket_map[i] == 1)
         {
-            std::vector<u64> prefix = {};
-            delta[i].as_vector_buffer_recursive(&(input_buffer[i]), prefix);
-            for (u64 j = 0; j < (&input_buffer[i])->size / sizeof(u64); j=j+(arity+1))
+            // std::vector<u64> prefix = {};
+            // delta[i].as_vector_buffer_recursive(&(input_buffer[i]), prefix);
+            // for (u64 j = 0; j < (&input_buffer[i])->size / sizeof(u64); j=j+(arity+1))
+            // {
+            //     if (insert_in_full ( (u64*)( (input_buffer[i].buffer) + (j*sizeof(u64)) )) == true)
+            //         insert_success++;
+            // }
+            for(auto it=delta[i].begin(); it != delta[i].end(); ++it)
             {
-                if (insert_in_full ( (u64*)( (input_buffer[i].buffer) + (j*sizeof(u64)) )) == true)
+                auto tuple_d = *it;
+                // std::cout << "inserting into delta ";
+                // for (auto v: tuple_d) {
+                //     std::cout << v << " ";
+                // }
+                // std::cout << std::endl;
+                if (insert_in_full(tuple_d.data()) == true)
                     insert_success++;
             }
             delta[i].remove_tuple();
 
-            input_buffer[i].vector_buffer_free();
+            // input_buffer[i].vector_buffer_free();
         }
     }
 
     set_delta_element_count(0);
-    delete[] input_buffer;
+    // delete[] input_buffer;
 
     return insert_success;
 }
@@ -1311,6 +1331,10 @@ void relation::local_insert_in_delta()
     newt = new google_relation[buckets];
 #else
     newt = new shmap_relation[buckets];
+
+    for (int i = 0; i < buckets; i++) {
+        newt[i].arity = arity;
+    }
 #endif
 
     //for(u32 i=0; i<buckets; i++)

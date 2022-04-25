@@ -52,6 +52,8 @@ public:
     {
     }
 
+    inline iter() {}
+
     inline ~iter()
     {
     }
@@ -69,6 +71,22 @@ public:
     inline operator bool() const
     { 
       return (it != self->end());
+    }
+
+    inline typename btree::btree_map<u64,V>* get_slf() const { return self;}
+
+    inline const typename btree::btree_map<u64,V>::iterator& get_it() const { return it; }  
+
+    inline void operator=(const iter& other)
+    {
+      it = other.get_it();
+      self = other.get_slf();
+    }
+
+    inline iter(const iter& other)
+    {
+      it = other.get_it();
+      self = other.get_slf();
     }
   
     inline void next()

@@ -2,7 +2,6 @@
 
 """
 Runs a slog file on server or locally.
-
 USAGE: `./runslog -s <server-address IP> <slogfile> <out-dir> -f <factdir>`
         `./runslog -j4 -s <server-address IP> <slogfile> <out-dir> -f onerel.facts`
         ./runslog <slogfile> <out-dir> --cores=8
@@ -23,7 +22,7 @@ from yaspin import yaspin
 from slog.common.client import SlogClient
 from slog.repl.repl import Repl
 
-def ingest_facts(factloc, inputloc, tsv_bin_path):
+def ingest_facts(factloc, inputloc, tsv_bin_path, cores):
     # -- go through every .table file in the input data
     # -- extract tag, relation name and arity.
     tables = {}
@@ -37,6 +36,7 @@ def ingest_facts(factloc, inputloc, tsv_bin_path):
         arity = int(without_ext[aritystartloc+1:])
         relname = without_ext[tagendloc+1:aritystartloc]
         tables[(relname, arity)] = (tag, tablefile)
+    current_max_tag = max([int(t[0]) for t in tables.values()])
     # -- now look through the input .facts file(s) and run
     # -- tsv_to_bin on any.
     if not os.path.exists(factloc):
@@ -52,6 +52,15 @@ def ingest_facts(factloc, inputloc, tsv_bin_path):
     else:
         # just add the file, dont check extension
         infacts.add(factloc)
+    # -- now copy all input table facts inside factloc but rearrange rel tag
+    for table_file in os.listdir(factloc):
+        extn = table_file[table_file.rfind('.'):]
+        if extn == '.table':
+            new_tag = current_max_tag + 1
+            current_max_tag = current_max_tag + 1
+            tb_name = table_file[table_file.find('.'):]
+            shutil.copy(os.path.join(factloc, table_file),
+                        os.path.join(inputloc, str(new_tag)+tb_name))
     for factfile in infacts:
         with open(factfile, 'r') as ff:
             first = ff.readline()
@@ -65,7 +74,8 @@ def ingest_facts(factloc, inputloc, tsv_bin_path):
         table = tables.get((relname, arity))
         if not table:
             print(f"`{relname}` with arity `{arity}` not found in slogfile, but used as input.")
-            tabletag = str(max([int(t[0]) for t in tables.values()]) + 1)
+            tabletag = str(current_max_tag + 1)
+            current_max_tag = current_max_tag + 1
             print(f"assign a new tag `{tabletag}` to `{relname}` with arity `{arity}`")
             tableloc = os.path.join(inputloc, f"{tabletag}.{relname}.{arity}.table")
         else:
@@ -74,7 +84,7 @@ def ingest_facts(factloc, inputloc, tsv_bin_path):
         try:
             # idk why 16 is buckets, got from rpc.py
             subprocess.check_output([tsv_bin_path, factfile, str(arity),
-                                     tableloc, '16', str(tabletag), inputloc])
+                                     tableloc, str(cores), str(tabletag), inputloc])
         except subprocess.CalledProcessError as e:
             print(f"tsv_to_bin failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
             return None
@@ -97,8 +107,7 @@ def ensure_backend_built(compile_backend, tsv_bin_path, backend_build_dir, backe
                     "-DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE",
                     f"-DCMAKE_BUILD_TYPE:STRING={cmake_build_mode}",
                     "-DCMAKE_C_COMPILER:FILEPATH=mpicc",
-                    "-B"+backend_build_dir, "-H"+backend_dir,
-                    "-G", "Ninja"] + cmake_prof_opt
+                    "-B"+backend_build_dir, "-H"+backend_dir] + cmake_prof_opt
         subprocess.check_output(cmake_config_cmd,
                                 stderr=subprocess.STDOUT)
         subprocess.check_output(["cmake", "--build", backend_build_dir,
@@ -112,7 +121,7 @@ def ensure_backend_built(compile_backend, tsv_bin_path, backend_build_dir, backe
 
 
 def run_local(file, outloc, factloc, cores, verbose, slog_root=None, compile_backend=False,
-              debug_flag=False, profile_flag=False, repl_flag=False):
+              debug_flag=False, profile_flag=False, repl_flag=False, compile_only=False):
     """
     Calls local utilities to compile and run a slog file locally.
     slog_root is the location of the slog repository.
@@ -126,7 +135,7 @@ def run_local(file, outloc, factloc, cores, verbose, slog_root=None, compile_bac
     else:
         cmake_prof_opt = []
     if debug_flag:
-        cmake_build_mode = "RelWithDebInfo"
+        cmake_build_mode = "Debug"
     else:
         cmake_build_mode = "RelWithDebInfo"
 
@@ -165,11 +174,15 @@ def run_local(file, outloc, factloc, cores, verbose, slog_root=None, compile_bac
         start = time.time()
         output = subprocess.check_output(["racket", "compiler/slog.rkt", "-c", "--ps", "-f",
                                           "--output-code", outloc, "--output-db", checkpointloc,
+                                          "--buckets", str(cores),
                                           "--input-db", inputloc, file],
                                 stderr=subprocess.STDOUT)
         end = time.time()
         if verbose:
-            print(output.decode())
+            ov = output.decode()
+            print(ov)
+            with open(os.path.join(outloc, "compiler-out"), "w") as f:
+                f.write(ov)
             print(f"Time taken: {end - start}")
     except subprocess.CalledProcessError as e:
         print(f"Slog->C++ compilation failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
@@ -183,7 +196,7 @@ def run_local(file, outloc, factloc, cores, verbose, slog_root=None, compile_bac
         print("Calling tsv->bin")
     if factloc:
         start = time.time()
-        out = ingest_facts(factloc, inputloc, tsv_bin_path)
+        out = ingest_facts(factloc, inputloc, tsv_bin_path, cores)
         if not out:
             print("FAILURE TO INGEST FACTS!")
             return
@@ -200,8 +213,7 @@ def run_local(file, outloc, factloc, cores, verbose, slog_root=None, compile_bac
                             "-DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE",
                             f"-DCMAKE_BUILD_TYPE:STRING={cmake_build_mode}",
                             "-DCMAKE_C_COMPILER:FILEPATH=mpicc",
-                            "-B"+slogfile_build_dir,"-H"+outloc,
-                            "-G", "Ninja"] + cmake_prof_opt
+                            "-B"+slogfile_build_dir,"-H"+outloc] + cmake_prof_opt
         subprocess.check_output(cmake_config_cmd,
                                 stderr=subprocess.STDOUT)
         subprocess.check_output(["cmake", "--build", slogfile_build_dir,
@@ -215,6 +227,9 @@ def run_local(file, outloc, factloc, cores, verbose, slog_root=None, compile_bac
         print(f"C++->bin failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
         return
 
+    if compile_only:
+        return
+
     #5: Shell out to mpirun to run compiled slog binary with in and out args.
     if verbose:
         print("Running slog executable.")
@@ -225,10 +240,11 @@ def run_local(file, outloc, factloc, cores, verbose, slog_root=None, compile_bac
                                            stderr=subprocess.STDOUT)
         else:
             out = subprocess.check_output(
-                ["mpirun", "-n", f"{cores}", "valgrind", slog_bin_path],
+                ["mpirun", "-n", f"{cores}", "valgrind", "--tool=massif", slog_bin_path],
                  stderr=subprocess.STDOUT)
         end = time.time()
         if verbose:
+            print(out.decode())
             print(f"Time taken: {end - start}")
     except subprocess.CalledProcessError as e:
         print(f"Program failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
@@ -301,6 +317,8 @@ if __name__ == '__main__':
                         help='compile the backend code before compile the generate c++ code.')
     parser.add_argument('-R', "--repl", action='store_true',
                         help="query the result database interactively")
+    parser.add_argument('-co', '--compile_only', action='store_true',
+                        help="compile only without running it")
     args = parser.parse_args()
 
     slogfile = os.path.realpath(args.slogfile)
@@ -311,4 +329,5 @@ if __name__ == '__main__':
     else:
         run_local(slogfile, args.out_dir, args.facts, args.cores, args.verbose, args.root,
                   compile_backend=args.compile_backend, debug_flag=args.debug,
-                  profile_flag=args.profile, repl_flag=args.repl)
+                  profile_flag=args.profile, repl_flag=args.repl,
+                  compile_only=args.compile_only)

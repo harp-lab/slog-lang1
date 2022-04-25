@@ -17,6 +17,7 @@ RUN apt-get install -y valgrind apt-utils
 ENV OMPI_ALLOW_RUN_AS_ROOT=1
 ENV OMPI_MCA_btl_vader_single_copy_mechanism=none
 ENV OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
+ENV OMPI_MCA_btl_vader_single_copy_mechanism=none
 ENV CC=mpicc
 ENV CXX=mpicxx
 

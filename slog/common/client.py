@@ -6,16 +6,16 @@ from functools import lru_cache
 from ftplib import FTP
 import hashlib
 import os
-from re import T
 import sys
 import time
 
 import grpc
+import psutil
 from six import MAXSIZE
 
 from slog.common import rel_name_from_file, make_stub, PING_INTERVAL
 from slog.common.elaborator import Elaborator
-from slog.common.tuple import parse_query_result, pretty_str_tuples
+from slog.common.tuple import SlogTupleParaser
 from slog.daemon.const import FTP_DEFAULT_PWD, FTP_DEFAULT_USER, STATUS_PENDING, STATUS_FAILED, STATUS_RESOLVED, STATUS_NOSUCHPROMISE
 from slog.daemon.util import get_relation_info
 import slog.protobufs.slog_pb2 as slog_pb2
@@ -109,6 +109,7 @@ class SlogClient:
         self.all_db = []
         # map of tuple with it's print name
         self.tuple_printed_id_map = {}
+        self.slog_tuple_parser = None
         if local_db_path:
             self.load_relations(None)
             self._update_intern_strings(None)
@@ -295,6 +296,8 @@ class SlogClient:
         req.cores = cores
         req.hashes.extend(program_hashes)
         # Get a promise for the running response
+        # this memory measure is very in precise make sure no other thing is running...
+        memory_prev = psutil.virtual_memory().used
         response = self._stub.RunHashes(req)
         writer.write(f"running promise is {response.promise_id}")
         if response.promise_id == MAXSIZE:
@@ -303,6 +306,9 @@ class SlogClient:
         out_db = self.run_until_promised(response.promise_id, PING_INTERVAL, writer)
         if not out_db:
             writer.write("Execution failed!")
+        memory_after = psutil.virtual_memory().used
+        writer.write(f"System memory increase {(memory_after - memory_prev)/(1024*1024)}MB"
+                     " during running")
         self.update_dbs()
         return out_db
 
@@ -345,7 +351,7 @@ class SlogClient:
         self.cur_db = ""
         self.relations = []
         self.intern_string_dict = {}
-        self.tuple_printed_id_map = {}
+        self.slog_tuple_parser = None
 
     def load_relations(self, db_id):
         """ get all relation inside a database """
@@ -365,10 +371,12 @@ class SlogClient:
     def print_all_relations(self, writer: Writer):
         """ print all relation """
         total_tuples = 0
-        for rel in sorted(self.relations, key=lambda rel: rel[3]):
-            writer.write(f"Relation >>> Name: {rel[0]}\t Arity: {rel[1]}\t Tag: {rel[2]}\t "
-                         f"Tuples: {rel[3]}.")
+        screen_out = "relation name,\tarity,\ttag,\ttuples,\tsize(kb)\n"
+        for rel in sorted(self.relations, key=lambda rel: rel[3]*rel[1]):
+            screen_out = screen_out + f"{rel[0]},\t{rel[1]},\t{rel[2]},\t{rel[3]},"
+            screen_out = screen_out + f"\t{round(rel[3]*rel[1]*8/1024,2)}\n"
             total_tuples += rel[3]
+        writer.write(screen_out)
         writer.write(f"Total tuple number in current database {total_tuples}")
 
     def lookup_db_by_id(self, db_id):
@@ -454,12 +462,18 @@ class SlogClient:
         if len(rels) == 0:
             writer.write("No relation named {} in the current database".format(name))
             return []
-        tuples_map = self._dump_tuples(name, self.cur_db)
+        # there is no way to get what is possible nested relation, 
+        # so have to parse whole database first
+        tuples_map = {}
+        for rel in self.relations:
+            self._recusive_fetch_tuples(rel[2], tuples_map, self.cur_db)
+        # tuples_map = self._dump_tuples(name, self.cur_db)
         tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
-        slog_tuples = parse_query_result(tuples_map, tag_map, self.intern_string_dict,
-                                         self.tuple_printed_id_map)
-        pp_strs = pretty_str_tuples(slog_tuples, self.unroll_depth, self.group_cardinality,
-                                    tag_map, self.tuple_printed_id_map)
+        tuple_parser = SlogTupleParaser(tuples_map, self.group_cardinality, self.unroll_depth,
+                                        tag_map, self.intern_string_dict)
+        slog_tuples = tuple_parser.parse_query_result()
+        self.slog_tuple_parser = tuple_parser
+        pp_strs = tuple_parser.pretty_str_tuples(rels)
         for pp_str in pp_strs:
             writer.write(pp_str)
         for rel in rels:
@@ -527,21 +541,24 @@ class SlogClient:
         self.switchto_db(query_db)
         tuples_map = self._dump_tuples(query_name, self.cur_db)
         tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
-        slog_tuples = parse_query_result(tuples_map, tag_map, self.intern_string_dict,
-                                         self.tuple_printed_id_map)
-        id_print_name_map = {}
-        for p_id, p_val in self.tuple_printed_id_map.items():
-            id_print_name_map[p_val.tuple_id] = p_id
-        actual_ids = []
-        for slog_tuple in slog_tuples:
-            if slog_tuple.rel_name == query_name:
-                actual_ids.append(slog_tuple.col[1][1:])
-        actual_tuples = []
-        for _t in self.tuple_printed_id_map.values():
-            # query add layer of helper relation, which will increase the
-            if _t.tuple_id in actual_ids:
-                actual_tuples.append(_t)
-        return actual_tuples
+        query_res_rel_tags = self.lookup_rels(query_name)
+        tuple_parser = SlogTupleParaser(tuples_map, self.group_cardinality, self.unroll_depth,
+                                        tag_map, self.intern_string_dict)
+        slog_tuples = tuple_parser.parse_query_result()
+        # id_print_name_map = {}
+        self.slog_tuple_parser = tuple_parser
+        # for p_id, p_val in tuple_parser.printed_id_map.items():
+        #     id_print_name_map[p_val.tuple_id] = p_id
+        # actual_ids = []
+        # for slog_tuple in slog_tuples:
+        #     if slog_tuple.rel_name == query_name:
+        #         actual_ids.append(slog_tuple.col[1][1:])
+        # actual_tuples = []
+        # for _t in tuple_parser.printed_id_map.values():
+        #     # query add layer of helper relation, which will increase the
+        #     if _t.tuple_id in actual_ids:
+        #         actual_tuples.append(_t)
+        return tuple_parser, query_res_rel_tags
 
     def pretty_print_slog_query(self, query, writer:Writer):
         """
@@ -549,13 +566,10 @@ class SlogClient:
         TODO: should we add new database here?
         """
         old_db = self.cur_db
-        query_res = self.run_slog_query(query, self.cur_db, Writer())
-        writer.write(f"Total {len(query_res)} tuple in results!")
-        if not query_res:
+        query_res_parser, query_res_rel_tags = self.run_slog_query(query, self.cur_db, Writer())
+        if not query_res_parser:
             return
-        tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
-        pp_strs = pretty_str_tuples(query_res, self.unroll_depth, self.group_cardinality,
-                                    tag_map, self.tuple_printed_id_map)
+        pp_strs = query_res_parser.pretty_str_tuples(query_res_rel_tags)
         for pp_str in pp_strs:
             writer.write(pp_str)
         # after dump query relation, delete intermediate database, switch back to old db
@@ -564,19 +578,20 @@ class SlogClient:
             self.switchto_db(old_db)
             # req = slog_pb2.DropDBRequest(database_id=query_db)
             # self._stub.DropDB(req)
-        return query_res
+        return query_res_parser
 
     def print_cached_tuple(self, printed_id, writer:Writer):
         """
         fetch  a tuple by it's printed name in query history and print it
         """
-        if self.tuple_printed_id_map is None or \
-           printed_id not in self.tuple_printed_id_map:
+        if self.slog_tuple_parser is None or \
+           printed_id not in self.slog_tuple_parser.printed_id_map:
             writer.fail(f'requested tuple id {printed_id} is not in query history cache!')
             return
-        tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
-        slog_tuple = self.tuple_printed_id_map[printed_id]
-        pp_str = pretty_str_tuples([slog_tuple], self.unroll_depth, self.group_cardinality,
-                                   tag_map, self.tuple_printed_id_map)
-        writer.write(pp_str[0])
-        return self.tuple_printed_id_map[printed_id]
+        # tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
+        # slog_tuple = self.slog_tuple_parser.printed_id_map[printed_id]
+        # pp_str = pretty_str_tuples([slog_tuple], self.unroll_depth, self.group_cardinality,
+        #                            tag_map, self.tuple_printed_id_map)
+        pp_str = self.slog_tuple_parser.pretty_str_printed_id(printed_id)
+        writer.write(pp_str)
+        return self.slog_tuple_parser.printed_id_map[printed_id]

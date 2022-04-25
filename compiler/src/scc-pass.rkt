@@ -116,42 +116,29 @@
             (hash-set accu rel-arity `(unused ,csel ,sel-st)))
       (hash)
       (hash-keys rel-h)))
+  ;; A hash of rel-arity -> scc-ids where the rel appears in a body clause
+  (define rel->scc-body-hash (make-hash))
+  ;; A hash of rel-arity -> scc-ids where the rel appears in a head clause
+  (define rel->scc-head-hash (make-hash))
   (define scc-h
     (foldl
       (lambda (scc h)
         (define scc-head-rel-arities
-          (list->set (map (lambda (rule)
-                (match-let* ([head-rel-select
-                              (match rule
-                                [`(srule (prov ((prov ,rel-select ,_) ,_ ...) ,_) ,_bodys ...)
-                                  rel-select]
-                                [`(arule (prov ((prov ,rel-select ,_) ,_ ...) ,_) ,_) ; tom added
-                                  rel-select])]
-                              [`(rel-select ,relname0 ,arity0 ,_ ,kind0)
-                              head-rel-select])
-                  `(rel-arity ,relname0 ,arity0 ,kind0))) 
-              (set->list scc))))
+          (map (compose rel-select->rel-arity strip-prov rule-head-rel-select-w/prov) 
+               (set->list scc)))
         (define scc-body-rel-arities
-          (list->set
-            (flat-map (lambda (rule) 
-                (match-let* ([body-rel-selects
-                              (match rule
-                                [`(srule ,_
-                                          (prov ((prov ,rel-selects ,_) ,_ ...) ,_) ...)
-                                  rel-selects]
-                                [`(arule ,_  ; tom added
-                                          (prov ((prov ,rel-select ,_) ,_ ...) ,_))
-                                  (list rel-select)])])
-                  (map (lambda (body-rel-select)
-                            (match-let*
-                                ([`(rel-select ,relname0 ,arity0 ,_ ,kind0)
-                                  body-rel-select])
-                                `(rel-arity ,relname0 ,arity0 ,kind0))) 
-                       body-rel-selects)))
-              (set->list scc))))
+          (flat-map (λ (rule) (map (compose rel-select->rel-arity strip-prov) (rule-body-rel-selects-w/prov rule))) 
+                    (set->list scc)))
+        (define scc-head-rel-arities-set (list->set scc-head-rel-arities))
+        (define scc-body-rel-arities-set (list->set scc-body-rel-arities))
+        (define scc-id (hash-ref scc->id scc))
+        (for ([rel scc-body-rel-arities])
+          (hash-update! rel->scc-body-hash rel (λ (s) (set-add s scc-id)) (λ () (set scc-id))))
+        (for ([rel scc-head-rel-arities])
+          (hash-update! rel->scc-head-hash rel (λ (s) (set-add s scc-id)) (λ () (set scc-id))))
         (hash-set
         h
-        (hash-ref scc->id scc)
+        scc-id
         `(scc 
           ,(looping? scc)
           ,(foldl (lambda (rel-arity h)
@@ -164,13 +151,13 @@
                         ;; (used in a head), static (used in a body but not any
                         ;; heads), or unused (not used at all in this SCC).
                         (define tag (cond
-                          [(set-member? scc-head-rel-arities rel-arity) 'dynamic]
-                          [(set-member? scc-body-rel-arities rel-arity) 'static]
+                          [(set-member? scc-head-rel-arities-set rel-arity) 'dynamic]
+                          [(set-member? scc-body-rel-arities-set rel-arity) 'static]
                           [else 'unused]))
                         (hash-set h rel-arity `(,tag ,csel ,sel-st))]
                       [else h]))
                   rel-h-to-be-overridden
-                  (set->list (set-union scc-head-rel-arities scc-body-rel-arities)))
+                  (set->list (set-union scc-head-rel-arities-set scc-body-rel-arities-set)))
           ,(let ([restricted (restrict rules-h scc)])
               (foldl (lambda (rule h)
                       (hash-set h rule
@@ -192,25 +179,22 @@
     (foldl (λ (scc-id accu)
         (match-define `(scc ,looping ,rel-h ,rules-h) (hash-ref scc-h scc-id))
         (define new-rel-h
-          (foldl (λ (rel rel-h-accu)
-              (match-define (and rel-arity `(rel-arity ,rel-name ,arity ,kind)) rel)
-              (match-define (list use-status canonical-index indices) (hash-ref rel-h rel))
-              (define (unused-after)
-                (andmap (λ (scc-id2)
-                          (match-define `(scc ,_ ,rel-h2 ,_) (hash-ref scc-h scc-id2))
-                          (define rel-entry (hash-ref rel-h2 rel-arity #f))
-                          (or (not rel-entry)
-                            (match-let ([(list use-status2 _ _) rel-entry])
-                              (equal? use-status2 'unused))))
-                        (range (add1 scc-id) (hash-count scc-h))))
+          (foldl (λ (rel-arity rel-h-accu)
+              (match-define `(rel-arity ,rel-name ,arity ,kind) rel-arity)
+              (match-define (list use-status canonical-index indices) (hash-ref rel-h rel-arity))
+              (define (deletable)
+                (define sccs-reading-rel (hash-ref rel->scc-body-hash rel-arity (set)))
+                (define sccs-updating-rel (hash-ref rel->scc-head-hash rel-arity (set)))
+                (define sccs-with-rel-static (set-subtract sccs-reading-rel sccs-updating-rel))
+                (set-empty? (set-subtract sccs-with-rel-static (set scc-id))))
               (define deletable-status
                 (cond
-                  [(and (equal? use-status 'dynamic)
+                  [(and #;(equal? use-status 'dynamic)
                         (internal-rel-name? rel-name)
-                        (unused-after))
+                        (deletable))
                    'deletable]
                   [else 'not-deletable]))
-              (hash-set rel-h-accu rel (list use-status deletable-status canonical-index indices)))
+              (hash-set rel-h-accu rel-arity (list use-status deletable-status canonical-index indices)))
             (hash)
             (hash-keys rel-h)))
         (hash-set accu scc-id `(scc ,looping ,new-rel-h ,rules-h)))
@@ -261,3 +245,7 @@
         (prov->pos body-agg-rel-select)
         (format "the aggregated relation ~a cannot be stratified" h-name)
         #:exit #t))))
+
+(define (rel-select->rel-arity rel-select)
+  (match-define `(rel-select ,relname ,arity ,_ ,kind) rel-select)
+  `(rel-arity ,relname ,arity ,kind))

@@ -31,11 +31,14 @@ RAM::RAM (bool ic, int r_id)
 /// Example
 /// rel_edge_2_2: relation that is being added to the SCC
 /// false: keep the delta and full the way they are (true: move whatever is in full to delta, once before the start of the fixed point loop)
-void RAM::add_relation(relation*& G, bool i_status)
+void RAM::add_relation(relation*& G, bool i_status, bool gc_flag)
 {
     //ram_relations[ram_relation_count] = G;
     ram_relations.push_back(G);
     ram_relation_status.push_back(i_status);
+    if (gc_flag) {
+        gc_relations.push_back(G);
+    }
     //ram_relation_status[ram_relation_count] = i_status;
     ram_relation_count++;
 }
@@ -441,7 +444,6 @@ u32 RAM::local_compute(int* offset)
         else if ((*it)->get_RA_type() == NEGATION)
         {
             // compute negation
-            // std::cout << "local compute negation" << std::endl;
             parallel_join_negate* current_ra = (parallel_join_negate*) *it;
             relation* output_relation = current_ra->get_negation_output();
             relation* input_relation = current_ra->get_negation_input();
@@ -628,7 +630,7 @@ u32 RAM::local_compute(int* offset)
     MPI_Allreduce(&total_join_tuples, &global_total_join_tuples, 1, MPI_INT, MPI_SUM, mcomm.get_local_comm());
     MPI_Allreduce(&join_tuples_duplicates, &global_join_tuples_duplicates, 1, MPI_INT, MPI_SUM, mcomm.get_local_comm());
     if (mcomm.get_rank() == 0)
-        std::cout << "Joins: " << global_total_join_tuples << " Duplicates " << global_join_tuples_duplicates << " ";
+        std::cout << "Joins: " << global_total_join_tuples << " Duplicates " << global_join_tuples_duplicates << " " << std::endl;
 #endif
 
     int global_synchronizer = 0;
@@ -788,7 +790,14 @@ void RAM::local_insert_in_newt_comm_compaction(std::map<u64, u64>& intern_map)
 
                     //if (RA_list[ra_id]->get_RA_type() == FACT)
                     //    std::cout << "FFFFFFFFFF "<< tuple[0] << " " << tuple[1] << " " << successful_insert << std::endl;
-                }
+                } 
+                // else {
+                    // std::cout << "insert fail ";
+                    // for (int i = 0; i < width; i++) {
+                    //     std::cout << cumulative_all_to_allv_buffer[i] << " ";
+                // }
+                // std::cout << std::endl;
+                // }
             }
         }
         else if (RA_list[ra_id]->get_RA_type() == ACOPY)
@@ -858,6 +867,7 @@ void RAM::local_insert_in_newt(std::map<u64, u64>& intern_map)
                 u32 width = output->get_arity();
                 u64 tuple[width + 1];
 
+
                 for (u32 x = 0; x < elements_to_read; x = x + width)
                 {
                     if (output->find_in_full(cumulative_all_to_allv_buffer_cmp[r] + x, width) == false &&
@@ -885,6 +895,8 @@ void RAM::local_insert_in_newt(std::map<u64, u64>& intern_map)
 
                         if (output->insert_in_newt(tuple) == true)
                             successful_insert++;
+                    } else {
+
                     }
                 }
             }
@@ -905,7 +917,7 @@ void RAM::local_insert_in_newt(std::map<u64, u64>& intern_map)
                     }
                 }
             }
-            //std::cout << output->get_debug_id() << " successful insert " << successful_insert << std::endl;
+            // std::cout << output->get_debug_id() << " successful insert " << successful_insert << std::endl;
         //}
         delete[] cumulative_all_to_allv_buffer_cmp[r];
     }
@@ -1252,4 +1264,13 @@ void RAM::execute_in_batches_comm_compaction(std::string name, int batch_size, s
 
     if (logging == true)
         print_all_relation();
+}
+
+bool RAM::contains_relation(int tag) {
+    for (auto rel : ram_relations) {
+        if (rel->get_intern_tag() == tag) {
+            return true;
+        }
+    }
+    return false;
 }

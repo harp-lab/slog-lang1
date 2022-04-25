@@ -39,8 +39,8 @@ public:
 
     parallel_join_negate(relation* dest, relation* src,  int t_type, relation* target_rel,
                             std::vector<int> projection_reorder_index_array)
-        : join_negation_output_table(dest), join_negation_input0_table(src), src_type(t_type),
-          join_negation_target_table(target_rel), projection_reorder_index_array(projection_reorder_index_array)
+        : join_negation_input0_table(src), join_negation_output_table(dest), join_negation_target_table(target_rel), src_type(t_type),
+           projection_reorder_index_array(projection_reorder_index_array)
     {
         // std::cout << "init negate ..." << std::endl;
         RA_type = NEGATION;

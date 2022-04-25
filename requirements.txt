@@ -4,6 +4,7 @@ grpcio-tools
 grpc_interceptor
 prompt_toolkit
 pyftpdlib
+psutil
 yaspin
 pyfiglet
 grpc_interceptor
