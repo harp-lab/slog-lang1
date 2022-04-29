@@ -232,71 +232,71 @@ template<typename TState> TState agg_sum_global(u64* data, local_agg_res_t agg_d
 //                              local_agg_func_t local_agg_func, reduce_agg_func_t reduce_agg_func, global_agg_func_t global_agg_fun);
 
 
-local_agg_res_t agg_not_1_local_OLD(_BTree* rel, const u64* data){
-  return rel->has_key(data)? (u64) true : (u64) false;
-}
+// local_agg_res_t agg_not_1_local_OLD(_BTree* rel, const u64* data){
+//   return rel->has_key(data)? (u64) true : (u64) false;
+// }
 
-local_agg_res_t agg_not_2_local_OLD(_BTree* rel, const u64* data){
-  return rel->has_key(data)? (u64) true : (u64) false;
-}
+// local_agg_res_t agg_not_2_local_OLD(_BTree* rel, const u64* data){
+//   return rel->has_key(data)? (u64) true : (u64) false;
+// }
 
 
-local_agg_res_t agg_sum_local_OLD(_BTree* rel, const u64* data) {
-  u64 sum = 0;
-  for (auto iter = rel->begin(); iter != rel->end(); iter++){
-    auto current = *iter;
-    if (is_number(*current)) {
-      sum += d2n(*current);
-    }
-  }
-  return sum;
-}
+// local_agg_res_t agg_sum_local_OLD(_BTree* rel, const u64* data) {
+//   u64 sum = 0;
+//   for (auto iter = rel->begin(); iter != rel->end(); iter++){
+//     auto current = *iter;
+//     if (is_number(*current)) {
+//       sum += d2n(*current);
+//     }
+//   }
+//   return sum;
+// }
 
-//////////////////// AGGREGATORS Alternative design ////////////////////
+// //////////////////// AGGREGATORS Alternative design ////////////////////
 
-struct RelDataIterator {
-  virtual u64* operator*() = 0;
-  virtual bool operator!=(const RelDataIterator& rhs) = 0;
-  virtual RelDataIterator& operator++() = 0;
-};
+// struct RelDataIterator {
+//   virtual u64* operator*() = 0;
+//   virtual bool operator!=(const RelDataIterator& rhs) = 0;
+//   virtual RelDataIterator& operator++() = 0;
+// };
 
-struct ReLData {
-  virtual RelDataIterator& begin() = 0;
-  virtual RelDataIterator& end() = 0;
-};
+// struct ReLData {
+//   virtual RelDataIterator& begin() = 0;
+//   virtual RelDataIterator& end() = 0;
+// };
 
-enum class SpecialAggregator {
-  none,
-  sum,
-};
-// typedef local_agg_res_t *local_agg_func_t (ReLData& agg_rel, const u64* data);
+// enum class SpecialAggregator {
+//   none,
+//   sum,
+// };
+// // typedef local_agg_res_t *local_agg_func_t (ReLData& agg_rel, const u64* data);
 
-// typedef local_agg_res_t *reduce_agg_func_t (local_agg_res_t x, local_agg_res_t y);
+// // typedef local_agg_res_t *reduce_agg_func_t (local_agg_res_t x, local_agg_res_t y);
 
-// typedef int *global_agg_func_t (u64* data, local_agg_res_t agg_data, int agg_data_count, u64* output); 
+// // typedef int *global_agg_func_t (u64* data, local_agg_res_t agg_data, int agg_data_count, u64* output); 
 
-// void parallel_copy_aggregate(relation rel, relation agg_rel, relation target_rel, 
-//                              local_agg_func_t local_agg_func, 
-//                              SpecialAggregator special_agg, reduce_agg_func_t reduce_agg_func, 
-//                              global_agg_func_t global_agg_fun);
+// // void parallel_copy_aggregate(relation rel, relation agg_rel, relation target_rel, 
+// //                              local_agg_func_t local_agg_func, 
+// //                              SpecialAggregator special_agg, reduce_agg_func_t reduce_agg_func, 
+// //                              global_agg_func_t global_agg_fun);
 
-local_agg_res_t agg_not_1_local(ReLData& rel, const u64* data){
-  auto has_any = rel.begin() != rel.end();
-  return has_any;
-}
+// local_agg_res_t agg_not_1_local(ReLData& rel, const u64* data){
+//   auto has_any = rel.begin() != rel.end();
+//   return has_any;
+// }
 
-local_agg_res_t agg_not_2_local(ReLData& rel, const u64* data){
-  return agg_not_1_local(rel, data);
-}
+// local_agg_res_t agg_not_2_local(ReLData& rel, const u64* data){
+//   return agg_not_1_local(rel, data);
+// }
 
-local_agg_res_t agg_sum_local(ReLData& rel, const u64* data) {
-  u64 sum = 0;
-  for (auto iter = rel.begin(); iter != rel.end(); iter++){
-    auto current = *iter;
-    if (is_number(*current)) {
-      sum += d2n(*current);
-    }
-  }
-  return sum;
-}
-// end of builtins.cpp
+// local_agg_res_t agg_sum_local(ReLData& rel, const u64* data) {
+//   u64 sum = 0;
+//   for (auto iter = rel.begin(); iter != rel.end(); iter++){
+//     auto current = *iter;
+//     if (is_number(*current)) {
+//       sum += d2n(*current);
+//     }
+//   }
+//   return sum;
+// }
+// // end of builtins.cpp
