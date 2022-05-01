@@ -14,3 +14,4 @@ out
 .cache
 massif.*
 gmon.out
+temp-out/

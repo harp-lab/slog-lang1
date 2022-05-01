@@ -116,7 +116,7 @@
             (hash-set accu rel-arity `(unused ,csel ,sel-st)))
       (hash)
       (hash-keys rel-h)))
-  ;; A hash of rel-arity -> scc-ids where the rel appears in a body clause
+  ;; A hash of rel-arity -> scc-ids where the rel appears in a body clause (or aggregated)
   (define rel->scc-body-hash (make-hash))
   ;; A hash of rel-arity -> scc-ids where the rel appears in a head clause
   (define rel->scc-head-hash (make-hash))
@@ -129,10 +129,13 @@
         (define scc-body-rel-arities
           (flat-map (λ (rule) (map (compose rel-select->rel-arity strip-prov) (rule-body-rel-selects-w/prov rule))) 
                     (set->list scc)))
+        (define scc-agg-rel-arities
+          (flat-map (λ (rule) (map (compose rel-select->rel-arity strip-prov) (body-agg-rel-selects-w/prov rule))) 
+                    (set->list scc)))
         (define scc-head-rel-arities-set (list->set scc-head-rel-arities))
         (define scc-body-rel-arities-set (list->set scc-body-rel-arities))
         (define scc-id (hash-ref scc->id scc))
-        (for ([rel scc-body-rel-arities])
+        (for ([rel (append scc-body-rel-arities scc-agg-rel-arities)])
           (hash-update! rel->scc-body-hash rel (λ (s) (set-add s scc-id)) (λ () (set scc-id))))
         (for ([rel scc-head-rel-arities])
           (hash-update! rel->scc-head-hash rel (λ (s) (set-add s scc-id)) (λ () (set scc-id))))

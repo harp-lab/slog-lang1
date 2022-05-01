@@ -11,9 +11,10 @@ from slog.daemon.util import get_relation_info
 
 from slog.tests.test import Test
 
-RUNSLOG_PATH = "/slog/runslog"
-WORKDIR = "/slog"
-TEST_DIR = "/slog/slog/tests/testcase"
+MYDIR = os.path.dirname(os.path.abspath(__file__))
+RUNSLOG_PATH = f"{MYDIR}/../../runslog"
+WORKDIR = f"{MYDIR}/../.."
+TEST_DIR = f"{MYDIR}/testcase"
 
 class SizeCompareTest(Test):
     """

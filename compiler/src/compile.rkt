@@ -156,10 +156,11 @@
              (hash-set txt-h scc (slog-compile-scc-to-cpp scc (hash-ref scc-map scc) comp-rels-func-names)))
            (hash)
            (hash-keys scc-map)))
+  (define scc-txt-list (map (λ (scc) (cons scc (hash-ref scc-txt-h scc))) (sort (hash-keys scc-txt-h) <)))
   ;(display scc-graph)
   (define prog-txt
     (string-append  rel-txt
-                    (apply string-append (map cdr (hash-values scc-txt-h)))
+                    (apply string-append (map cdr (map cdr scc-txt-list)))
                     "\n"
                     "LIE* lie = new LIE();\n"
                     (foldl (lambda (rel-sel txt)
@@ -169,7 +170,7 @@
                     (foldl (lambda (scc txt)
                             (string-append txt (format "lie->add_scc(~a);\n" (car (hash-ref scc-txt-h scc)))))
                           ""
-                          (hash-keys scc-txt-h))
+                          (map car scc-txt-list))
                     (foldl (lambda (scc txt)
                             (foldl (lambda (scc2 txt)
                                       (string-append txt (format "lie->add_scc_dependance(~a, ~a);\n"
