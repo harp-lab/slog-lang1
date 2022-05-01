@@ -42,11 +42,11 @@ class SizeCompareTest(Test):
                 out_found = True
                 count = get_relation_info(os.path.join(checkpoint_path, fp))['num_tuples']
                 if count != expected_count:
-                    self.fail(f"path should have {expected_count}, but get {count}")
+                    self.fail(f"{rel_name} should have {expected_count} facts, but has {count}")
                 else:
                     print(f"{slogpath} success!")
         if not out_found:
-            self.fail(f"path should have {expected_count}, but get 0")
+            self.fail(f"{rel_name} should have {expected_count} facts, but has 0 (facts file does not exist)")
 
     def run_test(self, writer):
         for test_name in os.listdir(TEST_DIR):

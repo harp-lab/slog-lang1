@@ -1,0 +1,17 @@
+(edge 0 1)
+(edge 1 2)
+(edge 2 3)
+(edge 3 4)
+(edge 4 5)
+
+(edge 5 6)
+(edge 6 7)
+(edge 7 8)
+
+(bad-edge 5 6)
+(bad-edge 6 7)
+(bad-edge 7 8)
+
+;; Transitive closure
+[(path x y) <-- (edge x y) (~ bad-edge x y)]
+[(path x z) <-- (edge x y) (~ bad-edge x y) (path y z)]
