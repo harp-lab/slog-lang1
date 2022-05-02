@@ -45,7 +45,7 @@ private:
     all_to_all_buffer all_to_all_compute_buffer;                       /// result of compute
 
     u64 *cumulative_all_to_allv_buffer;                      /// result of all to all comm
-    int* cumulative_all_to_allv_recv_process_size_array;
+    int* cumulative_all_to_allv_recv_process_count_array;
 
     u64 **cumulative_all_to_allv_buffer_cmp;                      /// result of all to all comm
     int* cumulative_all_to_allv_recv_process_size_array_cmp;

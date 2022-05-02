@@ -6,6 +6,7 @@
 
 
 #include "../parallel_RA_inc.h"
+#include <iostream>
 
 RAM::~RAM()
 {
@@ -37,7 +38,8 @@ void RAM::add_relation(relation*& G, bool i_status, bool gc_flag)
     ram_relations.push_back(G);
     ram_relation_status.push_back(i_status);
     if (gc_flag) {
-        gc_relations.push_back(G);
+        // TODO gc_relations GC
+        // gc_relations.push_back(G);
     }
     //ram_relation_status[ram_relation_count] = i_status;
     ram_relation_count++;
@@ -311,8 +313,11 @@ u32 RAM::allocate_compute_buffers()
 
     compute_buffer.local_compute_output = new vector_buffer*[compute_buffer.ra_count];
     compute_buffer.local_compute_output_size = new int*[compute_buffer.ra_count];
-    compute_buffer.local_compute_output_size_flat = new int[compute_buffer.ra_count * compute_buffer.nprocs];
-    memset(compute_buffer.local_compute_output_size_flat, 0, compute_buffer.ra_count * compute_buffer.nprocs * sizeof(int));
+    compute_buffer.local_compute_output_size_flat = new int[compute_buffer.ra_count * compute_buffer.nprocs]{0};
+    compute_buffer.local_compute_output_count_flat = new int[compute_buffer.ra_count * compute_buffer.nprocs]{0};
+    // TODO remove:
+    // memset(compute_buffer.local_compute_output_size_flat, 0, compute_buffer.ra_count * compute_buffer.nprocs * sizeof(int));
+    // memset(compute_buffer.local_compute_output_count_flat, 0, compute_buffer.ra_count * compute_buffer.nprocs * sizeof(int));
 
     allocated_memory_size = allocated_memory_size + compute_buffer.ra_count * sizeof(vector_buffer*);
     allocated_memory_size = allocated_memory_size + compute_buffer.ra_count * sizeof(int*);
@@ -690,6 +695,8 @@ void RAM::free_compute_buffers()
     }
     delete[] compute_buffer.local_compute_output_size_rel;
     delete[] compute_buffer.local_compute_output_size_flat;
+    delete[] compute_buffer.local_compute_output_count_flat;
+
     delete[] compute_buffer.width;
     delete[] compute_buffer.local_compute_output;
     delete[] compute_buffer.local_compute_output_size;
@@ -708,7 +715,7 @@ void RAM::local_insert_in_newt_comm_compaction(std::map<u64, u64>& intern_map)
     {
         successful_insert = 0;
         u32 ra_id = k % RA_count;
-        u32 elements_to_read = cumulative_all_to_allv_recv_process_size_array[k];
+        u32 tuples_to_read = cumulative_all_to_allv_recv_process_count_array[k];
         relation* output;
 
         if (RA_list[ra_id]->get_RA_type() == COPY)
@@ -759,8 +766,11 @@ void RAM::local_insert_in_newt_comm_compaction(std::map<u64, u64>& intern_map)
 
             }
 #endif
-            for (u32 x = starting; x < starting + elements_to_read; x = x + width)
+            u32 elements_to_read = tuples_to_read * width;
+            // for (u32 x = starting; x < starting + elements_to_read; x = x + width)
+            for (int tuple_ind = 0; tuple_ind < tuples_to_read; tuple_ind ++)
             {
+                u32 x = starting + tuple_ind * width;
                 if (output->find_in_full(cumulative_all_to_allv_buffer + x, width) == false &&
                         output->find_in_delta(cumulative_all_to_allv_buffer + x, width) == false &&
                         output->find_in_newt(cumulative_all_to_allv_buffer + x, width) == false)
@@ -799,6 +809,7 @@ void RAM::local_insert_in_newt_comm_compaction(std::map<u64, u64>& intern_map)
                 // std::cout << std::endl;
                 // }
             }
+            starting = starting + elements_to_read;
         }
         else if (RA_list[ra_id]->get_RA_type() == ACOPY)
         {
@@ -806,8 +817,11 @@ void RAM::local_insert_in_newt_comm_compaction(std::map<u64, u64>& intern_map)
             u32 width = output->get_arity() + 1;
             u64 tuple[width];
             successful_insert = 0;
-            for (u32 x = starting; x < starting + elements_to_read; x = x + width)
+            u32 elements_to_read = tuples_to_read * width;
+            // for (u32 x = starting; x < starting + elements_to_read; x = x + width)
+            for (int tuple_ind = 0; tuple_ind < tuples_to_read; tuple_ind ++)
             {
+                u32 x = starting + tuple_ind * width;
                 if (output->find_in_full(cumulative_all_to_allv_buffer + x, width) == false && output->find_in_delta(cumulative_all_to_allv_buffer + x, width) == false)
                 {
                     for (u32 i = 0; i < width; i++)
@@ -820,15 +834,15 @@ void RAM::local_insert_in_newt_comm_compaction(std::map<u64, u64>& intern_map)
                     //std::cout << "get_debug_id " << output->get_debug_id() << std::endl;
                 }
             }
+            starting = starting + elements_to_read;
         }
         //else if (RA_list[ra_id]->get_RA_type() == FACT)
         //    continue;
 
-        starting = starting + elements_to_read;
         //std::cout << output->get_debug_id() << " successful insert " << successful_insert << std::endl;
     }
 
-    delete[] cumulative_all_to_allv_recv_process_size_array;
+    delete[] cumulative_all_to_allv_recv_process_count_array;
     delete[] cumulative_all_to_allv_buffer;
 }
 
@@ -922,7 +936,7 @@ void RAM::local_insert_in_newt(std::map<u64, u64>& intern_map)
         delete[] cumulative_all_to_allv_buffer_cmp[r];
     }
 
-    //delete[] cumulative_all_to_allv_recv_process_size_array;
+    //delete[] cumulative_all_to_allv_recv_process_count_array;
     //delete[] cumulative_all_to_allv_buffer;
 
     delete[] cumulative_all_to_allv_recv_process_size_array_cmp;
@@ -1167,8 +1181,7 @@ void RAM::execute_in_batches_comm_compaction(std::string name, int batch_size, s
 
             local_join_status = local_compute(offset);
 
-            comm_compaction_all_to_all(compute_buffer, &cumulative_all_to_allv_recv_process_size_array, &cumulative_all_to_allv_buffer, mcomm.get_local_comm(), *loop_counter, task_id, output_dir, all_to_all_record, sloav_mode, rotate_index_array, send_indexes, sendb_num);
-
+            comm_compaction_all_to_all(compute_buffer, &cumulative_all_to_allv_recv_process_count_array, &cumulative_all_to_allv_buffer, mcomm.get_local_comm(), *loop_counter, task_id, output_dir, all_to_all_record, sloav_mode, rotate_index_array, send_indexes, sendb_num);
 
 
             free_compute_buffers();

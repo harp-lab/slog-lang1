@@ -27,7 +27,7 @@ class CompileHashesTest(Test):
         # a different message digest algorithm.
         expected = 'ea15f5ea1c5a51e39dfa1f532b98f78394267b76d386a0b86c3813abe61a2f82'
         if expected == initial_db:
-            self.success()
+            self.success("hashes matched")
         else:
             self.fail("hashes didn't match.")
 

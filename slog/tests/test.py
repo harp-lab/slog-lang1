@@ -1,6 +1,7 @@
 # Base class for tests
 
 import sys
+from typing import List, AnyStr, Tuple
 
 from yaspin import yaspin
 
@@ -27,15 +28,17 @@ class Test:
     """
     def __init__(self, server, txt):
         self.test_text = txt
+        self.results: list[Tuple[str, str]] = []
         self.spin_text = DynText(self.test_text)
         self.client = SlogClient()
 
-    def success(self):
+    def success(self, msg):
         """
         On test success call this
         """
         print('\033[32m ✔ Success \033[0m')
-        sys.exit(0)
+        self.results.append(("Success", msg))
+        # sys.exit(0)
 
     def fail(self, msg=""):
         """
@@ -44,7 +47,8 @@ class Test:
         if msg != "":
             msg = ": " + msg
         print('\033[31;1m 💥 Failure{} \033[0m'.format(msg))
-        sys.exit(1)
+        self.results.append(("Failure", msg))
+        # sys.exit(1)
 
     def run_test(self, writer):
         """
@@ -61,3 +65,13 @@ class Test:
                 spinner.ok("✔")
             else:
                 spinner.fail("💥")
+        print("raw results:")
+        for res in self.results:
+            print(res)
+        failures = [msg for (res, msg) in self.results if res == "Failure"]
+        successes = [msg for (res, msg) in self.results if res == "Success"]
+        end_punc = "." if len(failures) == 0 else ":"
+        print(f"{len(failures)} errors{end_punc}")
+        for msg in failures:
+            print(msg)
+        sys.exit(len(failures))

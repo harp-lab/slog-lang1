@@ -23,7 +23,7 @@ class SizeCompareTest(Test):
     def __init__(self):
         super().__init__("localhost", ("Backend integration test"))
 
-    def check_count(self, slogpath, factpath, rel_name, arity, expected_count):
+    def check_count(self, test_name, slogpath, factpath, rel_name, arity, expected_count):
         if os.path.exists(f"{WORKDIR}/out"):
             shutil.rmtree(f"{WORKDIR}/out")
         try:
@@ -42,11 +42,12 @@ class SizeCompareTest(Test):
                 out_found = True
                 count = get_relation_info(os.path.join(checkpoint_path, fp))['num_tuples']
                 if count != expected_count:
-                    self.fail(f"{rel_name} should have {expected_count} facts, but has {count}")
+                    self.fail(f"{test_name}: {rel_name} should have {expected_count} facts, but has {count}")
                 else:
-                    print(f"{slogpath} success!")
+                    self.success(f"{test_name}: {rel_name} has {count} facts, as expected")
+                    # print(f"{slogpath} success!")
         if not out_found:
-            self.fail(f"{rel_name} should have {expected_count} facts, but has 0 (facts file does not exist)")
+            self.fail(f"{test_name}: {rel_name} should have {expected_count} facts, but has 0 (facts file does not exist)")
 
     def run_test(self, writer):
         for test_name in os.listdir(TEST_DIR):
@@ -57,11 +58,12 @@ class SizeCompareTest(Test):
                     rel_name = line.split(',')[0].strip()
                     arity = line.split(',')[1].strip()
                     expected = int(line.split(',')[2].strip())
-                    self.check_count(f'{testcase_dir}/{test_name}.slog',
+                    self.check_count(test_name,
+                                     f'{testcase_dir}/{test_name}.slog',
                                      f'{testcase_dir}/input',
                                      rel_name, arity, expected)
         if os.path.exists(f"{WORKDIR}/out"):
             shutil.rmtree(f"{WORKDIR}/out")
-        self.success()
+        # self.success()
 
 SizeCompareTest().test()
