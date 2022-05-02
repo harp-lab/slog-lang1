@@ -39,7 +39,7 @@ void RAM::add_relation(relation*& G, bool i_status, bool gc_flag)
     ram_relation_status.push_back(i_status);
     if (gc_flag) {
         // TODO gc_relations GC
-        // gc_relations.push_back(G);
+        gc_relations.push_back(G);
     }
     //ram_relation_status[ram_relation_count] = i_status;
     ram_relation_count++;
