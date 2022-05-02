@@ -1,7 +1,7 @@
 # Base class for tests
 
 import sys
-from typing import List, AnyStr, Tuple
+from typing import Tuple
 
 from yaspin import yaspin
 
@@ -60,7 +60,10 @@ class Test:
         """
         Starts the test
         """
-        with yaspin(text=self.spin_text) as spinner:
+
+        yp = yaspin(text=self.spin_text)
+        if not sys.stdout.isatty(): yp.hide()
+        with yp as spinner:
             if self.run_test(spinner):
                 spinner.ok("✔")
             else:
