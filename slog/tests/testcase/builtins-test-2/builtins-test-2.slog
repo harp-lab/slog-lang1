@@ -1,0 +1,92 @@
+
+(b-unit 1)
+(b-unit 1)
+(b-unit 1)
+(b-unit 1)
+
+[(b-unit x) --> (b-res x)]
+
+;;-----------------------------------------------
+
+; [(range 101 106 x)
+;  --> 
+;  (c-range-test x)]
+
+;;-----------------------------------------------
+; (d-foo 1 2 3 4)
+
+; [(d-foo x y z w)
+;  (< w 8) -->
+;  (d-foo {add1 x} {add1 y} {add1 z} {add1 w})]
+
+; [(d-foo x y z w) 
+;  (= {+ x w} {+ y z})
+;  -->
+;  (d-res x y z w)]
+
+; [(range 0 5 x) -->
+;  (d-expected {+ 1 x} {+ 2 x} {+ x 3} {add1 {add1 {add1 {add1 x}}}})]
+
+; [(d-expected x y z w)
+;  (d-res x y z w)
+;  -->
+;  (d-res-checked x y z w)]
+
+;;-----------------------------------------------
+
+(e-seed 1)
+
+[(e-seed x)
+ (< 0 x) (<= x 1) 
+ -->
+ (e-foo x {add1 x} {+ x 2})
+ (e-seed {* x 10})]
+
+(e-foo 1 2 3)
+(e-foo 10 20 30)
+(e-foo 11 12 13)
+(e-foo 21 22 23)
+
+[(e-foo x y z)
+ (+ x y z)
+ (- z y x)
+ (- z x y)
+ (< x y)
+ (< y z)
+ (<= x z)
+ (>= z y)
+ (> z x)
+ -->
+ (e-res x y z)]
+
+(e-expected 1 2 3)
+(e-expected 10 20 30)
+
+[(e-res x y z) (e-expected x y z) --> (e-checked x y z)]
+
+;;-----------------------------------------------
+
+; (f-foo 1 2 3)
+; (f-foo 2 3 4)
+; (f-foo 3 4 5)
+; (f-foo 4 5 6)
+; (f-foo 5 6 7)
+
+; [(f-foo x y z)
+;  (< 0 x) (< x 6)
+;  -->
+;  (f-seed {- x 0})
+;  (f-seed {+ x 0})
+;  (f-seed {* 1 {+ 4 {- x {+ 2 2}}}})]
+
+; [(f-seed x)
+;  -->
+;  ;; the following two clauses must do the same thing:
+;  (f-foo x {add1 x} {+ x 2})
+;  (f-foo {+ x {- 0 {- x x}}} {sub1 {- {add1 {+ x {add1 x}}} x}} {+ {- 2 x} {+ x x}})]
+
+;;-----------------------------------------------
+;; (range 0 7) causes panic
+; [(range 0 7 x)
+;  -->
+;  (e-foo x)]

@@ -64,6 +64,7 @@ class SizeCompareTest(Test):
             with open(f'{testcase_dir}/ground_truth') as truth_file:
                 expected_counts = []
                 for line in truth_file:
+                    if line.strip() == "" or line.strip().startswith("#"): continue
                     rel_name = line.split(',')[0].strip()
                     arity = line.split(',')[1].strip()
                     expected = int(line.split(',')[2].strip())

@@ -1,0 +1,28 @@
+
+(a-foo 5 1)
+
+[(a-foo x y) (< y 10) --> (a-foo {add1 x} {add1 y})]
+
+(a-bar 0)
+(a-bar 1) (a-bar 2) (a-bar 3) (a-bar 4) (a-bar 5) 
+(a-bar 6) (a-bar 7) (a-bar 8) (a-bar 9) (a-bar 10) 
+(a-bar 11)
+(a-bar 12)
+ 
+
+[(a-bar x) (~ a-foo _ x) --> (a-res1 x)]
+[(a-bar x) (~ a-foo x _) --> (a-res2 x)]
+
+(a-res1-expected 0)
+(a-res1-expected 11)
+(a-res1-expected 12)
+
+[(a-res1-expected x) (a-res1 x) --> (a-res1-checked x)]
+
+(a-res2-expected 0)
+(a-res2-expected 1)
+(a-res2-expected 2)
+(a-res2-expected 3)
+(a-res2-expected 4)
+
+[(a-res2-expected x) (a-res2 x) --> (a-res2-checked x)]
