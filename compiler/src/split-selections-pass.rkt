@@ -65,7 +65,9 @@
                 [existing-rel-index rel-h+]
                 [else 
                   (define b0-fixed-args (filter (lambda (i) (lit? (list-ref b0args i))) (range b0arity)))
-                  (extend-rel-h rel-h+ `(rel-arity ,b0rel ,b0arity db) (map add1 b0-fixed-args))])]
+                  (define fixed-args-index (map add1 b0-fixed-args))
+                  (define default-index (range 1 (+ 1 b0arity)))
+                  (extend-rel-h rel-h+ `(rel-arity ,b0rel ,b0arity db) default-index)])]
               [else rel-h+]))
           rel-h
           (hash-keys rules-h+)))

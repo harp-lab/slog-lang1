@@ -80,6 +80,18 @@ BUILTIN_BINARY_NUMBER_FUNC(builtin_subtract, -)
 BUILTIN_BINARY_NUMBER_FUNC(builtin_multiply, *)
 BUILTIN_BINARY_NUMBER_FUNC(builtin_divide, /)
 
+#define BUILTIN_BINARY_NUMBER_FUNC2(name, impl) \
+template<typename TState> inline TState name(const u64* data, TState init_state, TState (*callback) (u64 res, TState state)){ \
+  if (is_number(data[0]) && is_number(data[1])){\
+    auto res = number_to_datum(impl(datum_to_number(data[0]), datum_to_number(data[1])));\
+    return callback(res, init_state);\
+} else \
+  return init_state;\
+}
+
+inline u64 impl_arg2_minus_arg1(u64 arg1, u64 arg2) {return arg2 - arg1;}
+BUILTIN_BINARY_NUMBER_FUNC2(builtin_arg2_minus_arg1, impl_arg2_minus_arg1)
+
 
 #define BUILTIN_UNARY_NUMBER_FUNC(name, impl) \
 template<typename TState> inline TState name(const u64* data, TState init_state, TState (*callback) (u64 res, TState state)){ \

@@ -2,7 +2,18 @@ b-res,1, 1
 # c-range-test,1, 5
 # d-foo,4, 7
 # d-res-checked,4, 5
+
 e-seed,1, 2
 e-checked,3, 2
-# f-foo,3, 5
-# f-seed,1, 5
+
+f-foo,3, 5
+f-seed,1, 5
+
+g-one-checked,2, 1
+
+h-checked,6, 1
+
+i-res1-checked,1, 1
+i-res2-checked,1, 1
+i-res3-checked,1, 1
+i-res4-checked,1, 1

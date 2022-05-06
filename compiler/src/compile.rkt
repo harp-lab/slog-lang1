@@ -614,7 +614,13 @@
     (range 3 (1 2) "callback_builtin_range")
 
     (+ 3 (1 2) "builtin_add")
+    (+ 3 (2 3) "builtin_arg2_minus_arg1")
+    (+ 3 (1 3) "builtin_arg2_minus_arg1")
+
     (- 3 (1 2) "builtin_subtract")
+    (- 3 (2 3) "builtin_add")
+    (- 3 (1 3) "builtin_subtract")
+
     (* 3 (1 2) "builtin_multiply")
     (/ 3 (1 2) "builtin_divide")
     
