@@ -26,3 +26,35 @@
 (a-res2-expected 4)
 
 [(a-res2-expected x) (a-res2 x) --> (a-res2-checked x)]
+
+;;-----------------------------------------------
+(b-foo 1 101)
+[(b-foo x y) (< x 500) --> (b-foo {add1 x} {add1 y})]
+
+(b-bar 401 501)
+[(b-bar x y) (< x 600) --> (b-bar {add1 x} {add1 y})]
+
+(b-fluff 1)
+[(b-fluff x) (< x 1000) --> (b-fluff {add1 x})]
+
+[(b-bar x y)
+ (b-fluff x)
+ (~ b-foo x _)
+ -->
+ (b-res x)]
+;b-res: [501 .. 600]
+
+[(b-bar x y)
+ (b-fluff x)
+ (~ b-foo _ x)
+ -->
+ (b-res2 x)]
+; b-res2: empty
+
+[(~ b-res x)
+ (b-fluff x)
+ (~ b-res {+ x 100})
+ (b-fluff {sub1 {add1 x}})
+ -->
+ (b-res3 x)]
+;b-res3: 800 facts
