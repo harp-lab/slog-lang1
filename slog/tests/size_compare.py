@@ -54,8 +54,10 @@ class SizeCompareTest(Test):
                     else:
                         self.success(f"{test_name}: {rel_name} has {count} facts, as expected")
                         # print(f"{slogpath} success!")
-            if not out_found:
+            if (not out_found) and expected_count != 0:
                 self.fail(f"{test_name}: {rel_name} should have {expected_count} facts, but has 0 (facts file does not exist)")
+            else:
+                self.success(f"{test_name}: {rel_name} has 0 facts, as expected")
 
     def run_test(self, writer):
         for test_name in os.listdir(TEST_DIR):
