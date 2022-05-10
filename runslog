@@ -56,8 +56,14 @@ def ingest_facts(factloc, inputloc, tsv_bin_path, cores):
     for table_file in os.listdir(factloc):
         extn = table_file[table_file.rfind('.'):]
         if extn == '.table':
-            new_tag = current_max_tag + 1
-            current_max_tag = current_max_tag + 1
+            # check original tag allocated during compilation
+            new_tag = -1
+            for generated_facts in os.listdir(inputloc):
+                if table_file[table_file.find('.'):] in generated_facts:
+                    new_tag = int(generated_facts[:generated_facts.find('.')])
+            if new_tag == -1:
+                new_tag = current_max_tag + 1
+                current_max_tag = current_max_tag + 1
             tb_name = table_file[table_file.find('.'):]
             shutil.copy(os.path.join(factloc, table_file),
                         os.path.join(inputloc, str(new_tag)+tb_name))

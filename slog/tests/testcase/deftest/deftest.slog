@@ -142,14 +142,16 @@
 
 [(last_def Block EA Reg)
  <--
+ (~ flow_def EA Reg Block _)
+ --
  (def EA Reg)
- (block_next EA Block)
- (~ flow_def EA Reg Block _)]
+ (block_next EA Block)]
 
 [(last_def Block EA_def Reg)
  <--
- (block_next Block_end Block)
  (~ flow_def Block_end Reg Block _)
+ --
+ (block_next Block_end Block)
  --
  (~ must_def Block_end Reg)
  (block_last_def Block_end EA_def Reg)]
