@@ -45,19 +45,17 @@ class SizeCompareTest(Test):
         checkpoint_path = f"{out_dir}/checkpoints/checkpoint-final"
         for (rel_name, arity, expected_count) in expected_counts:
             out_found = False
+            count = 0 
             for fp in os.listdir(checkpoint_path):
                 if fp.find(f".{rel_name}.{arity}") > 0:
                     out_found = True
                     count = get_relation_info(os.path.join(checkpoint_path, fp))['num_tuples']
-                    if count != expected_count:
-                        self.fail(f"{test_name}: {rel_name} should have {expected_count} facts, but has {count}")
-                    else:
-                        self.success(f"{test_name}: {rel_name} has {count} facts, as expected")
-                        # print(f"{slogpath} success!")
-            if (not out_found) and expected_count != 0:
-                self.fail(f"{test_name}: {rel_name} should have {expected_count} facts, but has 0 (facts file does not exist)")
+                    break
+            file_exists_msg = "" if out_found else " (facts file does not exist)"
+            if count != expected_count:
+                self.fail(f"{test_name}: {rel_name} should have {expected_count} facts, but has {count}{file_exists_msg}")
             else:
-                self.success(f"{test_name}: {rel_name} has 0 facts, as expected")
+                self.success(f"{test_name}: {rel_name} has {count} facts, as expected{file_exists_msg}")
 
     def run_test(self, writer):
         for test_name in os.listdir(TEST_DIR):
