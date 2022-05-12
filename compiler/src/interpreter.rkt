@@ -1002,7 +1002,7 @@
 
 ;; Run the interpreter
 (define/contract (slog-interp ir [facts-dir #f])
-  (-> ir-incremental? (or/c string? false?) any/c)
+  (->* (ir-incremental?) ((or/c string? false?)) any/c)
   (match ir
     [`(ir-incremental ,ir-scc ,dag ,scc-map ,comp-rules-h)
      (let* ([initial-state (yield-to-debugger
