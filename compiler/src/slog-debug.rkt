@@ -602,13 +602,13 @@
     [else fact]))
 
 ;; Initiate the debugger
-(define (slog-debug ir)
+(define (slog-debug ir [facts-dir #f])
   ;; Call slog-interp with an initial IR. It will abort to a prompt to
   ;; yield the initial state and a continuation to start the program.
   (call-with-continuation-prompt
     (lambda ()
       (reset-timer)
-      (slog-interp ir)
+      (slog-interp ir facts-dir)
       (displayln "Exiting.")
       #;
       (parameterize ([uncaught-exception-handler

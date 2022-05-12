@@ -20,6 +20,7 @@
 (define input-database 'none)
 (define output-database 'none)
 (define output-code-loc 'none)
+(define facts-dir #f)
 
 ; Parse command-line
 (define file-path
@@ -51,6 +52,8 @@
     (slog-merge-builtins #f)]
    [("--input-db") input-db "Input database (directory, file name must follow relation file name rule)"
     (set! input-database input-db)]
+   [("--facts") dir "Facts directory (where .csv or .facts files reside)"
+    (set! facts-dir dir)]
    [("--build-input-db") input-db "New input database (directory, must be empty)"
     (set! default-input-dir input-db)]
    [("--output-db") output-db "Output database (facts / updated manifest written here)"
@@ -178,4 +181,4 @@
          (display (format template basename basename basename basename basename basename)))
        #:exists 'replace)
      (display (format "[wrote C++ driver and data to \"~a\"]\n" o-path)))]
-  [else (slog-debug program)])
+  [else (slog-debug program facts-dir)])
