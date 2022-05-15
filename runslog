@@ -126,7 +126,7 @@ def ensure_backend_built(compile_backend, tsv_bin_path, backend_build_dir, backe
         print(f"Compiling Compiling slog MPI backend failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
 
 
-def run_local(file, outloc, factloc, cores, verbose, slog_root=None, compile_backend=False,
+def run_local(file, out_path, factloc, cores, verbose, slog_root=None, compile_backend=False,
               debug_flag=False, profile_flag=False, repl_flag=False, compile_only=False):
     """
     Calls local utilities to compile and run a slog file locally.
@@ -150,7 +150,7 @@ def run_local(file, outloc, factloc, cores, verbose, slog_root=None, compile_bac
     tsv_bin_path = os.path.join(backend_build_dir, "tsv_to_bin")
     # make inputs absolute paths, so we can chdir more carelessly
     file = os.path.realpath(file)
-    outloc = os.path.realpath(outloc)
+    outloc = os.path.realpath("out")
     factloc = os.path.realpath(factloc) if factloc else None
     inputloc = os.path.join(outloc, "input-data")
     checkpointloc = os.path.join(outloc, "checkpoints")
@@ -259,7 +259,19 @@ def run_local(file, outloc, factloc, cores, verbose, slog_root=None, compile_bac
     if verbose:
         print("Build success!")
 
-    #6: Open the repl if needed
+    #6: copy to output dir
+    out_path = os.path.realpath(out_path)
+    if os.path.exists(out_path):
+        print("Output dir exists, overwrite it? (temporary result under `$SLOG_HOME/out`)")
+        while True:
+            confirm_flag = input("(Y/n): ")
+            if confirm_flag.strip() == 'Y':
+                shutil.rmtree(out_path)
+                shutil.copytree(outloc, out_path)
+                break
+            elif confirm_flag.strip() == 'n':
+                break
+    #7: Open the repl if needed
     shutil.copy(os.path.join(inputloc, '$strings.csv'),
                 f'{checkpointloc}/checkpoint-final/$strings.csv')
     if repl_flag:
