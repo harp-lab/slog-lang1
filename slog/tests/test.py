@@ -1,5 +1,6 @@
 # Base class for tests
 
+import os
 import sys
 from typing import Tuple
 
@@ -36,7 +37,7 @@ class Test:
         """
         On test success call this
         """
-        print('\033[32m ✔ Success \033[0m')
+        print('\033[32m ✔ Success: {} \033[0m'.format(msg))
         self.results.append(("Success", msg))
         # sys.exit(0)
 
@@ -44,9 +45,7 @@ class Test:
         """
         On test failure call this
         """
-        if msg != "":
-            msg = ": " + msg
-        print('\033[31;1m 💥 Failure{} \033[0m'.format(msg))
+        print('\033[31;1m 💥 Failure: {} \033[0m'.format(msg))
         self.results.append(("Failure", msg))
         # sys.exit(1)
 
@@ -61,9 +60,9 @@ class Test:
         Starts the test
         """
 
-        yp = yaspin(text=self.spin_text)
-        if not sys.stdout.isatty(): yp.hide()
-        with yp as spinner:
+        # is_ci = os.getenv("CI", "false").lower() == "true"
+        with yaspin(text=self.spin_text) as spinner:
+            if not sys.stdout.isatty(): spinner.hide()
             if self.run_test(spinner):
                 spinner.ok("✔")
             else:
@@ -74,7 +73,7 @@ class Test:
         failures = [msg for (res, msg) in self.results if res == "Failure"]
         successes = [msg for (res, msg) in self.results if res == "Success"]
         end_punc = "." if len(failures) == 0 else ":"
-        print(f"{len(failures)} errors{end_punc}")
+        print(f"{len(successes)} successes. {len(failures)} errors{end_punc}")
         for msg in failures:
             print(msg)
         sys.exit(len(failures))

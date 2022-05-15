@@ -7,6 +7,7 @@ Yihao Sun
 import os
 import subprocess
 import shutil
+from tempfile import tempdir
 from slog.daemon.util import get_relation_info
 
 from slog.tests.test import Test
@@ -23,47 +24,57 @@ class SizeCompareTest(Test):
     def __init__(self):
         super().__init__("localhost", ("Backend integration test"))
 
-    def check_count(self, test_name, slogpath, factpath, rel_name, arity, expected_count):
-        if os.path.exists(f"{WORKDIR}/out"):
-            shutil.rmtree(f"{WORKDIR}/out")
+    def check_count(self, test_name, slogpath, factpath, expected_counts):
+        out_dir = f"{WORKDIR}/out"
+        if os.path.exists(out_dir):
+            shutil.rmtree(out_dir)
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
         try:
             # print([RUNSLOG_PATH, "-v", "-j", "4", "-f", factpath, slogpath, f"{WORKDIR}/out"])
             exec_out = subprocess.check_output(
-                [RUNSLOG_PATH, "-v", "-f", factpath, slogpath, f"{WORKDIR}/out"],
+                [RUNSLOG_PATH, "-ov", "-v", "-f", factpath, slogpath, out_dir],
                  stderr=subprocess.STDOUT)
             print(exec_out.decode())
         except subprocess.CalledProcessError as e:
             self.fail(f"Slog file failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
-            # return False
-        checkpoint_path = f"{WORKDIR}/out/checkpoints/checkpoint-final"
-        out_found = False
-        for fp in os.listdir(checkpoint_path):
-            if fp.find(f".{rel_name}.{arity}") > 0:
-                out_found = True
-                count = get_relation_info(os.path.join(checkpoint_path, fp))['num_tuples']
-                if count != expected_count:
-                    self.fail(f"{test_name}: {rel_name} should have {expected_count} facts, but has {count}")
-                else:
-                    self.success(f"{test_name}: {rel_name} has {count} facts, as expected")
-                    # print(f"{slogpath} success!")
-        if not out_found:
-            self.fail(f"{test_name}: {rel_name} should have {expected_count} facts, but has 0 (facts file does not exist)")
+            return False
+        # for manual inspection:
+        # print("copying to " + f'{tempdir}/slog-tests/{test_name}')
+        # shutil.copytree(out_dir, f'{tempdir}/slog-tests/{test_name}')
+        checkpoint_path = f"{out_dir}/checkpoints/checkpoint-final"
+        for (rel_name, arity, expected_count) in expected_counts:
+            out_found = False
+            count = 0 
+            for fp in os.listdir(checkpoint_path):
+                if fp.find(f".{rel_name}.{arity}") > 0:
+                    out_found = True
+                    count = get_relation_info(os.path.join(checkpoint_path, fp))['num_tuples']
+                    break
+            file_exists_msg = "" if out_found else " (facts file does not exist)"
+            if count != expected_count:
+                self.fail(f"{test_name}: {rel_name} should have {expected_count} facts, but has {count}{file_exists_msg}")
+            else:
+                self.success(f"{test_name}: {rel_name} has {count} facts, as expected{file_exists_msg}")
 
     def run_test(self, writer):
         for test_name in os.listdir(TEST_DIR):
             writer.write(f"Now testing {test_name} ...")
             testcase_dir = f'{TEST_DIR}/{test_name}'
             with open(f'{testcase_dir}/ground_truth') as truth_file:
+                expected_counts = []
                 for line in truth_file:
+                    if line.strip() == "" or line.strip().startswith("#"): continue
                     rel_name = line.split(',')[0].strip()
                     arity = line.split(',')[1].strip()
                     expected = int(line.split(',')[2].strip())
-                    self.check_count(test_name,
-                                     f'{testcase_dir}/{test_name}.slog',
-                                     f'{testcase_dir}/input',
-                                     rel_name, arity, expected)
-        if os.path.exists(f"{WORKDIR}/out"):
-            shutil.rmtree(f"{WORKDIR}/out")
+                    expected_counts.append((rel_name, arity, expected))
+                self.check_count(test_name,
+                                    f'{testcase_dir}/{test_name}.slog',
+                                    f'{testcase_dir}/input',
+                                    expected_counts)
+        # if os.path.exists(f"{WORKDIR}/out"):
+        #     shutil.rmtree(f"{WORKDIR}/out")
         # self.success()
 
 SizeCompareTest().test()

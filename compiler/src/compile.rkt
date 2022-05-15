@@ -301,8 +301,7 @@
                   (rel->name rel-sel)
                   (rel->name `(rel-select ,@(take (drop rel-ver0 1) 3) db))
                   (match (last rel-ver0) ['total "FULL"] ['delta "DELTA"] ['new "NEW"])
-                  ;; We add neg-indices as a selection set for negated-rel in split-selections-pass as a hack
-                  (rel->name `(rel-select ,neg-rel-name ,neg-rel-arity ,neg-indices db))
+                  (rel->name `(rel-select ,neg-rel-name ,neg-rel-arity ,neg-rel-sel db))
                   ;(match (last rel-ver1) ['total "FULL"] ['delta "DELTA"] ['new "NEW"])
                   (compute-reordering-cpp (map second hvars)
                                           (append prefix-vars
@@ -614,7 +613,13 @@
     (range 3 (1 2) "callback_builtin_range")
 
     (+ 3 (1 2) "builtin_add")
+    (+ 3 (2 3) "builtin_arg2_minus_arg1")
+    (+ 3 (1 3) "builtin_arg2_minus_arg1")
+
     (- 3 (1 2) "builtin_subtract")
+    (- 3 (2 3) "builtin_add")
+    (- 3 (1 3) "builtin_subtract")
+
     (* 3 (1 2) "builtin_multiply")
     (/ 3 (1 2) "builtin_divide")
     

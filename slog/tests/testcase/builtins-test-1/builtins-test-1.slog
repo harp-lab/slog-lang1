@@ -1,0 +1,79 @@
+(a-foo 1 2)
+(a-foo 2 3)
+(a-foo 4 3)
+
+[(a-foo x y)
+ (< x y)
+ -->
+ (a-res x y)]
+
+;;-----------------------------------------------
+(b-foo 8 2)
+(b-foo 17 3)
+
+(b-bar 2 12)
+(b-bar 3 13)
+
+[(b-foo x y) (b-bar y z)
+ --> 
+ (b-res {+ x z})]
+
+(b-expected 20)
+(b-expected 30)
+
+[(b-res x) (b-expected x) --> (b-res-checked x)]
+
+;;-----------------------------------------------
+[(> x 0)
+ -->
+ (fac ?do(x) {* x {fac !do({sub1 x})}})]
+(fac ?do(0) 1)
+
+(c-res {fac !do(5)})
+
+(c-expected 120)
+
+[(c-expected x) (c-res x) --> (c-res-checked x)]
+
+;;-----------------------------------------------
+(d-long 1 2 3 4 5)
+(d-long 11 12 13 14 15)
+(d-long 21 22 23 24 25)
+(d-long 31 32 33 34 35)
+
+(d-long 11 12 12 14 15)
+(d-long 21 23 23 24 25)
+
+[(d-long x1 x2 x3 x4 x5)
+ (< x2 x3)
+ -->
+ (d-res x1 x2 x3)]
+
+(d-expected 1 2 3)
+(d-expected 11 12 13)
+(d-expected 21 22 23)
+(d-expected 31 32 33)
+
+[(d-expected x1 x2 x3) (d-res x1 x2 x3) --> (d-res-checked x1 x2 x3)]
+
+;;-----------------------------------------------
+; (e-foo 1 2 3 4)
+
+; [(e-foo x y z w)
+;  (< w 10) -->
+;  (e-foo {add1 x} {add1 y} {add1 z} {add1 w})]
+
+; [(e-foo x y z w) 
+;  (= {+ x w} {+ y z})
+;  -->
+;  (e-res x y z w)]
+
+; [(range 0 7 x) -->
+;  (e-expected {+ 1 x} {+ 2 x} {+ x 3} {add1 {add1 {add1 {add1 x}}}})]
+
+; [(e-expected x y z w)
+;  (e-res x y z w)
+;  -->
+;  (e-res-checked x y z w)]
+
+; truth: e-res-checked,4,7

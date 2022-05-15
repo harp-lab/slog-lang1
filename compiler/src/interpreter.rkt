@@ -273,7 +273,7 @@
     [(? string?)  (add-string fact ir-interp)]
     [`(,(? symbol? rel-name) ,args ...)
     (define arity (sub1 (length fact)))
-    (match-define `(,_ ,canonical-index ,_) (hash-ref (Ir-interp-rel-arity-map ir-interp) `(rel-arity ,rel-name ,arity db)))
+    (match-define `(,_ ,_ ,canonical-index ,_) (hash-ref (Ir-interp-rel-arity-map ir-interp) `(rel-arity ,rel-name ,arity db)))
     (match-let ([(cons id-list updated-ir-interp)
                   ;; Walk over each of the subfacts and generate
                   ;; IDs for them after adding them to the
@@ -314,7 +314,7 @@
 
 ;; Given a source tree (the program), initialize a facts database,
 ;; return an updated ir-interp.
-(define (interning-pass source-tree ir-interp scc-map)
+(define (interning-pass source-tree ir-interp scc-map [facts-dir #f])
   (define (set-all-keys-to relation-map value)
     (foldl (lambda (rarity-key rel-map-acc)
              (match (hash-ref relation-map rarity-key)
@@ -338,10 +338,25 @@
                          (map strip-prov (set->list (Module-facts mod)))))
                 reset-initial-tuple-ids
                 (hash-values source-tree)))
+       (define newer-ir-interp
+        (cond 
+          [facts-dir 
+            (define all-rels (list->set
+              (map (λ (rel-arity) (match rel-arity [`(rel-arity ,name ,arity ,kind) (symbol->string name)]))
+                   (hash-keys relation-map))))
+            (foldl (λ (file ir-interp)
+                      (foldl (λ (fact ir-interp) 
+                        (let-values ([(out updated-ir-interp) (recursively-add-fact fact ir-interp)])
+                              updated-ir-interp))
+                        ir-interp
+                        (facts-file-facts file)))
+              new-ir-interp
+              (filter (λ (file) (set-member? all-rels (facts-file-rel-name file))) (facts-dir-facts-files facts-dir)))]
+          [else new-ir-interp]))
        ;; Now set all keys back to 0
-       (match (Ir-interp-db-instance new-ir-interp)
+       (match (Ir-interp-db-instance newer-ir-interp)
          [`(db-instance ,relation-map ,indices-map ,tag-count ,string-symbol-id-map ,added-facts)
-          (copy-ir-interp new-ir-interp 
+          (copy-ir-interp newer-ir-interp 
             [db-instance `(db-instance ,(set-all-keys-to relation-map 0) ,indices-map ,tag-count ,string-symbol-id-map ,added-facts)])])]))
   (define after-interning-in-rules
     (foldl (λ (scc ir-interp)
@@ -986,15 +1001,16 @@
   (yield-to-debugger (thnk before) `(after  ,info)))
 
 ;; Run the interpreter
-(define/contract (slog-interp ir)
-  (-> ir-incremental? any/c)
+(define/contract (slog-interp ir [facts-dir #f])
+  (->* (ir-incremental?) ((or/c string? false?)) any/c)
   (match ir
     [`(ir-incremental ,ir-scc ,dag ,scc-map ,comp-rules-h)
      (let* ([initial-state (yield-to-debugger
                             (interning-pass
                              (ir->source-tree ir-scc)
                              (slog-initialize-interpreter ir)
-                             scc-map)
+                             scc-map
+                             facts-dir)
                             'initial-state)]
             [final-state
              (yield-to-debugger (loop-sccs initial-state) 'finished-fixed-point)])

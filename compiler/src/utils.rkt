@@ -6,6 +6,7 @@
 (require "slog-params.rkt")
 (require "generic-utils.rkt")
 (require "lang-predicates.rkt")
+(require csv-reading)
 
 (provide read-all
          get-arity
@@ -51,6 +52,9 @@
          print-ir-incremental
          print-ir-scc
          internal-rel-name?
+         facts-dir-facts-files
+         facts-file-facts
+         facts-file-rel-name
          (all-from-out "generic-utils.rkt"))
 
 ; Helper for reading in all s-exprs from STDIN
@@ -839,3 +843,36 @@
   (and (string-prefix? rel-name-str "$")
        (not (equal? rel-name-str "$lst"))
        (not (equal? rel-name-str "$nil"))))
+
+
+(define (facts-dir-facts-files dir)
+  (filter-map 
+    (λ (path)
+      (if (and (equal? (file-or-directory-type path) 'file)
+                (member (path-get-extension path) (list #".csv" #".facts")))
+          path
+          #f))
+    (directory-list dir #:build? #t)))
+
+
+(define make-facts-csv-reader
+  (make-csv-reader-maker
+   '((separator-chars            #\tab)
+     (strip-leading-whitespace?  . #t)
+     (strip-trailing-whitespace? . #t))))
+
+(define (facts-file-facts filename)
+  (define rel-name (facts-file-rel-name filename))
+  (define rel-name-symbol (string->symbol rel-name))
+  (define row-reader (make-facts-csv-reader (open-input-file filename)))
+  (printf "reading facts file: ~a\n" filename)
+  (csv-map 
+    (λ (row) (cons  rel-name-symbol 
+                    (map (λ (x)
+                          (define xn (string->number x))
+                          (if xn xn x)) 
+                         row)))
+    row-reader))
+
+(define (facts-file-rel-name filename)
+  (path->string (file-name-from-path (path-replace-extension filename ""))))

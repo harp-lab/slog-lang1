@@ -25,6 +25,7 @@ void load_input_relation(std::string db_dir)
   {
     // check if ends with table
     std::string filename_ss = entry.path().filename().string();
+    std::cout << "input database has file " << filename_ss << std::endl;
     std::string suffix = ".table";
     int ft = filename_ss.size()-suffix.size();
     if (ft < 0)
@@ -47,7 +48,7 @@ void load_input_relation(std::string db_dir)
     }
     if (tag > max_rel)
       max_rel = tag;
-    std::cout << "load " << index_stream.str() << std::endl;
+    std::cout << "load " << tag << "." << index_stream.str() << "has arity " << arity << std::endl;
     rel_tag_map[index_stream.str()] = tag;
   }
 }
