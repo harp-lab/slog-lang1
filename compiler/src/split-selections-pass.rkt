@@ -442,17 +442,18 @@
     (match-define `(prov ((prov ,rel ,relpos) ,args ...) ,pos) cl)
     (match-define `(rel-select ,rel-name ,rel-arity ,rel-indices ,rel-kind) rel)
     (match rel-kind
+      [`(agg ,aggregated-rel) #:when (equal? rel-name '~)
+        (define aggregated-rel-select0 (get-aggregated-rel-select-for-partial-agg-rel-select (strip-prov rel)))
+        (match-define `(rel-select ,neg-rel ,neg-rel-arity ,neg-rel-indices db) aggregated-rel-select0)
+        (define aggregated-rel-select `(rel-select ,neg-rel ,neg-rel-arity ,rel-indices db))
+        (define new-rel-select `(rel-select ~ ,rel-arity ,(range 1 (add1 rel-arity)) 
+                                 (agg (prov ,aggregated-rel-select ,(prov->pos aggregated-rel)))))
+        (assert (rel-select? new-rel-select) (format "~a" new-rel-select))
+        (cons `(prov ((prov ,new-rel-select ,relpos) ,@args) ,pos) (set aggregated-rel-select))]
       [`(agg ,aggregated-rel) 
         (define aggregated-rel-select (get-aggregated-rel-select-for-partial-agg-rel-select (strip-prov rel)))
         (define new-rel-select `(rel-select ,rel-name ,rel-arity ,rel-indices (agg (prov ,aggregated-rel-select ,(prov->pos aggregated-rel)))))
-        ; (printf "new-rel-select: ~a\n" new-rel-select)
-        (define negation-hack-rel-select
-          (cond 
-            [(equal? rel-name '~)
-            (match-define `(rel-select ,neg-rel ,_ ,_ db) aggregated-rel-select)
-            (set `(rel-select ,neg-rel ,rel-arity ,rel-indices db))]
-            [else (set)]))
-        (cons `(prov ((prov ,new-rel-select ,relpos) ,@args) ,pos) (set-union (set aggregated-rel-select) negation-hack-rel-select))]
+        (cons `(prov ((prov ,new-rel-select ,relpos) ,@args) ,pos) (set aggregated-rel-select))]
       [else (cons cl (set))]))
   (match rule
     [`(srule ,head ,bodys ...) 

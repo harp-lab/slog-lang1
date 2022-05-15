@@ -134,6 +134,7 @@
                     (set->list scc)))
         (define scc-head-rel-arities-set (list->set scc-head-rel-arities))
         (define scc-body-rel-arities-set (list->set scc-body-rel-arities))
+        (define scc-agg-rel-arities-set (list->set scc-agg-rel-arities))
         (define scc-id (hash-ref scc->id scc))
         (for ([rel (append scc-body-rel-arities scc-agg-rel-arities)])
           (hash-update! rel->scc-body-hash rel (λ (s) (set-add s scc-id)) (λ () (set scc-id))))
@@ -155,12 +156,14 @@
                         ;; heads), or unused (not used at all in this SCC).
                         (define tag (cond
                           [(set-member? scc-head-rel-arities-set rel-arity) 'dynamic]
-                          [(set-member? scc-body-rel-arities-set rel-arity) 'static]
+                          [(or (set-member? scc-body-rel-arities-set rel-arity)
+                               (set-member? scc-agg-rel-arities-set rel-arity)) 'static]
                           [else 'unused]))
                         (hash-set h rel-arity `(,tag ,csel ,sel-st))]
                       [else h]))
                   rel-h-to-be-overridden
-                  (set->list (set-union scc-head-rel-arities-set scc-body-rel-arities-set)))
+                  (set->list (set-union scc-head-rel-arities-set scc-body-rel-arities-set
+                                        scc-agg-rel-arities-set)))
           ,(let ([restricted (restrict rules-h scc)])
               (foldl (lambda (rule h)
                       (hash-set h rule

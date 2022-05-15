@@ -116,3 +116,40 @@
  (~ g-bar y 100 x)
  -->
  (g-res x y)]
+
+;; H ------------------------------------------------------
+
+(h-foo 1 2 3 4 5)
+
+(h-bar1 5 2)
+(h-bar2 3 1)
+(h-bar3 4 4)
+(h-bar4 2 4)
+(h-bar5 3 3)
+
+(h-bars 5 2)
+(h-bars 3 1)
+(h-bars 4 4)
+(h-bars 2 4)
+(h-bars 3 3)
+
+(h-baz1 1 2 3)
+
+[(h-foo x1 x2 x3 x4 x5)
+ -->
+ [(~ h-bar1 x5 x2) --> (h-res1 x1 x2 x3 x4 x5)] 
+ [(~ h-bar2 x3 x1) --> (h-res1 x1 x2 x3 x4 x5)] 
+ [(~ h-bar3 x4 x4) --> (h-res1 x1 x2 x3 x4 x5)]
+ [(~ h-bar4 x2 x4) --> (h-res1 x1 x2 x3 x4 x5)]
+ [(~ h-bar5 x3 x3) --> (h-res1 x1 x2 x3 x4 x5)]
+
+ 
+ [(~ h-baz1 _ x2 _) --> (h-res2 x1 x2 x3 x4 x5)]
+ [(~ h-baz1 x2 _ _) --> (h-res3 x1 x2 x3 x4 x5)]
+ [(~ h-baz1 x1 _ x3) --> (h-res4 x1 x2 x3 x4 x5)]
+
+ [(~ h-bars x3 x2) --> (h-has-3-2 x3 x2)]
+ [(~ h-bars x1 x3) --> (h-has-1-3 x1 x3)]
+ [(~ h-bars x4 x2) --> (h-has-4-2 x4 x2)]
+ [(~ h-bars x5 x5) --> (h-has-5-5 x5 x5)]
+ ]

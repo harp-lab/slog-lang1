@@ -573,6 +573,12 @@
     (filter-map (λ (spec-func)
               (match-define `(aggregator-spec ,agg-name ,agg-arity ,agg-indices ,rel-arity ,rel-indices) (car spec-func))
               (cond
+                ;; Hack to allow negation to make negation work with rel-selects with unordered indices
+                ;; The design of aggregators likely needs to be rethought.
+                [(and (equal? agg-name '~)
+                      (equal? (list agg-name agg-arity rel-arity (list->set rel-indices)) (list req-agg-name req-agg-arity req-rel-arity (list->set req-rel-indices)))
+                      (subset? (list->set agg-indices) (list->set req-agg-indices)))
+                 spec-func]
                 [(and (equal? (list agg-name agg-arity rel-arity rel-indices) (list req-agg-name req-agg-arity req-rel-arity req-rel-indices))
                       (subset? (list->set agg-indices) (list->set req-agg-indices)))
                  spec-func]
