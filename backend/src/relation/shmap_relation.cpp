@@ -125,6 +125,8 @@ void shmap_relation::as_all_to_allv_acopy_buffer_helper(shmap_relation*& cur_tri
 
         buffer.local_compute_output_size_total = buffer.local_compute_output_size_total + buffer.width[ra_id];
         buffer.local_compute_output_size_flat[index * buffer.ra_count + ra_id] = buffer.local_compute_output_size_flat[index * buffer.ra_count + ra_id] + buffer.width[ra_id];
+        buffer.local_compute_output_count_flat[index * buffer.ra_count + ra_id] ++;
+
         buffer.local_compute_output_size[ra_id][index] = buffer.local_compute_output_size[ra_id][index] + buffer.width[ra_id];
         buffer.cumulative_tuple_process_map[index] = buffer.cumulative_tuple_process_map[index] + buffer.width[ra_id];
         buffer.local_compute_output[ra_id][index].vector_buffer_append((const unsigned char*)reordered_cur_path, sizeof(u64)*buffer.width[ra_id]);
@@ -172,6 +174,7 @@ void shmap_relation::as_all_to_allv_copy_buffer_helper(shmap_relation*& cur_trie
         int index = output_sub_bucket_rank[bucket_id][sub_bucket_id];
         buffer.local_compute_output_size_total = buffer.local_compute_output_size_total + buffer.width[ra_id];
         buffer.local_compute_output_size_flat[index * buffer.ra_count + ra_id] = buffer.local_compute_output_size_flat[index * buffer.ra_count + ra_id] + buffer.width[ra_id];
+        buffer.local_compute_output_count_flat[index * buffer.ra_count + ra_id] ++;
 
         buffer.local_compute_output_size[ra_id][index] = buffer.local_compute_output_size[ra_id][index] + buffer.width[ra_id];
         buffer.cumulative_tuple_process_map[index] = buffer.cumulative_tuple_process_map[index] + buffer.width[ra_id];
@@ -224,6 +227,7 @@ void shmap_relation::as_all_to_allv_copy_filter_buffer_helper(shmap_relation*& c
             int index = output_sub_bucket_rank[bucket_id][sub_bucket_id];
             buffer.local_compute_output_size_total = buffer.local_compute_output_size_total + buffer.width[ra_id];
             buffer.local_compute_output_size_flat[index * buffer.ra_count + ra_id] = buffer.local_compute_output_size_flat[index * buffer.ra_count + ra_id] + buffer.width[ra_id];
+            buffer.local_compute_output_count_flat[index * buffer.ra_count + ra_id] ++;
 
             buffer.local_compute_output_size[ra_id][index] = buffer.local_compute_output_size[ra_id][index] + buffer.width[ra_id];
             buffer.cumulative_tuple_process_map[index] = buffer.cumulative_tuple_process_map[index] + buffer.width[ra_id];
@@ -283,6 +287,8 @@ void shmap_relation::as_all_to_allv_right_join_buffer_helper(shmap_relation*& cu
 
             join_buffer.local_compute_output_size_total = join_buffer.local_compute_output_size_total + join_buffer.width[ra_id];
             join_buffer.local_compute_output_size_flat[index*join_buffer.ra_count + ra_id] = join_buffer.local_compute_output_size_flat[index*join_buffer.ra_count + ra_id] + join_buffer.width[ra_id];
+            join_buffer.local_compute_output_count_flat[index * join_buffer.ra_count + ra_id] ++;
+
             join_buffer.local_compute_output_size[ra_id][index] = join_buffer.local_compute_output_size[ra_id][index] + join_buffer.width[ra_id];
             join_buffer.cumulative_tuple_process_map[index] = join_buffer.cumulative_tuple_process_map[index] + join_buffer.width[ra_id];
             join_buffer.local_compute_output[ra_id][index].vector_buffer_append((const unsigned char*)projected_path, sizeof(u64)*join_buffer.width[ra_id]);
@@ -372,6 +378,8 @@ void shmap_relation::as_all_to_allv_left_join_buffer_helper(shmap_relation*& cur
 
             join_buffer.local_compute_output_size_total = join_buffer.local_compute_output_size_total + join_buffer.width[ra_id];
             join_buffer.local_compute_output_size_flat[index*join_buffer.ra_count + ra_id] = join_buffer.local_compute_output_size_flat[index*join_buffer.ra_count + ra_id] + join_buffer.width[ra_id];
+            join_buffer.local_compute_output_count_flat[index * join_buffer.ra_count + ra_id] ++;
+
             join_buffer.local_compute_output_size[ra_id][index] = join_buffer.local_compute_output_size[ra_id][index] + join_buffer.width[ra_id];
             join_buffer.cumulative_tuple_process_map[index] = join_buffer.cumulative_tuple_process_map[index] + join_buffer.width[ra_id];
             join_buffer.local_compute_output[ra_id][index].vector_buffer_append((const unsigned char*)projected_path, sizeof(u64)*join_buffer.width[ra_id]);

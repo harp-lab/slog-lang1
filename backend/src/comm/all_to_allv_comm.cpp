@@ -49,7 +49,6 @@ static void padded_bruck_non_uniform_benchmark(char *sendbuf, int *sendcounts, i
 
 void all_to_all_comm(vector_buffer* vectorized_send_buffer, int vectorized_send_buffer_size, int* send_counts, int *recv_buffer_size, u64 **recv_buffer, MPI_Comm comm)
 {
-    // printf("all_to_all_comm called!\n");
     int nprocs;
     MPI_Comm_size(comm, &nprocs);
 
@@ -104,27 +103,15 @@ void all_to_all_comm(vector_buffer* vectorized_send_buffer, int vectorized_send_
 
 void comm_compaction_all_to_all(all_to_allv_buffer compute_buffer, int **recv_buffer_counts, u64 **recv_buffer, MPI_Comm comm, int loop_counter, int task_id, std::string output_dir, bool record, int sloav_mode, int* rotate_index_array, int** send_indexes, int *sendb_num)
 {
-    // printf("comm_compaction_all_to_all called! pid: %d \n", getpid());
     u32 RA_count = compute_buffer.ra_count;
     int nprocs = compute_buffer.nprocs;
-    // printf("RA_count: %d, nprocs: %d \n", RA_count, nprocs);
     int rank;
     MPI_Comm_rank(comm, &rank);
 
     *recv_buffer_counts = new int[RA_count * nprocs];
     memset(*recv_buffer_counts, 0, RA_count * nprocs * sizeof(int));
 
-    // printf("compute_buffer widths: ");
-    // for (int _i = 0; _i < RA_count; _i++) {printf("%d, ", compute_buffer.width[_i]);}
-    // printf("\n");
-
-    // printf("compute_buffer.local_compute_output_count_flat: ");
-    // for (int _i = 0; _i < RA_count * nprocs; _i++) {printf("%d, ", compute_buffer.local_compute_output_count_flat[_i]);}
-    // printf("\n");
-
-    // printf("calling MPI_Alltoall for counts!\n");
     MPI_Alltoall(compute_buffer.local_compute_output_count_flat, RA_count, MPI_INT, *recv_buffer_counts, RA_count, MPI_INT, comm);
-    // printf("called MPI_Alltoall for counts!\n");
 
     int outer_hash_buffer_size = 0;
     int *send_disp = new int[nprocs];
@@ -161,8 +148,6 @@ void comm_compaction_all_to_all(all_to_allv_buffer compute_buffer, int **recv_bu
             boffset = boffset + (compute_buffer.local_compute_output[r][i].size)/sizeof(u64);
             compute_buffer.local_compute_output[r][i].vector_buffer_free();
 
-            // printf("(*recv_buffer_counts)[i*RA_count + r] for i=%d, r=%d is %d\n", i, r, (*recv_buffer_counts)[i*RA_count + r]);
-            // recv_counts[i] = recv_counts[i] + (*recv_buffer_offset_size)[i*RA_count + r];
             recv_counts[i] = recv_counts[i] + (*recv_buffer_counts)[i*RA_count + r] * compute_buffer.width[r];
 
             assert(compute_buffer.local_compute_output_size_flat[i*RA_count + r] == 
@@ -173,18 +158,12 @@ void comm_compaction_all_to_all(all_to_allv_buffer compute_buffer, int **recv_bu
             recv_displacements[i] = recv_displacements[i - 1] + recv_counts[i - 1];
         outer_hash_buffer_size = outer_hash_buffer_size + recv_counts[i];
     }
-    // printf("done looping!\n");
-
-    // printf("recv_counts: ");
-    // for (int _i = 0; _i< nprocs; _i++) printf("%d, ", recv_counts[_i]);
-    // printf("\n");
-
 
     //if (rank == 0)
     //    std::cout  <<local_min_count << "\t" << local_max_count << "\t" << sum0/nprocs << "\t";
 
     //assert(compute_buffer.local_compute_output_size_total == send_disp[nprocs - 1] + compute_buffer.cumulative_tuple_process_map[nprocs - 1]);
-    // printf("recv_buffer size: %d \n", outer_hash_buffer_size);
+
     *recv_buffer = new u64[outer_hash_buffer_size];
 
 #if 0
@@ -211,10 +190,8 @@ void comm_compaction_all_to_all(all_to_allv_buffer compute_buffer, int **recv_bu
 
     int max_send_count = 0;
     int average_send_count = 0;
-    // printf("calling MPI_Allreduce!\n");
     MPI_Allreduce(&local_max_count, &max_send_count, 1, MPI_INT, MPI_MAX, comm);
     MPI_Allreduce(&local_max_count, &average_send_count, 1, MPI_INT, MPI_SUM, comm);
-    // printf("calling MPI_Allreduce twice done!\n");
 
 #if 0
     if (sloav_mode == 1)
@@ -230,16 +207,7 @@ void comm_compaction_all_to_all(all_to_allv_buffer compute_buffer, int **recv_bu
     {
         //if (rank == 0)
         //    std::cout << "M0 \t" << max_send_count << "\t" << average_send_count/nprocs << "\t";
-        // printf("calling MPI_Alltoallv, at %s:%s\n", __FILE__, __LINE__);
-
-        // printf("compute_buffer.cumulative_tuple_process_map: ");
-        // for(int _i = 0; _i< nprocs; _i++) printf("%d, ", compute_buffer.cumulative_tuple_process_map[_i]);
-        // printf("\n");
-
-        // printf("calling MPI_Alltoallv,for data! \n");
         MPI_Alltoallv(send_buffer, compute_buffer.cumulative_tuple_process_map, send_disp, MPI_UNSIGNED_LONG_LONG, *recv_buffer, recv_counts, recv_displacements, MPI_UNSIGNED_LONG_LONG, comm);
-        // printf("calling MPI_Alltoallv,for data done!\n");
-
     }
 #if 0
     else if (sloav_mode == 2)
@@ -558,8 +526,6 @@ void comm_compaction_all_to_all(all_to_allv_buffer compute_buffer, int **recv_bu
     delete[] send_disp;
     delete[] recv_displacements;
     delete[] recv_counts;
-
-    // printf("comm_compaction_all_to_all done!\n");
 }
 
 #if 0

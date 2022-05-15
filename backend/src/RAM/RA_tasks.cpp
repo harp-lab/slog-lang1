@@ -315,9 +315,6 @@ u32 RAM::allocate_compute_buffers()
     compute_buffer.local_compute_output_size = new int*[compute_buffer.ra_count];
     compute_buffer.local_compute_output_size_flat = new int[compute_buffer.ra_count * compute_buffer.nprocs]{0};
     compute_buffer.local_compute_output_count_flat = new int[compute_buffer.ra_count * compute_buffer.nprocs]{0};
-    // TODO remove:
-    // memset(compute_buffer.local_compute_output_size_flat, 0, compute_buffer.ra_count * compute_buffer.nprocs * sizeof(int));
-    // memset(compute_buffer.local_compute_output_count_flat, 0, compute_buffer.ra_count * compute_buffer.nprocs * sizeof(int));
 
     allocated_memory_size = allocated_memory_size + compute_buffer.ra_count * sizeof(vector_buffer*);
     allocated_memory_size = allocated_memory_size + compute_buffer.ra_count * sizeof(int*);
@@ -767,7 +764,6 @@ void RAM::local_insert_in_newt_comm_compaction(std::map<u64, u64>& intern_map)
             }
 #endif
             u32 elements_to_read = tuples_to_read * width;
-            // for (u32 x = starting; x < starting + elements_to_read; x = x + width)
             for (int tuple_ind = 0; tuple_ind < tuples_to_read; tuple_ind ++)
             {
                 u32 x = starting + tuple_ind * width;
@@ -818,7 +814,6 @@ void RAM::local_insert_in_newt_comm_compaction(std::map<u64, u64>& intern_map)
             u64 tuple[width];
             successful_insert = 0;
             u32 elements_to_read = tuples_to_read * width;
-            // for (u32 x = starting; x < starting + elements_to_read; x = x + width)
             for (int tuple_ind = 0; tuple_ind < tuples_to_read; tuple_ind ++)
             {
                 u32 x = starting + tuple_ind * width;

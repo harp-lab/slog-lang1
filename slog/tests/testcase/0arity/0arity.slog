@@ -1,0 +1,12 @@
+(a-unit)
+[(a-unit) --> (a-unit-is (a-unit))]
+
+[(+ 2 2 5) --> (a-bot)]
+[(a-bot) --> (a-bot-is (a-bot))]
+
+;;-----------------------------------------------
+
+(b-foo 1)
+[(b-foo x) (< x 10) --> (b-foo {add1 x})]
+[(b-foo x) --> (b-unit)]
+[(b-unit) --> (b-unit-is (b-unit))]

@@ -235,7 +235,7 @@ void LIE::write_checkpoint_dump(int loop_counter, std::vector<int> executed_scc_
     {
         //std::cout << "Name " << lie_relations[i]->get_filename() << std::endl;
         //if(lie_relations[i]->get_debug_id() == "rel_path_2_1_2")
-        if (lie_relations[i]->get_is_canonical() && lie_relations[i]->get_arity() != 0)
+        if (lie_relations[i]->get_is_canonical())
             lie_relations[i]->parallel_IO(dir_name);
     }
 }
@@ -251,7 +251,7 @@ void LIE::write_final_checkpoint_dump()
     MPI_Barrier(mcomm.get_local_comm());
     for (u32 i = 0 ; i < lie_relations.size(); i++)
     {
-        if (lie_relations[i]->get_is_canonical() && lie_relations[i]->get_arity() != 0)
+        if (lie_relations[i]->get_is_canonical())
             lie_relations[i]->parallel_IO(dir_name);
     }
 #endif
@@ -265,7 +265,7 @@ void LIE::write_final_checkpoint_dump(relation* rel) {
         std::filesystem::create_directories(dir_path);
     }
     MPI_Barrier(mcomm.get_local_comm());
-    if (rel->get_is_canonical() && rel->get_arity() != 0)
+    if (rel->get_is_canonical())
         rel->parallel_IO(dir_name);
 }
 

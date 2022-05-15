@@ -25,6 +25,9 @@ struct all_to_allv_buffer
     int **local_compute_output_size;
 
 
+    // TODO: 
+    /// This is replaced by `local_compute_output_count_flat`, and can be deleted, except 
+    /// it is being used in `all_to_all_benchmark.cpp`.
     int* local_compute_output_size_flat;
 
     int* local_compute_output_count_flat;

@@ -1,0 +1,9 @@
+a-unit,0, 1
+a-unit-is,1, 1
+
+a-bot,0, 0
+a-bot-is,1, 0
+
+b-foo,1, 10
+b-unit,0, 1
+b-unit-is,1, 1
