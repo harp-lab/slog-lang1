@@ -1,0 +1,153 @@
+
+;; Note origin_live_on_entry computed by liveness analysis
+
+[(subset o1 o2 p) <-- (subset_base o1 o2 p)]
+
+[(origin_contains_loan_on_entry o l p) <-- (loan_issued_at o l p)]
+
+;; NOTE in input facts, we have loan_invalidated_at(point, loan), so we do the same here
+; relation loan_invalidated_at(T::Loan, T::Point);
+
+;; NOTE placeholder_origin appears to be universal_region in input facts (it's very small)
+[(placeholder_origin o) <-- (universal_region o)]
+
+;; NOTE known_placeholder_subset needs to be closed over
+[(known_placeholder_subset x z) <-- (known_placeholder_subset x y) (known_placeholder_subset y z)]
+
+[(subset origin1 origin3 point) <--
+    (subset origin1 origin2 point)
+    (subset origin2 origin3 point)
+    (/= origin1 origin3)]
+
+[(subset origin1 origin2 point2) <--
+    (subset origin1 origin2 point1)
+    (cfg_edge point1 point2)
+    (origin_live_on_entry origin1 point2)
+    (origin_live_on_entry origin2 point2)]
+
+[(origin_contains_loan_on_entry origin2 loan point) <--
+    (origin_contains_loan_on_entry origin1 loan point)
+    (subset origin1 origin2 point)]
+
+[(origin_contains_loan_on_entry origin loan point2) <--
+    (origin_contains_loan_on_entry origin loan point1)
+    (cfg_edge point1 point2)
+    (~ loan_killed_at loan point1)
+    (origin_live_on_entry origin point2)]
+
+[(loan_live_at loan point) <--
+    (origin_contains_loan_on_entry origin loan point)
+    (origin_live_on_entry origin point)]
+
+[(errors loan point) <--
+    (loan_invalidated_at point loan)
+    (loan_live_at loan point)]
+
+[(subset_error origin1 origin2 point) <--
+    (subset origin1 origin2 point)
+    (placeholder_origin origin1)
+    (placeholder_origin origin2)
+    (known_placeholder_subset origin1 origin2)
+    (/= origin1 origin2)]
+
+
+;;=======================================================
+;; make_universal_regions_live (liveness.rs)
+
+[(origin_live_on_entry origin point) <--
+    (cfg_node point)
+    (universal_region origin)]
+
+;;=======================================================
+;; populating cfg_node (output/mod.rs)
+
+[(cfg_node point1)
+ (cfg_node point2) <--
+    (cfg_edge point1 point2)]
+
+;;=======================================================
+;; liveness logic (liveness.rs)
+
+[(var_live_on_entry var point) <-- (var_used_at var point)]
+
+[(var_maybe_partly_initialized_on_entry var point2) <--
+    (var_maybe_partly_initialized_on_exit var point1)
+    (cfg_edge point1 point2)]
+
+[(var_drop_live_on_entry var point) <--
+    (var_dropped_at var point)
+    (var_maybe_partly_initialized_on_entry var point)]
+
+[(origin_live_on_entry origin point) <--
+    (var_drop_live_on_entry var point)
+    (drop_of_var_derefs_origin var origin)]
+
+[(origin_live_on_entry origin point) <--
+    (var_live_on_entry var point)
+    (use_of_var_derefs_origin var origin)]
+
+[(var_live_on_entry var point1) <--
+    (var_live_on_entry var point2)
+    (cfg_edge point1 point2)
+    (~ var_defined_at var point1)]
+
+[(var_drop_live_on_entry Var SourceNode) <--
+    (var_drop_live_on_entry Var TargetNode)
+    (cfg_edge SourceNode TargetNode)
+    (~ var_defined_at Var SourceNode)
+    (var_maybe_partly_initialized_on_exit Var SourceNode)]
+
+
+;;=======================================================
+;; initialization logic (initialization.rs)
+
+;; Step 1: compute transitive closures of path operations
+[(ancestor_path Parent Child) <-- (child_path Child Parent)]
+[(path_moved_at Path Point) <-- (path_moved_at_base Path Point)]
+[(path_assigned_at Path Point) <-- (path_assigned_at_base Path Point)]
+[(path_accessed_at Path Point) <-- (path_accessed_at_base Path Point)]
+[(path_begins_with_var Path Var) <-- (path_is_var Path Var)]
+
+[(ancestor_path Grandparent Child) <--
+    (ancestor_path Parent Child)
+    (child_path Parent Grandparent)]
+
+[(path_moved_at Child Point) <--
+    (path_moved_at Parent Point)
+    (ancestor_path Parent Child)]
+
+[(path_assigned_at Child point) <--
+    (path_assigned_at Parent point)
+    (ancestor_path Parent Child)]
+
+[(path_accessed_at Child point) <--
+   (path_accessed_at Parent point)
+   (ancestor_path Parent Child)]
+
+[(path_begins_with_var Child Var) <--
+   (path_begins_with_var Parent Var)
+   (ancestor_path Parent Child)]
+
+
+;; Step 2: Compute path initialization and deinitialization across the CFG.
+[(path_maybe_initialized_on_exit path point) <-- (path_assigned_at path point)]
+[(path_maybe_uninitialized_on_exit path point) <-- (path_moved_at path point)]
+
+[(path_maybe_initialized_on_exit path point2) <--
+    (path_maybe_initialized_on_exit path point1)
+    (cfg_edge point1 point2)
+    (~ path_moved_at path point2)]
+
+[(path_maybe_uninitialized_on_exit path point2) <--
+    (path_maybe_uninitialized_on_exit path point1)
+    (cfg_edge point1 point2)
+    (~ path_assigned_at path point2)]
+
+[(var_maybe_partly_initialized_on_exit var point) <--
+    (path_maybe_initialized_on_exit path point)
+    (path_begins_with_var path var)]
+
+[(move_error Path TargetNode) <--
+    (path_maybe_uninitialized_on_exit Path SourceNode)
+    (cfg_edge SourceNode TargetNode)
+    (path_accessed_at Path TargetNode)]
