@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <iostream>
+#include <ostream>
 #include <tuple>
 #include <utility>
 #include <mpi.h>
@@ -86,7 +87,7 @@ void LIE::update_task_graph(RAM* executable_task)
                 }
                 // before finalize, print rel size and dump to disk first
                 write_final_checkpoint_dump(gc_rels[j]);
-                print_relation_size(gc_rels[j]);
+                std::cout << "relation : " << gc_rels[j]->get_intern_tag() << " GCed" << std::endl;
                 gc_rels[j]->finalize_relation();
                 delete gc_rels[j];
                 gc_rels[j] = NULL;
@@ -201,7 +202,7 @@ void LIE::print_relation_size(relation* rel) {
     u64 global_count = 0;
     MPI_Reduce(&local_count, &global_count, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, mcomm.get_local_comm());
     if (mcomm.get_local_rank() == 0) {
-        std::cout << rel->get_debug_id() << ": {" << rel->get_arity() << "}. (" << global_count << " total facts)" << std::endl;
+        std::cout << "Tag: " << rel->get_intern_tag() << " " << rel->get_debug_id() << ": {" << rel->get_arity() << "}. (" << global_count << " total facts)" << std::endl;
     }
     rel_size_map[rel->get_intern_tag()] = std::make_tuple(global_count, rel->get_arity(), rel->is_intermediate_relation());
 }
@@ -313,6 +314,7 @@ bool LIE::execute ()
         //lie_relations[i]->print();
 #endif
     }
+    int full_iteration_count = 0;
 
     //if (mcomm.get_local_rank() == 0)
     //    std::cout << "Done initializing " << lie_relation_count <<  std::endl;
@@ -433,6 +435,14 @@ bool LIE::execute ()
         //bool* scc_relation_status = executable_task->get_RAM_relations_status();;
         std::vector<bool> scc_relation_status = executable_task->get_RAM_relations_status();;
         u32 scc_relation_count = executable_task->get_ram_relation_count();
+
+#if 0
+        if (mcomm.get_local_rank() == 0)
+            std::cout << "-------------------Executing SCC " << executable_task->get_id() << "------------------" << std::endl;
+        for (u32 i = 0 ; i < scc_relation_count; i++)
+            print_relation_size(scc_relation[i]);
+        std::cout << "<<<<<<<<<<<<<<<<<<<<<<<<< BEFORE COMPUTATION <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << std::endl;
+#endif
         if (restart_flag == false)
         {
             for (u32 i=0; i < scc_relation_count; i++)
@@ -474,16 +484,8 @@ bool LIE::execute ()
 
         std::vector<u32> history;
 
-#if DEBUG_OUTPUT
-        if (mcomm.get_local_rank() == 0)
-            std::cout << "-------------------Executing SCC " << executable_task->get_id() << "------------------" << std::endl;
-#endif
-
         /// if case is for rules (acopy and copy) that requires only one iteration
         /// else case is for join rules
-
-
-
 
         /// For SCCs that runs for only one iteration
         if (executable_task->get_iteration_count() == 1)
@@ -496,6 +498,10 @@ bool LIE::execute ()
             else
                 executable_task->execute_in_batches_comm_compaction(app_name, batch_size, history, intern_map, &loop_counter, executable_task->get_id(), output_dir, all_to_all_meta_data_dump, sloav_mode, rotate_index_array, send_indexes, sendb_num);
 
+            // std::cout << "<<<<<<<<<<<<<<<<<<<<<<<<< AFTER ITERATION " << loop_counter <<" <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << std::endl;
+            // for (u32 i = 0 ; i < scc_relation_count; i++)
+            //     print_relation_size(scc_relation[i]);
+            // stat_intermediate();
             //executed_scc_id.push_back(executable_task->get_id());
 #if 0
             //int tlc = loop_counter - 1;
@@ -514,7 +520,7 @@ bool LIE::execute ()
                 checkpoint_dumps_num++;
             }
 #endif
-            //loop_counter++;
+            loop_counter++;
             //iteration_count[executable_task->get_id()] = loop_counter;
 
 #if DEBUG_OUTPUT
@@ -561,7 +567,11 @@ bool LIE::execute ()
                     checkpoint_dumps_num++;
                 }
 #endif
-                //loop_counter++;
+                // std::cout << "<<<<<<<<<<<<<<<<<<<<<<<<< AFTER ITERATION " << loop_counter <<" <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << std::endl;
+                // for (u32 i = 0 ; i < scc_relation_count; i++)
+                //     print_relation_size(scc_relation[i]);
+                // stat_intermediate();
+                // loop_counter++;
                 //iteration_count[executable_task->get_id()] = loop_counter;
 
 
@@ -575,6 +585,10 @@ bool LIE::execute ()
             while (delta_in_scc != 0);
         }
 
+        if (mcomm.get_rank() == 0)
+            std::cout << "<<<<<<<<<<< SCC " << executable_task->get_id() << " finish, " << loop_counter << " iteration in total." << std::endl;
+
+        full_iteration_count += loop_counter;
         //set_executed_scc_id(executed_scc_id);
         set_loop_counter(loop_counter);
 
@@ -588,20 +602,16 @@ bool LIE::execute ()
         executable_task = one_runnable_tasks();
     }
     // print_all_relation_size();
+    if (mcomm.get_rank() == 0)
+        std::cout << "Total interation count: " << full_iteration_count << std::endl;
 
     write_final_checkpoint_dump();
-
 
     delete[] rotate_index_array;
     for (int i=0; i < nprocs; i++)
         delete[] send_indexes[i];
     delete[] send_indexes;
     delete[] sendb_num;
-
-
-
-
-
 
     return true;
 }
