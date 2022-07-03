@@ -101,11 +101,14 @@ int main(int argc, char **argv)
   lie->stat_intermediate();
 
   // print all variants(non-canonical index of each relation)
-  std::cout << "rel_name" << ",\t" << "indices\n"; 
-  for (auto const& rel_p : rel_index_map) {
-    std::cout << rel_p.first << ",\t" << rel_p.second.size() << "\n";
+  if (mcomm.get_rank() == 0)
+  {
+    std::cout << "rel_name" << ",\t" << "indices\n"; 
+    for (auto const& rel_p : rel_index_map) {
+      std::cout << rel_p.first << ",\t" << rel_p.second.size() << "\n";
+    }
+    std::cout << std::endl;
   }
-  std::cout << std::endl;
   // lie->print_all_relation_size(); // Continuously print relation sizes
 
   delete lie;
