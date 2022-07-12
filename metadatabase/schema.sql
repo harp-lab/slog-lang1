@@ -20,7 +20,7 @@ CREATE TABLE relations (
        num_tuples INTEGER NOT NULL,
        /* file on disc */
        data_file TEXT,
-       PRIMARY KEY(database_id,name,arity)
+       PRIMARY KEY(database_id,tag)
 );
        
 CREATE TABLE string_pools (

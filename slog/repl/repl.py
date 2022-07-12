@@ -36,42 +36,26 @@ HELP = '''
     NOTE: `(...)` means optionanl argument, `/` means alternative argument, `<...>` is meta name
 
     help                                Print help
-
     showdb                              Show all committed databases
-
     compile "<file>"                    Load and compile a slog source file.
-
     run "<file>" (<db>) (<core>)        Load a slog source file into background, will create a database
                                         with file name, and then compile and run it, if db is not provide
                                         will run with current db, core is how many core mpirun use.
-
     dump <hash>/"<tag>" ("<file>")      Dump all data in a relation into stdout, if optional file argument
                                         is provided, result will be printed to file 
-
     connect "<server>"                  Connect to a slog server
-
     load "<csv_file/folder>"            Upload a csv file/folder into input database, file must ends with
                                         `.fact`, name of target relation will be same as file name
-
     tag <hash> "<tag>"                  Give a database hash a taged name
-
     switch <db>                         Switch to a given DB
-
     relations                           print all relation meta info in current database
-
     ?(<rel> _/<arg> ...)                run a slog query find all related facts like `?(foo "bar" _)`,
                                         `_` is wildcard
-
     #<id>                               print a tuple in query history
-
     clear                               clear the query history
-    
     <slog code>                         execute a line of slog code
-    
     fact-depth                          set the maximum unroll depth in facts printing
-
     fact-cardi                          set the group cardinality of facts printing
-
     fresh                               go back to empty database
 '''
 
