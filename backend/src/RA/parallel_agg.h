@@ -5,17 +5,11 @@
 
 #pragma once
 #include "../ds.h"
+#include "../parallel_RA_inc.h"
 
-using local_agg_res_t = u64;
 // struct _BTree {
 //   virtual bool has_key(const u64* key) = 0;
 // };
-
-typedef local_agg_res_t *local_agg_func_t (shmap_relation* agg_rel, const u64* data);
-
-typedef local_agg_res_t *reduce_agg_func_t (local_agg_res_t x, local_agg_res_t y);
-
-typedef int *global_agg_func_t (u64* data, local_agg_res_t agg_data, int agg_data_count, u64* output); 
 
 
 class parallel_join_negate : public parallel_RA
@@ -76,11 +70,34 @@ public:
                     int ra_counter);
 };
 
-// class parallel_copy_aggregate : public parallel_RA
-// {
-// private:
-//     relation* copy_aggregate_output_table;
-//     relation* copy_aggregate_ 
+class parallel_copy_aggregate : public parallel_RA
+{
 
-// };
+public:
+    relation* copy_aggregate_output_table;
+    relation* copy_aggregate_target_table;
+    relation* copy_aggregate_input_table;
+    SpecialAggregator agg_type;
+    local_agg_func_t local_func;
+    reduce_agg_func_t reduce_func;
+    global_agg_func_t global_func;
+
+    parallel_copy_aggregate(relation* output, relation* target_rel, relation* input,
+                            int t_type, local_agg_func_t local_agg_func, 
+                            SpecialAggregator special_agg, reduce_agg_func_t reduce_agg_func, 
+                            global_agg_func_t global_agg_fun){
+        copy_aggregate_output_table = output;
+        copy_aggregate_input_table = input;
+        copy_aggregate_target_table = target_rel;
+        agg_type = special_agg;
+        local_func = local_agg_func;
+        reduce_func = reduce_agg_func;
+        global_func = global_agg_fun;
+        RA_type = AGGREGATION;
+    }
+    
+    void local_aggregate(u32 bucket,
+                         all_to_allv_buffer& agg_buffer,
+                         int ra_counter);
+};
 

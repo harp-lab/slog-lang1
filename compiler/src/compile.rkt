@@ -653,6 +653,10 @@
     ; (sum 2 (1) "agg_sum_local" "SpecialAggregator::none" "agg_sum_reduce" "agg_sum_global")
     ; (sum 3 (1 2) "agg_sum_local" "SpecialAggregator::none" "agg_sum_reduce" "agg_sum_global")
     
+    ,@(map (lambda (n)
+              `(count-by ,n ,(range 1 n) "agg_count_local" "SpecialAggregator::count" "agg_count_reduce" "agg_count_global")) 
+           (range 1 11))
+
     (sum 1 () "agg_sum_local" "SpecialAggregator::sum" "nullptr" "agg_sum_global")
     (sum 2 (1) "agg_sum_local" "SpecialAggregator::sum" "nullptr" "agg_sum_global")
     (sum 3 (1 2) "agg_sum_local" "SpecialAggregator::sum" "nullptr" "agg_sum_global")))

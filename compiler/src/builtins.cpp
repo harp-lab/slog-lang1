@@ -1,5 +1,6 @@
 // builtins.cpp
 #include <cstddef>
+#include <limits>
 #include <vector>
 #include <string>
 #include <cassert>
@@ -8,6 +9,7 @@
 #include <functional>
 #include <tuple>
 #include <functional>
+#include <utility>
 
 using namespace std;
 #define u64  uint64_t
@@ -197,29 +199,29 @@ template<typename TState> inline TState builtin_nop(const u64* data, TState init
 
 
 //////////////////// AGGREGATORS  ////////////////////
-using local_agg_res_t = u64;
+// using local_agg_res_t = u64;
 
-local_agg_res_t agg_not_reduce(local_agg_res_t x, local_agg_res_t y) {
-  return x | y;
-}
+// local_agg_res_t agg_not_reduce(local_agg_res_t x, local_agg_res_t y) {
+//   return x | y;
+// }
 
-template<typename TState> TState agg_not_global(u64* data, local_agg_res_t agg_data, u64 agg_data_count, TState init_state, TState (*callback) (TState state)){
-  cout << "agg_not_global called with count: " << agg_data_count << ", and res: " << agg_data << "\n";
-  if (agg_data_count > 0 && agg_data)  {
-    return init_state;
-  } else {
-    cout << "agg_not_global: calling callback!" << "\n";
-    return callback(init_state);
-  }
-}
+// template<typename TState> TState agg_not_global(u64* data, local_agg_res_t agg_data, u64 agg_data_count, TState init_state, TState (*callback) (TState state)){
+//   cout << "agg_not_global called with count: " << agg_data_count << ", and res: " << agg_data << "\n";
+//   if (agg_data_count > 0 && agg_data)  {
+//     return init_state;
+//   } else {
+//     cout << "agg_not_global: calling callback!" << "\n";
+//     return callback(init_state);
+//   }
+// }
 
-local_agg_res_t agg_sum_reduce(local_agg_res_t x, local_agg_res_t y) {
-  return x + y;
-}
+// local_agg_res_t agg_sum_reduce(local_agg_res_t x, local_agg_res_t y) {
+//   return x + y;
+// }
 
-template<typename TState> TState agg_sum_global(u64* data, local_agg_res_t agg_data, u64 agg_data_count, TState init_state, TState (*callback) (u64 res, TState state)){
-  return callback(n2d(agg_data), init_state);
-}
+// template<typename TState> TState agg_sum_global(u64* data, local_agg_res_t agg_data, u64 agg_data_count, TState init_state, TState (*callback) (u64 res, TState state)){
+//   return callback(n2d(agg_data), init_state);
+// }
 
 ///////////////// OLD DESIGN ////////////////////////
 
@@ -281,16 +283,16 @@ template<typename TState> TState agg_sum_global(u64* data, local_agg_res_t agg_d
 //   none,
 //   sum,
 // };
-// // typedef local_agg_res_t *local_agg_func_t (ReLData& agg_rel, const u64* data);
+// typedef local_agg_res_t *local_agg_func_t (ReLData& agg_rel, const u64* data);
 
-// // typedef local_agg_res_t *reduce_agg_func_t (local_agg_res_t x, local_agg_res_t y);
+// typedef local_agg_res_t *reduce_agg_func_t (local_agg_res_t x, local_agg_res_t y);
 
-// // typedef int *global_agg_func_t (u64* data, local_agg_res_t agg_data, int agg_data_count, u64* output); 
+// typedef int *global_agg_func_t (u64* data, local_agg_res_t agg_data, int agg_data_count, u64* output); 
 
-// // void parallel_copy_aggregate(relation rel, relation agg_rel, relation target_rel, 
-// //                              local_agg_func_t local_agg_func, 
-// //                              SpecialAggregator special_agg, reduce_agg_func_t reduce_agg_func, 
-// //                              global_agg_func_t global_agg_fun);
+// void parallel_copy_aggregate(relation rel, relation agg_rel, relation target_rel, 
+//                              local_agg_func_t local_agg_func, 
+//                              SpecialAggregator special_agg, reduce_agg_func_t reduce_agg_func, 
+//                              global_agg_func_t global_agg_fun);
 
 // local_agg_res_t agg_not_1_local(ReLData& rel, const u64* data){
 //   auto has_any = rel.begin() != rel.end();
@@ -311,4 +313,37 @@ template<typename TState> TState agg_sum_global(u64* data, local_agg_res_t agg_d
 //   }
 //   return sum;
 // }
+
+local_agg_res_t agg_count_local(shmap_relation& rel, std::vector<u64>& data)
+{
+  std::vector<u64> upper_bound(rel.arity+1, std::numeric_limits<u64>::max());
+  std::vector<u64> lower_bound(rel.arity+1, std::numeric_limits<u64>::min());
+  for(size_t i = 0; i < data.size(); i++) {
+    upper_bound[i] = data[i];
+    lower_bound[i] = data[i];
+  }
+  auto joined_range = rel.lowerUpperRange(lower_bound, upper_bound);
+  local_agg_res_t cnt = 0;
+  for(auto it = joined_range.first; it != joined_range.second && it != rel.end(); ++it) {
+    cnt ++;
+  }
+  return cnt;
+}
+
+
+
+template<typename TState> TState agg_count_global(u64* data, local_agg_res_t agg_data, u64 agg_data_count, TState init_state, TState (*callback) (u64 res, TState state)){
+  return callback(n2d(agg_data), init_state);
+}
+
+local_agg_res_t agg_count_reduce (local_agg_res_t x, local_agg_res_t y) {
+  return x + y;
+}
+
+// template<typename TState> TState agg_sum_global(u64* data, local_agg_res_t agg_data, u64 agg_data_count, TState init_state, TState (*callback) (u64 res, TState state)){
+//   return callback(n2d(agg_data), init_state);
+// }
+
+
+
 // // end of builtins.cpp

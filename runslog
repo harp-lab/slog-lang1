@@ -128,7 +128,7 @@ def ensure_backend_built(compile_backend, tsv_bin_path, backend_build_dir, backe
 
 def run_local(file, out_path, factloc, cores, verbose, slog_root=None, compile_backend=False,
               debug_flag=False, profile_flag=False, repl_flag=False, compile_only=False,
-              overwrite_out=False):
+              overwrite_out=False, cpp_only=False):
     """
     Calls local utilities to compile and run a slog file locally.
     slog_root is the location of the slog repository.
@@ -193,6 +193,9 @@ def run_local(file, out_path, factloc, cores, verbose, slog_root=None, compile_b
             print(f"Time taken: {end - start}")
     except subprocess.CalledProcessError as e:
         print(f"Slog->C++ compilation failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
+        return
+
+    if cpp_only:
         return
 
     #2: Shell out to cmake to compile backend + utilities (tsv_to_bin)
@@ -344,6 +347,8 @@ if __name__ == '__main__':
                         help="compile only without running it")
     parser.add_argument('-ov', "--overwrite_out", action="store_true",
                         help="overwrite, if output dir already exists.")
+    parser.add_argument('-cpp', '--cpp_only',  action="store_true",
+                        help="generate c++ file only, do not compile it.")
     args = parser.parse_args()
 
     slogfile = os.path.realpath(args.slogfile)
@@ -355,5 +360,5 @@ if __name__ == '__main__':
         run_local(slogfile, args.out_dir, args.facts, args.cores, args.verbose, args.root,
                   compile_backend=args.compile_backend, debug_flag=args.debug,
                   profile_flag=args.profile, repl_flag=args.repl,
-                  compile_only=args.compile_only,
+                  compile_only=args.compile_only, cpp_only=args.cpp_only,
                   overwrite_out=args.overwrite_out)

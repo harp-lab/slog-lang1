@@ -9,6 +9,7 @@
 
 #include "../parallel_RA_inc.h"
 #include "../btree/btree_set.h"
+#include <cstdint>
 #include <utility>
 
 struct shmap_relation {
@@ -17,7 +18,7 @@ struct shmap_relation {
 
     int data_structure_type;
 
-    using t_tuple = std::vector<u64>;
+    using t_tuple = std::vector<uint64_t>;
     struct t_comparator {
         // 0-arity compare will fail
         t_comparator() : n(-2) {}
@@ -117,19 +118,19 @@ struct shmap_relation {
     };
 
     int count();
-    bool insert_tuple_from_array(u64* t, int arity);
+    bool insert_tuple_from_array(uint64_t* t, int arity);
     void remove_tuple();
-    bool find_tuple_from_array(u64* t, int arity);
+    bool find_tuple_from_array(uint64_t* t, int arity);
 
-    void as_vector_buffer_recursive(vector_buffer* vb, std::vector<u64> prefix);
+    void as_vector_buffer_recursive(vector_buffer* vb, std::vector<uint64_t> prefix);
 
-    void as_all_to_allv_copy_buffer(all_to_allv_buffer& buffer, std::vector<u64> prefix, std::vector<int> reorder_map, int ra_id, u32 buckets, u32* output_sub_bucket_count, u32** output_sub_bucket_rank, u32 arity, u32 join_column_count, int head_rel_hash_col_count, bool canonical);
+    void as_all_to_allv_copy_buffer(all_to_allv_buffer& buffer, std::vector<uint64_t> prefix, std::vector<int> reorder_map, int ra_id, u32 buckets, u32* output_sub_bucket_count, u32** output_sub_bucket_rank, u32 arity, u32 join_column_count, int head_rel_hash_col_count, bool canonical);
     
-    void as_all_to_allv_copy_filter_buffer(all_to_allv_buffer& buffer, std::vector<u64> prefix, std::vector<int> reorder_map, int ra_id, u32 buckets, u32* output_sub_bucket_count, u32** output_sub_bucket_rank, u32 arity, u32 join_column_count, bool(*lambda)(const u64* const), int head_rel_hash_col_count, bool canonical);
-    void as_all_to_allv_acopy_buffer(all_to_allv_buffer& buffer, std::vector<u64> prefix, std::vector<int> reorder_map, int ra_id, u32 buckets, u32* output_sub_bucket_count, u32** output_sub_bucket_rank, u32 arity, u32 join_column_count, int head_rel_hash_col_count, bool canonical);
+    void as_all_to_allv_copy_filter_buffer(all_to_allv_buffer& buffer, std::vector<uint64_t> prefix, std::vector<int> reorder_map, int ra_id, u32 buckets, u32* output_sub_bucket_count, u32** output_sub_bucket_rank, u32 arity, u32 join_column_count, bool(*lambda)(const uint64_t* const), int head_rel_hash_col_count, bool canonical);
+    void as_all_to_allv_acopy_buffer(all_to_allv_buffer& buffer, std::vector<uint64_t> prefix, std::vector<int> reorder_map, int ra_id, u32 buckets, u32* output_sub_bucket_count, u32** output_sub_bucket_rank, u32 arity, u32 join_column_count, int head_rel_hash_col_count, bool canonical);
     void as_all_to_allv_right_join_buffer(
-        std::vector<u64> prefix, all_to_allv_buffer& join_buffer,
-        u64 *input0_buffer, int input0_buffer_width,
+        std::vector<uint64_t> prefix, all_to_allv_buffer& join_buffer,
+        uint64_t *input0_buffer, int input0_buffer_width,
         int input1_buffer_width, int ra_id,
         u32 buckets, u32* output_sub_bucket_count,
         u32** output_sub_bucket_rank, std::vector<int> reorder_map,
@@ -139,8 +140,8 @@ struct shmap_relation {
         int head_rel_hash_col_count, bool canonical);
 
     void as_all_to_allv_left_join_buffer(
-        std::vector<u64> prefix, all_to_allv_buffer& join_buffer,
-        u64 *input0_buffer, int input0_buffer_width,
+        std::vector<uint64_t> prefix, all_to_allv_buffer& join_buffer,
+        uint64_t *input0_buffer, int input0_buffer_width,
         int input1_buffer_width, int ra_id,
         u32 buckets, u32* output_sub_bucket_count,
         u32** output_sub_bucket_rank, std::vector<int> reorder_map,
@@ -151,7 +152,7 @@ struct shmap_relation {
     
     void as_all_to_allv_right_outer_join_buffer(
         // shmap_relation* neg_target,
-        u64 *input0_buffer, int input0_buffer_size, int input0_buffer_width,
+        uint64_t *input0_buffer, int input0_buffer_size, int input0_buffer_width,
         int* offset,
         all_to_allv_buffer& join_buffer,
         int ra_id,
@@ -160,7 +161,7 @@ struct shmap_relation {
         int join_column_count, int out_airty,
         int head_rel_hash_col_count, bool canonical);
 
-    void as_all_to_allv_copy_generate_buffer(all_to_allv_buffer& buffer, std::vector<u64> prefix, int ra_id, u32 buckets, u32* output_sub_bucket_count, u32** output_sub_bucket_rank, u32 arity, u32 join_column_count, int(*lambda)(const u64* const, u64* const), int head_rel_hash_col_count, bool canonical);
+    void as_all_to_allv_copy_generate_buffer(all_to_allv_buffer& buffer, std::vector<uint64_t> prefix, int ra_id, u32 buckets, u32* output_sub_bucket_count, u32** output_sub_bucket_rank, u32 arity, u32 join_column_count, int(*lambda)(const uint64_t* const, uint64_t* const), int head_rel_hash_col_count, bool canonical);
  
     ~shmap_relation()
     {

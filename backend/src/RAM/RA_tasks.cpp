@@ -162,6 +162,26 @@ u64 RAM::intra_bucket_comm_execute()
             continue;
         }
 
+        else if ((*it)->get_RA_type() == AGGREGATION) {
+            counter++;
+            continue;
+            // parallel_copy_aggregate* current_ra = (parallel_copy_aggregate*) *it;
+            // relation* input_rel = current_ra->copy_aggregate_input_table;
+            // relation* target_rel = current_ra->copy_aggregate_target_table;
+
+            // intra_bucket_comm(get_bucket_count(),
+            //                   target_rel->get_full(),
+            //                   target_rel->get_distinct_sub_bucket_rank_count(),
+            //                   target_rel->get_distinct_sub_bucket_rank(),
+            //                   target_rel->get_bucket_map(),
+            //                   input_rel->get_distinct_sub_bucket_rank_count(),
+            //                   input_rel->get_distinct_sub_bucket_rank(),
+            //                   input_rel->get_bucket_map(),
+            //                   &intra_bucket_buf_output_size[counter],
+            //                   &intra_bucket_buf_output[counter],
+            //                   mcomm.get_local_comm());
+        }
+
         /// No intra-bucket comm required for acopy
         else if ((*it)->get_RA_type() == ACOPY)
         {
@@ -443,6 +463,11 @@ u32 RAM::local_compute(int* offset)
             }
         }
 
+        else if ((*it)->get_RA_type() == AGGREGATION) {
+            parallel_copy_aggregate* current_ra = (parallel_copy_aggregate*) *it;
+            current_ra->local_aggregate(get_bucket_count(), compute_buffer,counter);
+        }
+    
         else if ((*it)->get_RA_type() == NEGATION)
         {
             // compute negation
@@ -493,6 +518,7 @@ u32 RAM::local_compute(int* offset)
                     join_column_count);
             }
         }
+
 
         else if ((*it)->get_RA_type() == FACT)
         {
@@ -719,6 +745,8 @@ void RAM::local_insert_in_newt_comm_compaction(std::map<u64, u64>& intern_map)
             output = RA_list[ra_id]->get_copy_filter_output();
         else if (RA_list[ra_id]->get_RA_type() == NEGATION)
             output = RA_list[ra_id]->get_negation_output();
+        else if (RA_list[ra_id]->get_RA_type() == AGGREGATION)
+            output = ((parallel_copy_aggregate*)RA_list[ra_id])->copy_aggregate_output_table;
         else if (RA_list[ra_id]->get_RA_type() == JOIN)
             output = RA_list[ra_id]->get_join_output();
         else if (RA_list[ra_id]->get_RA_type() == COPY_GENERATE)
@@ -728,7 +756,10 @@ void RAM::local_insert_in_newt_comm_compaction(std::map<u64, u64>& intern_map)
         else
             output = RA_list[ra_id]->get_acopy_output();
 
-        if (RA_list[ra_id]->get_RA_type() == COPY || RA_list[ra_id]->get_RA_type() == JOIN || RA_list[ra_id]->get_RA_type() == NEGATION || RA_list[ra_id]->get_RA_type() == COPY_FILTER || RA_list[ra_id]->get_RA_type() == COPY_GENERATE || RA_list[ra_id]->get_RA_type() == FACT)
+        if (RA_list[ra_id]->get_RA_type() == COPY || RA_list[ra_id]->get_RA_type() == JOIN || 
+            RA_list[ra_id]->get_RA_type() == NEGATION || RA_list[ra_id]->get_RA_type() == AGGREGATION ||
+            RA_list[ra_id]->get_RA_type() == COPY_FILTER || RA_list[ra_id]->get_RA_type() == COPY_GENERATE ||
+            RA_list[ra_id]->get_RA_type() == FACT)
         {
             u32 width = output->get_arity();
             u64 tuple[width + 1];
@@ -862,6 +893,8 @@ void RAM::local_insert_in_newt(std::map<u64, u64>& intern_map)
                 output = RA_list[r]->get_copy_filter_output();
             else if (RA_list[r]->get_RA_type() == NEGATION)
                 output = RA_list[r]->get_negation_output();
+            else if (RA_list[r]->get_RA_type() == AGGREGATION)
+                output = ((parallel_copy_aggregate*)RA_list[r])->copy_aggregate_output_table;
             else if (RA_list[r]->get_RA_type() == JOIN)
                 output = RA_list[r]->get_join_output();
             else if (RA_list[r]->get_RA_type() == COPY_GENERATE)
@@ -869,7 +902,9 @@ void RAM::local_insert_in_newt(std::map<u64, u64>& intern_map)
             else
                 output = RA_list[r]->get_acopy_output();
 
-            if (RA_list[r]->get_RA_type() == COPY || RA_list[r]->get_RA_type() == JOIN || RA_list[r]->get_RA_type() == NEGATION || RA_list[r]->get_RA_type() == COPY_FILTER || RA_list[r]->get_RA_type() == COPY_GENERATE)
+            if (RA_list[r]->get_RA_type() == COPY || RA_list[r]->get_RA_type() == JOIN || RA_list[r]->get_RA_type() == NEGATION ||
+                RA_list[r]->get_RA_type() == COPY_FILTER || RA_list[r]->get_RA_type() == COPY_GENERATE ||
+                RA_list[r]->get_RA_type() == AGGREGATION)
             {
                 u32 width = output->get_arity();
                 u64 tuple[width + 1];

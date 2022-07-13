@@ -1,0 +1,13 @@
+
+(a-edge 1 2)
+(a-edge 1 4)
+(a-edge 2 3)
+(a-edge 2 4)
+(a-edge 2 5)
+(a-edge 2 6)
+(a-edge 3 3)
+(a-edge 3 4)
+(a-edge 5 3)
+
+[(a-edge x y) --> (a-node x)]
+[(a-node x) (count-by a-edge x count) --> (a-node-degree x count)]

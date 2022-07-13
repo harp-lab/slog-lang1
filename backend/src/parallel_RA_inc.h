@@ -8,10 +8,12 @@
 
 #pragma once
 
+// #include <vector>
 #include "ds.h"
 #include "compat.h"
 // #include "shmap/shmap.h"
 #include "shmap/shmap_goog.h"
+#include <functional>
 
 //#define DEBUG_OUTPUT 1
 #define MAX_LOOP_COUNT 120000
@@ -26,7 +28,19 @@
 #include "relation/google_btree_relation.h"
 #include "relation/shmap_relation.h"
 
+enum class SpecialAggregator {
+  none,
+  sum,
+  count
+};
 
+using local_agg_res_t = u64;
+// typedef local_agg_res_t *local_agg_func_t (shmap_relation& agg_rel, std::vector<u64>& data);
+using local_agg_func_t = std::function<local_agg_res_t(shmap_relation&, std::vector<u64>& data)>;
+using reduce_agg_func_t = std::function<local_agg_res_t(local_agg_res_t, local_agg_res_t)>;
+using global_agg_func_t = std::function<int(u64*, local_agg_res_t, int, u64*)>;
+// typedef local_agg_res_t *reduce_agg_func_t (local_agg_res_t x, local_agg_res_t y);
+// typedef int *global_agg_func_t (std::vector<u64>& data, local_agg_res_t agg_data, int agg_data_count, std::vector<u64>& output); 
 
 #include "relation/balanced_hash_relation.h"
 #include "RA/parallel_RA.h"
@@ -41,7 +55,6 @@
 #include "RAM/RA_tasks.h"
 #include "lie/lie.h"
 //#include "lie/lie_multi_task.h"
-
 
 
 #undef LOGGING

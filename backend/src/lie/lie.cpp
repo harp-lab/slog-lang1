@@ -189,6 +189,7 @@ void LIE::stat_intermediate()
         } else {
             actual_tuple_bytes += tuple_count * arity * 8;
         }
+    
     }
     if (mcomm.get_local_rank() == 0) {
         std::cout << "Total actual facts: " <<  actual_tuple_bytes / (1024*1024) << " MB." << std::endl;
@@ -606,6 +607,8 @@ bool LIE::execute ()
         std::cout << "Total interation count: " << full_iteration_count << std::endl;
 
     write_final_checkpoint_dump();
+
+    std::cout << "finish writting checkpoint!" << std::endl;
 
     delete[] rotate_index_array;
     for (int i=0; i < nprocs; i++)
