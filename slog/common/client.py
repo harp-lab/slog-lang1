@@ -85,7 +85,6 @@ class SlogClient:
     """
     Client to a slog server.
     """
-
     def __init__(self, server="localhost", rpc_port=5108, ftp_port=2121, local_db_path=None):
         self._channel = None
         self._stub = None
@@ -368,16 +367,30 @@ class SlogClient:
         res = self._stub.GetRelations(req)
         self.relations = [[rel.name, rel.arity, rel.tag, rel.num_tuples] for rel in res.relations]
 
-    def print_all_relations(self, writer: Writer):
-        """ print all relation """
+    def dump_relation_names(self, writer: Writer):
+        """ print all relation names, arities, tags, and tuple counts """
         total_tuples = 0
-        screen_out = "relation name,\tarity,\ttag,\ttuples,\tsize(kb)\n"
+        max_printed_relname = 50
+        max_printed_tupcol = 20
+        name_hdr = "Relation name"
+        max_name_length = min(max_printed_relname,max(map(lambda rel: len(rel[0]), self.relations)))
+        name_col_length = max(len(name_hdr) + 2, max_name_length + 2)
+        tupcnt_hdr = "# Tuples"
+        max_tupcnt_len = min(max_printed_tupcol,max(map(lambda rel: len("{:,}".format(rel[3])), self.relations)))
+        tupcnt_col_len = max(len(tupcnt_hdr) + 2, max_name_length + 2)
+        arity_hdr = "Arity  "
+        arity_hdr_len = len(arity_hdr)
+        header = f"{name_hdr: <{name_col_length}}{arity_hdr}{tupcnt_hdr: <{tupcnt_col_len}}Tag    Size (MiB)\n"
+        writer.write(header)
+        screen_out = ""
         for rel in sorted(self.relations, key=lambda rel: rel[3]*rel[1]):
-            screen_out = screen_out + f"{rel[0]},\t{rel[1]},\t{rel[2]},\t{rel[3]},"
+            tup_cnt = "{:,}".format(rel[3])
+            screen_out = screen_out + f"{rel[0] : <{name_col_length}}{rel[1] : <{arity_hdr_len}}{tup_cnt : <{tupcnt_col_len}}{rel[2] : <7}"
             screen_out = screen_out + f"\t{round(rel[3]*rel[1]*8/1024,2)}\n"
             total_tuples += rel[3]
         writer.write(screen_out)
-        writer.write(f"Total tuple number in current database {total_tuples}")
+        total_tup_str = "{:,}".format(total_tuples)
+        writer.write(f"Total tuples: {total_tup_str}")
 
     def lookup_db_by_id(self, db_id):
         """ check if a db info record is in cache """

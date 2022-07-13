@@ -238,7 +238,7 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
         return ret
 
     def GetTuples(self, request, context):
-        print(f"requeste tag {request.tag}")
+        print(f"request tag {request.tag}")
         row = self._db.get_relation_by_db_and_tag(
             request.database_id,
             request.tag)

@@ -31,6 +31,8 @@ BANNER = '''
 
 '''
 
+SMALL_HSH_LEN = 6
+
 HELP = '''
     Command:
     NOTE: `(...)` means optionanl argument, `/` means alternative argument, `<...>` is meta name
@@ -126,11 +128,11 @@ def exec_command(client: SlogClient, raw_input: str):
         client.fresh()
     elif cmd == 'showdb':
         dbs = client.update_dbs()
-        headers = [["tag", "id", "parent"]]
+        headers = [["Tag", "ID", "Parent"]]
         for db_info in headers + dbs:
             print(f'{db_info[1]:<6} {db_info[0][:10]:<10} {db_info[2][:6]:<6}')
     elif cmd == 'relations':
-        client.print_all_relations(ConsoleWriter())
+        client.dump_relation_names(ConsoleWriter())
     elif cmd == 'clear':
         client.tuple_printed_id_map = {}
     elif cmd == 'connect':
@@ -246,7 +248,7 @@ class Repl:
         if not self.client.connected():
             return "Disconnected"
         else:
-            return self.client.cur_db[:5]
+            return self.client.cur_db[:SMALL_HSH_LEN]
 
     def bottom_toolbar(self):
         """ prompt toolkit bottom bar setting """
@@ -278,7 +280,7 @@ class Repl:
                     self.client.update_dbs()
                 completer_map = {cmd: None for cmd in CMD}
                 completer_map['dump'] = FuzzyWordCompleter(relation_names)
-                possible_db_hash = [db[0][:6] for db in self.client.all_db]
+                possible_db_hash = [db[0][:SMALL_HSH_LEN] for db in self.client.all_db]
                 possible_db_tag = []
                 for db_info in self.client.all_db:
                     if db_info[1].strip() != "":
