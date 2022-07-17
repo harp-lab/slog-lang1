@@ -14,8 +14,10 @@ import psutil
 from six import MAXSIZE
 
 from slog.common import rel_name_from_file, make_stub, PING_INTERVAL
+from slog.common.dbcache import *
 from slog.common.elaborator import Elaborator
-from slog.common.tuple import SlogTupleParaser
+from slog.common.relation import GrpcRelationLoader, TupleIterator
+from slog.common.tuple import TupleParser
 from slog.daemon.const import FTP_DEFAULT_PWD, FTP_DEFAULT_USER, STATUS_PENDING, STATUS_FAILED, STATUS_RESOLVED, STATUS_NOSUCHPROMISE
 from slog.daemon.util import get_relation_info
 import slog.protobufs.slog_pb2 as slog_pb2
@@ -81,6 +83,14 @@ class FileWriter(Writer):
     def __hash__(self) -> int:
         return hash(self.f.name)
 
+class History:
+    """
+    Tracks REPL interaction history and lineage, for debugging and usability.
+    """
+    def __init__(self):
+        self.cur_db = None
+        pass
+
 class SlogClient:
     """
     Client to a slog server.
@@ -90,25 +100,31 @@ class SlogClient:
         self._stub = None
         self.server_addr = server
         self.ftp_port = ftp_port
+        self.db_cache = None
+
+        # XXX: Refactor local path stuff ASAP
         self.local_db_path = local_db_path
-        if not local_db_path:
-            try:
-                self.connect(f"{server}:{rpc_port}")
-            except grpc.RpcError:
-                print("Can't connect to slog daemon server")
-                sys.exit(1)
+        #if not local_db_path:
+
+        try:
+            self.connect(f"{server}:{rpc_port}")
+        except grpc.RpcError:
+            print(f"Can't connect to slog server on {server}:{rpc_port}")
+            sys.exit(1)
+
+        # XXX
         self.lasterr = None
-        self.relations = []
-        self.unroll_depth = 5
-        self.group_cardinality = 5
-        self.cur_db = ''
+        self.relations = [] #DatabaseRelationsCache()
+        self.cur_db = None
         self._cur_program_hashes = None
         self.intern_string_dict = {}
         self.updated_tuples = {}
         self.all_db = []
+
         # map of tuple with it's print name
         self.tuple_printed_id_map = {}
         self.slog_tuple_parser = None
+
         if local_db_path:
             self.load_relations(None)
             self._update_intern_strings(None)
@@ -119,7 +135,10 @@ class SlogClient:
         self._channel, self._stub = make_stub(server)
         self._cur_time = -1
         # Hash from timestamps to database hashes
+        self.loader = GrcpDatabaseLoader(self._stub)
+        self.db_cache = DatabaseCache(self.loader)
         self._times = {}
+        self.db_cache.reset()
 
     def connected(self):
         """ check if REPL is connected to the RPC server """
@@ -328,7 +347,10 @@ class SlogClient:
             self.intern_string_dict[sres.id] = f'"{sres.text}"'
 
     def switchto_db(self, db_id):
-        """ switch to a database """
+        """ switch to a new database """
+        self.db_cache.database(db_id) # Load new database, ignore return
+        # XXX self.history
+
         self.update_dbs()
         if self.lookup_db_by_tag(db_id):
             db_id = self.lookup_db_by_tag(db_id)[0]
@@ -347,7 +369,7 @@ class SlogClient:
 
     def fresh(self):
         """ go back to ⊥ """
-        self.cur_db = ""
+        self.cur_db = None
         self.relations = []
         self.intern_string_dict = {}
         self.slog_tuple_parser = None
@@ -420,7 +442,7 @@ class SlogClient:
             if rel[2] == tag:
                 return rel
 
-    def _recusive_fetch_tuples(self, tag, tuples_map:dict, db_id):
+    def _recursive_fetch_tuples(self, tag, tuples_map:dict, db_id):
         """ recursively fecth all tuples of a given relation name """
         if tag in tuples_map.keys():
             return tuples_map
@@ -456,7 +478,7 @@ class SlogClient:
                 if val_tag > 254:
                     # relation
                     if val_tag not in tuples_map.keys():
-                        tuples_map = self._recusive_fetch_tuples(val_tag, tuples_map, db_id)
+                        tuples_map = self._recursive_fetch_tuples(val_tag, tuples_map, db_id)
                 tuples_map[tag].append(u64)
         return tuples_map
 
@@ -466,23 +488,34 @@ class SlogClient:
         tuples_map = {}
         for rel in self.lookup_rels(name):
             tag = rel[2]
-            self._recusive_fetch_tuples(tag, tuples_map, db_id)
+            self._recursive_fetch_tuples(tag, tuples_map, db_id)
         return tuples_map
 
     def dump_relation_by_name(self, name, writer:Writer=Writer()):
-        """ recursive print all tuples of a relation """
+        """ recursively print all tuples of a relation """
+        
+        # XXX: Check if relation in cur db
         rels = self.lookup_rels(name)
         if len(rels) == 0:
             writer.write("No relation named {} in the current database".format(name))
             return []
+
+        # Get an iterator to a rendered tuple
+        relation = self.db_cache.database(self.cur_db).relation_by_name(name)
+        print('here1')
+        relation.load()
+        print('here2')
+        # tuple_iterator = RenderedTupleIterator()
+        print(relation.getTuple(0))
+
         # there is no way to get what is possible nested relation, 
         # so have to parse whole database first
         tuples_map = {}
         for rel in self.relations:
-            self._recusive_fetch_tuples(rel[2], tuples_map, self.cur_db)
+            self._recursive_fetch_tuples(rel[2], tuples_map, self.cur_db)
         # tuples_map = self._dump_tuples(name, self.cur_db)
         tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
-        tuple_parser = SlogTupleParaser(tuples_map, self.group_cardinality, self.unroll_depth,
+        tuple_parser = TupleParser(tuples_map, self.group_cardinality, self.unroll_depth,
                                         tag_map, self.intern_string_dict)
         slog_tuples = tuple_parser.parse_query_result()
         self.slog_tuple_parser = tuple_parser
@@ -555,7 +588,7 @@ class SlogClient:
         tuples_map = self._dump_tuples(query_name, self.cur_db)
         tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
         query_res_rel_tags = self.lookup_rels(query_name)
-        tuple_parser = SlogTupleParaser(tuples_map, self.group_cardinality, self.unroll_depth,
+        tuple_parser = TupleParser(tuples_map, self.group_cardinality, self.unroll_depth,
                                         tag_map, self.intern_string_dict)
         slog_tuples = tuple_parser.parse_query_result()
         # id_print_name_map = {}

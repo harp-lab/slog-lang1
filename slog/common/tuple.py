@@ -17,7 +17,6 @@ INT_TAG = 0
 STRING_TAG = 2
 SYMBOL_TAG = 3
 
-
 class SlogTuple:
     """
     a python data class to represent a slog tuple
@@ -38,11 +37,10 @@ class SlogTuple:
     def __str__(self) -> str:
         return str(self.col)
 
-class SlogTupleParaser:
+class RawTupleParser:
     """
-    A parser will parse a slog query result u64 tuple set into well-formated string.
+    Does superficial parsing of tuples
     """
-
     def __init__(self, query_res, cardinality, max_depth, tag_map, intern_string_dict):
         self.printed_id_map = {}
         self.reversed_id_map = {}
@@ -52,6 +50,14 @@ class SlogTupleParaser:
         self.max_depth = max_depth
         self.tag_map = tag_map
         self.intern_string_dict = intern_string_dict
+
+
+class TupleParser(RawTupleParser):
+    """
+    A parser will parse a slog query result u64 tuple set into well-formated string.
+    """
+    def __init__(self, query_res, cardinality, max_depth, tag_map, intern_string_dict):
+        super().__init__(query_res, cardinality, max_depth, tag_map, intern_string_dict)
 
     def parse_tuple_row(self, u64_list, rel_name, intern_string_dict) -> SlogTuple:
         """ parse a row of u64 tuple into a python object """
