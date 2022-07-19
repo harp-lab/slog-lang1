@@ -41,15 +41,6 @@ class GrpcRelationLoader:
                 # tup_id = tup[0]
                 #cached_rel.tuple_data[tup_id] = tup
 
-class TupleIterator:
-    def __init__(self,relation,offset=0):
-        self.offset = offset
-        self.relation = relation
-
-    def __next__(self):
-        assert(self.relation.tuple_data != None)
-        self.relation.tuple_data
-
 class CachedRelation:
     def __init__(self,dbid:str,name:str,arity,tag,num_tuples,loader:GrpcRelationLoader):
         self.dbid = dbid

@@ -6,6 +6,10 @@ Yihao Sun
 
 
 from platform import release
+from relation import *
+from dbcache import *
+
+import numpy
 
 
 TAG_MASK =      0xFFFFC00000000000
@@ -37,20 +41,73 @@ class SlogTuple:
     def __str__(self) -> str:
         return str(self.col)
 
+## New S-Expr API
+
+class CachedStructuredData:
+    """
+    Abstract base class
+    """
+    def __init__(self):
+        pass
+
+class BuiltinNumber(CachedStructuredData):
+    def __init__(self,num):
+        self.value = num
+
+class LoadedTuple(CachedStructuredData):
+    """
+    A tuple with some number of elements
+    """
+    def __init__(self,relation:CachedRelation,data:List[CachedStructuredData]):
+        self.relation = relation
+        self.data = data
+
+class UnloadedTuple(CachedStructuredData):
+    """An unloaded tuple"""
+    def __init__(self,relation:CachedRelation,id):
+        self.relation = relation
+        self.id = id
+
+class TupleHistory:
+    """
+    Tracks state relevant to deduplicating tuples when in an interactive session
+
+    When interactively rendering tuples (e.g., in a REPL or debugging output), 
+    it is often preferable to deduplicate facts, to support recognizing that:
+        (a (b 1 2) (c)) and (a (b 1 2) (d))
+    share an overlapping (b 1 2)^1. In such circumstances, we often wish to 
+    handle this in some way (e.g.,abbreviating an expression as a variable).
+    """
+    def __init__(self):
+        # Maps a database (ID, str) to a dict of tupids to counts
+        self.tuple_counts = {}
+
+    def bump_count(self,db_id:str,tuple_id:numpy.uint64):
+        """
+        Bumps a tuple ID's count--call this each time a tuple ID is seen.
+        """
+        if (not (db_id in self.tuple_counts)):
+            new_db = {}
+            new_db[tuple_id] = 1
+            self.tuple_counts[db_id] = new_db
+            return 1
+        else:
+            curct = self.tuple_counts[db_id][tuple_id]
+            self.tuple_counts[db_id][tuple_id] = curct + 1
+            return curct + 1
+
+class TupleLoader:
+    def __init__(self):
+        pass
+
 class RawTupleParser:
     """
     Does superficial parsing of tuples
     """
     def __init__(self, query_res, cardinality, max_depth, tag_map, intern_string_dict):
-        self.printed_id_map = {}
-        self.reversed_id_map = {}
-        self.count_map = {}
-        self.query_res = query_res
-        self.cardinality = cardinality
         self.max_depth = max_depth
         self.tag_map = tag_map
         self.intern_string_dict = intern_string_dict
-
 
 class TupleParser(RawTupleParser):
     """
@@ -116,24 +173,6 @@ class TupleParser(RawTupleParser):
             else:
                 res.append(str(col))
         return f"({rel_name} {' '.join(res)})"
-
-    # def count_tuples(self, slog_tuple: SlogTuple, cur_max_depth, top_level=True):
-    #     """ count the appearance of tuples nested in a tuple """
-    #     if slog_tuple.tuple_id in self.count_map:
-    #         self.count_map[slog_tuple.tuple_id] += 1
-    #     elif top_level:
-    #         self.count_map[slog_tuple.tuple_id] = 0
-    #     else:
-    #         self.count_map[slog_tuple.tuple_id] = 1
-    #     for col in slog_tuple.data_col:
-    #         if isinstance(col, tuple):
-    #             if col[0] == 'NESTED':
-    #                 val = None
-    #                 for _t in self.printed_id_map.values():
-    #                     if _t.tuple_id == col[1:]:
-    #                         val = _t
-    #                 if val is not None and  cur_max_depth != 0:
-    #                     self.count_tuples(val, cur_max_depth-1, False)
 
     def pretty_str_tuples(self, print_rel_list):
         """ pretty stringfy a list of relation """
