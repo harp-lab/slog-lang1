@@ -6,6 +6,7 @@ from unittest import loader
 import numpy as np
 
 import slog.protobufs.slog_pb2 as slog_pb2
+from slog.common.tuple import *
 
 MAX_RELATION_TUP_SIZE = 100000
 
@@ -38,8 +39,12 @@ class GrpcRelationLoader:
             batch_tups = batch[1]
             for tup in batch_data.reshape(batch_tups,tupsize):
                 print(tup)
-                # tup_id = tup[0]
-                #cached_rel.tuple_data[tup_id] = tup
+                tup_id = tup[0]
+                tup_num = tup[0] & (~TUPLE_ID_MASK)
+                cached_rel.tuple_data[tup_num] = tup
+                print(cached_rel.tuple_data[tup_num])
+        # Indicate now loaded
+        self.loaded = True
 
 class CachedRelation:
     def __init__(self,dbid:str,name:str,arity,tag,num_tuples,loader:GrpcRelationLoader):
@@ -60,13 +65,13 @@ class CachedRelation:
         if self.loaded: return
         self.loader.load_relation_data(self)
 
-    def getTuple(self,tuple_id):
+    def get_tuple(self,tuple_id) -> list[np.uint64]:
+        """Retrieve a particular tuple, """
         if self.too_large():
             raise RelationTooLargeExn()
-        assert(self.loaded and self.tuple_data != None)
+        if (not self.loaded):
+            self.load()
         assert(self.num_tuples > tuple_id)
         tuplen = self.arity + 1
         return self.tuple_data[(tuplen*tuple_id):(tuplen*tuple_id+tuplen)]
-        
-    def tuples(self):
-        pass
+    

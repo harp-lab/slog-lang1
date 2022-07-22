@@ -5,12 +5,10 @@ Yihao Sun
 '''
 
 
+from os import lstat
 from platform import release
-from relation import *
-from dbcache import *
-
+from slog.common.dbcache import *
 import numpy
-
 
 TAG_MASK =      0xFFFFC00000000000
 BUCKET_MASK =   0x00003FFFF0000000
@@ -42,6 +40,16 @@ class SlogTuple:
         return str(self.col)
 
 ## New S-Expr API
+class SExprVisitor:
+    """Visitor API that allows walking over s-expressions"""
+    def __init__(self): pass
+    def visitBuiltinNumber(self,number): pass
+    def visitBuiltinSymbol(self,string): pass
+    def visitBuiltinString(self,string): pass
+    def initVisitLoadedTuple(self,relation,tuple_id): pass
+    def nextVisitLoadedTuple(self,relation,n): pass
+    def exitVisitLoadedTuple(self,relation,tuple_id): pass
+    def visitUnloadedTuple(self,relation,tuple_id): pass
 
 class CachedStructuredData:
     """
@@ -49,22 +57,33 @@ class CachedStructuredData:
     """
     def __init__(self):
         pass
+    
+    def visit(self,visitor): pass
 
 class BuiltinNumber(CachedStructuredData):
     def __init__(self,num):
         self.value = num
 
+    def visit(self,visitor): visitor.visitBuiltinNumber(self.value)
+
 class LoadedTuple(CachedStructuredData):
     """
     A tuple with some number of elements
     """
-    def __init__(self,relation:CachedRelation,data:List[CachedStructuredData]):
+    def __init__(self,relatio,tuple_id,data:list[CachedStructuredData]):
         self.relation = relation
         self.data = data
+        self.tuple_id = tuple_id
+
+    def visit(self,visitor):
+        visitor.initVisitLoadedTuple(self.tuple_id)
+        for d in self.data:
+            d.visit(self)
+        visitor.exitVisitLoadedTuple(self.tuple_id)
 
 class UnloadedTuple(CachedStructuredData):
     """An unloaded tuple"""
-    def __init__(self,relation:CachedRelation,id):
+    def __init__(self,relation,id):
         self.relation = relation
         self.id = id
 
@@ -81,11 +100,11 @@ class TupleHistory:
     def __init__(self):
         # Maps a database (ID, str) to a dict of tupids to counts
         self.tuple_counts = {}
+        self.names = {}
+        self.ids = 0
 
     def bump_count(self,db_id:str,tuple_id:numpy.uint64):
-        """
-        Bumps a tuple ID's count--call this each time a tuple ID is seen.
-        """
+        """ Bumps a tuple ID's count--call this each time a tuple ID is seen. """
         if (not (db_id in self.tuple_counts)):
             new_db = {}
             new_db[tuple_id] = 1
@@ -95,28 +114,69 @@ class TupleHistory:
             curct = self.tuple_counts[db_id][tuple_id]
             self.tuple_counts[db_id][tuple_id] = curct + 1
             return curct + 1
+    
+    def get_count(self,db_id:str,tuple_id:numpy.uint64):
+        return self.tuple_counts[db_id][tuple_id]
+
+    def new_name(self):
+        r = f'x{self.ids}'
+        self.ids = self.ids + 1
+        return r
+
+    def get_name(self,db_id:str,tuple_id,force=False):
+        """ Get a tuple's name; if force is True a new name will be generated
+            (unless one exists) no matter what. """
+        # Add a new name when > 1 occurrence
+        if self.get_count(db_id,tuple_id) > 1 or force:
+            if tuple_id in self.names:
+                return self.names[tuple_id]
+            else:
+                name = self.new_name()
+                self.names[tuple_id] = name
+                return name
+        else: return None
 
 class TupleLoader:
-    def __init__(self):
+    def __init__(self,relation,starting_offset,history):
+        self.cur_tuple_id = starting_offset
+        self.relation = relation
         pass
 
-class RawTupleParser:
-    """
-    Does superficial parsing of tuples
-    """
-    def __init__(self, query_res, cardinality, max_depth, tag_map, intern_string_dict):
-        self.max_depth = max_depth
-        self.tag_map = tag_map
-        self.intern_string_dict = intern_string_dict
+    def _materialize_tuple(self,tuple_id,depth,history) -> CachedStructuredData:
+        """
+        Materialize an approximation of particular tuple to some specific depth
+        """
+        return
 
-class TupleParser(RawTupleParser):
+    def tuples_left(self):
+        """Returns the number of tuples left"""
+        return relation.num_tuples - self.cur_tuple_id
+
+    def materialize_tuples(self,n,depth) -> CachedStructuredData:
+        """
+        Materialize the next n tuples.
+        """
+        ending_offset = self.cur_tuple_id + n
+
+        if (self.cur_tuple_id < self.relation.num_tuples or self.cur_tuple_id < 0):
+            pass
+        else:
+            raise ValueError(f'Index {n} wrong large for relation {self.relation.name} ({self.relation.arity}) which has only {self.relation.num_tuples} tuples')
+
+        lst = []
+        while (self.cur_tuple_id < ending_offset):
+            lst.append(self._materialize_tuple(self.cur_tuple_id,depth,self.history))
+            self.cur_tuple_id += 1
+
+
+class TupleParser:
     """
     A parser will parse a slog query result u64 tuple set into well-formated string.
     """
-    def __init__(self, query_res, cardinality, max_depth, tag_map, intern_string_dict):
-        super().__init__(query_res, cardinality, max_depth, tag_map, intern_string_dict)
+    def __init__(self):
+        pass
 
-    def parse_tuple_row(self, u64_list, rel_name, intern_string_dict) -> SlogTuple:
+    def parse_tuple_row(self, u64_list, intern_string_dict) -> SlogTuple:
         """ parse a row of u64 tuple into a python object """
         parsed_row = []
         # index col
@@ -143,7 +203,6 @@ class TupleParser(RawTupleParser):
                 tuple_id = u64 & (~TUPLE_ID_MASK)
                 attr_val = ('NESTED', val_tag, bucket_id, tuple_id)
             parsed_row.append(attr_val)
-        return SlogTuple(rel_name, parsed_row)
 
 
     def tuple_to_str(self, slog_tuple: SlogTuple, cur_max_depth):

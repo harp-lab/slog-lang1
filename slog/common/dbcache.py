@@ -45,7 +45,7 @@ class DatabaseCache:
         self.databases = {}
         self.loader = dbloader
 
-    def database(self,dbid):
+    def database(self,dbid) -> CachedDatabase:
         """lazily loads a database unless it exists already"""
         if (dbid in self.databases):
             return self.databases[dbid]

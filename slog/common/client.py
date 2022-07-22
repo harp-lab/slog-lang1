@@ -1,5 +1,7 @@
 """
-These are common 'verbs' for things to do
+Driver of the REPL; these are common 'verbs' for things to do
+
+
 """
 
 from functools import lru_cache
@@ -8,16 +10,17 @@ import hashlib
 import os
 import sys
 import time
+from typing import Tuple
 
 import grpc
-import psutil
+from prompt_toolkit import PromptSession
 from six import MAXSIZE
-
+import psutil
 from slog.common import rel_name_from_file, make_stub, PING_INTERVAL
 from slog.common.dbcache import *
 from slog.common.elaborator import Elaborator
-from slog.common.relation import GrpcRelationLoader, TupleIterator
-from slog.common.tuple import TupleParser
+from slog.common.relation import GrpcRelationLoader
+from slog.common.tuple import CachedStructuredData, SExprVisitor, TupleHistory, TupleLoader, TupleParser
 from slog.daemon.const import FTP_DEFAULT_PWD, FTP_DEFAULT_USER, STATUS_PENDING, STATUS_FAILED, STATUS_RESOLVED, STATUS_NOSUCHPROMISE
 from slog.daemon.util import get_relation_info
 import slog.protobufs.slog_pb2 as slog_pb2
@@ -83,13 +86,109 @@ class FileWriter(Writer):
     def __hash__(self) -> int:
         return hash(self.f.name)
 
-class History:
+class TuplePrettyPrinter(SExprVisitor):
+    """ Uses a visitor to dump an S-Expression to raw text """
+    def __init__(self,history:TupleHistory):
+        super().__init__()
+        self.history = history
+        self.str_pieces = ""
+        self.depth = 0
+        self.subscript_map = {
+            "0": "₀", "1": "₁", "2": "₂", "3": "₃", "4": "₄", "5": "₅", "6": "₆",
+            "7": "₇", "8": "₈", "9": "₉", "a": "ₐ", "b": "♭", "c": "꜀", "d": "ᑯ",
+            "e": "ₑ", "f": "բ", "g": "₉", "h": "ₕ", "i": "ᵢ", "j": "ⱼ", "k": "ₖ",
+            "l": "ₗ", "m": "ₘ", "n": "ₙ", "o": "ₒ", "p": "ₚ", "q": "૧", "r": "ᵣ",
+            "s": "ₛ", "t": "ₜ", "u": "ᵤ", "v": "ᵥ", "w": "w", "x": "ₓ", "y": "ᵧ",
+            "z": "₂", "A": "ₐ", "B": "₈", "C": "C", "D": "D", "E": "ₑ", "F": "բ",
+            "G": "G", "H": "ₕ", "I": "ᵢ", "J": "ⱼ", "K": "ₖ", "L": "ₗ", "M": "ₘ",
+            "N": "ₙ", "O": "ₒ", "P": "ₚ", "Q": "Q", "R": "ᵣ", "S": "ₛ", "T": "ₜ",
+            "U": "ᵤ", "V": "ᵥ", "W": "w", "X": "ₓ", "Y": "ᵧ", "Z": "Z", "+": "₊",
+            "-": "₋", "=": "₌", "(": "₍", ")": "₎"
+        }
+        self.superscript_map = {
+            "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶",
+            "7": "⁷", "8": "⁸", "9": "⁹", "a": "ᵃ", "b": "ᵇ", "c": "ᶜ", "d": "ᵈ",
+            "e": "ᵉ", "f": "ᶠ", "g": "ᵍ", "h": "ʰ", "i": "ᶦ", "j": "ʲ", "k": "ᵏ",
+            "l": "ˡ", "m": "ᵐ", "n": "ⁿ", "o": "ᵒ", "p": "ᵖ", "q": "۹", "r": "ʳ",
+            "s": "ˢ", "t": "ᵗ", "u": "ᵘ", "v": "ᵛ", "w": "ʷ", "x": "ˣ", "y": "ʸ",
+            "z": "ᶻ", "A": "ᴬ", "B": "ᴮ", "C": "ᶜ", "D": "ᴰ", "E": "ᴱ", "F": "ᶠ",
+            "G": "ᴳ", "H": "ᴴ", "I": "ᴵ", "J": "ᴶ", "K": "ᴷ", "L": "ᴸ", "M": "ᴹ",
+            "N": "ᴺ", "O": "ᴼ", "P": "ᴾ", "Q": "Q", "R": "ᴿ", "S": "ˢ", "T": "ᵀ",
+            "U": "ᵁ", "V": "ⱽ", "W": "ᵂ", "X": "ˣ", "Y": "ʸ", "Z": "ᶻ", "+": "⁺",
+            "-": "⁻", "=": "⁼", "(": "⁽", ")": "⁾"
+        }
+
+    def subscript(self,txt):
+        sub_trans = str.maketrans(
+        ''.join(self.subscript_map.keys()),
+        ''.join(self.suberscript_map.values()))
+        return txt.translate(sub_trans)
+
+    def superscript(self,txt):
+        sup_trans = str.maketrans(
+        ''.join(self.superscript_map.keys()),
+        ''.join(self.superscript_map.values()))
+        return txt.translate(sup_trans)
+
+    def pretty_print_tuple(self,tuple:CachedStructuredData):
+        self.depth = 0
+        tuple.visit(self)
+        self.dump()
+
+    def append(self,str):
+        self.str_pieces += str
+        return self
+
+    def dump(self):
+        final = "".join(self.str_pieces)
+        self.str_pieces = []
+
+    def visitBuiltinNumber(self, number):
+        self.append(str(number))
+    def visitBuiltinString(self, s):
+        self.append(s)
+    def visitBuiltinSymbol(self, s):
+        self.append(s)
+    def initVisitLoadedTuple(self, relation, tuple_id):
+        self.append("(").append(relation.name)
+        self.depth += 1
+    def nextVisitLoadedTuple(self, relation: CachedRelation, n):
+        self.append(" ")
+    def exitVisitLoadedTuple(self, relation: CachedRelation, tuple_id):
+        self.append(")")
+        self.depth += 1
+        # If tuple has a name that we should print, print it after in superscript
+        if (self.history.get_name(tuple_id) != None):
+            self.append(self.superscript(self.history.get_name(tuple_id)))
+    def visitUnloadedTuple(self, relation: CachedRelation, tuple_id):
+        self.append("...").append(self.superscript(self.history.get_name(relation.dbid,tuple_id,True)))
+
+class TuplePaginator:
     """
-    Tracks REPL interaction history and lineage, for debugging and usability.
+    Load and print tuples in pages
     """
-    def __init__(self):
-        self.cur_db = None
-        pass
+    def __init__(self,writer,relation,history,prompt_session:PromptSession,batch_size = 5):
+        self.writer = writer
+        self.loader = TupleLoader(relation,0,history)
+        self.batch_size = batch_size
+        self.printer = TuplePrettyPrinter(self.history)
+        self.prompt_session = prompt_session
+
+    def print_all_tuples(self,relation):
+        while self.loader.tuples_left() > 0:
+            self.print_next_batch()
+
+    def print_next_batch(self,relation:CachedRelation):
+        grab = min(self.loader.tuples_left(),self.batch_size)
+        tuples = self.loader.materialize_tuples(grab)
+        for tuple in tuples:
+            self.printer.pretty_print_tuple(tuple)
+
+    def interactively_print_all(self,relation):
+        while self.loader.tuples_left() > 0:
+            self.print_next_batch()
+            answer = self.prompt_session.confirm(f"Load more facts? (seen {self.loader.cur_tuple_id} of {self.loader.relation.num_tuples})")
+            if (not answer): return
 
 class SlogClient:
     """
@@ -494,38 +593,39 @@ class SlogClient:
     def dump_relation_by_name(self, name, writer:Writer=Writer()):
         """ recursively print all tuples of a relation """
         
-        # XXX: Check if relation in cur db
+        # REFACTOR: Check if relation in cur db
         rels = self.lookup_rels(name)
         if len(rels) == 0:
             writer.write("No relation named {} in the current database".format(name))
             return []
 
-        # Get an iterator to a rendered tuple
+        # Ensure relation is loaded
         relation = self.db_cache.database(self.cur_db).relation_by_name(name)
-        print('here1')
         relation.load()
-        print('here2')
-        # tuple_iterator = RenderedTupleIterator()
-        print(relation.getTuple(0))
 
+        # Create a paginator object, which will subsequently render some 
+        # number of tuples at a time
+        paginator = TuplePaginator(writer)
+        paginator.print_all_tuples(relation)
+        
         # there is no way to get what is possible nested relation, 
         # so have to parse whole database first
-        tuples_map = {}
-        for rel in self.relations:
-            self._recursive_fetch_tuples(rel[2], tuples_map, self.cur_db)
-        # tuples_map = self._dump_tuples(name, self.cur_db)
-        tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
-        tuple_parser = TupleParser(tuples_map, self.group_cardinality, self.unroll_depth,
-                                        tag_map, self.intern_string_dict)
-        slog_tuples = tuple_parser.parse_query_result()
-        self.slog_tuple_parser = tuple_parser
-        pp_strs = tuple_parser.pretty_str_tuples(rels)
-        for pp_str in pp_strs:
-            writer.write(pp_str)
-        for rel in rels:
-            r_tuple_size = len(tuples_map[rel[2]]) / (rel[1] + 1)
-            writer.write(f"Relation name {name}, tag {rel[2]} has {int(r_tuple_size)} tuples")
-        return slog_tuples
+        # tuples_map = {}
+        # for rel in self.relations:
+        #     self._recursive_fetch_tuples(rel[2], tuples_map, self.cur_db)
+        # # tuples_map = self._dump_tuples(name, self.cur_db)
+        # tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
+        # tuple_parser = TupleParser(tuples_map, self.group_cardinality, self.unroll_depth,
+        #                                 tag_map, self.intern_string_dict)
+        # slog_tuples = tuple_parser.parse_query_result()
+        # self.slog_tuple_parser = tuple_parser
+        # pp_strs = tuple_parser.pretty_str_tuples(rels)
+        # for pp_str in pp_strs:
+        #     writer.write(pp_str)
+        # for rel in rels:
+        #     r_tuple_size = len(tuples_map[rel[2]]) / (rel[1] + 1)
+        #     writer.write(f"Relation name {name}, tag {rel[2]} has {int(r_tuple_size)} tuples")
+        # return slog_tuples
 
     def tag_db(self, db_id, tag_name):
         """ tag a database with some name """
