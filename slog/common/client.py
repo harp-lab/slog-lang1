@@ -171,7 +171,7 @@ class TuplePaginator:
         self.writer = writer
         self.loader = TupleLoader(relation,0,history)
         self.batch_size = batch_size
-        self.printer = TuplePrettyPrinter(self.history)
+        self.printer = TuplePrettyPrinter(history)
         self.prompt_session = prompt_session
 
     def print_all_tuples(self,relation):
@@ -219,6 +219,7 @@ class SlogClient:
         self.intern_string_dict = {}
         self.updated_tuples = {}
         self.all_db = []
+        self.history = TupleHistory()
 
         # map of tuple with it's print name
         self.tuple_printed_id_map = {}
@@ -448,7 +449,6 @@ class SlogClient:
     def switchto_db(self, db_id):
         """ switch to a new database """
         self.db_cache.database(db_id) # Load new database, ignore return
-        # XXX self.history
 
         self.update_dbs()
         if self.lookup_db_by_tag(db_id):
@@ -605,7 +605,8 @@ class SlogClient:
 
         # Create a paginator object, which will subsequently render some 
         # number of tuples at a time
-        paginator = TuplePaginator(writer)
+        session = PromptSession()
+        paginator = TuplePaginator(writer,relation,self.history,session,5)
         paginator.print_all_tuples(relation)
         
         # there is no way to get what is possible nested relation, 

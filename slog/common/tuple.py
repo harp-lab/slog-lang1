@@ -150,14 +150,13 @@ class TupleLoader:
 
     def tuples_left(self):
         """Returns the number of tuples left"""
-        return relation.num_tuples - self.cur_tuple_id
+        return self.relation.num_tuples - self.cur_tuple_id
 
     def materialize_tuples(self,n,depth) -> CachedStructuredData:
         """
         Materialize the next n tuples.
         """
         ending_offset = self.cur_tuple_id + n
-
         if (self.cur_tuple_id < self.relation.num_tuples or self.cur_tuple_id < 0):
             pass
         else:

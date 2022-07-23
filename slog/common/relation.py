@@ -32,7 +32,7 @@ class GrpcRelationLoader:
         # Total tuples and number of tuples should match
         assert(total_tups == cached_rel.num_tuples)
         # Create large array
-        cached_rel.tuple_data = np.array((total_tups,tupsize),dtype=np.uint64)
+        cached_rel.tuple_data = np.empty(shape=(total_tups,tupsize),dtype=np.uint64)
         offset = 0
         for batch in batches:
             batch_data = batch[0]
@@ -42,8 +42,8 @@ class GrpcRelationLoader:
                 tup_id = tup[0]
                 tup_num = tup[0] & (~TUPLE_ID_MASK)
                 cached_rel.tuple_data[tup_num] = tup
-                print(cached_rel.tuple_data[tup_num])
         # Indicate now loaded
+        print(cached_rel.tuple_data[tup_num])
         self.loaded = True
 
 class CachedRelation:
