@@ -4,6 +4,7 @@ Driver of the REPL; these are common 'verbs' for things to do
 
 """
 
+from cgi import print_form
 from functools import lru_cache
 from ftplib import FTP
 import hashlib
@@ -20,7 +21,7 @@ from slog.common import rel_name_from_file, make_stub, PING_INTERVAL
 from slog.common.dbcache import *
 from slog.common.elaborator import Elaborator
 from slog.common.relation import GrpcRelationLoader
-from slog.common.tuple import CachedStructuredData, SExprVisitor, TupleHistory, TupleLoader, TupleParser
+from slog.common.tuple import CachedStructuredData, SExprVisitor, TupleHistory, TupleLoader
 from slog.daemon.const import FTP_DEFAULT_PWD, FTP_DEFAULT_USER, STATUS_PENDING, STATUS_FAILED, STATUS_RESOLVED, STATUS_NOSUCHPROMISE
 from slog.daemon.util import get_relation_info
 import slog.protobufs.slog_pb2 as slog_pb2
@@ -133,7 +134,7 @@ class TuplePrettyPrinter(SExprVisitor):
     def pretty_print_tuple(self,tuple:CachedStructuredData):
         self.depth = 0
         tuple.visit(self)
-        self.dump()
+        return self.dump()
 
     def append(self,str):
         self.str_pieces += str
@@ -142,6 +143,7 @@ class TuplePrettyPrinter(SExprVisitor):
     def dump(self):
         final = "".join(self.str_pieces)
         self.str_pieces = []
+        return final
 
     def visitBuiltinNumber(self, number):
         self.append(str(number))
@@ -158,8 +160,8 @@ class TuplePrettyPrinter(SExprVisitor):
         self.append(")")
         self.depth += 1
         # If tuple has a name that we should print, print it after in superscript
-        if (self.history.get_name(tuple_id) != None):
-            self.append(self.superscript(self.history.get_name(tuple_id)))
+        if (self.history.get_name(relation.dbid,tuple_id) != None):
+            self.append(self.superscript(self.history.get_name(relation.dbid,tuple_id)))
     def visitUnloadedTuple(self, relation: CachedRelation, tuple_id):
         self.append("...").append(self.superscript(self.history.get_name(relation.dbid,tuple_id,True)))
 
@@ -167,22 +169,25 @@ class TuplePaginator:
     """
     Load and print tuples in pages
     """
-    def __init__(self,writer,relation,history,prompt_session:PromptSession,batch_size = 5):
+    def __init__(self,writer,database,relation,history,prompt_session:PromptSession,batch_size = 5):
         self.writer = writer
-        self.loader = TupleLoader(relation,0,history)
+        self.loader = TupleLoader(database,relation,0,history)
         self.batch_size = batch_size
         self.printer = TuplePrettyPrinter(history)
         self.prompt_session = prompt_session
+
+    def tuple_render_depth(self):
+        return 5
 
     def print_all_tuples(self,relation):
         while self.loader.tuples_left() > 0:
             self.print_next_batch()
 
-    def print_next_batch(self,relation:CachedRelation):
+    def print_next_batch(self):
         grab = min(self.loader.tuples_left(),self.batch_size)
-        tuples = self.loader.materialize_tuples(grab)
+        tuples = self.loader.materialize_tuples(grab,self.tuple_render_depth())
         for tuple in tuples:
-            self.printer.pretty_print_tuple(tuple)
+            self.writer.write(self.printer.pretty_print_tuple(tuple))
 
     def interactively_print_all(self,relation):
         while self.loader.tuples_left() > 0:
@@ -600,13 +605,14 @@ class SlogClient:
             return []
 
         # Ensure relation is loaded
-        relation = self.db_cache.database(self.cur_db).relation_by_name(name)
+        database = self.db_cache.database(self.cur_db)
+        relation = database.relation_by_name(name)
         relation.load()
 
         # Create a paginator object, which will subsequently render some 
         # number of tuples at a time
         session = PromptSession()
-        paginator = TuplePaginator(writer,relation,self.history,session,5)
+        paginator = TuplePaginator(writer,database,relation,self.history,session,3)
         paginator.print_all_tuples(relation)
         
         # there is no way to get what is possible nested relation, 
@@ -674,26 +680,27 @@ class SlogClient:
 
     def run_slog_query(self, query, db_id, writer: Writer):
         """ run a query on some database  """
-        hash_func = hashlib.sha256()
-        query_encoded = query.encode('utf-8')
-        hash_func.update(query_encoded)
-        query_hash = hash_func.hexdigest()
-        query_name = f"query_{query_hash[:10]}"
-        slog_code = self.desugar_query(query_name, query)
-        print(slog_code)
-        query_db = self.slog_add_rule(slog_code, db_id)
-        if not query_db:
-            writer.fail(f"query {query} on {db_id} fail!")
-            return
-        self.switchto_db(query_db)
-        tuples_map = self._dump_tuples(query_name, self.cur_db)
-        tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
-        query_res_rel_tags = self.lookup_rels(query_name)
-        tuple_parser = TupleParser(tuples_map, self.group_cardinality, self.unroll_depth,
-                                        tag_map, self.intern_string_dict)
-        slog_tuples = tuple_parser.parse_query_result()
+        print("Currently unsupported...")
+        # hash_func = hashlib.sha256()
+        # query_encoded = query.encode('utf-8')
+        # hash_func.update(query_encoded)
+        # query_hash = hash_func.hexdigest()
+        # query_name = f"query_{query_hash[:10]}"
+        # slog_code = self.desugar_query(query_name, query)
+        # print(slog_code)
+        # query_db = self.slog_add_rule(slog_code, db_id)
+        # if not query_db:
+        #     writer.fail(f"query {query} on {db_id} fail!")
+        #     return
+        # self.switchto_db(query_db)
+        # tuples_map = self._dump_tuples(query_name, self.cur_db)
+        # tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
+        # query_res_rel_tags = self.lookup_rels(query_name)
+        #tuple_parser = TupleParser(tuples_map, self.group_cardinality, self.unroll_depth,
+        #                                tag_map, self.intern_string_dict)
+        #slog_tuples = tuple_parser.parse_query_result()
         # id_print_name_map = {}
-        self.slog_tuple_parser = tuple_parser
+        # self.slog_tuple_parser = tuple_parser
         # for p_id, p_val in tuple_parser.printed_id_map.items():
         #     id_print_name_map[p_val.tuple_id] = p_id
         # actual_ids = []
@@ -705,7 +712,7 @@ class SlogClient:
         #     # query add layer of helper relation, which will increase the
         #     if _t.tuple_id in actual_ids:
         #         actual_tuples.append(_t)
-        return tuple_parser, query_res_rel_tags
+        #return tuple_parser, query_res_rel_tags
 
     def pretty_print_slog_query(self, query, writer:Writer):
         """

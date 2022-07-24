@@ -38,12 +38,10 @@ class GrpcRelationLoader:
             batch_data = batch[0]
             batch_tups = batch[1]
             for tup in batch_data.reshape(batch_tups,tupsize):
-                print(tup)
                 tup_id = tup[0]
                 tup_num = tup[0] & (~TUPLE_ID_MASK)
                 cached_rel.tuple_data[tup_num] = tup
         # Indicate now loaded
-        print(cached_rel.tuple_data[tup_num])
         self.loaded = True
 
 class CachedRelation:
@@ -71,7 +69,6 @@ class CachedRelation:
             raise RelationTooLargeExn()
         if (not self.loaded):
             self.load()
-        assert(self.num_tuples > tuple_id)
-        tuplen = self.arity + 1
-        return self.tuple_data[(tuplen*tuple_id):(tuplen*tuple_id+tuplen)]
-    
+        n = tuple_id & (~TUPLE_ID_MASK)
+        assert(self.num_tuples > n)
+        return self.tuple_data[n]
