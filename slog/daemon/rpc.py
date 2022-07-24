@@ -259,7 +259,7 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
             file_size = os.stat(data_file).st_size
             num_u64s = int(file_size) / 8
             num_tuples = int(num_u64s) / tuplen
-            max_tuples_per_chunk = int(math.floor(MAX_CHUNK_DATA / (8 * arity)))
+            max_tuples_per_chunk = int(math.floor(MAX_CHUNK_DATA / (8 * tuplen)))
             num_tuples_left = num_tuples
             while num_tuples_left > 0:
                 num_tuples = int(
@@ -272,9 +272,9 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
                 # Shuffle tuples according
                 for row_num in range(num_tuples):
                     for i in range(arity+1):
-                        cpy[row_num*tuplen + mapping[i]] = int.from_bytes(
-                            buffer[row_num*tuplen*8 + i*8:row_num*tuplen*8 + (i+1)*8],
-                            'little', signed=False)
+                        cpy[row_num*tuplen + mapping[i]] = int.from_bytes(buffer[row_num*tuplen*8 + i*8:row_num*tuplen*8 + (i+1)*8],
+                                         'little',
+                                          signed=False)
                 num_tuples_left -= num_tuples
                 response.num_tuples = num_tuples
                 response.data.extend(cpy)

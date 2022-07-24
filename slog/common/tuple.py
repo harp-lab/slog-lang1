@@ -98,6 +98,9 @@ class UnloadedTuple(CachedStructuredData):
         self.relation = relation
         self.id = id
 
+    def visit(self,visitor:SExprVisitor):
+        visitor.visitUnloadedTuple(self.relation,self.id)
+
 class TupleHistory:
     """
     Tracks state relevant to deduplicating tuples when in an interactive session
@@ -149,7 +152,7 @@ class TupleHistory:
         else: return None
 
 class TupleLoader:
-    def __init__(self,database,relation,starting_offset,history):
+    def __init__(self,database,relation,starting_offset,history,string_map):
         self.db = database
         self.cur_tuple_id = starting_offset
         self.relation = relation
@@ -163,6 +166,8 @@ class TupleLoader:
         """
         Materialize an approximation of particular tuple to some specific depth
         """
+        if depth == 0:
+            return UnloadedTuple(relation,tuple_id)
         raw_tuple = relation.get_tuple(tuple_id)
         # Visit the tuple via the history
         history.bump_count(self.db.dbid,tuple_id)
@@ -184,8 +189,8 @@ class TupleLoader:
             # Relation
             else:
                 rel_tag = u64 >> TAG_SHIFT
-                relation = self.db.relation_by_tag(rel_tag)
-                children.append(self._materialize_tuple(u64,relation,depth+1,history))
+                newrel = self.db.relation_by_tag(rel_tag)
+                children.append(self._materialize_tuple(u64,newrel,depth-1,history))
         return LoadedTuple(relation,tuple_id,children)
 
     def tuples_left(self):

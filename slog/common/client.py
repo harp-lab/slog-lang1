@@ -1,7 +1,5 @@
 """
 Driver of the REPL; these are common 'verbs' for things to do
-
-
 """
 
 from cgi import print_form
@@ -192,8 +190,8 @@ class TuplePaginator:
     def interactively_print_all(self,relation):
         while self.loader.tuples_left() > 0:
             self.print_next_batch()
-            answer = self.prompt_session.confirm(f"Load more facts? (seen {self.loader.cur_tuple_id} of {self.loader.relation.num_tuples})")
-            if (not answer): return
+            answer = self.prompt_session.prompt(f"Load more facts (y/n)? (seen {self.loader.cur_tuple_id} of {self.loader.relation.num_tuples}) ")
+            if (answer != "y"): return
 
 class SlogClient:
     """
@@ -612,8 +610,8 @@ class SlogClient:
         # Create a paginator object, which will subsequently render some 
         # number of tuples at a time
         session = PromptSession()
-        paginator = TuplePaginator(writer,database,relation,self.history,session,3)
-        paginator.print_all_tuples(relation)
+        paginator = TuplePaginator(writer,database,relation,self.history,session,20)
+        paginator.interactively_print_all(relation)
         
         # there is no way to get what is possible nested relation, 
         # so have to parse whole database first

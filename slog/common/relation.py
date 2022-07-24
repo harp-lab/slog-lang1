@@ -8,7 +8,7 @@ import numpy as np
 import slog.protobufs.slog_pb2 as slog_pb2
 from slog.common.tuple import *
 
-MAX_RELATION_TUP_SIZE = 100000
+MAX_RELATION_TUP_SIZE = 10000000000
 
 class RelationTooLargeExn(Exception):
     pass
@@ -62,6 +62,7 @@ class CachedRelation:
             raise RelationTooLargeExn()
         if self.loaded: return
         self.loader.load_relation_data(self)
+        self.loaded = True
 
     def get_tuple(self,tuple_id) -> list[np.uint64]:
         """Retrieve a particular tuple, """
