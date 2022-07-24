@@ -152,12 +152,11 @@ class TupleHistory:
         else: return None
 
 class TupleLoader:
-    def __init__(self,database,relation,starting_offset,history,string_map):
+    def __init__(self,database,relation,starting_offset,history):
         self.db = database
         self.cur_tuple_id = starting_offset
         self.relation = relation
         self.history = history
-        pass
 
     def parse_tuple_row(self, u64_list) -> CachedStructuredData:
         """ parse a row of u64 tuple into a python object """
@@ -184,8 +183,9 @@ class TupleLoader:
                 children.append(BuiltinNumber(attr_val))
             # String
             elif val_tag == STRING_TAG:
-                attr_val = self.string_map[u64 & U32_MASK]
-                children.append(BuiltinString(attr_val))
+                print(raw_tuple)
+                print(u64 & numpy.uint64(U32_MASK))
+                children.append(BuiltinString(self.db.lookup_string(u64 & numpy.uint64(U32_MASK))))
             # Relation
             else:
                 rel_tag = u64 >> TAG_SHIFT

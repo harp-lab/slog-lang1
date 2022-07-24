@@ -4,18 +4,22 @@ Kris Micinski, 2022
 '''
 
 from slog.common.relation import CachedRelation, GrpcRelationLoader
+import slog.common.tuple
 import slog.protobufs.slog_pb2 as slog_pb2
 
 class CachedDatabase:
-    def __init__(self,dbid,relations):
+    def __init__(self,dbid,relations,strings):
         self.dbid = dbid
         self.relations = {}
         for relation in relations:
             self.relations[relation.tag] = relation
             self.relations[relation.name] = relation
+        self.strings = strings
 
     def relation_by_tag(self,tag): return self.relations[tag]
     def relation_by_name(self,name): return self.relations[name]
+    def lookup_string(self,id): 
+        return self.strings[id]
 
 class DatabaseLoader: 
     def load_database(self,dbid) -> CachedDatabase:
@@ -33,7 +37,12 @@ class GrcpDatabaseLoader:
         res = self._stub.GetRelations(req)
         rels = list(map(lambda rel: CachedRelation(dbid,rel.name,rel.arity,rel.tag,rel.num_tuples,self.loader)
                         , res.relations))
-        db = CachedDatabase(dbid,rels)
+        req = slog_pb2.StringRequest()
+        req.database_id = dbid
+        strings = {}
+        for string in self._stub.GetStrings(req):
+            strings[string.id] = string.text
+        db = CachedDatabase(dbid,rels,strings)
         return db
     
 class DatabaseCache:
@@ -44,6 +53,7 @@ class DatabaseCache:
     def __init__(self, dbloader: DatabaseLoader):
         self.databases = {}
         self.loader = dbloader
+
 
     def database(self,dbid) -> CachedDatabase:
         """lazily loads a database unless it exists already"""
