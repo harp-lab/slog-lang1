@@ -75,8 +75,6 @@ void parallel_copy_aggregate::local_aggregate(u32 buckets, all_to_allv_buffer &a
     auto input_bucket_map = input->get_bucket_map();
     int join_count = input->get_join_column_count();
     agg_buffer.width[ra_counter] = join_count + 1;
-    std::cout << "output arity " << output->get_arity() << std::endl;
-    // std::cout << "join count " << output
     int agg_count = 0;
     // int first_bucket_count = 0;
     for (u32 input_count = 0; input_count < buckets; input_count++) {
@@ -118,9 +116,8 @@ void parallel_copy_aggregate::local_aggregate(u32 buckets, all_to_allv_buffer &a
                     agg_buffer.local_compute_output[ra_counter][index].vector_buffer_append((const unsigned char*)res_v, sizeof(u64)*agg_buffer.width[ra_counter]);
                     // std::cout << "local_compute_output_count_flat: " << agg_buffer.local_compute_output_count_flat[index*agg_buffer.ra_count+ra_counter] << std::endl;
                 }
+            }
         }
-    }
-    
     }   
 
     // if (size() == 0)

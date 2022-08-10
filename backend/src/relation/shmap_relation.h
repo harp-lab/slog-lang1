@@ -68,7 +68,7 @@ struct shmap_relation {
     // I keep this weird  name from souffle, actually join helper fucntion
     // in souffle its index selection function, in slog we don't need select
     // so only one version of this function
-    std::pair<iterator, iterator> lowerUpperRange(const t_tuple &lower, const t_tuple &upper)
+    std::pair<iterator, iterator> lowerUpperRange(const t_tuple &lower, const t_tuple &upper) const
     {
         auto lower_it = ind->lower_bound(lower);
         auto upper_it = ind->upper_bound(upper);
@@ -168,4 +168,8 @@ struct shmap_relation {
         ind->clear();
         delete ind;
     }
+
+private:
+    shmap_relation(const shmap_relation& other);
+    shmap_relation& operator=(const shmap_relation& other);
 };
