@@ -250,7 +250,7 @@ def run_local(file, out_path, factloc, cores, verbose, slog_root=None, compile_b
                                            stderr=subprocess.STDOUT)
         else:
             out = subprocess.check_output(
-                ["mpirun", "-n", f"{cores}", "valgrind", "--tool=massif", slog_bin_path],
+                ["mpirun", "-n", f"{cores}", "valgrind", "--leak-check=yes", "--show-reachable=yes", slog_bin_path],
                  stderr=subprocess.STDOUT)
         end = time.time()
         if verbose:

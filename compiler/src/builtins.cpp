@@ -314,7 +314,7 @@ template<typename TState> inline TState builtin_nop(const u64* data, TState init
 //   return sum;
 // }
 
-local_agg_res_t agg_count_local(shmap_relation& rel, std::vector<u64>& data)
+local_agg_res_t agg_count_local(const shmap_relation& rel, std::vector<u64>& data)
 {
   std::vector<u64> upper_bound(rel.arity+1, std::numeric_limits<u64>::max());
   std::vector<u64> lower_bound(rel.arity+1, std::numeric_limits<u64>::min());
