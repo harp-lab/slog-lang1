@@ -11,3 +11,27 @@
 
 [(a-edge x y) --> (a-node x)]
 [(a-node x) (count-by a-edge x count) --> (a-node-degree x count)]
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(b-edge "a" 1 2)
+(b-edge "b" 1 4)
+
+(b-edge "a" 2 3)
+(b-edge "a" 2 4)
+(b-edge "a" 2 5)
+(b-edge "b" 2 6)
+
+(b-edge "a" 3 3)
+(b-edge "a" 3 4)
+
+(b-edge "b" 5 3)
+
+[(b-edge _ x y) --> (b-node x)]
+
+[(b-node x)
+ (count-by b-edge "a" x count)
+ -->
+ (b-node-degree count x)]
+
+; [(count-by b-edge _ "a" count) --> (b-edge-count "a" count)]

@@ -524,7 +524,26 @@
                                 (format "data[~a]" arg-pos-in-bvars0)])) 
                         (range 0 (length available-indices))))
   ))
-  (define local-lambda local-cpp-func-name)
+  ; local-cpp-func-name
+  (define local-lambda
+  (string-replace-all 
+    "[](const shmap_relation& target_btree, const std::vector<u64>& data) -> local_agg_res_t {
+      std::vector<u64> reordered_data {[populate-args-for-old-bi-code]};
+      return [local-cpp-func-name](target_btree, reordered_data);
+    }"
+    "[local-cpp-func-name]" local-cpp-func-name
+    "[populate-args-for-old-bi-code]"
+    (intercalate ", " (map (λ (i) 
+                            (define arg-pos-in-bvars1 (index-of requested-indices (list-ref available-indices i)))
+                            (define arg (list-ref bvars1 arg-pos-in-bvars1))
+                            (match arg
+                              ; [(? lit?) (format "n2d(~a)" arg)]
+                              [(? string?) (format "s2d(\"~a\")" arg)]
+                              [(? number?)  (format "n2d(~a)" arg)]
+                              [else 
+                                (define arg-pos-in-bvars0 (index-of bvars0 arg))
+                                (format "data[~a]" arg-pos-in-bvars0)])) 
+                        (range 0 (length available-indices))))))
   ; TODO maybe unify this with generate-cpp-lambda-for-rule-with-builtin-impl?
   (define global-lambda
   (string-replace-all 
@@ -657,9 +676,13 @@
               `(count-by ,n ,(range 1 n) "agg_count_local" "SpecialAggregator::count" "agg_count_reduce" "agg_count_global")) 
            (range 1 11))
 
-    (sum 1 () "agg_sum_local" "SpecialAggregator::sum" "nullptr" "agg_sum_global")
-    (sum 2 (1) "agg_sum_local" "SpecialAggregator::sum" "nullptr" "agg_sum_global")
-    (sum 3 (1 2) "agg_sum_local" "SpecialAggregator::sum" "nullptr" "agg_sum_global")))
+    ,@(map (lambda (n)
+              `(count-by ,n ,(range 1 n) "agg_sum_local" "SpecialAggregator::sum" "agg_sum_reduce" "agg_sum_global")) 
+           (range 1 11))
+    ; (sum 1 () "agg_sum_local" "SpecialAggregator::sum" "nullptr" "agg_sum_global")
+    ; (sum 2 (1) "agg_sum_local" "SpecialAggregator::sum" "nullptr" "agg_sum_global")
+    ; (sum 3 (1 2) "agg_sum_local" "SpecialAggregator::sum" "nullptr" "agg_sum_global")
+    ))
 
 (define (cl-input-args cl)
     (match cl

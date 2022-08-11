@@ -1,0 +1,15 @@
+
+.decl edge(from: number, to: number)
+.input edge(filename="a-edge.facts")
+
+.decl node(n: number)
+.output node
+node(n) :- edge(n, _).
+
+.decl degree(n: number, c: number)
+.output degree
+degree(n, c) :- node(n), c = count : {edge(n, _)}.
+
+.decl node_count(n: number)
+.output node_count
+node_count(s) :- s = count : {node(_)}.

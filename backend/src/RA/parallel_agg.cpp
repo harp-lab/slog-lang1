@@ -73,7 +73,7 @@ void parallel_copy_aggregate::local_aggregate(u32 buckets, all_to_allv_buffer &a
     u32* output_sub_bucket_count = output->get_sub_bucket_per_bucket_count();
     u32** output_sub_bucket_rank = output->get_sub_bucket_rank();
     auto input_bucket_map = input->get_bucket_map();
-    int join_count = input->get_join_column_count();
+    int join_count = output->get_join_column_count() - 1;
     agg_buffer.width[ra_counter] = join_count + 1;
     int agg_count = 0;
     // int first_bucket_count = 0;
@@ -82,13 +82,12 @@ void parallel_copy_aggregate::local_aggregate(u32 buckets, all_to_allv_buffer &a
         {
             for (u32 tagret_count=0; tagret_count < buckets; tagret_count++) {
                 const shmap_relation& target_btree = target->get_full()[tagret_count];
-                std::vector<u64> data_v(join_count, 0);
+                std::vector<u64> data_v(input->get_join_column_count(), 0);
                 u64 res_v[join_count+1];
                 // std::vector<u64> res_v(join_count+1, 0);
                 for (auto tuple: input->get_full()[input_count]) {
-                    for (int j=0; j < join_count; j++) {
+                    for (int j=0; j < input->get_join_column_count(); j++) {
                         data_v[j] = tuple[j];
-                        res_v[j] = tuple[j];
                     }
                     auto agg_data = local_func(target_btree, data_v);
                     agg_count += global_func(data_v.data(), agg_data, agg_count, res_v);
@@ -97,13 +96,12 @@ void parallel_copy_aggregate::local_aggregate(u32 buckets, all_to_allv_buffer &a
                     if (input->get_is_canonical() == false && output->get_arity() != 0 && output->get_arity() >= join_count) {
                         sub_bucket_id = tuple_hash(res_v+join_count, output->get_arity()-join_count) % output_sub_bucket_count[bucket_id];
                     }
-                    // std::cout << "bucket id: " << bucket_id << " sub bucket id: " << sub_bucket_id << std::endl;
-                    // output->insert_in_newt(res_v);
-                    // std::cout << " aggregated tuple : ";
-                    // for (int c = 0; c < join_count + 1  ;  c++) {
-                    //     std::cout << res_v[c] << " ";
-                    // }
-                    // std::cout << std::endl;
+                    std::cout << "bucket id: " << bucket_id << " sub bucket id: " << sub_bucket_id << std::endl;
+                    std::cout << " aggregated tuple : ";
+                    for (int c = 0; c < join_count + 1  ;  c++) {
+                        std::cout << res_v[c] << " ";
+                    }
+                    std::cout << std::endl;
 
                     int index = output_sub_bucket_rank[bucket_id][sub_bucket_id];
                     // std::cout << "index : " << index << std::endl;
