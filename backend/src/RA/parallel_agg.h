@@ -96,7 +96,8 @@ public:
         RA_type = AGGREGATION;
     }
     
-    void local_aggregate(u32 bucket,
+    void local_aggregate(u32 bucket, int *offset,
+                         int input0_buffer_size, u64 *input0_buffer,
                          all_to_allv_buffer& agg_buffer,
                          int ra_counter);
 };

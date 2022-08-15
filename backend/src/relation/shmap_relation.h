@@ -18,18 +18,21 @@ struct shmap_relation {
 
     int data_structure_type;
 
+    int id_flag;    // does this btree contain id column?
+
     using t_tuple = std::vector<uint64_t>;
     struct t_comparator {
         // 0-arity compare will fail
-        t_comparator() : n(-2) {}
+        t_comparator() : _id_flag(true) {}
 
-        t_comparator(int length) : n(length) {} 
+        t_comparator(bool id_flag) : _id_flag(id_flag) {} 
         
         bool operator()(const t_tuple &a, const t_tuple &b) const {
             // make it an unroll loop when change to array
             int size = a.size();
-            if (n != -2)
-                size = n;
+            if (_id_flag) {
+                size--;
+            }
             for (int i=0; i < size; i++)
             {
                 if (a[i] < b[i])
@@ -39,8 +42,7 @@ struct shmap_relation {
             }
             return false;
         }
-
-        int n;
+        bool _id_flag;
     };
 
     // souffle use multi set for some relation
@@ -109,9 +111,10 @@ struct shmap_relation {
 
     iterator end() const { return ind->end(); }
 
-    shmap_relation(int arity);
+    shmap_relation(int arity, bool id_flag);
     shmap_relation() {
-        ind = new t_ind();
+        id_flag = true;
+        ind = new t_ind(t_comparator(id_flag));
         // int rank;
         // MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         // std::cout << "default constructor " << rank <<std::endl;

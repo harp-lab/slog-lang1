@@ -361,7 +361,7 @@ u32 RAM::allocate_compute_buffers()
 }
 
 
-u32 RAM::local_compute(int* offset)
+bool RAM::local_compute(int* offset)
 {
     bool join_completed = true;
     u32 join_tuples = 0;
@@ -372,6 +372,7 @@ u32 RAM::local_compute(int* offset)
 
     for (std::vector<parallel_RA*>::iterator it = RA_list.begin() ; it != RA_list.end(); ++it)
     {
+        // std::cout << "RA type : " << (*it)->get_RA_type() << std::endl;
         if ((*it)->get_RA_type() == COPY)
         {
             parallel_copy* current_ra = (parallel_copy*) *it;
@@ -465,7 +466,13 @@ u32 RAM::local_compute(int* offset)
 
         else if ((*it)->get_RA_type() == AGGREGATION) {
             parallel_copy_aggregate* current_ra = (parallel_copy_aggregate*) *it;
-            current_ra->local_aggregate(get_bucket_count(), compute_buffer,counter);
+            current_ra->local_aggregate(
+                get_bucket_count(),
+                &(offset[counter]),
+                intra_bucket_buf_output_size[counter],
+                intra_bucket_buf_output[counter],
+                compute_buffer,
+                counter);
         }
     
         else if ((*it)->get_RA_type() == NEGATION)
@@ -727,7 +734,7 @@ void RAM::free_compute_buffers()
 
 void RAM::local_insert_in_newt_comm_compaction(std::map<u64, u64>& intern_map)
 {
-    u32 successful_insert = 0, starting = 0;
+    u32 successful_insert = 0, starting = 0, failed_insert = 0;
     int nprocs = mcomm.get_local_nprocs();
     int RA_count = RA_list.size();
     u64 relation_id=0, bucket_id=0, intern_key=0, intern_value=0;
@@ -853,6 +860,8 @@ void RAM::local_insert_in_newt_comm_compaction(std::map<u64, u64>& intern_map)
 
                     if (output->insert_in_newt(tuple) == true)
                         successful_insert++;
+                    else
+                        failed_insert++;
                     //std::cout << "Inserting " << tuple[0] << " " << tuple[1] << std::endl;
                     //std::cout << "successful_insert " << successful_insert << std::endl;
                     //std::cout << "get_debug_id " << output->get_debug_id() << std::endl;
@@ -863,7 +872,7 @@ void RAM::local_insert_in_newt_comm_compaction(std::map<u64, u64>& intern_map)
         //else if (RA_list[ra_id]->get_RA_type() == FACT)
         //    continue;
 
-        //std::cout << output->get_debug_id() << " successful insert " << successful_insert << std::endl;
+        // std::cout << output->get_debug_id() << " successful insert: " << successful_insert << " ; failed insert : " << failed_insert <<  std::endl;
     }
 
     delete[] cumulative_all_to_allv_recv_process_count_array;
@@ -884,6 +893,7 @@ void RAM::local_insert_in_newt(std::map<u64, u64>& intern_map)
         //for (int k = 0; k < nprocs; k++)
         //{
             successful_insert = 0;
+            int failed_insert = 0;
             u32 elements_to_read = cumulative_all_to_allv_recv_process_size_array_cmp[r];
             relation* output;
 
@@ -936,7 +946,12 @@ void RAM::local_insert_in_newt(std::map<u64, u64>& intern_map)
                         tuple[width] = intern_key | intern_value;    /// Intern here
 
                         if (output->insert_in_newt(tuple) == true)
+                        {
                             successful_insert++;
+                        }
+                        else {
+                            failed_insert ++;
+                        }
                     } else {
 
                     }
@@ -959,7 +974,7 @@ void RAM::local_insert_in_newt(std::map<u64, u64>& intern_map)
                     }
                 }
             }
-            // std::cout << output->get_debug_id() << " successful insert " << successful_insert << std::endl;
+            // std::cout << output->get_debug_id() << " successful insert: " << successful_insert << " ; failed insert : " << failed_insert <<  std::endl;
         //}
         delete[] cumulative_all_to_allv_buffer_cmp[r];
     }
@@ -1204,7 +1219,6 @@ void RAM::execute_in_batches_comm_compaction(std::string name, int batch_size, s
         while (local_join_status == false)
         {
             allocate_compute_buffers();
-
 
 
             local_join_status = local_compute(offset);

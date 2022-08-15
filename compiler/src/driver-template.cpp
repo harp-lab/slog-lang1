@@ -116,7 +116,6 @@ int main(int argc, char **argv)
   delete lie;
 
   mcomm.destroy();
-  // std::cout << "wwwwwwwwww" << std::endl;
 
   return 0;
 }

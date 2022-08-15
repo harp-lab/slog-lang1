@@ -17,10 +17,11 @@
 
 
 
-shmap_relation::shmap_relation(int arity)
+shmap_relation::shmap_relation(int arity, bool id_flag)
 {
     this->arity = arity;
-    ind = new t_ind();
+    ind = new t_ind(t_comparator(id_flag));
+    this->id_flag = id_flag;
 }
 
 bool shmap_relation::insert_tuple_from_array(u64 *t, int width)
@@ -389,7 +390,7 @@ void shmap_relation::as_all_to_allv_right_outer_join_buffer(
     if (this->size() == 0)
         return;
     // should I reconstruct the btree here? is there better data structure here?
-    shmap_relation negated_target(join_column_count);
+    shmap_relation negated_target(join_column_count, false);
     for (int k1 = *offset; k1 < input0_buffer_size; k1 = k1 + input0_buffer_width)
     {
         negated_target.insert_tuple_from_array(input0_buffer+k1, join_column_count);

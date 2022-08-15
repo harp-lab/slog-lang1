@@ -134,7 +134,7 @@ public:
 
 
     /// Join/compy/acopy
-    u32 local_compute(int* offset);
+    bool local_compute(int* offset);
 
     void local_comm();
 

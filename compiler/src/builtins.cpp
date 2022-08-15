@@ -344,6 +344,7 @@ local_agg_res_t agg_sum_local(const shmap_relation& rel, std::vector<u64>& data)
     lower_bound[i] = data[i];
   }
   auto joined_range = rel.lowerUpperRange(lower_bound, upper_bound);
+
   local_agg_res_t sum_res = 0;
   for(auto it = joined_range.first; it != joined_range.second && it != rel.end(); ++it) {
     sum_res += (*it)[prefix_length];
