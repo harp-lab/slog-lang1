@@ -10,3 +10,4 @@ pyfiglet
 grpc_interceptor
 six
 sexpdata
+numpy

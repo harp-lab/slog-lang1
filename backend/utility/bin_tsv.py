@@ -55,6 +55,23 @@ INT_TAG = 0
 STRING_TAG = 2
 SYMBOL_TAG = 3
 
+STRING_FNV_PRIME = 16777619
+STRING_FNV_BASE_OFFSET = 2166136261
+
+
+def join_hashes(hashes):
+    """ join 2 hash values? """
+    return ",".join(hashes)
+
+
+def string_hash(target_str: str):
+    """ compute the FNV hash value of string (same as backend string) """
+    hsh = STRING_FNV_BASE_OFFSET
+    for _c in target_str:
+        hsh = hsh ^ _c
+        hsh = hsh * STRING_FNV_PRIME
+    return hsh
+
 
 def read_size_file(size_path):
     with open(size_path, "r") as size_file:
@@ -73,7 +90,7 @@ def read_intern_file(fpath):
                     v = ''
                 else:
                     v = splited[1]
-                intern_dict[int(v_id)] = v
+                intern_dict[string_hash(v)] = v
     return intern_dict
 
 
@@ -85,14 +102,16 @@ def bin_to_tsv(filename, arity, output, index, meta_folder):
         bin_bytes = bin_file.read()
         print(f"binary file has {len(bin_bytes)/(8*(arity+1))} tuples")
         for i in range(0, len(bin_bytes), 8 * (arity + 1)):
-            col_id = int.from_bytes(bin_bytes[i+arity*8:i+(arity+1)*8], 'little', signed=False)
+            col_id = int.from_bytes(
+                bin_bytes[i+arity*8:i+(arity+1)*8], 'little', signed=False)
             rel_tag = col_id >> 46
             bucket_hash = (col_id & BUCKET_MASK) >> 28
             tuple_id = col_id & TUPLE_ID_MASK
-            print(f'tuple id -- ({rel_tag}, {bucket_hash}, {tuple_id})')
+            # print(f'tuple id -- ({rel_tag}, {bucket_hash}, {tuple_id})')
             attributes = [-1 for _ in range(arity)]
             for j in range(0, arity):
-                raw_val = int.from_bytes(bin_bytes[i+j*8:i+(j+1)*8], 'little', signed=False)
+                raw_val = int.from_bytes(
+                    bin_bytes[i+j*8:i+(j+1)*8], 'little', signed=False)
                 val_tag = raw_val >> 46
                 if val_tag == INT_TAG:
                     attr_val = raw_val & VAL_MASK

@@ -9,10 +9,24 @@ import os
 import re
 import hashlib
 
+import numpy as np
+
+STRING_FNV_PRIME = np.uint32(16777619)
+STRING_FNV_BASE_OFFSET = np.uint32(2166136261)
+
 
 def join_hashes(hashes):
     """ join 2 hash values? """
     return ",".join(hashes)
+
+
+def string_hash(target_str: str):
+    """ compute the FNV hash value of string (same as backend string) """
+    hsh = STRING_FNV_BASE_OFFSET
+    for _c in target_str:
+        hsh ^= np.uint32(ord(_c))
+        hsh = hsh * STRING_FNV_PRIME
+    return hsh
 
 
 def generate_db_hash(hashes, using_db=None):
@@ -72,9 +86,11 @@ def checkpoint_ord(check_dir):
     else:
         return [int(check_stamp[0][1]), int(check_stamp[0][0])]
 
+
 def compute_relation_row_size(datafile, arity):
     """ compute the row size of a relation datafile """
     return int(os.path.getsize(datafile) / (8 * (arity + 1)))
+
 
 def get_relation_info(datapath):
     """ get the basic infomation of a relation form it's path """
@@ -90,6 +106,6 @@ def get_relation_info(datapath):
         "name": rel_name,
         "arity": int(arity_s),
         "tag": int(tag_s),
-        "num_tuples" : compute_relation_row_size(datapath, int(arity_s)),
+        "num_tuples": compute_relation_row_size(datapath, int(arity_s)),
         "data_file": datapath
     }

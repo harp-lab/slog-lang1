@@ -5,9 +5,6 @@ Yihao Sun
 '''
 
 
-from platform import release
-
-
 TAG_MASK =      0xFFFFC00000000000
 BUCKET_MASK =   0x00003FFFF0000000
 TUPLE_ID_MASK = 0xFFFFFFFFF0000000
