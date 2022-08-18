@@ -184,7 +184,7 @@ class TupleLoader:
             # String
             elif val_tag == STRING_TAG:
                 print(raw_tuple)
-                print(u64 & numpy.uint64(U32_MASK))
+                print(u64 & numpy.uint64(TUPLE_ID_MASK))
                 children.append(BuiltinString(self.db.lookup_string(u64 & numpy.uint64(U32_MASK))))
             # Relation
             else:

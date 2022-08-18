@@ -246,7 +246,6 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
             print(f"db: {request.database_id} tag: {request.tag}")
         arity = int(row[1])
         data_file = row[3]
-        print(row)
         if data_file.strip() == "":
             response = slog_pb2.Tuples()
             response.status = STATUS_RESOLVED
@@ -291,6 +290,7 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
             desc_response.arity = row[1]
             desc_response.tag = row[2]
             desc_response.num_tuples = row[4]
+            print(row)
             res.relations.extend([desc_response])
         return res
 
