@@ -222,7 +222,7 @@ class Repl:
         # TODO: init the SlogClient
         self.local_db_path = local_db_path
         self.prompt_session = PromptSession(history=FileHistory("./.slog-history"))
-        self.client = SlogClient(server, rpc_port, ftp_port, local_db_path)
+        self.client = SlogClsient(server, rpc_port, ftp_port, local_db_path)
         self.ftp_port = ftp_port
         print(BANNER_LOGO)
         print(BANNER)
