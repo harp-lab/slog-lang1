@@ -1,0 +1,14 @@
+
+
+.decl edge(from: number, to: number, weight: number)
+.printsize edge
+.input edge(filename="a-edge.facts")
+
+.decl node(n: number)
+.printsize node
+.output node
+node(n) :- edge(n, _, _).
+
+.decl outcoming_length(n: number, l: number)
+.output outcoming_length
+outcoming_length(n, l) :- node(n), l = sum w : edge(n, _, w).

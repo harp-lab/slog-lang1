@@ -1,14 +1,4 @@
 
-; (a-edge 1 2)
-; (a-edge 1 4)
-; (a-edge 2 3)
-; (a-edge 2 4)
-; (a-edge 2 5)
-; (a-edge 2 6)
-; (a-edge 3 3)
-; (a-edge 3 4)
-; (a-edge 5 3)
-
 [(a-edge x y) --> (a-node x)]
 [(a-node x) (count-by a-edge x count) --> (a-node-degree x count)]
 
@@ -34,6 +24,9 @@
  -->
  (b-node-degree count x)]
 
+[(b-result-check1 "pass") <-- (b-node-degree 1 1)]
+[(b-result-check2 "pass") <-- (b-node-degree 3 2)]
+
 ; [(count-by b-edge _ "a" count) --> (b-edge-count "a" count)]
 
 [(c-edge x y _) --> (c-node x)]
@@ -42,3 +35,8 @@
  (count-by c-edge x count)
  -->
  (c-node-degree x count)]
+
+; [(result_check_1 "pass") <-- (c-node-degree 1 9095)]
+; [(result_check_2 "pass") <-- (c-node-degree 2 3884)]
+; [(result_check_3 "pass") <-- (c-node-degree 187 213)]
+; [(result_check_4 "pass") <-- (c-node-degree 4805 135)]

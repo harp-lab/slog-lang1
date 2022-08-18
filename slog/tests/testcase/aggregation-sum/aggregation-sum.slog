@@ -1,0 +1,15 @@
+
+; [(a-node a) <-- (a-edge a _ _)]
+
+(a-edge 1 2 3)
+(a-edge 1 4 3)
+
+(weight-edge (edge 1 2) 3)
+
+;;
+[(a-outcoming-length 1 {sum a-edge 1 _}) <-- ]
+
+; ==>
+
+; [(a-edge' a c) <-- (a-edge a b c)]
+; [(a-outcoming-length 1 l) <-- (sum a-edge' 1 l])

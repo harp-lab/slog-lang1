@@ -42,6 +42,7 @@ using namespace std;
 
 // globals
 unordered_set<string> strings_set;
+unordered_set<u64> tuple_hash_set;
 long current_tuple_id = 0;
 unsigned arity;
 unsigned index_length = 0;
@@ -254,14 +255,18 @@ void file_to_slog(char *input_file, char *output_file,
 			col_count++;
 		}
 
-		u64 tid = rel_tag;
-		tid <<= (TUPLE_MASK_LENGTH + BUCKET_MASK_LENGTH);
-		tid |= ((hash_tuple(tuple_buffer, arity) % buckets)) << TUPLE_MASK_LENGTH;
-		tid |= current_tuple_id++;
-		// cout << "id at " << col_count << " : " << tid << endl;
-		tuple_buffer[col_count] = tid;
-		// write data
-		write(fp_out, tuple_buffer, 8 * (arity + 1));
+		u64 t_hash = hash_tuple(tuple_buffer, arity);
+		if (tuple_hash_set.find(t_hash) == tuple_hash_set.end()){
+			tuple_hash_set.insert(t_hash);
+			u64 tid = rel_tag;
+			tid <<= (TUPLE_MASK_LENGTH + BUCKET_MASK_LENGTH);
+			tid |= (t_hash % buckets) << TUPLE_MASK_LENGTH;
+			tid |= current_tuple_id++;
+			// cout << "id at " << col_count << " : " << tid << endl;
+			tuple_buffer[col_count] = tid;
+			// write data
+			write(fp_out, tuple_buffer, 8 * (arity + 1));
+		}
 		lineno++;
 	}
 	write_interned_pools();

@@ -677,7 +677,7 @@
            (range 1 11))
 
     ,@(map (lambda (n)
-              `(count-by ,n ,(range 1 n) "agg_sum_local" "SpecialAggregator::sum" "agg_sum_reduce" "agg_sum_global")) 
+              `(sum ,n ,(range 1 n) "agg_sum_local" "SpecialAggregator::sum" "agg_sum_reduce" "agg_sum_global")) 
            (range 1 11))
     ; (sum 1 () "agg_sum_local" "SpecialAggregator::sum" "nullptr" "agg_sum_global")
     ; (sum 2 (1) "agg_sum_local" "SpecialAggregator::sum" "nullptr" "agg_sum_global")

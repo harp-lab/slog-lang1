@@ -317,6 +317,8 @@ bool LIE::execute ()
     }
     int full_iteration_count = 0;
 
+    print_all_relation_size();
+
     //if (mcomm.get_local_rank() == 0)
     //    std::cout << "Done initializing " << lie_relation_count <<  std::endl;
 
@@ -326,31 +328,6 @@ bool LIE::execute ()
     {
         std::cout << "Output folder" << std::endl;
         mkdir(output_dir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-    }
-#endif
-
-#if DEBUG_OUTPUT
-    if (mcomm.get_local_rank() == 0)
-    {
-        if (restart_flag == true)
-        {
-            if (separate_io == true)
-                std::cout << "Read Local Data without MetaData" << std::endl;
-            else if (offset_io == true)
-                std::cout << "Read Global Data with Offset MetaData" << std::endl;
-            else
-                std::cout << "Read Global Data with Size MetaData" << std::endl;
-        }
-        else
-        {
-            if (separate_io == true)
-                std::cout << "Write Local Data without MetaData" << std::endl;
-            else if (offset_io == true)
-                std::cout << "Write Global Data with Offset MetaData" << std::endl;
-            else
-                std::cout << "Write Global Data with Size MetaData" << std::endl;
-        }
-        std::cout << "----------------- Initialization Complete ---------------------" << std::endl << std::endl;
     }
 #endif
 

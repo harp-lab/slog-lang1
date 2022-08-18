@@ -211,7 +211,7 @@
               [(equal? (strip-prov tag) '~)
                 (fix-negation-wildcards cl)]
               [else
-                (cons cl (list))]))
+                (fix-aggregation-wildcards cl)]))
             (match-define `(prov (,new-tag ,new-cl1 ,new-cls ...) ,new-pos) clause-desugared)
             (cons `(prov ((agg ,new-tag ,new-cl1) ,@new-cls) ,new-pos) new-rules)]
           [else (cons cl (list))])]
@@ -248,8 +248,18 @@
       `(prov ((prov (,replacement-relation ,@head-args) ,pos) <--
              (prov (,cl1 ,@body-args) ,pos))  ,pos))
     (assert (source-tree-rule? new-rule))
-    ; (printf "fix-negation-wildcards res: ~a \n ~a \n" (strip-prov replacement-clause) (strip-prov new-rule))
+    (printf "fix-negation-wildcards res: ~a \n ~a \n" (strip-prov replacement-clause) (strip-prov new-rule))
     (cons replacement-clause (list new-rule))]
+  [else (cons cl (list))]))
+
+(define/contract-cond (fix-aggregation-wildcards cl)
+ (source-tree-bclause? . -> . (cons/c source-tree-bclause? (listof source-tree-rule?)))
+ (match-define `(prov (,tag ,cl1 ,cls ...) ,pos) cl)
+ (cond 
+  [(ormap wildcard? cls)
+    (define replacement-clause `(prov (,tag ,cl1 ,@(filter (compose not wildcard?) cls)) ,pos))
+    (printf "fix-aggregation-wildcards res: ~a \n" (strip-prov replacement-clause))
+    (cons replacement-clause (list))]
   [else (cons cl (list))]))
 
 ; Normalizes head-clauses to [head <-- ]
