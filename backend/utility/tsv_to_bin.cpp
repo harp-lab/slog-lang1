@@ -71,6 +71,20 @@ u64 hash_tuple(u64 *fact, unsigned num)
 	return hash;
 }
 
+u32 string_hash(const std::string& str) {
+    const u32 base = 2166136261u;
+    const u32 prime = 16777619u;
+
+    u32 hash = base;
+    for (char c: str)
+    {
+        if ((int)c == 0) continue;
+        hash ^= (int)c;
+        hash *= prime;
+    }
+    return hash;
+}
+
 // parse a column ordering (C string) into a vector
 void parse_column_order(char *index, vector<unsigned> &result)
 {
@@ -180,7 +194,7 @@ void write_interned_pools()
 	// }
 	for (const auto &str_data : strings_set)
 	{
-		u32 str_id = hash<string>{}(str_data);
+		u32 str_id = string_hash(str_data);
 		string s = to_string(str_id) + "\t" + str_data + "\n";
 		write(strings, s.c_str(), s.length());
 	}
@@ -231,7 +245,7 @@ void file_to_slog(char *input_file, char *output_file,
 				// if not number all goes to string
 				u64 u64_v = STRING_TAG;
 				u64_v <<= TUPLE_MASK_LENGTH + BUCKET_MASK_LENGTH;
-				u32 new_id = hash<string>{}(col);
+				u32 new_id = string_hash(col);
 				strings_set.insert(col);
 				u64_v |= new_id;
 				// cout << "string at " << col_count << " : " << col << endl;

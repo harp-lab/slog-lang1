@@ -15,6 +15,7 @@ import grpc
 from prompt_toolkit import PromptSession
 from six import MAXSIZE
 import psutil
+from slog.daemon.util import string_hash
 from slog.common import rel_name_from_file, make_stub, PING_INTERVAL
 from slog.common.dbcache import *
 from slog.common.elaborator import Elaborator
@@ -440,14 +441,13 @@ class SlogClient:
                 for s_line in string_file:
                     if s_line.strip() == '':
                         continue
-                    sid = s_line.split('\t')[0]
                     sv = s_line.split('\t')[1]
-                    self.intern_string_dict[int(sid)] = sv.strip()
+                    self.intern_string_dict[string_hash(sv.strip())] = sv.strip()
             return
         req = slog_pb2.StringRequest()
         req.database_id = db_id
         for sres in self._stub.GetStrings(req):
-            self.intern_string_dict[sres.id] = f'"{sres.text}"'
+            self.intern_string_dict[string_hash(sres.text)] = f'"{sres.text}"'
 
     def switchto_db(self, db_id):
         """ switch to a new database """

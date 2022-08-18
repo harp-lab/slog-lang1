@@ -142,8 +142,7 @@ def exec_command(client: SlogClient, raw_input: str):
             invalid_alert(f'{cmd} expect 1 arg, but get {len(args)}')
     elif cmd == 'dump':
         if len(args) == 1:
-            # client.dump_relation_by_name(args[0], ConsoleWriter())
-            client.dump_relation(args[0], Conso)
+            client.dump_relation_by_name(args[0],ConsoleWriter())
         elif len(args) == 2:
             if client.local_db_path:
                 print("runlsog can only print data in current database!")
