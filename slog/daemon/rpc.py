@@ -20,7 +20,7 @@ from slog.daemon.const import (DATA_PATH, DATABASE_PATH, CMDSVC_LOG, DB_PATH, FT
 from slog.daemon.const import (STATUS_RESOLVED, STATUS_NOSUCHPROMISE, MAX_BUCKETS, MIN_BUCKETS,
                                MAX_CHUNK_DATA)
 from slog.daemon.db import MetaDatabase
-from slog.daemon.util import join_hashes, generate_db_hash, compute_hash_file, read_intern_file
+from slog.daemon.util import join_hashes, generate_db_hash, compute_hash_file, read_intern_file, string_hash
 
 import slog.protobufs.slog_pb2 as slog_pb2
 import slog.protobufs.slog_pb2_grpc as slog_pb2_grpc
@@ -299,8 +299,8 @@ class CommandService(slog_pb2_grpc.CommandServiceServicer):
             DATABASE_PATH, request.database_id, '$strings.csv')
         if os.path.exists(string_csv_path):
             str_dict = read_intern_file(string_csv_path)
-            for str_id, str_val in str_dict.items():
-                yield slog_pb2.Strings(id=str_id, text=str_val)
+            for _, str_val in str_dict.items():
+                yield slog_pb2.Strings(id=string_hash(str_val), text=str_val)
         else:
             print(f'string file {string_csv_path} not exists!')
 
