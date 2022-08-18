@@ -1,3 +1,5 @@
 backend/build
 benchmark
 out
+test-input
+.git

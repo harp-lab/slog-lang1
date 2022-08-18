@@ -36,7 +36,7 @@ const auto n2d = number_to_datum;
 
 inline u64 string_to_datum(std::string str)
 {
-  u32 str_hash = std::hash<std::string>{}(str);
+  u32 str_hash = string_hash(str);
   return (str_hash & ~tag_mask) | (str_tag << tag_position);
 }
 const auto s2d = string_to_datum;

@@ -93,6 +93,7 @@ int main(int argc, char **argv)
   lie->enable_all_to_all_dump();
   lie->enable_data_IO();
   lie->enable_IO();
+  // lie->enable_share_io();
   lie->set_output_dir(slog_output_dir); // Write to this directory
   lie->set_comm(mcomm);
   lie->set_batch_size(1);
