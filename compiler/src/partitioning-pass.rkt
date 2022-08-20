@@ -26,6 +26,13 @@
 (require "slog-params.rkt")
 (require "remove-implicit-joins-pass.rkt")
 
+(define aggregation-res-var-names (map (λ (n) (format "$~a_res" n)) (set->list all-aggregator-names)))
+
+(define (aggregation-ungrounded-var? var-sym)
+  (define var (symbol->string var-sym))
+  (or (string-prefix? var "$_")
+      (member var aggregation-res-var-names)))
+
 ;; Optimizes the flat IR by iterating unification of variables and clauses to a fixed point 
 (define/contract-cond (partitioning-pass ir)
   (-> ir-fixed? ir-small?)
@@ -45,7 +52,15 @@
     (match-define `(rule-prov ir-flat ,fixed-rule ,module ,source-id) rule-prov)
     (match-define `(rule ,heads ,bodys) rule)
     (define ungrounded-vars (clause-list-ungrounded-vars (set->list bodys) comp-rules))
-    (when (not (set-empty? ungrounded-vars))
+    ; remove _ in ungrounded var
+    (define no-aggregation-generated-ungrounded-vars
+      (list->set
+        (foldl (λ (v res) 
+                  (if (aggregation-ungrounded-var? v)
+                      res
+                      (append res (list v)))) 
+          (list) (set->list ungrounded-vars))))
+    (when (not (set-empty? no-aggregation-generated-ungrounded-vars))
       (pretty-rule-error ir rule-prov 
                          (format "ungrounded variable(s): ~a" (intercalate ", " (set->list ungrounded-vars)))
                          #:exit #t)))

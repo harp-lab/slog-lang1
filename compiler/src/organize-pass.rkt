@@ -211,7 +211,8 @@
               [(equal? (strip-prov tag) '~)
                 (fix-negation-wildcards cl)]
               [else
-                (fix-aggregation-wildcards cl)]))
+                ; (fix-aggregation-wildcards cl)
+                (cons cl (list))]))
             (match-define `(prov (,new-tag ,new-cl1 ,new-cls ...) ,new-pos) clause-desugared)
             (cons `(prov ((agg ,new-tag ,new-cl1) ,@new-cls) ,new-pos) new-rules)]
           [else (cons cl (list))])]
@@ -258,7 +259,7 @@
  (cond 
   [(ormap wildcard? cls)
     (define replacement-clause `(prov (,tag ,cl1 ,@(filter (compose not wildcard?) cls)) ,pos))
-    (printf "fix-aggregation-wildcards res: ~a \n" (strip-prov replacement-clause))
+    ; (printf "fix-aggregation-wildcards res: ~a \n" replacement-clause)
     (cons replacement-clause (list))]
   [else (cons cl (list))]))
 

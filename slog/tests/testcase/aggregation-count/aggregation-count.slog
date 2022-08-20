@@ -29,12 +29,12 @@
 
 ; [(count-by b-edge _ "a" count) --> (b-edge-count "a" count)]
 
-[(c-edge x y _) --> (c-node x)]
+; [(c-edge x y _) --> (c-node x)]
 
-[(c-node x)
- (count-by c-edge x count)
- -->
- (c-node-degree x count)]
+; [(c-node x)
+;  (count-by c-edge x count)
+;  -->
+;  (c-node-degree x count)]
 
 ; [(result_check_1 "pass") <-- (c-node-degree 1 9095)]
 ; [(result_check_2 "pass") <-- (c-node-degree 2 3884)]

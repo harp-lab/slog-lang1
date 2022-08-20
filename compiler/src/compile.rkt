@@ -312,6 +312,7 @@
                   ,(? ir-incremental-bclause? `(prov ((prov (rel-version ,op ,op-arity ,op-indices ,ver) ,_) ,bvars1 ...) ,_)))
            #:when (agg-rel-kind? ver)
           (match-define `(agg ,aggregated-rel) ver)
+          ; (displayln aggregated-rel)
           ; (define bi-rel-select `(rel-select ,op ,op-arity ,op-indices comp))
           (match-define (list local-cpp-func special-agg reduce-cpp-func global-cpp-func)
             (generate-cpp-lambdas-for-rule-with-aggregator rule))
@@ -414,6 +415,9 @@
   (set! requested-indices (map sub1 requested-indices))
   (define output-indices (filter (λ (i) (not (member i available-indices))) (range 0 arity)))
   (define diff-indices (filter (λ (i) (not (member i available-indices))) requested-indices))
+  (when (equal? (length hvars) 0)
+    (displayln (strip-prov r)))
+  (assert (not (equal? (length hvars) 0)))
   (string-replace-all 
     "[](const u64* const data, u64* const output) -> int{
       auto args_for_old_bi = std::array<u64, [old-indices-size]> {[populate-args-for-old-bi-code]};
@@ -502,28 +506,6 @@
   (define output-indices (filter (λ (i) (not (member i available-indices))) (range 0 arity)))
   (define diff-indices (filter (λ (i) (not (member i available-indices))) requested-indices))
 
-  ;; TODO remove if the new design is approved
-  #;(define local-lambda
-    (string-replace-all 
-    "[](_BTree* rel, const u64* const data) -> local_agg_res_t{
-      auto args_for_old_bi = std::array<u64, [old-indices-size]> {[populate-args-for-old-bi-code]};
-      return [local-cpp-func-name](rel, args_for_old_bi.data());
-    }"
-    "[head-tuple-size]" (~a (length hvars))
-    "[old-indices-size]" (~a (length available-indices))
-    "[local-cpp-func-name]" local-cpp-func-name
-    "[populate-args-for-old-bi-code]"
-    (intercalate ", " (map (λ (i) 
-                            (define arg-pos-in-bvars1 (index-of requested-indices (list-ref available-indices i)))
-                            (define arg (list-ref bvars1 arg-pos-in-bvars1))
-                            (match arg
-                              [(? string?) (format "s2d(\"~a\")" arg)]
-                              [(? number?)  (format "n2d(~a)" arg)]
-                              [else 
-                                (define arg-pos-in-bvars0 (index-of bvars0 arg))
-                                (format "data[~a]" arg-pos-in-bvars0)])) 
-                        (range 0 (length available-indices))))
-  ))
   ; local-cpp-func-name
   (define local-lambda
   (string-replace-all 
@@ -533,17 +515,23 @@
     }"
     "[local-cpp-func-name]" local-cpp-func-name
     "[populate-args-for-old-bi-code]"
-    (intercalate ", " (map (λ (i) 
-                            (define arg-pos-in-bvars1 (index-of requested-indices (list-ref available-indices i)))
-                            (define arg (list-ref bvars1 arg-pos-in-bvars1))
-                            (match arg
-                              ; [(? lit?) (format "n2d(~a)" arg)]
-                              [(? string?) (format "s2d(\"~a\")" arg)]
-                              [(? number?)  (format "n2d(~a)" arg)]
-                              [else 
-                                (define arg-pos-in-bvars0 (index-of bvars0 arg))
-                                (format "data[~a]" arg-pos-in-bvars0)])) 
-                        (range 0 (length available-indices))))))
+    (intercalate ", "
+      (foldl (λ (i res)
+        (define arg-pos-in-bvars1 (index-of requested-indices (list-ref available-indices i)))
+        (if arg-pos-in-bvars1
+          (let ([arg (list-ref bvars1 arg-pos-in-bvars1)])
+            (append
+              res
+              (list (match arg
+                [(? string?) (format "s2d(\"~a\")" arg)]
+                [(? number?)  (format "n2d(~a)" arg)]
+                [else 
+                  (define arg-pos-in-bvars0 (index-of bvars0 arg))
+                  (format "data[~a]" arg-pos-in-bvars0)]))))
+          res))
+        (list)
+        (range 0 (length available-indices))))
+        ))
   ; TODO maybe unify this with generate-cpp-lambda-for-rule-with-builtin-impl?
   (define global-lambda
   (string-replace-all 
@@ -574,17 +562,22 @@
     "[old-indices-size]" (~a (length available-indices))
     "[global-cpp-func-name]" global-cpp-func-name
     "[populate-args-for-old-bi-code]"
-    (intercalate ", " (map (λ (i) 
-                            (define arg-pos-in-bvars1 (index-of requested-indices (list-ref available-indices i)))
-                            (define arg (list-ref bvars1 arg-pos-in-bvars1))
-                            (match arg
-                              ; [(? lit?) (format "n2d(~a)" arg)]
-                              [(? string?) (format "s2d(\"~a\")" arg)]
-                              [(? number?)  (format "n2d(~a)" arg)]
-                              [else 
-                                (define arg-pos-in-bvars0 (index-of bvars0 arg))
-                                (format "data[~a]" arg-pos-in-bvars0)])) 
-                        (range 0 (length available-indices))))
+    (intercalate ", "
+      (foldl (λ (i res)
+        (define arg-pos-in-bvars1 (index-of requested-indices (list-ref available-indices i)))
+        (if arg-pos-in-bvars1
+          (let ([arg (list-ref bvars1 arg-pos-in-bvars1)])
+            (append
+              res
+              (list (match arg
+                [(? string?) (format "s2d(\"~a\")" arg)]
+                [(? number?)  (format "n2d(~a)" arg)]
+                [else 
+                  (define arg-pos-in-bvars0 (index-of bvars0 arg))
+                  (format "data[~a]" arg-pos-in-bvars0)]))))
+          res))
+        (list)
+        (range 0 (length available-indices))))
     "[callback-params]"
     (intercalate "" (map (λ (i) (format "u64 res_~a, " i)) (range 0 (length output-indices))))
     "[check-compatibility-code]"
@@ -840,15 +833,18 @@
               (match-define `(,name ,arity ,indices ,rest ...) bi-spec)
               (and (equal? rel-name name)
                    (equal? rel-arity arity)
-                   (subset? (list->set indices) (list->set rel-indices)))) 
+                  ;  (< (length indices) (length rel-indices))
+                   #;(subset? (list->set indices) (list->set rel-indices)))
+                   ) 
             specs))
   (when (empty? matching-specs)
-        (error (format "no suitable implementation exists for ~a ~a" (if (comp-rel-kind? kind) "builtin" "aggregator") bi)))
+        (error (format "no suitable implementation exists for ~a ~a" (if (comp-rel-kind? kind) "builtin" "aggregator") (->rel-select bi))))
   (define best-match
         (argmin (λ (bi-spec)
                   (match-define `(,name ,arity ,indices ,rest ...) bi-spec)
                   (set-count (set-subtract (list->set rel-indices) (list->set indices))))
                 matching-specs))
+  ; (displayln best-match)
   best-match)
 
 (define (get-func-for-comp-rel bi cr-names)
