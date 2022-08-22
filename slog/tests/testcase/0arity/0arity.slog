@@ -10,3 +10,6 @@
 [(b-foo x) (< x 10) --> (b-foo {add1 x})]
 [(b-foo x) --> (b-unit)]
 [(b-unit) --> (b-unit-is (b-unit))]
+
+(c-foo 1 2)
+[(c-success "success") <-- (c-foo 1 2)]

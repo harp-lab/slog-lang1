@@ -429,11 +429,14 @@
         return std::make_tuple(data, output + [head-tuple-size]);
       };
       auto [_,new_ptr] = [cpp-func-name]<TState>(args_for_old_bi.data(), state, callback);
-      auto tuples_count = (new_ptr - output) / [head-tuple-size];
+      auto tuples_count = [new-tuple-count];
       return tuples_count;
     }"
-
     "[head-tuple-size]" (~a (length hvars))
+    "[new-tuple-count]"
+    (if (equal? (length hvars) 0) 
+      "0"
+      (format "(new_ptr - output) / ~a"  (length hvars)))
     "[old-indices-size]" (~a (length available-indices))
     "[cpp-func-name]" cpp-func-name
     "[populate-args-for-old-bi-code]"
@@ -534,11 +537,14 @@
         return std::make_tuple(data, output + [head-tuple-size]);
       };
       auto [_,new_ptr] = [global-cpp-func-name]<TState>(args_for_old_bi.data(), agg_data, agg_data_count, state, callback);
-      auto tuples_count = (new_ptr - output) / [head-tuple-size];
+      auto tuples_count = [new-tuple-count];
       return tuples_count;
     }"
-
     "[head-tuple-size]" (~a (length hvars))
+    "[new-tuple-count]"
+    (if (equal? (length hvars) 0) 
+      "0"
+      (format "(new_ptr - output) / ~a"  (length hvars)))
     "[old-indices-size]" (~a (length available-indices))
     "[global-cpp-func-name]" global-cpp-func-name
     "[populate-args-for-old-bi-code]"

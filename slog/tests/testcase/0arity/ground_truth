@@ -7,3 +7,5 @@ a-bot-is,1, 0
 b-foo,1, 10
 b-unit,0, 1
 b-unit-is,1, 1
+
+c-success,1, 1
