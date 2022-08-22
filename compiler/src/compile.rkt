@@ -435,7 +435,7 @@
     "[head-tuple-size]" (~a (length hvars))
     "[new-tuple-count]"
     (if (equal? (length hvars) 0) 
-      "0"
+      "1"
       (format "(new_ptr - output) / ~a"  (length hvars)))
     "[old-indices-size]" (~a (length available-indices))
     "[cpp-func-name]" cpp-func-name
@@ -543,7 +543,7 @@
     "[head-tuple-size]" (~a (length hvars))
     "[new-tuple-count]"
     (if (equal? (length hvars) 0) 
-      "0"
+      "1"
       (format "(new_ptr - output) / ~a"  (length hvars)))
     "[old-indices-size]" (~a (length available-indices))
     "[global-cpp-func-name]" global-cpp-func-name
