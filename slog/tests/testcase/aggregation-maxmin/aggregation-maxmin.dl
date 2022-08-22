@@ -1,0 +1,25 @@
+
+.decl edge(from: number, to: number, weight: number)
+.printsize edge
+.input edge(filename="a-edge.facts")
+
+.decl node(n: number)
+.printsize node
+.output node
+node(n) :- edge(n, _, _).
+
+.decl max_weight(weight: number)
+.output max_weight
+max_weight(w) :- w = max x : edge(_,_,x).
+
+.decl min_weight(weight: number)
+.output min_weight
+min_weight(w) :- w = min x : edge(_,_,x).
+
+.decl max_node_out_weight(node: number, weight: number)
+.output max_node_out_weight
+max_node_out_weight(n, w) :- node(n), w = max x : edge(n, _, x).
+
+.decl min_node_out_weight(node: number, weight: number)
+.output min_node_out_weight
+min_node_out_weight(n, w) :- node(n), w = min x : edge(n, _, x).

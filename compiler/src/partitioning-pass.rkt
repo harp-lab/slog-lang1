@@ -26,12 +26,12 @@
 (require "slog-params.rkt")
 (require "remove-implicit-joins-pass.rkt")
 
-(define aggregation-res-var-names (map (λ (n) (format "$~a_res" n)) (set->list all-aggregator-names)))
+(define aggregation-res-var-names-prefix (map (λ (n) (format "$~a_res" n)) (set->list all-aggregator-names)))
 
 (define (aggregation-ungrounded-var? var-sym)
   (define var (symbol->string var-sym))
   (or (string-prefix? var "$_")
-      (member var aggregation-res-var-names)))
+      (ormap (λ (p) (string-prefix? var p)) aggregation-res-var-names-prefix)))
 
 ;; Optimizes the flat IR by iterating unification of variables and clauses to a fixed point 
 (define/contract-cond (partitioning-pass ir)
@@ -78,22 +78,25 @@
   
   (define comp-rules-h+ (hash-union comp-rules-h synth-comp-rules-h))
   (define comp-rules+ (hash-keys comp-rules-h+))
-
-  `(ir-small
-    ,ir
-    ,(foldl (lambda (rule h)
-              (match (hash-ref rules-h+ rule)
-                    [(and rule-prov `(rule-prov ir-flat ,fixed-rule ,module ,source-id))
-                    (define rules-st (partition-rule rule rule-prov comp-rules+))
-                    (for ([r rules-st])
-                      (validate-ir-small-rule r rule-prov))
-                    (foldl (lambda (r h)
-                              (hash-set h r `(rule-prov ir-fixed ,rule ,module ,source-id)))
-                            h
-                            (set->list rules-st))]))
-            (hash)
-      (hash-keys rules-h+))
-    ,comp-rules-h+))
+  (define partition-out 
+    `(ir-small
+      ,ir
+      ,(foldl (lambda (rule h)
+                (match (hash-ref rules-h+ rule)
+                      [(and rule-prov `(rule-prov ir-flat ,fixed-rule ,module ,source-id))
+                      (define rules-st (partition-rule rule rule-prov comp-rules+))
+                      (for ([r rules-st])
+                        (validate-ir-small-rule r rule-prov))
+                      (foldl (lambda (r h)
+                                (hash-set h r `(rule-prov ir-fixed ,rule ,module ,source-id)))
+                              h
+                              (set->list rules-st))]))
+              (hash)
+        (hash-keys rules-h+))
+      ,comp-rules-h+))
+  ; (pretty-display _dep-graph-cache)
+  ; (printf "Partition output ~a \n" (strip-prov partition-out))
+  partition-out)
 
 (define (clause-args cl)
   (match-define (list id rel args) (ir-fixed-clause-rel-args cl))

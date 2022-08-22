@@ -553,7 +553,6 @@
 
 (define all-aggregators
   (hash-union
-    ; count-aggregator
     negation-aggregator
     max-aggregators
     min-aggregators

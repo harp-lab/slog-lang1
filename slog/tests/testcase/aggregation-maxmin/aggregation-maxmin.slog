@@ -1,0 +1,16 @@
+
+[(a-node a) <-- (a-edge a _ _)]
+
+[(a-max-weight {maximum a-edge _ _}) <-- ]
+[(res-check-1 "success") <-- (a-max-weight 9)]
+
+[(a-min-weight {minimum a-edge _ _}) <-- ]
+[(res-check-2 "success") <-- (a-min-weight 0)]
+
+[(a-node-max-weight a {maximum a-edge a _}) <-- (a-node a)]
+[(a-node-min-weight a {minimum a-edge a _}) <-- (a-node a)]
+
+[(res-check-3 "success") <-- (a-node-min-weight 152 2)]
+[(res-check-4 "success") <-- (a-node-min-weight 579 3)]
+[(res-check-5 "success") <-- (a-node-max-weight 729 4)]
+[(res-check-6 "success") <-- (a-node-max-weight 16 9)]

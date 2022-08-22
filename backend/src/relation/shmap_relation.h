@@ -30,9 +30,9 @@ struct shmap_relation {
         bool operator()(const t_tuple &a, const t_tuple &b) const {
             // make it an unroll loop when change to array
             int size = a.size();
-            if (_id_flag) {
-                size--;
-            }
+            // if (_id_flag) {
+            //     size--;
+            // }
             for (int i=0; i < size; i++)
             {
                 if (a[i] < b[i])

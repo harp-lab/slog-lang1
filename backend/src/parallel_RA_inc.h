@@ -30,7 +30,9 @@
 enum class SpecialAggregator {
   none,
   sum,
-  count
+  count,
+  maximum,
+  minimum
 };
 
 using local_agg_res_t = u64;
