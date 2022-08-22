@@ -415,9 +415,6 @@
   (set! requested-indices (map sub1 requested-indices))
   (define output-indices (filter (λ (i) (not (member i available-indices))) (range 0 arity)))
   (define diff-indices (filter (λ (i) (not (member i available-indices))) requested-indices))
-  (when (equal? (length hvars) 0)
-    (displayln (strip-prov r)))
-  (assert (not (equal? (length hvars) 0)))
   (string-replace-all 
     "[](const u64* const data, u64* const output) -> int{
       auto args_for_old_bi = std::array<u64, [old-indices-size]> {[populate-args-for-old-bi-code]};
