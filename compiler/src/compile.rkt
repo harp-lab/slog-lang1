@@ -425,7 +425,7 @@
         auto head_tuple = output;
         [zero-arity-extra-result]
         bool compatible = [check-compatibility-code];
-        if (! compatible) return state;
+        if (! compatible) return std::make_tuple(nullptr, output);
 
         [head-tuple-populating-code]
         return std::make_tuple(data, output + [head-tuple-size]);
@@ -548,7 +548,7 @@
         auto head_tuple = output;
         [zero-arity-extra-result]
         bool compatible = [check-compatibility-code];
-        if (! compatible) return state;
+        if (! compatible) return std::make_tuple(nullptr, output);
 
         [head-tuple-populating-code]
         return std::make_tuple(data, output + [head-tuple-size]);
