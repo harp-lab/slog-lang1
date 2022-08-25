@@ -205,7 +205,11 @@ void shmap_relation::as_all_to_allv_copy_generate_buffer(
         return;
     for (const t_tuple &cur_path : (*this))
     {
-        u64 reordered_cur_path[buffer.width[ra_id]];
+        int output_length = buffer.width[ra_id];
+        if (buffer.width[ra_id] == 0) {
+            output_length = 1;
+        }
+        u64 reordered_cur_path[output_length];
         u64 cur_path_array[cur_path.size()];
         for (u32 i=0; i < cur_path.size(); i++)
             cur_path_array[i] = cur_path[i];

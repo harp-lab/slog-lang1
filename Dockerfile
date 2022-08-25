@@ -7,7 +7,7 @@ RUN add-apt-repository ppa:plt/racket
 RUN apt-get update -y && apt-get install -y clang-format clang-tidy clang-tools clang clangd libc++-dev libc++1 libc++abi-dev \
             libc++abi1 libclang-dev libclang1 liblldb-dev libomp-dev libomp5 lld lldb \
             llvm-dev llvm-runtime llvm python3-clang mcpp cmake racket build-essential openmpi-bin libopenmpi-dev z3 \
-            git python3-pip sqlite3 ninja-build valgrind apt-utils libssl-dev
+            git python3-pip sqlite3 ninja-build valgrind apt-utils libssl-dev vim
 RUN raco setup --doc-index --force-user-docs
 RUN raco pkg install --batch --deps search-auto binaryio graph rparallel pmap csv-reading
 
