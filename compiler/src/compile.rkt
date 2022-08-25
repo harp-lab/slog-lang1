@@ -422,20 +422,20 @@
       auto callback = []([callback-params] TState state) -> TState{
         auto [data, output] = state;
         bool compatible = [check-compatibility-code];
-        if (! compatible) return state;
+        if (! compatible) return std::make_tuple(nullptr, output);
 
         auto head_tuple = output;
         [head-tuple-populating-code]
         return std::make_tuple(data, output + [head-tuple-size]);
       };
-      auto [_,new_ptr] = [cpp-func-name]<TState>(args_for_old_bi.data(), state, callback);
+      auto [data_ptr,new_ptr] = [cpp-func-name]<TState>(args_for_old_bi.data(), state, callback);
       auto tuples_count = [new-tuple-count];
       return tuples_count;
     }"
     "[head-tuple-size]" (~a (length hvars))
     "[new-tuple-count]"
     (if (equal? (length hvars) 0) 
-      "1"
+      "data_ptr == nullptr ? 0 : 1"
       (format "(new_ptr - output) / ~a"  (length hvars)))
     "[old-indices-size]" (~a (length available-indices))
     "[cpp-func-name]" cpp-func-name
@@ -530,7 +530,7 @@
       auto callback = []([callback-params] TState state) -> TState{
         auto [data, output] = state;
         bool compatible = [check-compatibility-code];
-        if (! compatible) return state;
+        if (! compatible) return std::make_tuple(nullptr, output);
 
         auto head_tuple = output;
         [head-tuple-populating-code]
@@ -543,7 +543,7 @@
     "[head-tuple-size]" (~a (length hvars))
     "[new-tuple-count]"
     (if (equal? (length hvars) 0) 
-      "1"
+      "data_ptr == nullptr ? 0 : 1"
       (format "(new_ptr - output) / ~a"  (length hvars)))
     "[old-indices-size]" (~a (length available-indices))
     "[global-cpp-func-name]" global-cpp-func-name

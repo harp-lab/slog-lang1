@@ -1,15 +1,18 @@
-(a-unit)
-[(a-unit) --> (a-unit-is (a-unit))]
+; (a-unit)
+; [(a-unit) --> (a-unit-is (a-unit))]
 
-[(a-bot0) --> (a-bot)]
-[(a-bot) --> (a-bot-is (a-bot))]
+; [(a-bot0) --> (a-bot)]
+; [(a-bot) --> (a-bot-is (a-bot))]
 
 ;;-----------------------------------------------
 
-(b-foo 1)
-[(b-foo x) (< x 10) --> (b-foo {add1 x})]
-[(b-foo x) --> (b-unit)]
-[(b-unit) --> (b-unit-is (b-unit))]
+; (b-foo 1)
+; [(b-foo x) (< x 10) --> (b-foo {add1 x})]
+; [(b-foo x) --> (b-unit)]
+; [(b-unit) --> (b-unit-is (b-unit))]
 
-(c-foo 1 2)
-[(c-success "success") <-- (c-foo 1 2)]
+; (c-foo 1 2)
+; [(c-success "success") <-- (c-foo 1 2)]
+
+(foo "aa")
+[(c-fail "fail") <-- (foo "w")]
