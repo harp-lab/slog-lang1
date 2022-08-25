@@ -1,0 +1,22 @@
+
+; (a-edge 1 2 10)
+; (a-edge 1 5 3)
+; (a-edge 5 2 1)
+; (a-edge 2 5 4)
+; (a-edge 2 3 2)
+; (a-edge 5 3 8)
+; (a-edge 5 4 2)
+; (a-edge 4 3 7)
+; (a-edge 3 4 9)
+
+(source-node 1)
+[(upper-bound {sum a-edge _ _}) <--]
+[(path from to w) <-- (a-edge from to w)]
+[(path from to {+ w l}) <--
+    (upper-bound h)
+    (a-edge mid to w)
+    (path from mid l)
+    (< l {- h w})]
+
+[(shortest-path from to {minimum path from to}) <--
+    (path from to _)]

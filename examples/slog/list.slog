@@ -1,0 +1,14 @@
+;  list operation
+
+(input-list (list 1 (list 2 (list 3 (nil)))))
+(list 5 (list 3 (nil)))
+[(input-list l) --> (do-length l)]
+
+(length ?(do-length (nil)) 0)
+[(length ?(do-length (list hd rst)) {+ len-rst 1}) <-- (length !(do-length rst) len-rst)]
+
+(member ?(do-member x (nil)) (false))
+(member ?(do-member x (list x rst)) (true))
+[(member ?(do-member x (list hd rst)) (true)) <-- (=/= hd x) (member !(do-member x rst) (true))]
+[(member ?(do-member x (list hd rst)) (false)) <-- (=/= hd x) (member !(do-member x rst) (false))]
+[(do-member 2 l) <-- (input-list l)]

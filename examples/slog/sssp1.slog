@@ -1,0 +1,29 @@
+;; Single source shortest path
+
+(a-edge 1 2 10)
+(a-edge 1 5 3)
+(a-edge 5 2 1)
+(a-edge 2 5 4)
+(a-edge 2 3 2)
+(a-edge 5 3 8)
+(a-edge 5 4 2)
+(a-edge 4 3 7)
+(a-edge 3 4 9)
+
+(member ?(do-member x (nil)) (false))
+(member ?(do-member x (list x rst)) (true))
+[(member ?(do-member x (list hd rst)) (true)) <-- (=/= hd x) (member !(do-member x rst) (true))]
+[(member ?(do-member x (list hd rst)) (false)) <-- (=/= hd x) (member !(do-member x rst) (false))]
+[(do-member 2 l) <-- (input-list l)]
+
+[(node a) (node b) <-- (a-edge a b _)]
+(source-node 1)
+
+; brute force
+[(path from to (list to (list from (nil ))) w) <-- (a-edge from to w)]
+[(path from mid pt acc-w)
+ (a-edge mid to w)
+ (member !(do-member to pt) (false))
+    -->
+    (path from to (list to pt) {+ acc-w w})]
+[(shortest-path from to {minimum path from to _}) <-- (path from to _ _) (source-node from)]

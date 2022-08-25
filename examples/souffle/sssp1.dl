@@ -1,0 +1,34 @@
+
+// souffle version of shortest path
+// this is naive and unable to pop trace of shortest path
+
+.decl edge(from: number, to: number, weight: number)
+.input edge(filename="a-edge.facts" )
+// edge(1,2,10).
+// edge(1,5,3).
+// edge(5,2,1).
+// edge(2,5,4).
+// edge(2,3,2).
+// edge(5,3,8).
+// edge(5,4,2).
+// edge(4,3,7).
+// edge(3,4,9).
+
+
+.decl upper_bound(weight:number)
+upper_bound(h) :- h = sum w : edge(_,_,w).
+
+.decl path(from: number, to: number, len: number)
+path(from, to, w) :- edge(from, to, w).
+
+path(from, to, w+l) :-
+    upper_bound(h),
+    edge(mid, to, w),
+    path(from, mid, l),
+    l < h - w.
+
+.decl shortest_path(from: number, to: number, len: number)
+.output shortest_path
+shortest_path(from, to, min_w) :-
+    path(from, to, _),
+    min_w = min w : path(from, to, w).

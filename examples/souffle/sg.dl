@@ -1,0 +1,12 @@
+
+.decl edge(from:number, to:number)
+.input edge
+
+.decl node(n:number)
+node(x), node(y) :- edge(x, y).
+
+
+.decl same_generation(n1:number, n2:number)
+.output same_generation
+same_generation(x,y) :- edge(p, x), edge(p, y), x != y.
+same_generation(x,y) :- edge(a, x), same_generation(a, b), edge(b, y).

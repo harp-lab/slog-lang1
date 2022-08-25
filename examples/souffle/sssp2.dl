@@ -1,0 +1,78 @@
+
+.decl edge(from: number, to: number, weight: number)
+edge(1,2,10).
+edge(1,5,3).
+edge(5,2,1).
+edge(2,5,4).
+edge(2,3,2).
+edge(5,3,8).
+edge(5,4,2).
+edge(4,3,7).
+edge(3,4,9).
+
+.decl start(n: number)
+start(1).
+
+decl node(u: number)
+
+node(u) :-
+   edge(u, _, _);
+   edge(_, u, _).
+
+// compute total order
+// toplogical order +  ord based ordering
+.decl lessPred(u1:number, u2:number, v:number)
+
+lessPred(u1, u2, v) :-
+   edge(u1, v, _),
+   edge(u2, v, _),
+   ord(u1) < ord(u2).
+
+.decl transPred(u1:number, u2:number, v:number)
+
+transPred(u1, u3, v) :-
+   lessPred(u1, u2, v),
+   lessPred(u2, u3, v).
+
+.decl succPred(before:number, after:number, v:number)
+succPred(u1, u2, v) :-
+   lessPred(u1, u2, v),
+   !transPred(u1, u2, v).
+
+.decl firstPred(u:number, v:number)
+firstPred(u, v) :-
+   edge(u, v, _),
+   !succPred(_, u, v).
+
+// loop end condition
+.decl lastPred(u:Node, v:Node)
+
+lastPred(u, v) :-
+   edge(u, v, _),
+   !succPred(u, _, v).
+
+.decl step(i:number, u:number, w: number, next:number)
+.decl shortestStepPath(i: number, u: number, d: number)
+.decl again(i:number)
+again(0).
+again(1).
+
+step(i+1, v, d1 + d2, u) :-
+   again(i),
+   shortestStepPath(i, u, d2),
+   firstPred(u, v),
+   edge(u, v, d1).
+
+step(i, v, d, u2) :-
+   step(i, v, d, u1),
+   succPred(u1, u2, v),
+   edge(u2, v, d1),
+   shortestStepPath(i-1, u2, d2),
+   d <= d1 + d2.
+
+step(i, v, d1 + d2, u2) :-
+   step(i, v, d, u1),
+   succPred(u1, u2, v),
+   edge(u2, v, d1),
+   shortestStepPath(i-1, u2, d2),
+   d1 + d2 < d.
