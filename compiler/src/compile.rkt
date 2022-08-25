@@ -429,7 +429,7 @@
         [head-tuple-populating-code]
         return std::make_tuple(data, output + [head-tuple-size]);
       };
-      auto [data_ptr,new_ptr] = [cpp-func-name]<TState>(args_for_old_bi.data(), state, callback);
+      auto [_,new_ptr] = [cpp-func-name]<TState>(args_for_old_bi.data(), state, callback);
       auto tuples_count = [new-tuple-count];
       return tuples_count;
     }"
