@@ -1,0 +1,17 @@
+
+edge(1,2,10).
+edge(1,5,3).
+edge(5,2,1).
+edge(2,5,4).
+edge(2,3,2).
+edge(5,3,8).
+edge(5,4,2).
+edge(4,3,7).
+edge(3,4,9).
+
+spath(X,Y, D) <- edge(X,Y,D).
+spath(X,Y,min<D>) <- spath(X,Z,D1), edge(Z,Y,D2), D=D1+D2.
+
+% queries to execute
+query spath(A,B,C).
+

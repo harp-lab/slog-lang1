@@ -201,17 +201,10 @@ template<typename TState> inline TState builtin_nop(const u64* data, TState init
 
 //////////////////////////////  count /////////////////////////////////////
 
-local_agg_res_t agg_count_local(const shmap_relation& rel, std::vector<u64>& data)
+local_agg_res_t agg_count_local(std::pair<shmap_relation::iterator, shmap_relation::iterator> joined_range, std::vector<u64>& data, int join_count)
 {
-  std::vector<u64> upper_bound(rel.arity+1, std::numeric_limits<u64>::max());
-  std::vector<u64> lower_bound(rel.arity+1, std::numeric_limits<u64>::min());
-  for(size_t i = 0; i < data.size(); i++) {
-    upper_bound[i] = data[i];
-    lower_bound[i] = data[i];
-  }
-  auto joined_range = rel.lowerUpperRange(lower_bound, upper_bound);
   local_agg_res_t cnt = 0;
-  for(auto it = joined_range.first; it != joined_range.second && it != rel.end(); ++it) {
+  for(auto it = joined_range.first; it != joined_range.second ; ++it) {
     cnt ++;
   }
   return cnt;
@@ -230,22 +223,13 @@ local_agg_res_t agg_count_reduce (local_agg_res_t x, local_agg_res_t y) {
 
 //////////////////////////////  sum /////////////////////////////////////
 
-local_agg_res_t agg_sum_local(const shmap_relation& rel, std::vector<u64>& data)
+local_agg_res_t agg_sum_local(std::pair<shmap_relation::iterator, shmap_relation::iterator> joined_range, std::vector<u64>& data, int join_count)
 {
-  int prefix_length = data.size();
-  // sum always use last col as aggregated col
-  int aggregated_col = rel.arity;
-  std::vector<u64> upper_bound(rel.arity+1, std::numeric_limits<u64>::max());
-  std::vector<u64> lower_bound(rel.arity+1, std::numeric_limits<u64>::min());
-  for(size_t i = 0; i < prefix_length; i++) {
-    upper_bound[i] = data[i];
-    lower_bound[i] = data[i];
-  }
-  auto joined_range = rel.lowerUpperRange(lower_bound, upper_bound);
-
   local_agg_res_t sum_res = 0;
-  for(auto it = joined_range.first; it != joined_range.second && it != rel.end(); ++it) {
-    sum_res += (*it)[aggregated_col];
+  for(auto it = joined_range.first; it != joined_range.second ; ++it) {
+    auto tuple = (*it);
+    std::cout << std::endl;
+    sum_res += tuple[tuple.size()-1];
   }
   return sum_res;
 }
@@ -260,22 +244,12 @@ template<typename TState> TState agg_sum_global(u64* data, local_agg_res_t agg_d
 
 //////////////////////////////  maximum  /////////////////////////////////////
 
-local_agg_res_t agg_maximum_local(const shmap_relation& rel, std::vector<u64>& data)
+local_agg_res_t agg_maximum_local(std::pair<shmap_relation::iterator, shmap_relation::iterator> joined_range, std::vector<u64>& data, int join_count)
 {
-  int prefix_length = data.size();
-  // sum always use last col as aggregated col
-  int aggregated_col = rel.arity;
-  std::vector<u64> upper_bound(rel.arity+1, std::numeric_limits<u64>::max());
-  std::vector<u64> lower_bound(rel.arity+1, std::numeric_limits<u64>::min());
-  for(size_t i = 0; i < prefix_length; i++) {
-    upper_bound[i] = data[i];
-    lower_bound[i] = data[i];
-  }
-  auto joined_range = rel.lowerUpperRange(lower_bound, upper_bound);
-
   local_agg_res_t max_res = 0;
-  for(auto it = joined_range.first; it != joined_range.second && it != rel.end(); ++it) {
-    auto current_v = (*it)[aggregated_col];
+  for(auto it = joined_range.first; it != joined_range.second ; ++it) {
+    auto tuple = (*it);
+    auto current_v = tuple[tuple.size()-1];
     if (current_v > max_res) {
       max_res = current_v;
     }
@@ -297,22 +271,12 @@ local_agg_res_t agg_maximum_reduce (local_agg_res_t x, local_agg_res_t y) {
 
 //////////////////////////////  minimum  /////////////////////////////////////
 
-local_agg_res_t agg_minimum_local(const shmap_relation& rel, std::vector<u64>& data)
+local_agg_res_t agg_minimum_local(std::pair<shmap_relation::iterator, shmap_relation::iterator> joined_range, std::vector<u64>& data, int join_count)
 {
-  int prefix_length = data.size();
-  // sum always use last col as aggregated col
-  int aggregated_col = rel.arity;
-  std::vector<u64> upper_bound(rel.arity+1, std::numeric_limits<u64>::max());
-  std::vector<u64> lower_bound(rel.arity+1, std::numeric_limits<u64>::min());
-  for(size_t i = 0; i < prefix_length; i++) {
-    upper_bound[i] = data[i];
-    lower_bound[i] = data[i];
-  }
-  auto joined_range = rel.lowerUpperRange(lower_bound, upper_bound);
-
   local_agg_res_t min_res = std::numeric_limits<u32>::max();
-  for(auto it = joined_range.first; it != joined_range.second && it != rel.end(); ++it) {
-    auto current_v = (*it)[aggregated_col];
+  for(auto it = joined_range.first; it != joined_range.second ; ++it) {
+    auto tuple = (*it);
+    auto current_v = tuple[tuple.size()-1];
     if (current_v < min_res) {
       min_res = current_v;
     }
@@ -331,5 +295,29 @@ local_agg_res_t agg_minimum_reduce (local_agg_res_t x, local_agg_res_t y) {
     return y;
   }
 }
+
+
+/// custom aggregator
+local_agg_res_t agg_recsum_local(std::pair<shmap_relation::iterator, shmap_relation::iterator> joined_range, std::vector<u64>& data, int join_count)
+{
+  local_agg_res_t max_res = 0;
+
+  for(auto it = joined_range.first; it != joined_range.second ; ++it) {
+    auto current_v = (*it)[join_count] + data[join_count];
+    if (current_v > max_res) {
+      max_res = current_v;
+    }
+  }
+
+}
+
+template<typename TState> TState agg_recsum_global(u64* data, local_agg_res_t agg_data, u64 agg_data_count, TState init_state, TState (*callback) (u64 res, TState state)){
+  return callback(n2d(agg_data), init_state);
+}
+
+local_agg_res_t agg_recsum_reduce (local_agg_res_t x, local_agg_res_t y) {
+  // none
+}
+
 
 // // end of builtins.cpp

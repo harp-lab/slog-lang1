@@ -12,7 +12,7 @@ then
 		exit
 	fi
 
-	exec $JAVA_EXE -Xmx4G -classpath $1 edu.ucla.cs.wis.bigdatalog.system.FileRunner $2 
+	exec $JAVA_EXE -Xmx16G -classpath $1 edu.ucla.cs.wis.bigdatalog.system.FileRunner $2 
 else
 echo 'Please provide file to run. "./runfile.sh [deal.jar] [filename.deal]"'
 fi

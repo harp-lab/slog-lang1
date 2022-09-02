@@ -513,6 +513,21 @@
           (set `((integer ,res)))))))
       (range 0 11))))
 
+(define rec-sum-aggregators
+  (apply hash-union
+    (map (λ (arity)
+      (hash
+        `(aggregator-spec rec-sum ,arity ,(range 1 arity) ,arity ,(range 1 arity))
+        (λ (rel) (λ (materializer . xs)
+          (define matching-tuples (hash-ref rel xs set))
+          (define (tuple-value tuple)
+            (match tuple 
+              [`(,id ,vals ... (integer ,n)) n]
+              [else #f]))
+          (define res 1)
+          (set `((integer ,res)))))))
+      (range 0 11))))
+
 (define max-aggregators
   (apply hash-union
     (map (λ (arity)
@@ -557,7 +572,8 @@
     max-aggregators
     min-aggregators
     count-by-aggregators
-    sum-aggregators))
+    sum-aggregators
+    rec-sum-aggregators))
 
 (define (extend-agg-func-to-new+reordered-indices func indices extended-indices)
   (define new-indices-list (set->list (set-subtract (list->set extended-indices) (list->set indices))))

@@ -1,6 +1,7 @@
 
 #include "../parallel_RA_inc.h"
 #include "parallel_agg.h"
+#include <array>
 #include <cassert>
 #include <iostream>
 #include <ostream>
@@ -78,82 +79,59 @@ void parallel_copy_aggregate::local_aggregate(
 
     u32* output_sub_bucket_count = output->get_sub_bucket_per_bucket_count();
     u32** output_sub_bucket_rank = output->get_sub_bucket_rank();
-    auto input_bucket_map = input->get_bucket_map();
     int real_join_count = output->get_join_column_count() - 1;
     agg_buffer.width[ra_counter] = real_join_count + 1;
     int agg_count = 0;
-    // shmap_relation agg_target(input0_buffer_width);
-    // for (int k1 = *offset; k1 < input0_buffer_size; k1 = k1 + input0_buffer_width)
-    // {
-    //     agg_target.insert_tuple_from_array(input0_buffer+k1, input0_buffer_width);
-    // }
-    std::vector<u64> data_v(input->get_join_column_count(), 0);
-    u64 res_v[real_join_count+2];
-    // for (u32 input_count = 0; input_count < buckets; input_count++) {
+    std::vector<std::vector<u64>> res_tuples;
+    if (agg_type ==  SpecialAggregator::recusive) {
+        // recursive aggregation, input is output
+        shmap_relation result_tree;
+        for (auto tuple: output->get_full()[mcomm.get_rank()]) {
+            result_tree.insert(tuple);
+        }
+        // run util fixpoint
+        u64 old_count = 0;
+        u64 new_count = result_tree.count();
+        while (old_count != new_count) {
+            for (auto tuple: result_tree) {
+                u64 res_v[real_join_count+2];
+                auto agg_data = local_func(target->get_full()[mcomm.get_rank()], tuple, output->get_arity()-1);
+                agg_count += global_func(tuple.data(), agg_data, agg_count, res_v);
+                res_tuples.push_back(std::vector<u64>(res_v, res_v+real_join_count+2));
+            }
+        }
+    } else {
+        std::vector<u64> data_v(target->get_join_column_count(), 0);
         for (auto tuple: input->get_full()[mcomm.get_rank()]) {
+            u64 res_v[real_join_count+2];
             for (int j=0; j < input->get_join_column_count(); j++) {
                 data_v[j] = tuple[j];
             }
-            auto agg_data = local_func(target->get_full()[mcomm.get_rank()], data_v);
+
+            auto agg_data = local_func(target->get_full()[mcomm.get_rank()], data_v, input->get_join_column_count());
+
             agg_count += global_func(data_v.data(), agg_data, agg_count, res_v);
-            uint64_t bucket_id = tuple_hash(res_v, output->get_join_column_count()) % buckets;
-            uint64_t sub_bucket_id = 0;
-            if (input->get_is_canonical() == false && output->get_arity() != 0 && output->get_arity() >= real_join_count) {
-                sub_bucket_id = tuple_hash(res_v+real_join_count, output->get_arity()-real_join_count) % output_sub_bucket_count[bucket_id];
-            }
-            int index = output_sub_bucket_rank[bucket_id][sub_bucket_id];
-            // std::cout << "index : " << index << std::endl;
-            agg_buffer.local_compute_output_size_rel[ra_counter] = agg_buffer.local_compute_output_size_rel[ra_counter] + agg_buffer.width[ra_counter];
-            agg_buffer.local_compute_output_size_total = agg_buffer.local_compute_output_size_total+agg_buffer.width[ra_counter];
-            agg_buffer.local_compute_output_size_flat[index*agg_buffer.ra_count+ra_counter] = agg_buffer.local_compute_output_size_flat[index*agg_buffer.ra_count + ra_counter] + agg_buffer.width[ra_counter];
-            agg_buffer.local_compute_output_count_flat[index*agg_buffer.ra_count+ra_counter]++;
-            agg_buffer.local_compute_output_size[ra_counter][index] = agg_buffer.local_compute_output_size[ra_counter][index]+agg_buffer.width[ra_counter];
-            agg_buffer.cumulative_tuple_process_map[index] = agg_buffer.cumulative_tuple_process_map[index] + agg_buffer.width[ra_counter];
-            agg_buffer.local_compute_output[ra_counter][index].vector_buffer_append((const unsigned char*)res_v, sizeof(u64)*agg_buffer.width[ra_counter]);
+
+            res_tuples.push_back(std::vector<u64>(res_v, res_v+real_join_count+2));
         }
-    // }
-    // for (u32 input_count = 0; input_count < buckets; input_count++) {
-    //     std::vector<u64> data_v(input->get_join_column_count(), 0);
-    //     u64 res_v[real_join_count+2];
-    //     // std::vector<u64> res_v(join_count+1, 0);
-    //     for (auto tuple: input->get_full()[input_count]) {
-    //         for (int j=0; j < input->get_join_column_count(); j++) {
-    //             data_v[j] = tuple[j];
-    //         }
-    //         auto agg_data = local_func(agg_target, data_v);
-    //         agg_count += global_func(data_v.data(), agg_data, agg_count, res_v);
-    //         uint64_t bucket_id = tuple_hash(res_v, output->get_join_column_count()) % buckets;
-    //         uint64_t sub_bucket_id = 0;
-    //         if (input->get_is_canonical() == false && output->get_arity() != 0 && output->get_arity() >= real_join_count) {
-    //             sub_bucket_id = tuple_hash(res_v+real_join_count, output->get_arity()-real_join_count) % output_sub_bucket_count[bucket_id];
-    //         }
-    //         // std::cout << "bucket id: " << bucket_id << " sub bucket id: " << sub_bucket_id << std::endl;
-    //         // std::cout << " aggregated tuple : ";
-    //         // for (int c = 0; c < join_count + 1  ;  c++) {
-    //         //     std::cout << res_v[c] << " ";
-    //         // }
-    //         // std::cout << std::endl;
+    }
 
-    //         // u64 relation_id = output->get_intern_tag();
-    //         // relation_id = relation_id<<46;
-    //         // bucket_id = tuple_hash(res_v, output->get_join_column_count()) % buckets;
-    //         // bucket_id = bucket_id<<28;
+    for (auto tuple: res_tuples) {
 
-    //         // u64 intern_key = relation_id | bucket_id;
-    //         // res_v[join_count + 1] = intern_key;
-    //         // output->insert_in_newt(res_v);
+        uint64_t bucket_id = tuple_hash(tuple.data(), output->get_join_column_count()) % buckets;
+        uint64_t sub_bucket_id = 0;
+        if (input->get_is_canonical() == false && output->get_arity() != 0 && output->get_arity() >= real_join_count) {
 
-    //         int index = output_sub_bucket_rank[bucket_id][sub_bucket_id];
-    //         // std::cout << "index : " << index << std::endl;
-    //         agg_buffer.local_compute_output_size_rel[ra_counter] = agg_buffer.local_compute_output_size_rel[ra_counter] + agg_buffer.width[ra_counter];
-    //         agg_buffer.local_compute_output_size_total = agg_buffer.local_compute_output_size_total+agg_buffer.width[ra_counter];
-    //         agg_buffer.local_compute_output_size_flat[index*agg_buffer.ra_count+ra_counter] = agg_buffer.local_compute_output_size_flat[index*agg_buffer.ra_count + ra_counter] + agg_buffer.width[ra_counter];
-    //         agg_buffer.local_compute_output_count_flat[index*agg_buffer.ra_count+ra_counter]++;
-    //         agg_buffer.local_compute_output_size[ra_counter][index] = agg_buffer.local_compute_output_size[ra_counter][index]+agg_buffer.width[ra_counter];
-    //         agg_buffer.cumulative_tuple_process_map[index] = agg_buffer.cumulative_tuple_process_map[index] + agg_buffer.width[ra_counter];
-    //         agg_buffer.local_compute_output[ra_counter][index].vector_buffer_append((const unsigned char*)res_v, sizeof(u64)*agg_buffer.width[ra_counter]);
-    //         // std::cout << "local_compute_output_count_flat: " << agg_buffer.local_compute_output_count_flat[index*agg_buffer.ra_count+ra_counter] << std::endl;
-    //     }
-    // }
-    // std::cout << "inserting count " << agg_count << std::endl;
+            sub_bucket_id = tuple_hash(tuple.data()+real_join_count, output->get_arity()-real_join_count) % output_sub_bucket_count[bucket_id];
+        }
+        int index = output_sub_bucket_rank[bucket_id][sub_bucket_id];
+        // std::cout << "index : " << index << std::endl;
+        agg_buffer.local_compute_output_size_rel[ra_counter] = agg_buffer.local_compute_output_size_rel[ra_counter] + agg_buffer.width[ra_counter];
+        agg_buffer.local_compute_output_size_total = agg_buffer.local_compute_output_size_total+agg_buffer.width[ra_counter];
+        agg_buffer.local_compute_output_size_flat[index*agg_buffer.ra_count+ra_counter] = agg_buffer.local_compute_output_size_flat[index*agg_buffer.ra_count + ra_counter] + agg_buffer.width[ra_counter];
+        agg_buffer.local_compute_output_count_flat[index*agg_buffer.ra_count+ra_counter]++;
+        agg_buffer.local_compute_output_size[ra_counter][index] = agg_buffer.local_compute_output_size[ra_counter][index]+agg_buffer.width[ra_counter];
+        agg_buffer.cumulative_tuple_process_map[index] = agg_buffer.cumulative_tuple_process_map[index] + agg_buffer.width[ra_counter];
+        agg_buffer.local_compute_output[ra_counter][index].vector_buffer_append((const unsigned char*)tuple.data(), sizeof(u64)*agg_buffer.width[ra_counter]);
+    }
 }

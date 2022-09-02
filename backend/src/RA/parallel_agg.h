@@ -6,6 +6,7 @@
 #pragma once
 #include "../ds.h"
 #include "../parallel_RA_inc.h"
+#include "parallel_RA.h"
 
 // struct _BTree {
 //   virtual bool has_key(const u64* key) = 0;

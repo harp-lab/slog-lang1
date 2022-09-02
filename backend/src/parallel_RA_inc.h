@@ -32,12 +32,13 @@ enum class SpecialAggregator {
   sum,
   count,
   maximum,
-  minimum
+  minimum,
+  recusive
 };
 
 using local_agg_res_t = u64;
 // typedef local_agg_res_t *local_agg_func_t (shmap_relation& agg_rel, std::vector<u64>& data);
-using local_agg_func_t = std::function<local_agg_res_t(const shmap_relation&, std::vector<u64>& data)>;
+using local_agg_func_t = std::function<local_agg_res_t(const shmap_relation&, std::vector<u64>& data, int join_count)>;
 using reduce_agg_func_t = std::function<local_agg_res_t(local_agg_res_t, local_agg_res_t)>;
 using global_agg_func_t = std::function<int(u64*, local_agg_res_t, int, u64*)>;
 // typedef local_agg_res_t *reduce_agg_func_t (local_agg_res_t x, local_agg_res_t y);

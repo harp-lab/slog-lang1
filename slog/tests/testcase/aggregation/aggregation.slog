@@ -20,9 +20,8 @@
 [(b-edge _ x y) --> (b-node x)]
 
 [(b-node x)
- (count-by b-edge "a" x count)
  -->
- (b-node-degree count x)]
+ (b-node-degree {count-by b-edge "a" x} x)]
 
 [(b-result-count-check1 "pass") <-- (b-node-degree 1 1)]
 [(b-result-count-check2 "pass") <-- (b-node-degree 3 2)]

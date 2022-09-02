@@ -506,9 +506,16 @@
   ; local-cpp-func-name
   (define local-lambda
   (string-replace-all 
-    "[](const shmap_relation& target_btree, const std::vector<u64>& data) -> local_agg_res_t {
+    "[](const shmap_relation& rel, const std::vector<u64>& data, int join_count) -> local_agg_res_t {
       std::vector<u64> reordered_data {[populate-args-for-old-bi-code]};
-      return [local-cpp-func-name](target_btree, reordered_data);
+      std::vector<u64> upper_bound(rel.arity+1, std::numeric_limits<u64>::max());
+      std::vector<u64> lower_bound(rel.arity+1, std::numeric_limits<u64>::min());
+      for(size_t i = 0; i < join_count; i++) {
+        upper_bound[i] = reordered_data[i];
+        lower_bound[i] = reordered_data[i];
+      }
+      auto joined_range = rel.lowerUpperRange(lower_bound, upper_bound);
+      return [local-cpp-func-name](joined_range, reordered_data, join_count);
     }"
     "[local-cpp-func-name]" local-cpp-func-name
     "[populate-args-for-old-bi-code]"
@@ -669,6 +676,9 @@
            (range 1 11))
     ,@(map (lambda (n)
               `(minimum ,n ,(range 1 n) "agg_minimum_local" "SpecialAggregator::minimum" "agg_minimum_reduce" "agg_minimum_global")) 
+           (range 1 11))
+    ,@(map (lambda (n)
+              `(rec-sum ,n ,(range 1 n) "agg_recsum_local" "SpecialAggregator::recusive" "agg_recsum_reduce" "agg_recsum_global")) 
            (range 1 11))
     ))
 
