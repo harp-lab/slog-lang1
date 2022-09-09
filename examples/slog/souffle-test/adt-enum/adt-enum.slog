@@ -1,0 +1,32 @@
+
+; .type Day
+;       = Mon {}
+;       | Tue {}
+;       | Wed {}
+;       | Thu {}
+;       | Fri {}
+;       | Sat {}
+;       | San {}
+
+
+; .decl DayBeforeInTheWeek(x: Day, y: Day)
+; .input DayBeforeInTheWeek
+
+
+
+; .decl BeforeInTheWeek(x: Day, y: Day)
+; BeforeInTheWeek(x, y) :- DayBeforeInTheWeek(x, y).
+; BeforeInTheWeek(x, z) :- DayBeforeInTheWeek(x, y), BeforeInTheWeek(y, z).
+; .output BeforeInTheWeek
+
+(DayBeforeInTheWeek (Fri) (Sat))
+(DayBeforeInTheWeek (Mon) (Tue))
+(DayBeforeInTheWeek (Sat) (Sun))
+(DayBeforeInTheWeek (Thu) (Fri))
+(DayBeforeInTheWeek (Tue) (Wed))
+(DayBeforeInTheWeek (Wed) (Thu))
+
+[(BeforeInTheWeek x y) <-- (DayBeforeInTheWeek x y)]
+[(BeforeInTheWeek x z) <-- (DayBeforeInTheWeek x y) (BeforeInTheWeek y z)]
+
+; BeforeInTheWeek counts: 21

@@ -1,0 +1,214 @@
+; .decl InitialStock(product:symbol, qty:number)
+; .decl Sales(product:symbol, month:number, qty:number)
+; .decl ProductHalfGoneBy(product:symbol, month:number)
+
+; InitialStock("iPhone X", 500).
+; InitialStock("Samsung Galaxy S8", 700).
+(InitialStock "iPhone X", 500)
+(InitialStock "Samsung Galaxy S8", 700)
+
+; Sales("iPhone X", 1, 50).
+; Sales("Samsung Galaxy S8", 1, 100).
+(Sales "iPhone X" 1 50)
+(Sales "Samsung Galaxy S8" 1 100)
+
+; Sales("iPhone X", 2, 50).
+; Sales("Samsung Galaxy S8", 2, 100).
+(Sales "iPhone X" 2 50)
+(Sales "Samsung Galaxy S8" 1 100)
+
+; Sales("iPhone X", 3, 50).
+; Sales("Samsung Galaxy S8", 3, 100).
+(Sales "iPhone X" 3 50)
+(Sales "Samsung Galaxy S8" 3 100)
+
+; Sales("iPhone X", 4, 50).
+; Sales("Samsung Galaxy S8", 4, 100).
+(Sales "iPhone X" 4 50)
+(Sales "Samsung Galaxy S8" 4 100)
+
+; Sales("iPhone X", 5, 50).
+; Sales("Samsung Galaxy S8", 5, 100).
+(Sales "iPhone X" 5 50)
+(Sales "Samsung Galaxy S8" 5 100)
+
+; Sales("iPhone X", 6, 50).
+; Sales("Samsung Galaxy S8", 6, 100).
+(Sales "iPhone X" 6 50)
+(Sales "Samsung Galaxy S8" 6 100)
+
+; ProductHalfGoneBy(product, month) :-
+;     InitialStock(product, initialStock),
+;     month = min candidateMonth : {
+;         Sales(_, candidateMonth, _),
+;         totalSales = sum sales : { Sales(product, m, sales), m <= candidateMonth },
+;         2 * totalSales >= initialStock
+;     }.
+(TotalSalesMonthBefore product 1 0)
+[(TotalSalesMonthBefore product {+ m 1} {+ prev_sales qty}) <-- 
+    (TotalSalesMonthBefore product m prev_sales)
+    (Sales product {+ m 1} qty)]
+[(MonthAfterHalf m) <--
+    (>= {* 2 qty} initialStock)
+    (TotalSalesMonthBefore product m qty)
+    (InitialStock product initialStock)]
+[(ProductHalfGoneBy product {min MonthAfterHalf}) <-- ]
+
+; .output ProductHalfGoneBy()
+
+; .decl Class(student:symbol, class:symbol)
+; .decl Height(student:symbol, height:float)
+; .decl ShortestClass(class:symbol)
+; .decl AvgHeightPerClass(class:symbol, avgHeight:float)
+
+; Class("Jane", "French").
+; Class("Jay", "French").
+; Class("Rob", "Spanish").
+; Class("Reece", "Spanish").
+
+; Height("Jane", 156).
+; Height("Jay", 150).
+; Height("Rob", 180).
+; Height("Reece", 195).
+
+; ShortestClass(class) :-
+;     Class(_, class),
+;     n = min avgHeight : {
+;         Class(_, c),
+;         avgHeight = mean height : {
+;             Class(p, c),
+;             Height(p, height)
+;         }
+;     },
+;     n = mean h : { Class(p, class), Height(p, h) }.
+
+; AvgHeightPerClass(class, avgHeight) :-
+;     Class(_, class),
+;     avgHeight = mean height : { Height(p, height), Class(p, class) }.
+
+; .output ShortestClass, AvgHeightPerClass()
+
+; .decl Person(p:symbol)
+; .decl Friends(p:symbol, o:symbol)
+; .decl NumFriends(person:symbol, numFriends:number)
+; .decl AverageNumberOfFriends(x:number)
+; .decl MostPopular(person:symbol, numFriends:number)
+
+; Person("Jane").
+; Person("Joseph").
+; Person("Tamara").
+; Person("Alex").
+
+; Friends("Jane", "Tamara").
+; Friends("Joseph", "Alex").
+; Friends("Tamara", "Alex").
+; Friends("Tamara", "Joseph").
+
+; Friends(x, y) :- Friends(y, x).
+
+; AverageNumberOfFriends(x) :-
+;     s = sum numFriends : {
+;         Person(person),
+;         numFriends = count : Friends(_, person)
+;     },
+;     c = count : Person(_),
+;     x = s / c.
+
+; NumFriends(person, numFriends) :-
+;     Person(person),
+;     numFriends = count : Friends(_, person).
+
+; MostPopular(person, numFriends) :-
+;     numFriends = max n : {
+;         Person(p),
+;         n = count : { Friends(_, p) }
+;     },
+;     Person(person),
+;     numFriends = count : { Friends(_, person) }.
+
+; .output NumFriends, AverageNumberOfFriends, MostPopular()
+
+; .decl Salary(employee:symbol, amount:float)
+; .decl WorksForDepartment(employee:symbol, department:symbol)
+; .decl AverageSalaryPerDepartment(dept:symbol, sal:float)
+; .decl AvgWorkersPerDepartment(avg:number)
+; .decl Department(dept:symbol)
+; .decl NumWorkersPerDepartment(dept:symbol, n:number)
+
+; Salary("Anna", 100000).
+; Salary("Brad", 80000).
+; Salary("Jane", 110000).
+
+; Department("IT").
+; Department("HR").
+
+; WorksForDepartment("Anna", "IT").
+; WorksForDepartment("Brad", "HR").
+; WorksForDepartment("Jane", "HR").
+
+; /*
+; *   Find average salary per department
+; */
+; AverageSalaryPerDepartment(dept, sal) :-
+;     WorksForDepartment(_, dept),
+;     sal = mean s : { Salary(e, s), WorksForDepartment(e, dept) }.
+
+; /*
+; *   Find average number of workers per department
+; */
+; AvgWorkersPerDepartment(avg) :-
+;     s = sum numWorkers : {
+;         Department(dept),
+;         numWorkers = count : { WorksForDepartment(_, dept) }
+;     },
+;     c = count : Department(_),
+;     avg = s / c.
+
+; NumWorkersPerDepartment(dept, n) :-
+;     Department(dept),
+;     n = count : WorksForDepartment(_, dept).
+
+; .output AverageSalaryPerDepartment, AvgWorkersPerDepartment, NumWorkersPerDepartment()
+
+; /**
+; *   Try a super super nested aggregate query.
+; *   We want to find the minimum of maximum counts.
+; **/
+; .decl M, Y(x:number)
+; .decl P(p:symbol)
+; .decl H(a:symbol, b:symbol, y:number, m:number)
+; .decl W(a:symbol, n:number)
+
+; Y(2019).
+; Y(2020).
+; M(1).
+; M(n+1) :- M(n), n + 1 <= 12.
+
+; P("Anna").
+; P("Rachel").
+; P("Shelby").
+
+; H("Anna", "Gringo", 2019, 1).
+; H("Anna", "Celine", 2019, 1).
+
+; H("Rachel", "Howard", 2019, 3).
+; H("Rachel", "Sandra", 2020, 5).
+; H("Rachel", "Holland", 2020, 6).
+
+; H("Shelby", "George", 2020, 2).
+; H("Shelby", "Tim", 2020, 2).
+; H("Shelby", "Rafael", 2020, 2).
+
+; W(a, n) :-
+;     n = min worstNPart : {
+;         P(a),
+;         worstNPart = max part : {
+;                 Y(y),
+;                 M(m),
+;                 part = count : {
+;                     H(a, _, y, m)
+;                 }
+;             }
+;     }.
+
+; .output W()

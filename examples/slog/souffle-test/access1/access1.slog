@@ -1,0 +1,58 @@
+
+; .decl Low(src: number, dest:number, port:number)
+; .output Low()
+; .decl Medium(src: number, dest:number, port:number)
+; .output Medium()
+; .decl High(src: number, dest:number, port:number)
+; .output High()
+
+; .decl In(src: number, dest:number, port:number)
+; .input In()
+; .decl BL(src: number, dest:number, port:number)
+; .input BL()
+; .decl Trusted(src: number, dest:number, port:number)
+; .input Trusted()
+
+
+; Low(src, dest, port) :- In(src, dest, port),
+;        Trusted(src, dest, port).
+
+; Medium(src, dest, port) :- In(src, dest, port),
+;        !Low(src, dest, port),
+;        Trusted(src, _, port),
+;        Trusted(_, dest, port),
+;        !BL(src, dest, port).
+
+; High(src, dest, port) :- In(src, dest, port),
+;        !Low(src, dest, port),
+;        !Medium(src, dest, port),
+;        Trusted(_,_, port),
+;        !BL(src, dest, _).
+
+[(Low src dest port) <-- (In src dest port) (Trusted src dest port)]
+
+[(Medium src dest port) <--
+    (~ Low  src dest port)
+    (~ BL src dest port)
+    (Trusted _ dest port)
+    --
+    (Trusted src _ port)
+    (In src dest port)]
+
+[(High src dest port) <--
+    (~ Low src dest port)
+    (~ Medium src dest port)
+    (~ BL src dest _)
+    (In src dest port)
+    (Trusted _ _ port)]
+
+; High count: 728
+[(access1-High-check-1 "pass") <-- (High 1 4 1)]
+[(access1-High-check-2 "pass") <-- (High 12 389 216)]
+
+; Medium count: 13
+[(access1-Medium-check-1 "pass") <-- (Medium 22 40 25)]
+
+; Low count: 1016
+[(access1-Low-check-1 "pass") <-- (Low 3 32 40)]
+[(access1-Low-check-2 "pass") <-- (Low 581 777 820)]

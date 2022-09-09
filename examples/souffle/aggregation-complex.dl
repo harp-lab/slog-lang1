@@ -1,0 +1,11 @@
+.decl W(x:number)
+.decl X(n:number)
+.decl Y(n: number)
+
+X(1). X(2). X(10). X(11).
+
+Y(1). Y(2).
+
+W(c) :- X(n), c = sum m : { Y(m), m < n }.
+
+.output W()

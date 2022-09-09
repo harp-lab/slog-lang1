@@ -1,0 +1,17 @@
+
+; .decl W(x:number, y:number)
+; .decl X(n:number)
+
+; X(1). X(2). X(10). X(11).
+
+; W(c, n) :- X(n), c = count : { X(m), m < n }.
+
+; .output W()
+
+(X 1)
+(X 2)
+(X 10)
+(X 11)
+
+[(helper n m) <-- (X m) (X n) (< m n)]
+[(W {count-by helper n} n) <-- (X n)]
