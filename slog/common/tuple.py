@@ -21,26 +21,6 @@ INT_TAG = 0
 STRING_TAG = 2
 SYMBOL_TAG = 3
 
-class SlogTuple:
-    """
-    a python data class to represent a slog tuple
-    a nest relation coloumn will be `(NESTED ...)`
-    """
-    def __init__(self, rel_name, col):
-        self.rel_name = rel_name
-        self.print_name = None
-        self.col = col
-        self.tuple_id = col[0]
-        self.data_col = col[1:]
-        self.tag = col[0][0]
-        self.arity = len(col) - 1
-
-    def __eq__(self, o: object) -> bool:
-        return self.tuple_id == o.tuple_id
-
-    def __str__(self) -> str:
-        return str(self.col)
-
 ## New S-Expr API
 class SExprVisitor:
     """Visitor API that allows walking over s-expressions"""
@@ -141,6 +121,7 @@ class TupleHistory:
     def get_name(self,db_id:str,tuple_id,force=False):
         """ Get a tuple's name; if force is True a new name will be generated
             (unless one exists) no matter what. """
+        return None
         # Add a new name when > 1 occurrence
         if self.get_count(db_id,tuple_id) > 1 or force:
             if tuple_id in self.names:
@@ -183,8 +164,6 @@ class TupleLoader:
                 children.append(BuiltinNumber(attr_val))
             # String
             elif val_tag == STRING_TAG:
-                print(raw_tuple)
-                print(u64 & numpy.uint64(TUPLE_ID_MASK))
                 children.append(BuiltinString(self.db.lookup_string(u64 & numpy.uint64(U32_MASK))))
             # Relation
             else:

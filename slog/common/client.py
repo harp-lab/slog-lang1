@@ -176,7 +176,7 @@ class TuplePaginator:
         self.prompt_session = prompt_session
 
     def tuple_render_depth(self):
-        return 5
+        return 10
 
     def print_all_tuples(self,relation):
         while self.loader.tuples_left() > 0:
@@ -191,6 +191,7 @@ class TuplePaginator:
     def interactively_print_all(self,relation):
         while self.loader.tuples_left() > 0:
             self.print_next_batch()
+            if self.loader.tuples_left() == 0: return
             answer = self.prompt_session.prompt(f"Load more facts (y/n)? (seen {self.loader.cur_tuple_id} of {self.loader.relation.num_tuples}) ")
             if (answer != "y"): return
 
