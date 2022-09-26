@@ -13,3 +13,5 @@ a-result-max-check-3,1, 1
 a-result-min-check-1,1, 1
 a-result-min-check-2,1, 1
 a-result-min-check-3,1, 1
+
+a-all-edge-path-check,1,1

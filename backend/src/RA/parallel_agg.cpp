@@ -75,7 +75,7 @@ void parallel_copy_aggregate::local_aggregate(
     relation* input = this->copy_aggregate_input_table;
     relation* target = this->copy_aggregate_target_table;
     relation* output = this->copy_aggregate_output_table;
-    int input0_buffer_width = target->get_arity() + 1;
+    // int input0_buffer_width = target->get_arity() + 1;
 
     u32* output_sub_bucket_count = output->get_sub_bucket_per_bucket_count();
     u32** output_sub_bucket_rank = output->get_sub_bucket_rank();
@@ -118,6 +118,74 @@ void parallel_copy_aggregate::local_aggregate(
 
     for (auto tuple: res_tuples) {
 
+        uint64_t bucket_id = tuple_hash(tuple.data(), output->get_join_column_count()) % buckets;
+        uint64_t sub_bucket_id = 0;
+        if (input->get_is_canonical() == false && output->get_arity() != 0 && output->get_arity() >= real_join_count) {
+
+            sub_bucket_id = tuple_hash(tuple.data()+real_join_count, output->get_arity()-real_join_count) % output_sub_bucket_count[bucket_id];
+        }
+        int index = output_sub_bucket_rank[bucket_id][sub_bucket_id];
+        // std::cout << "index : " << index << std::endl;
+        agg_buffer.local_compute_output_size_rel[ra_counter] = agg_buffer.local_compute_output_size_rel[ra_counter] + agg_buffer.width[ra_counter];
+        agg_buffer.local_compute_output_size_total = agg_buffer.local_compute_output_size_total+agg_buffer.width[ra_counter];
+        agg_buffer.local_compute_output_size_flat[index*agg_buffer.ra_count+ra_counter] = agg_buffer.local_compute_output_size_flat[index*agg_buffer.ra_count + ra_counter] + agg_buffer.width[ra_counter];
+        agg_buffer.local_compute_output_count_flat[index*agg_buffer.ra_count+ra_counter]++;
+        agg_buffer.local_compute_output_size[ra_counter][index] = agg_buffer.local_compute_output_size[ra_counter][index]+agg_buffer.width[ra_counter];
+        agg_buffer.cumulative_tuple_process_map[index] = agg_buffer.cumulative_tuple_process_map[index] + agg_buffer.width[ra_counter];
+        agg_buffer.local_compute_output[ra_counter][index].vector_buffer_append((const unsigned char*)tuple.data(), sizeof(u64)*agg_buffer.width[ra_counter]);
+    }
+}
+
+void parallel_join_aggregate::local_aggregate(
+    u32 buckets, int *offset,
+    int input0_buffer_size, u64 *input0_buffer,
+    all_to_allv_buffer &agg_buffer, int ra_counter
+    ) {
+    relation* input = this->copy_aggregate_input_table;
+    relation* target = this->copy_aggregate_target_table;
+    relation* output = this->copy_aggregate_output_table;
+    int input0_buffer_width = target->get_arity() + 1;
+
+    u32* output_sub_bucket_count = output->get_sub_bucket_per_bucket_count();
+    u32** output_sub_bucket_rank = output->get_sub_bucket_rank();
+    int real_join_count = output->get_join_column_count() - 1;
+    agg_buffer.width[ra_counter] = real_join_count + 1;
+
+    shmap_relation agg_target(target->get_arity()+1, false);
+    for (int k1 = *offset; k1 < input0_buffer_size; k1 = k1 + input0_buffer_width)
+    {
+        agg_target.insert_tuple_from_array(input0_buffer+k1, target->get_arity()+1);
+    }
+
+    btree::btree_map<std::vector<u64>, u64, shmap_relation::t_comparator> res_map;
+    for (int bucket=0; bucket < buckets; bucket ++) {
+        std::vector<u64> data_v(target->get_join_column_count(), 0);
+        for (auto tuple: input->get_full()[bucket]) {
+            for (int j=0; j < input->get_join_column_count(); j++) {
+                data_v[j] = tuple[j];
+            }
+
+            auto agg_data = local_func(agg_target, data_v, input->get_join_column_count());
+            if (res_map.find(data_v) != res_map.end()) {
+                res_map[tuple] = reduce_func(res_map[tuple], agg_data);
+            } else {
+                res_map[tuple] = agg_data;
+            }
+        }
+    }
+
+    for (auto p: res_map) {
+        auto input_tuple = p.first;
+        auto agg_res = p.second;
+        std::vector<u64> tuple(reorder_mapping.size(), 0);
+        int reorder_agg_index = input->get_arity() + 1;
+        for (int j = 0; j < reorder_mapping.size(); j++) {
+            if (reorder_mapping[j] == reorder_agg_index) {
+                tuple[reorder_mapping[j]] = agg_res;
+            } else {
+                tuple[reorder_mapping[j]] = input_tuple[j];
+            }
+        }
         uint64_t bucket_id = tuple_hash(tuple.data(), output->get_join_column_count()) % buckets;
         uint64_t sub_bucket_id = 0;
         if (input->get_is_canonical() == false && output->get_arity() != 0 && output->get_arity() >= real_join_count) {

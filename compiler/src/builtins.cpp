@@ -228,7 +228,6 @@ local_agg_res_t agg_sum_local(std::pair<shmap_relation::iterator, shmap_relation
   local_agg_res_t sum_res = 0;
   for(auto it = joined_range.first; it != joined_range.second ; ++it) {
     auto tuple = (*it);
-    std::cout << std::endl;
     sum_res += tuple[tuple.size()-1];
   }
   return sum_res;

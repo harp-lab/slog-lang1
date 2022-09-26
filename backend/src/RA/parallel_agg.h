@@ -7,6 +7,7 @@
 #include "../ds.h"
 #include "../parallel_RA_inc.h"
 #include "parallel_RA.h"
+#include <vector>
 
 // struct _BTree {
 //   virtual bool has_key(const u64* key) = 0;
@@ -103,3 +104,39 @@ public:
                          int ra_counter);
 };
 
+
+class parallel_join_aggregate : public parallel_RA
+{
+
+public:
+    relation* copy_aggregate_output_table;
+    relation* copy_aggregate_target_table;
+    relation* copy_aggregate_input_table;
+    SpecialAggregator agg_type;
+    local_agg_func_t local_func;
+    reduce_agg_func_t reduce_func;
+    global_agg_func_t global_func;
+    std::vector<u64> reorder_mapping;
+
+    parallel_join_aggregate(relation* output, relation* target_rel, relation* input,
+                            int t_type, local_agg_func_t local_agg_func, 
+                            SpecialAggregator special_agg, reduce_agg_func_t reduce_agg_func, 
+                            global_agg_func_t global_agg_fun, std::vector<int>& reorder_mapping){
+        copy_aggregate_output_table = output;
+        copy_aggregate_input_table = input;
+        copy_aggregate_target_table = target_rel;
+        agg_type = special_agg;
+        local_func = local_agg_func;
+        reduce_func = reduce_agg_func;
+        global_func = global_agg_fun;
+        RA_type = AGGREGATION;
+        for (auto c : reorder_mapping) {
+            this->reorder_mapping.push_back(c);
+        }
+    }
+    
+    void local_aggregate(u32 bucket, int *offset,
+                         int input0_buffer_size, u64 *input0_buffer,
+                         all_to_allv_buffer& agg_buffer,
+                         int ra_counter);
+};
