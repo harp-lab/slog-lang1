@@ -14,4 +14,4 @@ fi
 
 sleep 4
 
-python3 -m slog.tests.$1
+python3 -m slog.tests.$1 --cores ${2:-1}

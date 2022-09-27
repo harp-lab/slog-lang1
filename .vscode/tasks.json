@@ -1,0 +1,17 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "run-test",
+            "type": "shell",
+            "command": "docker build -t stargazermiao/slog . && docker run -it --rm --entrypoint bash stargazermiao/slog /slog/slog/tests/run_test.sh size_compare 6"
+        },
+        {
+            "label": "docker-build",
+            "type": "shell",
+            "command": "docker build -t stargazermiao/slog ."
+        }
+    ]
+}

@@ -380,7 +380,7 @@ class SlogClient:
         tupcnt_col_len = max(len(tupcnt_hdr) + 2, max_name_length + 2)
         arity_hdr = "Arity  "
         arity_hdr_len = len(arity_hdr)
-        header = f"{name_hdr: <{name_col_length}}{arity_hdr}{tupcnt_hdr: <{tupcnt_col_len}}Tag    Size (MiB)\n"
+        header = f"{name_hdr: <{name_col_length}}{arity_hdr}{tupcnt_hdr: <{tupcnt_col_len}}Tag    Size (KiB)\n"
         writer.write(header)
         screen_out = ""
         for rel in sorted(self.relations, key=lambda rel: rel[3]*rel[1]):

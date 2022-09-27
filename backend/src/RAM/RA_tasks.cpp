@@ -498,17 +498,15 @@ u32 RAM::local_compute(int* offset)
         {
             fact* current_ra = (fact*) *it;
             relation* fact_relation = current_ra->get_relation();
-            std::vector<u64> data = current_ra->get_init_data();
-            if (mcomm.get_rank()==0)
-                current_ra->init_with_fact(get_bucket_count(),
-                                       fact_relation->get_sub_bucket_per_bucket_count(),
-                                       fact_relation->get_sub_bucket_rank(),
-                                       fact_relation->get_arity(),
-                                       fact_relation->get_join_column_count(),
-                                       fact_relation->get_is_canonical(),
-                                       data,
-                                       compute_buffer,
-                                       counter);
+            // if (mcomm.get_rank()==0)
+            current_ra->init_with_fact(get_bucket_count(),
+                                    fact_relation->get_sub_bucket_per_bucket_count(),
+                                    fact_relation->get_sub_bucket_rank(),
+                                    fact_relation->get_arity(),
+                                    fact_relation->get_join_column_count(),
+                                    fact_relation->get_is_canonical(),
+                                    compute_buffer,
+                                    counter);
         }
 
 

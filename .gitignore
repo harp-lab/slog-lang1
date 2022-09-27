@@ -6,7 +6,8 @@ __pycache__
 parser.out
 parsertab.py
 TESTOUT
-.vscode
+.vscode/c_cpp_properties.json
+.vscode/settings.json
 .slog-history
 metadatabase/database.sqlite3
 env/
@@ -18,3 +19,6 @@ temp-out/
 test-input
 souffle-out
 
+temp-out/
+test-input
+souffle-out

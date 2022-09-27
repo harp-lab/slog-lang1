@@ -5,6 +5,7 @@
 
 
 #include "../parallel_RA_inc.h"
+#include <iostream>
 
 
 parallel_io::parallel_io()
@@ -118,21 +119,10 @@ void parallel_io::parallel_read_input_relation_from_file_to_local_buffer(u32 ari
     MPI_Comm_rank(lcomm, &rank);
     MPI_Comm_size(lcomm, &nprocs);
     file_name = fname;
-    int global_row_count;
+    u64 global_row_count;
 
     /* Read the metadata file containing the total number of rows and columns */
     std::string meta_data_filename;
-
-#if 0
-    FILE *fp_in;
-    fp_in = fopen(meta_data_filename, "r");
-    if (fscanf (fp_in, "%d\n%d", &global_row_count, &col_count) != 2)
-    {
-        printf("Wrong input format (Meta Data)\n");
-        MPI_Abort(lcomm, -1);
-    }
-    fclose(fp_in);
-#endif
 
     // calculate row count from size of file
     //std::cout << "222222 Filename " << file_name << std::endl;
@@ -149,12 +139,13 @@ void parallel_io::parallel_read_input_relation_from_file_to_local_buffer(u32 ari
                     << std::endl;
             MPI_Abort(lcomm, -1);
         }
+        // std::cout << "File " << file_name << " has size " << size_data_file << std::endl;
     }
     else {
         return;
     }
 
-    // assert(size_data_file % (8 * (arity + 1)) != 0);
+    assert(size_data_file % (8 * (arity + 1)) == 0);
     global_row_count = size_data_file / (8 * (arity + 1));
     col_count = arity + 1;
 
@@ -163,10 +154,7 @@ void parallel_io::parallel_read_input_relation_from_file_to_local_buffer(u32 ari
     MPI_Bcast(&global_row_count, 1, MPI_INT, 0, lcomm);
     MPI_Bcast(&col_count, 1, MPI_INT, 0, lcomm);
 
-
 #if 1
-    //if (rank == 1)
-    //    std::cout << "Filename " << meta_data_filename << " Row Count " << global_row_count << " Column count " << col_count << std::endl;
 
     /* Read all data in parallel */
     uint64_t read_offset;
@@ -179,19 +167,21 @@ void parallel_io::parallel_read_input_relation_from_file_to_local_buffer(u32 ari
     }
     else
     {
-		if (read_offset + ceil((float)global_row_count / nprocs) > global_row_count)
+		if (read_offset + (u64)ceil((float)global_row_count / nprocs) > global_row_count)
+        {
 			entry_count = global_row_count - read_offset;
-		else
+        }
+		else {
 			entry_count = (int) ceil((float)global_row_count / nprocs);
+        }
     }
 
-    // std::cout << "filename is  >>>>> " << file_name << std::endl;
     assert((int)arity+1 == col_count);
 
     std::string data_filename;
     data_filename = file_name;
 
-    //std::cout << "Buffer size " << entry_count << " " << col_count << std::endl;
+    // std::cout << "Buffer size " << entry_count << " " << col_count << std::endl;
 	input_buffer = new u64[entry_count * col_count];
     uint64_t offset = read_offset * col_count * sizeof(u64);
     uint64_t read_size = entry_count * col_count * sizeof(u64);
@@ -211,10 +201,10 @@ void parallel_io::parallel_read_input_relation_from_file_to_local_buffer(u32 ari
     else    ///POSIX IO
     {
         int fp = open(data_filename.c_str(), O_RDONLY);
-		u32 rb_size = pread(fp, input_buffer, read_size, offset);
+		u32 rb_size = pread64(fp, input_buffer, read_size, offset);
 		if (rb_size != read_size)
 		{
-			std::cout << data_filename <<  " Wrong IO: rank: " << rank << " " << rb_size << " " <<  entry_count << " " << col_count << " " << read_offset << std::endl;
+			std::cout << data_filename <<  " Wrong IO: rank: " << rank << " " << rb_size << " " <<  entry_count << " " << col_count << " " << read_offset << " " << read_size << " " << global_row_count << std::endl;
 			MPI_Abort(lcomm, -1);
 		}
 		close(fp);
@@ -222,22 +212,7 @@ void parallel_io::parallel_read_input_relation_from_file_to_local_buffer(u32 ari
 
     //delete input_buffer;
 
-
-    //u32 rb_g_size = 0;
-    //MPI_Allreduce(&rb_size, &rb_g_size, 1, MPI_INT, MPI_SUM, lcomm);
-    //if (rank == 0)
-    //    std::cout << "Tuples in file " << file_name << " " << rb_g_size/(sizeof(u64) * (arity+1)) << std::endl;
-
 #endif
-
-    /*
-    for (u32 u = 0; u < entry_count * col_count; u = u+col_count)
-    {
-        for (u32 v = 0; v < col_count; v++)
-            std::cout << input_buffer[u+v] << " " ;
-        std::cout << std::endl;
-    }
-    */
 
 
     return;

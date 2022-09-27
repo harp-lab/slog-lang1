@@ -1,13 +1,12 @@
 """
 A CI test for a slog compiler only check the output size
-
 Yihao Sun
 """
 
+from argparse import ArgumentParser
 import os
 import subprocess
 import shutil
-from tempfile import tempdir
 from slog.daemon.util import get_relation_info
 
 from slog.tests.test import Test
@@ -21,7 +20,8 @@ class SizeCompareTest(Test):
     """
     Test if backend compiler produce correct size
     """
-    def __init__(self):
+    def __init__(self, cores):
+        self.cores = cores
         super().__init__("localhost", ("Backend integration test"))
 
     def check_count(self, test_name, slogpath, factpath, expected_counts):
@@ -31,9 +31,9 @@ class SizeCompareTest(Test):
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
         try:
-            # print([RUNSLOG_PATH, "-v", "-j", "4", "-f", factpath, slogpath, f"{WORKDIR}/out"])
             exec_out = subprocess.check_output(
-                [RUNSLOG_PATH, "-ov", "-v", "-f", factpath, slogpath, out_dir],
+                [RUNSLOG_PATH, "-ov", "-v", "-j", str(self.cores),
+                "-f", factpath, slogpath, out_dir],
                  stderr=subprocess.STDOUT)
             print(exec_out.decode())
         except subprocess.CalledProcessError as e:
@@ -77,4 +77,9 @@ class SizeCompareTest(Test):
         #     shutil.rmtree(f"{WORKDIR}/out")
         # self.success()
 
-SizeCompareTest().test()
+if __name__ == "__main__":
+    parser = ArgumentParser("Fact size compare testing.")
+    parser.add_argument("--cores", help="number of cores to run the test",
+                        type=int, dest="cores", default=1)
+    args = parser.parse_args()
+    SizeCompareTest(args.cores).test()
