@@ -421,19 +421,25 @@
       TState state = std::make_tuple(data, output);
       auto callback = []([callback-params] TState state) -> TState{
         auto [data, output] = state;
+        auto head_tuple = output;
+        [zero-arity-extra-result]
         bool compatible = [check-compatibility-code];
         if (! compatible) return state;
 
-        auto head_tuple = output;
         [head-tuple-populating-code]
         return std::make_tuple(data, output + [head-tuple-size]);
       };
       auto [_,new_ptr] = [cpp-func-name]<TState>(args_for_old_bi.data(), state, callback);
-      auto tuples_count = (new_ptr - output) / [head-tuple-size];
+      auto tuples_count = [new-tuple-count];
       return tuples_count;
     }"
-
     "[head-tuple-size]" (~a (length hvars))
+    "[zero-arity-extra-result]" (if (equal? (length hvars) 0) "head_tuple[0] = 0;" " ")
+    "[new-tuple-count]"
+    ; if output rel is a 0-arity relation then whether adding fact will depend on first elememt in output
+    (if (equal? (length hvars) 0) 
+      "new_ptr[0]"
+      (format "(new_ptr - output) / ~a"  (length hvars)))
     "[old-indices-size]" (~a (length available-indices))
     "[cpp-func-name]" cpp-func-name
     "[populate-args-for-old-bi-code]"
@@ -465,21 +471,23 @@
                       [else #f])) 
                   (range 0 (length output-indices)))))
     "[head-tuple-populating-code]"
-    (intercalate "\n" (map 
-      (λ (i)
-        (define rhs (match (list-ref hvars i)
-          [(? number? x) (format "number_to_datum(~a)" x)]
-          [(? string? str) (error (format "string literals in cpp compiler not supported yet!")) ] ;TODO
-          [(? symbol? var) #:when (member var bvars0)
-            (format "data[~a]" (index-of bvars0 var))]
-          [(? symbol? var) #:when (member var bvars1)
-            (define bi-arg-pos (index-of bvars1 var))
-            (define bi-arg-index (list-ref (extend-indices (map add1 requested-indices) arity) bi-arg-pos))
-            (define index-in-res (index-of output-indices (sub1 bi-arg-index)))
-            (format "res_~a" index-in-res)]
-          [bad-arg (error (format "bad rule: ~a\nbad arg: ~a" (strip-prov r) bad-arg))]))
-        (format "head_tuple[~a] = ~a;" i rhs)) 
-    (range 0 (length hvars))))
+    (if (equal? (length hvars) 0)
+      "head_tuple[0] = 1;"
+      (intercalate "\n" (map 
+        (λ (i)
+          (define rhs (match (list-ref hvars i)
+            [(? number? x) (format "number_to_datum(~a)" x)]
+            [(? string? str) (error (format "string literals in cpp compiler not supported yet!")) ] ;TODO
+            [(? symbol? var) #:when (member var bvars0)
+              (format "data[~a]" (index-of bvars0 var))]
+            [(? symbol? var) #:when (member var bvars1)
+              (define bi-arg-pos (index-of bvars1 var))
+              (define bi-arg-index (list-ref (extend-indices (map add1 requested-indices) arity) bi-arg-pos))
+              (define index-in-res (index-of output-indices (sub1 bi-arg-index)))
+              (format "res_~a" index-in-res)]
+            [bad-arg (error (format "bad rule: ~a\nbad arg: ~a" (strip-prov r) bad-arg))]))
+          (format "head_tuple[~a] = ~a;" i rhs)) 
+      (range 0 (length hvars)))))
   ))
 
 (define (generate-cpp-lambdas-for-rule-with-aggregator-impl r available-indices local-cpp-func-name global-cpp-func-name)
@@ -526,19 +534,24 @@
       TState state = std::make_tuple(data, output);
       auto callback = []([callback-params] TState state) -> TState{
         auto [data, output] = state;
+        auto head_tuple = output;
+        [zero-arity-extra-result]
         bool compatible = [check-compatibility-code];
         if (! compatible) return state;
 
-        auto head_tuple = output;
         [head-tuple-populating-code]
         return std::make_tuple(data, output + [head-tuple-size]);
       };
       auto [_,new_ptr] = [global-cpp-func-name]<TState>(args_for_old_bi.data(), agg_data, agg_data_count, state, callback);
-      auto tuples_count = (new_ptr - output) / [head-tuple-size];
+      auto tuples_count = [new-tuple-count];
       return tuples_count;
     }"
-
     "[head-tuple-size]" (~a (length hvars))
+    "[zero-arity-extra-result]" (if (equal? (length hvars) 0) "head_tuple[0] = 0;" " ")
+    "[new-tuple-count]"
+    (if (equal? (length hvars) 0) 
+      "new_ptr[0]"
+      (format "(new_ptr - output) / ~a"  (length hvars)))
     "[old-indices-size]" (~a (length available-indices))
     "[global-cpp-func-name]" global-cpp-func-name
     "[populate-args-for-old-bi-code]"
@@ -570,21 +583,23 @@
                       [else #f])) 
                   (range 0 (length output-indices)))))
     "[head-tuple-populating-code]"
-    (intercalate "\n" (map 
-      (λ (i)
-        (define rhs (match (list-ref hvars i)
-          [(? number? x) (format "number_to_datum(~a)" x)]
-          [(? string? str) (error (format "string literals in cpp compiler not supported yet!")) ] ;TODO
-          [(? symbol? var) #:when (member var bvars0)
-            (format "data[~a]" (index-of bvars0 var))]
-          [(? symbol? var) #:when (member var bvars1)
-            (define bi-arg-pos (index-of bvars1 var))
-            (define bi-arg-index (list-ref (extend-indices (map add1 requested-indices) arity) bi-arg-pos))
-            (define index-in-res (index-of output-indices (sub1 bi-arg-index)))
-            (format "res_~a" index-in-res)]
-          [bad-arg (error (format "bad rule: ~a\nbad arg: ~a" (strip-prov r) bad-arg))]))
-        (format "head_tuple[~a] = ~a;" i rhs)) 
-    (range 0 (length hvars))))
+    (if (equal? (length hvars) 0)
+      "head_tuple[0] = 1;"
+      (intercalate "\n" (map 
+        (λ (i)
+          (define rhs (match (list-ref hvars i)
+            [(? number? x) (format "number_to_datum(~a)" x)]
+            [(? string? str) (error (format "string literals in cpp compiler not supported yet!")) ] ;TODO
+            [(? symbol? var) #:when (member var bvars0)
+              (format "data[~a]" (index-of bvars0 var))]
+            [(? symbol? var) #:when (member var bvars1)
+              (define bi-arg-pos (index-of bvars1 var))
+              (define bi-arg-index (list-ref (extend-indices (map add1 requested-indices) arity) bi-arg-pos))
+              (define index-in-res (index-of output-indices (sub1 bi-arg-index)))
+              (format "res_~a" index-in-res)]
+            [bad-arg (error (format "bad rule: ~a\nbad arg: ~a" (strip-prov r) bad-arg))]))
+          (format "head_tuple[~a] = ~a;" i rhs)) 
+      (range 0 (length hvars)))))
   ))
   (cons local-lambda global-lambda))
 
