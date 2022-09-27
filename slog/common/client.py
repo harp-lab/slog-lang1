@@ -296,8 +296,8 @@ class SlogClient:
             base = os.path.basename(csv_dir)
             rel_name = base[:base.rfind('.')]
             if rel_name not in {r[0] for r in self.relations}:
-                writer.write(f"current database don't have relation {rel_name}" \
-                             " please make sure the fact file has name `<rel_name>.facts`")
+                writer.write(f"current database doesn't include relation {rel_name}" \
+                             " Please ensure the fact file has name `<rel_name>.facts`")
             csv_file_paths.append(csv_dir)
 
         if csv_file_paths == []:
