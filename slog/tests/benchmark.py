@@ -54,13 +54,13 @@ class Dataset:
         if os.path.exists(out_dir):
             shutil.rmtree(out_dir)
         os.mkdir(out_dir)
-        if (self.row_sep == '\t' and data_format in ['tsv', 'facts']) and \
+        if (self.row_sep == '\t' and data_format in ['tsv', 'facts']) or \
                 (self.row_sep == ',' and data_format in ['csv']):
             for fname in self.files:
                 shutil.copyfile(os.path.join(self.data_dir, fname),
                                 os.path.join(out_dir, fname_mapping[fname]))
         else:
-            for fname in self.files:
+            for fname in self.files: 
                 with open(fname_mapping[fname], "w+") as out_f:
                     for row in self.fetch_data(fname):
                         new_row_txt = ""
@@ -117,13 +117,14 @@ class Slog(DatalogEngine):
     def run(self, dataset: Dataset, output_file, src, file_mapping, cores):
         program_name = os.path.basename(src)[:-5]
         with tempfile.TemporaryDirectory() as tempdir_name:
-            dataset.dump(tempdir_name+'/in', file_mapping, 'csv')
+            dataset.dump(tempdir_name+'/in', file_mapping, 'facts')
+            print(os.listdir(tempdir_name+'/in'))
             logging.info(
                 "Running slog %d cores, dataset %s ..., file %s", cores, dataset.data_dir, src)
             os.system(
-                f"cd /slog && ./runslog -v -co -j {cores} -f {tempdir_name}/in {src} {tempdir_name}/out")
+                f"cd /slog && ./runslog -v -co -j {cores} -f {tempdir_name}/in {src} out")
             os.system(
-                f"cd {tempdir_name}/out/build && /usr/bin/time -v -o {output_file} ./{program_name} -j {cores}")
+                f"cd /slog/out/build && /usr/bin/time -v -o {output_file} mpirun -np {cores} ./{program_name} ../input-data ../")
 
 
 class Souffle(DatalogEngine):
@@ -135,13 +136,14 @@ class Souffle(DatalogEngine):
     def run(self, dataset: Dataset, output_file, src, file_mapping, cores):
         program_name = os.path.basename(src)[:-3]
         with tempfile.TemporaryDirectory() as tempdir_name:
-            dataset.dump(tempdir_name+'/in', file_mapping, 'csv')
+            dataset.dump(tempdir_name+'/in', file_mapping, 'facts')
+            print(os.listdir(tempdir_name+'/in'))
             out_dir = os.path.join(tempdir_name, "out")
             os.mkdir(out_dir)
             logging.info(
                 "Running souffle %d cores, dataset %s ..., file %s", cores, dataset.data_dir, src)
             os.system(
-                f"souffle -o {tempdir_name}/{program_name} -j {cores} {src}")
+                f"souffle -o {tempdir_name}/{program_name} -j {cores} -F {tempdir_name}/in -D {out_dir} {src}")
             os.system(
                 f"/usr/bin/time -v -o {output_file} {tempdir_name}/{program_name} -j {cores} -F {tempdir_name}/in -D {out_dir}")
 
@@ -158,15 +160,16 @@ class Benchmark:
         for bench_case in self.case_list:
             output_fpath = os.path.join(self.output_dir, str(bench_case))
             bench_case.run(output_fpath)
+            print(f"case finish, output in {str(bench_case)}")
 
 
 if __name__ == "__main__":
     """ test code """
-    test_dataset = Dataset("test", "/slog/test/testcase/tc/edge", "\t")
+    test_dataset = Dataset("test", "/slog/slog/tests/testcase/tc/input", "\t")
     souffle_engine = Souffle()
     slog_engine = Slog()
-    target_slog_program = "/slog/test/testcase/tc/tc.slog"
-    target_souffle_program = "/slog/test/testcase/tc/tc.slog"
+    target_slog_program = "/slog/slog/tests/testcase/tc/tc.slog"
+    target_souffle_program = "/slog/examples/souffle/tc.dl"
     case_list = []
     for i in [1, 3, 6]:
         case_list.append(BenchmarkCase(
