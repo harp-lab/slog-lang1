@@ -1,0 +1,11 @@
+
+.decl edge(a: number, b:number)
+.printsize edge
+.input edge
+
+.decl path(a: number, b: number)
+.printsize path
+.output path
+
+path(a,b) :- edge(a,b).
+path(a,c) :- path(a,b), edge(b,c).

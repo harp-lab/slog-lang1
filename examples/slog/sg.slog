@@ -1,0 +1,10 @@
+
+[(same-generation x y) <-- 
+    (edge a x _) 
+    (edge a y _)
+    (=/= x y)]
+[(same-generation x y) <--
+    (edge b y _)
+    --
+    (edge a x _)
+    (same-generation a b)]
