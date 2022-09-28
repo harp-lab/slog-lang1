@@ -271,6 +271,11 @@
                   (match-define `(rel-select ,name ,arity ,ind ,comp) rel-select)
                   (equal? name op))
                (hash-keys comp-rels-func-names))))
+  (define (get-prefix-vars bvars0 bvars1) 
+    (let loop ([bvars0 (map second bvars0)] [bvars1 (map second bvars1)])
+        (if (and (cons? bvars0) (cons? bvars1) (equal? (first bvars0) (first bvars1)))
+            (cons (first bvars0) (loop (cdr bvars0) (cdr bvars1)))
+            '())))
   (match rule
          [`(srule ,(? ir-incremental-hclause? `(prov ((prov ,(? rel-select? rel-sel) ,_) ,hvars ...) ,_))
                   ,(? ir-incremental-bclause? `(prov ((prov ,(? rel-version? rel-ver0) ,_) ,bvars0 ...) ,_))
@@ -291,10 +296,7 @@
                   ,(? ir-incremental-bclause? `(prov ((prov ,(? rel-version? rel-ver0) ,_) ,bvars0 ...) ,_))
                   ,(? ir-incremental-bclause? `(prov ((prov (rel-version ~ ,neg-arity ,neg-indices ,neg-ver) ,_) ,bvars1 ...) ,_)))
           (match-define `(agg ,negated-rel) (strip-prov neg-ver))
-          (define prefix-vars (let loop ([bvars0 (map second bvars0)] [bvars1 (map second bvars1)])
-                                (if (and (cons? bvars0) (cons? bvars1) (equal? (first bvars0) (first bvars1)))
-                                    (cons (first bvars0) (loop (cdr bvars0) (cdr bvars1)))
-                                    '())))
+          (define prefix-vars (get-prefix-vars bvars0 bvars1))
           (match-define `(rel-select ,neg-rel-name ,neg-rel-arity ,neg-rel-sel db) negated-rel)
           (assert (equal? neg-rel-arity neg-arity))
           (format "new parallel_join_negate(~a, ~a, ~a, ~a, ~a)"
@@ -314,24 +316,26 @@
           (match-define `(agg ,aggregated-rel) ver)
           ; (displayln aggregated-rel)
           ; (define bi-rel-select `(rel-select ,op ,op-arity ,op-indices comp))
-          (match-define (list local-cpp-func special-agg reduce-cpp-func global-cpp-func)
+          (match-define (list local-cpp-func special-agg reduce-cpp-func global-cpp-func columns-to-drop)
             (generate-cpp-lambdas-for-rule-with-aggregator rule))
           ;parallel_copy_aggregate(relation rel, relation agg_rel, relation target_rel, char* ver,
           ;                    local_agg_func_t local_agg_func, reduce_agg_func_t reduce_agg_func, global_agg_func_t global_agg_fun);
-          (format "new parallel_copy_aggregate(~a, ~a, ~a, ~a, ~a, ~a, ~a, ~a)"
+          (define prefix-vars (get-prefix-vars bvars0 bvars1))
+          (format "new parallel_join_aggregate(~a, ~a, ~a, ~a, ~a, ~a, ~a, ~a, ~a)"
                       (rel->name rel-sel)
                       (rel->name (strip-prov aggregated-rel))
                       (rel->name `(rel-select ,@(take (drop rel-ver0 1) 3) db))
                       (match (last rel-ver0) ['total "FULL"] ['delta "DELTA"] ['new "NEW"])
-                      local-cpp-func special-agg reduce-cpp-func global-cpp-func)]
+                      local-cpp-func special-agg reduce-cpp-func global-cpp-func
+                      (compute-reordering-cpp (map second hvars)
+                                          (append prefix-vars
+                                                  (map second (drop bvars0 (length prefix-vars)))
+                                                  (map second (drop bvars1 columns-to-drop)))))]
 
          [`(srule ,(? ir-incremental-hclause? `(prov ((prov ,(? rel-select? rel-sel) ,_) ,hvars ...) ,_))
                   ,(? ir-incremental-bclause? `(prov ((prov ,(? rel-version? rel-ver0) ,_) ,bvars0 ...) ,_))
                   ,(? ir-incremental-bclause? `(prov ((prov ,(? rel-version? rel-ver1) ,_) ,bvars1 ...) ,_)))
-          (define prefix-vars (let loop ([bvars0 (map second bvars0)] [bvars1 (map second bvars1)])
-                                (if (and (cons? bvars0) (cons? bvars1) (equal? (first bvars0) (first bvars1)))
-                                    (cons (first bvars0) (loop (cdr bvars0) (cdr bvars1)))
-                                    '())))
+          (define prefix-vars (get-prefix-vars bvars0 bvars1 ))
           (format "new parallel_join(~a, ~a, ~a, ~a, ~a, ~a)"
                   (rel->name rel-sel)
                   (rel->name `(rel-select ,@(take (drop rel-ver0 1) 3) db))
@@ -397,11 +401,13 @@
 (define (generate-cpp-lambdas-for-rule-with-aggregator r)
   (match-define `(srule (,rel-sel ,hvars ...)
                         (,rel-ver0 ,bvars0 ...)
-                        ((rel-version ,bi-op ,op-arity ,new-indices ,kind) ,bvars1 ...)) (strip-prov r))
-  (define best-match (get-matching-builtin-or-aggregator-spec `(rel-version ,bi-op ,op-arity ,new-indices ,kind)))
-  (match-define `(,name ,arity ,indices ,local-cpp-func ,special-agg ,reduce-cpp-func ,global-cpp-func) best-match)
-  (match-define (cons res-local-func res-global-func) (generate-cpp-lambdas-for-rule-with-aggregator-impl r indices local-cpp-func global-cpp-func))
-  (list res-local-func special-agg reduce-cpp-func res-global-func))
+                        ((rel-version ,agg-name ,op-arity ,op-indices ,kind) ,bvars1 ...)) (strip-prov r))
+  (define match (hash-ref aggregators agg-name))
+  (match-define `(agg (rel-select ,rel-name ,rel-arity ,rel-indices db)) (strip-prov kind))
+  (match-define (list input-cols output-cols _) (hash-ref all-aggregators agg-name))
+  (define columns-to-drop (- (add1 rel-arity) input-cols))
+  (match-define `(,local-cpp-func ,special-agg ,reduce-cpp-func ,global-cpp-func) match)
+  (list local-cpp-func special-agg reduce-cpp-func global-cpp-func columns-to-drop))
 
 
 (define (generate-cpp-lambda-for-rule-with-builtin-impl r available-indices cpp-func-name)
@@ -662,7 +668,8 @@
     (number? 1 (1) "builtin_number_huh")
     (not-number? 1 (1) "builtin_not_number_huh")))
 
-(define aggregators
+;; TODO remove later
+(define OLD-aggregators
   `((~ 1 (1) "agg_not_1_local" "SpecialAggregator::none" "agg_not_reduce" "agg_not_global")
     (~ 2 (1 2) "agg_not_2_local" "SpecialAggregator::none" "agg_not_reduce" "agg_not_global")
     ,@(map (lambda (n)
@@ -681,6 +688,11 @@
               `(rec-sum ,n ,(range 1 n) "agg_recsum_local" "SpecialAggregator::recusive" "agg_recsum_reduce" "agg_recsum_global")) 
            (range 1 11))
     ))
+
+(define aggregators
+  (hash
+    'sum `("agg_sum_local" "SpecialAggregator::sum" "nullptr" "agg_sum_global")
+    'count `("agg_count_local" "SpecialAggregator::count" "agg_count_reduce" "agg_count_global")))
 
 (define (cl-input-args cl)
     (match cl

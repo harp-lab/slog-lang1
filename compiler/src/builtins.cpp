@@ -212,8 +212,8 @@ local_agg_res_t agg_count_local(std::pair<shmap_relation::iterator, shmap_relati
 
 
 
-template<typename TState> TState agg_count_global(u64* data, local_agg_res_t agg_data, u64 agg_data_count, TState init_state, TState (*callback) (u64 res, TState state)){
-  return callback(n2d(agg_data), init_state);
+local_agg_res_t agg_count_global (local_agg_res_t x, local_agg_res_t y) {
+  return x + y;
 }
 
 local_agg_res_t agg_count_reduce (local_agg_res_t x, local_agg_res_t y) {
@@ -237,9 +237,13 @@ local_agg_res_t agg_sum_reduce(local_agg_res_t x, local_agg_res_t y) {
   return x + y;
 }
 
-template<typename TState> TState agg_sum_global(u64* data, local_agg_res_t agg_data, u64 agg_data_count, TState init_state, TState (*callback) (u64 res, TState state)){
-  return callback(n2d(agg_data), init_state);
+local_agg_res_t agg_sum_global(local_agg_res_t x, local_agg_res_t y) {
+  return x + y;
 }
+
+// template<typename TState> TState agg_sum_global(u64* data, local_agg_res_t agg_data, u64 agg_data_count, TState init_state, TState (*callback) (u64 res, TState state)){
+//   return callback(n2d(agg_data), init_state);
+// }
 
 //////////////////////////////  maximum  /////////////////////////////////////
 
@@ -294,29 +298,5 @@ local_agg_res_t agg_minimum_reduce (local_agg_res_t x, local_agg_res_t y) {
     return y;
   }
 }
-
-
-/// custom aggregator
-local_agg_res_t agg_recsum_local(std::pair<shmap_relation::iterator, shmap_relation::iterator> joined_range, std::vector<u64>& data, int join_count)
-{
-  local_agg_res_t max_res = 0;
-
-  for(auto it = joined_range.first; it != joined_range.second ; ++it) {
-    auto current_v = (*it)[join_count] + data[join_count];
-    if (current_v > max_res) {
-      max_res = current_v;
-    }
-  }
-
-}
-
-template<typename TState> TState agg_recsum_global(u64* data, local_agg_res_t agg_data, u64 agg_data_count, TState init_state, TState (*callback) (u64 res, TState state)){
-  return callback(n2d(agg_data), init_state);
-}
-
-local_agg_res_t agg_recsum_reduce (local_agg_res_t x, local_agg_res_t y) {
-  // none
-}
-
 
 // // end of builtins.cpp

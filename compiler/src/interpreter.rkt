@@ -1070,12 +1070,13 @@
   (match-define `(rel-version ,b-rel-name ,b-arity ,b-selection ,b-version) rel-version)
   (cond
     [(comp-or-agg-rel-kind? b-version) 
-     (define bi-func (match b-version
-      ['comp (get-func-for-comp-rel rel-version (Ir-interp-comp-rel-funcs ir-interp))]
+     (match-define (cons bi-func drop-columns) (match b-version
+      ['comp (cons (get-func-for-comp-rel rel-version (Ir-interp-comp-rel-funcs ir-interp)) 1)]
       [`(agg ,rel) (get-func-for-aggregator-rel rel-version ir-interp)]))
+     (define no-vals (map (λ (i) 'no-val) (range 0 drop-columns)))
      (λ (inp)
        (define res-set (apply bi-func (db-val->flat-fact ir-interp) inp))
-       (define res-tuples (set-map res-set (λ (res) (append inp '(no-tag) res))))
+       (define res-tuples (set-map res-set (λ (res) (append inp no-vals res))))
        (list->set res-tuples))]
     [else
      (define rel-version-map (hash-ref indices-map rel-version))
@@ -1169,9 +1170,17 @@
   (match-define `(db-instance ,rm ,indices-map ,tag-map ,intern-map ,added-facts) (Ir-interp-db-instance ir-interp))
   (define rel-version `(rel-version ,rel-name ,rel-arity ,rel-indices total))
   (define rel-version-map (hash-ref indices-map rel-version))
-  (define agg-spec `(aggregator-spec ,agg-rel-name ,agg-rel-arity ,agg-rel-indices ,rel-arity ,rel-indices))
-  (define agg-func (get-func-for-aggregator-with-extended-indices agg-spec))
-  (agg-func rel-version-map))
+  (match-define (list input-cols output-cols agg-func) (hash-ref all-aggregators agg-rel-name))
+  (define columns-to-drop (- (add1 rel-arity) input-cols))
+  (define res-func 
+    (λ (materializer . xs)
+      (define matching-tuples (hash-ref rel-version-map xs set))
+      ; (printf "matching tuples for ~a: ~a\n" xs matching-tuples)
+      (define matching-tuples2 (set-map matching-tuples (app drop _ columns-to-drop)))
+      (agg-func matching-tuples2)))
+  (define wildcard-columns (- (add1 rel-arity) (length rel-indices) input-cols))
+  (cons res-func wildcard-columns))
+
 
 (define (create-func-for-comp-rule comp-rule comp-rel-funcs-hash)
   (match-define `(crule ,head ,bodys ...) (strip-prov comp-rule))

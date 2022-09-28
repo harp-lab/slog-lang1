@@ -13,6 +13,7 @@
 (require "builtins.rkt")
 (require "utils.rkt")
 (require "slog-params.rkt")
+(require "lang-utils.rkt")
 
 (define/contract-cond (split-selections-pass ir)
   (-> ir-small? ir-select?)
@@ -443,7 +444,7 @@
     (match-define `(rel-select ,rel-name ,rel-arity ,rel-indices ,rel-kind) rel)
     (match rel-kind
       [`(agg ,aggregated-rel) #:when (equal? rel-name '~)
-        (define aggregated-rel-select0 (get-aggregated-rel-select-for-partial-agg-rel-select (strip-prov rel)))
+        (define aggregated-rel-select0 (get-aggregated-rel-select-for-partial-agg-rel-select (strip-prov rel) (map strip-prov args) rel-indices))
         (match-define `(rel-select ,neg-rel ,neg-rel-arity ,neg-rel-indices db) aggregated-rel-select0)
         (define aggregated-rel-select `(rel-select ,neg-rel ,neg-rel-arity ,rel-indices db))
         (define new-rel-select `(rel-select ~ ,rel-arity ,(range 1 (add1 rel-arity)) 
@@ -451,7 +452,7 @@
         (assert (rel-select? new-rel-select) (format "~a" new-rel-select))
         (cons `(prov ((prov ,new-rel-select ,relpos) ,@args) ,pos) (set aggregated-rel-select))]
       [`(agg ,aggregated-rel) 
-        (define aggregated-rel-select (get-aggregated-rel-select-for-partial-agg-rel-select (strip-prov rel)))
+        (define aggregated-rel-select (get-aggregated-rel-select-for-partial-agg-rel-select (strip-prov rel) (map strip-prov args) rel-indices))
         (define new-rel-select `(rel-select ,rel-name ,rel-arity ,rel-indices (agg (prov ,aggregated-rel-select ,(prov->pos aggregated-rel)))))
         (cons `(prov ((prov ,new-rel-select ,relpos) ,@args) ,pos) (set aggregated-rel-select))]
       [else (cons cl (set))]))
@@ -476,17 +477,11 @@
   (define rel-arity `(rel-arity ,name ,arity db))
   (extend-rel-hc rel-h rel-arity ind))
 
-(define (get-aggregated-rel-select-for-partial-agg-rel-select rel-select)
+(define (get-aggregated-rel-select-for-partial-agg-rel-select rel-select args rel-indices)
   (match-define `(rel-select ,rel-name ,rel-arity ,rel-indices (agg ,aggregated-rel)) rel-select)
   (match-define `(rel-arity ,aggregated-rel-name ,aggregated-rel-arity db) aggregated-rel)
-  (define matching-aggregators
-    (filter-map 
-      (λ (agg-spec)
-        (match-define `(aggregator-spec ,spec-name ,spec-arity ,spec-ind ,spec-aggregated-rel-arity ,spec-aggregated-rel-indices) agg-spec)
-        (cond
-          [(and (equal? spec-name rel-name) (equal? spec-arity rel-arity) (equal? aggregated-rel-arity spec-aggregated-rel-arity))
-            `(rel-select ,aggregated-rel-name ,aggregated-rel-arity ,spec-aggregated-rel-indices db)]
-          [else #f]))
-      (hash-keys all-aggregators)))
-  (car matching-aggregators))
+  (match-define (list input-cols output-cols _) (hash-ref all-aggregators rel-name))
+  (define non-output-args (take args (add1 aggregated-rel-arity)))
+  (define res `(rel-select ,aggregated-rel-name ,aggregated-rel-arity ,rel-indices db))
+  res)
 

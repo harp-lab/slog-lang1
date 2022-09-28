@@ -165,9 +165,11 @@ u64 RAM::intra_bucket_comm_execute()
         else if ((*it)->get_RA_type() == AGGREGATION) {
             // counter++;
             // continue;
-            parallel_copy_aggregate* current_ra = (parallel_copy_aggregate*) *it;
-            relation* input_rel = current_ra->copy_aggregate_input_table;
-            relation* target_rel = current_ra->copy_aggregate_target_table;
+            // parallel_copy_aggregate* current_ra = (parallel_copy_aggregate*) *it;
+            parallel_join_aggregate* current_ra = (parallel_join_aggregate*) *it;
+            relation* input_rel = current_ra->join_aggregate_input_table;
+            relation* target_rel = current_ra->join_aggregate_target_table;
+            std::cout << "Target size : " << target_rel->get_full()[0].size() << std::endl;
 
             intra_bucket_comm(get_bucket_count(),
                               target_rel->get_full(),
@@ -465,7 +467,8 @@ bool RAM::local_compute(int* offset)
         }
 
         else if ((*it)->get_RA_type() == AGGREGATION) {
-            parallel_copy_aggregate* current_ra = (parallel_copy_aggregate*) *it;
+            // parallel_copy_aggregate* current_ra = (parallel_copy_aggregate*) *it;
+            parallel_join_aggregate* current_ra = (parallel_join_aggregate*) *it;
             current_ra->local_aggregate(
                 get_bucket_count(),
                 &(offset[counter]),
@@ -583,8 +586,6 @@ bool RAM::local_compute(int* offset)
             current_ra->get_join_projection_index(&reorder_map_array);
             relation* input0 = current_ra->get_join_input0();
             relation* input1 = current_ra->get_join_input1();
-            relation* output = current_ra->get_join_output();
-            assert(output->get_arity() == reorder_map_array.size());
             int join_column_count = input0->get_join_column_count();
 
             if (current_ra->get_join_input0_graph_type() == DELTA && current_ra->get_join_input1_graph_type() == DELTA)
@@ -753,7 +754,8 @@ void RAM::local_insert_in_newt_comm_compaction(std::map<u64, u64>& intern_map)
         else if (RA_list[ra_id]->get_RA_type() == NEGATION)
             output = RA_list[ra_id]->get_negation_output();
         else if (RA_list[ra_id]->get_RA_type() == AGGREGATION)
-            output = ((parallel_copy_aggregate*)RA_list[ra_id])->copy_aggregate_output_table;
+            output = ((parallel_join_aggregate*)RA_list[ra_id])->join_aggregate_output_table;
+            // output = ((parallel_copy_aggregate*)RA_list[ra_id])->copy_aggregate_output_table;
         else if (RA_list[ra_id]->get_RA_type() == JOIN)
             output = RA_list[ra_id]->get_join_output();
         else if (RA_list[ra_id]->get_RA_type() == COPY_GENERATE)
@@ -904,7 +906,8 @@ void RAM::local_insert_in_newt(std::map<u64, u64>& intern_map)
             else if (RA_list[r]->get_RA_type() == NEGATION)
                 output = RA_list[r]->get_negation_output();
             else if (RA_list[r]->get_RA_type() == AGGREGATION)
-                output = ((parallel_copy_aggregate*)RA_list[r])->copy_aggregate_output_table;
+                output = ((parallel_join_aggregate*)RA_list[r])->join_aggregate_output_table;
+                // output = ((parallel_copy_aggregate*)RA_list[r])->copy_aggregate_output_table;
             else if (RA_list[r]->get_RA_type() == JOIN)
                 output = RA_list[r]->get_join_output();
             else if (RA_list[r]->get_RA_type() == COPY_GENERATE)

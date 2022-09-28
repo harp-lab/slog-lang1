@@ -9,10 +9,6 @@
 #include "parallel_RA.h"
 #include <vector>
 
-// struct _BTree {
-//   virtual bool has_key(const u64* key) = 0;
-// };
-
 
 class parallel_join_negate : public parallel_RA
 {
@@ -72,46 +68,46 @@ public:
                     int ra_counter);
 };
 
-class parallel_copy_aggregate : public parallel_RA
-{
+// class parallel_copy_aggregate : public parallel_RA
+// {
 
-public:
-    relation* copy_aggregate_output_table;
-    relation* copy_aggregate_target_table;
-    relation* copy_aggregate_input_table;
-    SpecialAggregator agg_type;
-    local_agg_func_t local_func;
-    reduce_agg_func_t reduce_func;
-    global_agg_func_t global_func;
+// public:
+//     relation* copy_aggregate_output_table;
+//     relation* copy_aggregate_target_table;
+//     relation* copy_aggregate_input_table;
+//     SpecialAggregator agg_type;
+//     local_agg_func_t local_func;
+//     reduce_agg_func_t reduce_func;
+//     global_agg_func_t global_func;
 
-    parallel_copy_aggregate(relation* output, relation* target_rel, relation* input,
-                            int t_type, local_agg_func_t local_agg_func, 
-                            SpecialAggregator special_agg, reduce_agg_func_t reduce_agg_func, 
-                            global_agg_func_t global_agg_fun){
-        copy_aggregate_output_table = output;
-        copy_aggregate_input_table = input;
-        copy_aggregate_target_table = target_rel;
-        agg_type = special_agg;
-        local_func = local_agg_func;
-        reduce_func = reduce_agg_func;
-        global_func = global_agg_fun;
-        RA_type = AGGREGATION;
-    }
+//     parallel_copy_aggregate(relation* output, relation* target_rel, relation* input,
+//                             int t_type, local_agg_func_t local_agg_func, 
+//                             SpecialAggregator special_agg, reduce_agg_func_t reduce_agg_func, 
+//                             global_agg_func_t global_agg_fun){
+//         copy_aggregate_output_table = output;
+//         copy_aggregate_input_table = input;
+//         copy_aggregate_target_table = target_rel;
+//         agg_type = special_agg;
+//         local_func = local_agg_func;
+//         reduce_func = reduce_agg_func;
+//         global_func = global_agg_fun;
+//         RA_type = AGGREGATION;
+//     }
     
-    void local_aggregate(u32 bucket, int *offset,
-                         int input0_buffer_size, u64 *input0_buffer,
-                         all_to_allv_buffer& agg_buffer,
-                         int ra_counter);
-};
+//     void local_aggregate(u32 bucket, int *offset,
+//                          int input0_buffer_size, u64 *input0_buffer,
+//                          all_to_allv_buffer& agg_buffer,
+//                          int ra_counter);
+// };
 
 
 class parallel_join_aggregate : public parallel_RA
 {
 
 public:
-    relation* copy_aggregate_output_table;
-    relation* copy_aggregate_target_table;
-    relation* copy_aggregate_input_table;
+    relation* join_aggregate_output_table;
+    relation* join_aggregate_target_table;
+    relation* join_aggregate_input_table;
     SpecialAggregator agg_type;
     local_agg_func_t local_func;
     reduce_agg_func_t reduce_func;
@@ -121,10 +117,11 @@ public:
     parallel_join_aggregate(relation* output, relation* target_rel, relation* input,
                             int t_type, local_agg_func_t local_agg_func, 
                             SpecialAggregator special_agg, reduce_agg_func_t reduce_agg_func, 
-                            global_agg_func_t global_agg_fun, std::vector<int>& reorder_mapping){
-        copy_aggregate_output_table = output;
-        copy_aggregate_input_table = input;
-        copy_aggregate_target_table = target_rel;
+                            global_agg_func_t global_agg_fun,
+                            std::vector<int> reorder_mapping){
+        join_aggregate_output_table = output;
+        join_aggregate_input_table = input;
+        join_aggregate_target_table = target_rel;
         agg_type = special_agg;
         local_func = local_agg_func;
         reduce_func = reduce_agg_func;

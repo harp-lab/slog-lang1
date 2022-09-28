@@ -591,12 +591,16 @@
   
   (define (compute-grounded-vars-step grounded-vars)
     (foldl (λ (rel-args grounded-vars)
-             ;(displayln (format "rel-vars: ~a, grounded-vars: ~a" rel-vars grounded-vars))
              (match-define (list id rel args) rel-args)
              (match-define `(rel-arity ,rel-name ,rel-arity ,rel-kind) rel)
              (define var-id+args (filter (not/c lit?) (cons id args)))
-             ;(printf "builtin-rel-arities->rel-selects: ~a" builtin-rel-arities->rel-selects)
-             (cond 
+             (cond
+              [(agg-rel-kind? rel-kind)
+                ; (match-define `(agg ,agg ,aggregated-rel) rel-kind)
+                (match-define (list inp-cols out-cols _) (hash-ref all-aggregators rel-name))
+                (define output-args (take (reverse args) out-cols))
+                (define input-wildcards (filter ir-wildcard? (drop (reverse args) out-cols)))
+                (set-union grounded-vars (set id) (list->set input-wildcards) (list->set output-args))] 
               [(comp-or-agg-rel-kind? rel-kind)
                 (define indices 
                   (filter-map (λ (ind arg) 

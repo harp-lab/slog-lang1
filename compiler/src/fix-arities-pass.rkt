@@ -67,7 +67,7 @@
                     (intercalate ", " (arities-for-builtin r))) #:exit #t)))
       `(prov ,rel-arity ,rpos)]
     [`(agg (prov ,aggregator ,aggregator-pos) (prov ,rel ,rel-pos))
-      (define arity-of-rel (rel-arity-for-aggregator-arity aggregator (length args)))
+      (define arity-of-rel (arity-of-aggregated-rel aggregator (length args)))
       `(prov (rel-arity ,aggregator ,(length args) 
                         (agg (prov (rel-arity ,rel ,arity-of-rel db) ,rel-pos))) ,aggregator-pos)]))
           

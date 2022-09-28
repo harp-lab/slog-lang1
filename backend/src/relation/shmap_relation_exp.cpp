@@ -31,6 +31,22 @@ bool shmap_relation::insert_tuple_from_array(u64 *t, int width)
     return insert(tp);
 }
 
+std::pair<shmap_relation::iterator, shmap_relation::iterator>
+shmap_relation::prefix_range(std::vector<u64> &prefix)
+{
+    if (prefix.size() >= arity+1)
+        return std::make_pair(end(), end());
+    t_tuple upper_bound(arity+1, std::numeric_limits<u64>::max());
+    t_tuple lower_bound(arity+1, std::numeric_limits<u64>::min());
+    for(size_t i = 0; i < prefix.size(); i++)
+    {
+        upper_bound[i] = prefix[i];
+        lower_bound[i] = prefix[i];
+    }
+    return lowerUpperRange(lower_bound, upper_bound);
+}
+
+
 int shmap_relation::count()
 {
     return size();
@@ -43,14 +59,15 @@ void shmap_relation::remove_tuple()
 
 bool shmap_relation::find_tuple_from_array(u64 *t, int width)
 {
-    t_tuple upper_bound(arity+1, std::numeric_limits<u64>::max());
-    t_tuple lower_bound(arity+1, std::numeric_limits<u64>::min());
-    for(size_t i = 0; i < width; i++)
-    {
-        upper_bound[i] = t[i];
-        lower_bound[i] = t[i];
-    }
-    auto joined_range = lowerUpperRange(lower_bound, upper_bound);
+    // t_tuple upper_bound(arity+1, std::numeric_limits<u64>::max());
+    // t_tuple lower_bound(arity+1, std::numeric_limits<u64>::min());
+    // for(size_t i = 0; i < width; i++)
+    // {
+    //     upper_bound[i] = t[i];
+    //     lower_bound[i] = t[i];
+    // }
+    t_tuple tp(t, t+width);
+    auto joined_range = prefix_range(tp);
     if (joined_range.first == ind->end()) {
         return false;
     }
@@ -419,7 +436,6 @@ void shmap_relation::as_all_to_allv_right_outer_join_buffer(
             join_buffer.local_compute_output_size[ra_id][index] = join_buffer.local_compute_output_size[ra_id][index] + join_buffer.width[ra_id];
             join_buffer.cumulative_tuple_process_map[index] = join_buffer.cumulative_tuple_process_map[index] + join_buffer.width[ra_id];
             join_buffer.local_compute_output[ra_id][index].vector_buffer_append((const unsigned char*)reordered_cur_path, sizeof(u64)*join_buffer.width[ra_id]);
-    
         }
     }
     negated_target.purge();

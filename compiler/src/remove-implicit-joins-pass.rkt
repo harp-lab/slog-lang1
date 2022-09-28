@@ -18,7 +18,8 @@
   ; (define all-comp-rels (set-union all-builtin-names (ir-flat-rules-h->head-rels comp-rules-h)))
   `(ir-fixed
     ,ir-flat
-    ,(hash-map-keys (compose ir-fixed-rule-remove-silly-clauses
+    ,(hash-map-keys (compose replace-joined-agg-outputs-with-equals-clauses
+                             ir-fixed-rule-remove-silly-clauses
                              ir-fixed-replace-repeated-vars-in-body-clauses 
                              replace-constants-with-equals-clauses) 
                     rules-h)
@@ -142,3 +143,63 @@
         new-rule]))
 
   (iterate-to-fixed-point step rule))
+
+;; Tunrs a rule like [(foo x y) (sum bar x y) --> ...] into 
+;; [(foo x y) (sum bar x y') (= y y') --> ...]
+;; Note: for now generates a compile error for such rules
+(define/contract-cond (replace-joined-agg-outputs-with-equals-clauses rule)
+  (ir-fixed-rule? . -> . ir-fixed-rule?)
+
+  (define (step rule)
+    (match-define `(rule ,heads ,bodys) rule)
+    (define bodys-list (set->list bodys))
+    (define (appears-in-other-clauses arg cl)
+      (ormap 
+        (λ (other-cl)
+          (cond 
+            [(not (equal? other-cl cl))
+             (match-define (list id _ args) (ir-fixed-clause-rel-args other-cl))
+             (member arg args)]
+            [else #f]))
+        bodys-list))
+    (define new-bodys
+      (map (λ (cl)
+            (match-define (list _ rel args) (ir-fixed-clause-rel-args-w/prov cl))
+            (define rel-kind (rel-arity->kind (strip-prov rel)))
+            (match-define `(rel-arity ,name ,arity ,kind) (strip-prov rel))
+            (cond 
+              [(agg-rel-kind? rel-kind)
+               (match-define (list inp-cols out-cols _) (hash-ref all-aggregators name))
+               (define agg-output-args (drop args (- (length args) out-cols)))
+               (define agg-non-output-args (take args (- (length args) out-cols)))
+               (match-define (cons new-output-args extra-clauses)
+                (foldl (λ (arg accu)
+                  (match-define (cons new-output-args extra-clauses) accu)
+                  (cond 
+                    [(appears-in-other-clauses (strip-prov arg) cl)
+                     ;; To make this work (instead on producing compile errors),
+                     ;; partitioning pass needs to be updated too. It needs to not produce partitionings
+                     ;; where the output arg of aggregation appears in other body clauses
+                     (pretty-error-current 
+                       (prov->pos arg)
+                       (format "the aggregation output variable ~a cannot appear as a join variable" (strip-prov arg))
+                       #:exit #t)
+                     (define argpos (prov->pos arg))
+                     (define new-arg `(prov ,(gensymb '$agg-output) ,argpos))
+                     (define eq-caluse (give-clause-id `(prov ((prov (rel-arity = 2 comp) ,argpos) ,arg ,new-arg) ,argpos)))
+                     (cons (append new-output-args (list new-arg)) (cons eq-caluse extra-clauses))]
+                    [else (cons (append new-output-args (list arg)) extra-clauses)]))
+                  (cons '() '())
+                  agg-output-args))
+                ; (printf "input-cl: ~a\n" (simplify-prov cl))
+                (match-define `(prov (,=rel ,=id (prov ,inner-cl ,innerpos)) ,pos) cl)
+                (define new-cl `(prov (,=rel ,=id (prov (,rel ,@(append agg-non-output-args new-output-args)) ,innerpos)) ,pos))
+                ; (printf "new-cl  : ~a\n" (simplify-prov new-cl))
+                (assert-pred ir-fixed-clause? new-cl)
+                (cons new-cl extra-clauses)]
+              [else (cons cl '())]))
+        bodys-list))
+    `(rule ,heads ,(list->set (flat-map identity new-bodys))))
+
+  (define res (step rule))
+  res)

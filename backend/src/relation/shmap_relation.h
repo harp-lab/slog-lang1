@@ -104,6 +104,8 @@ struct shmap_relation {
         return std::make_pair(ind->end(), ind->end());
     }
 
+    std::pair<iterator, iterator> prefix_range(std::vector<u64> &prefix);
+
 
     void purge() { ind->clear(); }
 

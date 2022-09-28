@@ -17,7 +17,7 @@ class RAM
 private:
 
     int ram_id;
-    bool init_status=false;
+    // bool init_status=false;
 
     int iteration_count = -1;                               /// Number of iterations in a fixed point
 
