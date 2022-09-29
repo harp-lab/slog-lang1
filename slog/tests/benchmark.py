@@ -60,17 +60,17 @@ class Dataset:
                 shutil.copyfile(os.path.join(self.data_dir, fname),
                                 os.path.join(out_dir, fname_mapping[fname]))
         else:
-            for fname in self.files: 
+            for fname in fname_mapping.keys():
                 with open(fname_mapping[fname], "w+") as out_f:
                     for row in self.fetch_data(fname):
                         new_row_txt = ""
-                        if data_format == 'tsv':
+                        if data_format in ['tsv', 'facts']:
                             new_row_txt = "\t".join(row)
-                        elif data_format in ['csv', 'facts']:
+                        elif data_format in ['csv']:
                             new_row_txt = ",".join(row)
                         else:
                             new_row_txt = customize_format_function(row)
-                        out_f.write(new_row_txt)
+                        out_f.write(new_row_txt+'\n')
 
 
 class DatalogEngine:
