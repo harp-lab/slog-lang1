@@ -20,7 +20,7 @@
 shmap_relation::shmap_relation(int arity, bool id_flag)
 {
     this->arity = arity;
-    ind = new t_ind(t_comparator(id_flag));
+    // ind = new t_ind(t_comparator(id_flag));
     this->id_flag = id_flag;
 }
 
@@ -68,7 +68,7 @@ bool shmap_relation::find_tuple_from_array(u64 *t, int width)
     // }
     t_tuple tp(t, t+width);
     auto joined_range = prefix_range(tp);
-    if (joined_range.first == ind->end()) {
+    if (joined_range.first == ind.end()) {
         return false;
     }
 
@@ -82,7 +82,7 @@ void shmap_relation::as_vector_buffer_recursive(vector_buffer *vb, std::vector<u
     {
         return;
     }
-    for (const auto &cur_path : (*this))
+    for (const auto &cur_path : ind)
     {
         u64 path[cur_path.size()];
         for (u32 i = 0; i < cur_path.size(); i++)
@@ -107,7 +107,7 @@ void shmap_relation::as_all_to_allv_acopy_buffer(
 {
     if (size() == 0)
         return;
-    for (const t_tuple &cur_path : (*this))
+    for (const t_tuple &cur_path : ind)
     {
         u64 reordered_cur_path[buffer.width[ra_id]];
         for (int j =0; j < buffer.width[ra_id]; j++)
@@ -144,7 +144,7 @@ void shmap_relation::as_all_to_allv_copy_buffer(
 {
     if (size() == 0)
         return;
-    for (const t_tuple &cur_path : (*this))
+    for (const t_tuple &cur_path : ind)
     {
         u64 reordered_cur_path[buffer.width[ra_id]];
         for (u32 j =0; j < reorder_map.size(); j++)
@@ -180,7 +180,7 @@ void shmap_relation::as_all_to_allv_copy_filter_buffer(
 {
     if (size() == 0)
         return;
-    for (const t_tuple &cur_path : (*this))
+    for (const t_tuple &cur_path : ind)
     {
         u64 reordered_cur_path[buffer.width[ra_id]];
         u64 cur_path_array[cur_path.size()];
@@ -221,7 +221,7 @@ void shmap_relation::as_all_to_allv_copy_generate_buffer(
 {
     if (size() == 0)
         return;
-    for (const t_tuple &cur_path : (*this))
+    for (const t_tuple &cur_path : ind)
     {
         int output_length = buffer.width[ra_id];
         if (buffer.width[ra_id] == 0) {
@@ -281,7 +281,7 @@ void shmap_relation::as_all_to_allv_right_join_buffer(
         lower_bound[i] = prefix[i];
     }
     auto joined_range = lowerUpperRange(lower_bound, upper_bound);
-    for(auto it = joined_range.first; it != joined_range.second && it != ind->end(); ++it)
+    for(auto it = joined_range.first; it != joined_range.second && it != ind.end(); ++it)
     {
         auto cur_path = *it;
         u64 projected_path[join_buffer.width[ra_id]];
@@ -349,7 +349,7 @@ void shmap_relation::as_all_to_allv_left_join_buffer(
         lower_bound[i] = prefix[i];
     }
     auto joined_range = lowerUpperRange(lower_bound, upper_bound);
-    for(auto it = joined_range.first; it != joined_range.second && it != ind->end(); ++it)
+    for(auto it = joined_range.first; it != joined_range.second && it != ind.end(); ++it)
     {
         auto cur_path = *it;
         u64 projected_path[join_buffer.width[ra_id]];
@@ -413,7 +413,7 @@ void shmap_relation::as_all_to_allv_right_outer_join_buffer(
         negated_target.insert_tuple_from_array(input0_buffer+k1, join_column_count);
     }
 
-    for (const t_tuple &cur_path : (*this))
+    for (const t_tuple &cur_path : ind)
     {
         t_tuple joined_cur_path(cur_path.begin(), cur_path.begin() + join_column_count);
         if (!negated_target.contains(joined_cur_path))

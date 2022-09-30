@@ -158,47 +158,46 @@ void parallel_join_aggregate::local_aggregate(
     agg_buffer.width[ra_counter] = real_join_count + 1;
 
     shmap_relation agg_target(target->get_arity()+1, false);
-    std::cout << "Target tuple: " << input0_buffer_size << std::endl;
     for (int k1 = *offset; k1 < input0_buffer_size; k1 = k1 + input0_buffer_width)
     {
-        std::cout << ">>>>>";
-        for (int i = 0; i < target->get_arity()+1; i++) {
-            std::cout << (input0_buffer+k1)[i] << " ";
-        }
-        std::cout << std::endl;
         agg_target.insert_tuple_from_array(input0_buffer+k1, target->get_arity()+1);
     }
 
     btree::btree_map<std::vector<u64>, u64, shmap_relation::t_comparator> res_map;
-    for (int bucket=0; bucket < buckets; bucket ++) {
-        std::vector<u64> data_v(target->get_join_column_count(), 0);
-        for (auto tuple: input->get_full()[bucket]) {
-            for (int j=0; j < input->get_join_column_count(); j++) {
-                data_v[j] = tuple[j];
-            }
+    // for (int bucket=0; bucket < buckets; bucket ++) {
+        // std::vector<u64> data_v(target->get_join_column_count(), 0);
+        for (auto tuple: input->get_full()[mcomm.get_rank()]) {
+            std::vector<u64> data_v(tuple.begin(), tuple.begin()+target->get_join_column_count());
+            // std::cout << "joined column ";
+            // for (int j=0; j < input->get_join_column_count(); j++) {
+            //     std::cout << tuple[j] << " ";
+            //     data_v[j] = tuple[j];
+            // }
+            // std::cout << std::endl;
 
             auto joined_range = agg_target.prefix_range(data_v);
             auto agg_data = local_func(joined_range, data_v, input->get_join_column_count());
             if (res_map.find(data_v) != res_map.end()) {
-                res_map[tuple] = global_func(res_map[tuple], agg_data);
+                res_map[data_v] = global_func(res_map[data_v], agg_data);
             } else {
-                res_map[tuple] = agg_data;
+                res_map[data_v] = agg_data;
             }
         }
-    }
+    // }
 
-    for (auto p: res_map) {
-        auto input_tuple = p.first;
-        auto agg_res = p.second;
+    for (auto input_tuple: input->get_full()[mcomm.get_rank()]) {
+        std::vector<u64> joined_input_tuple(input_tuple.begin(), input_tuple.begin()+input->get_join_column_count());
+        auto agg_res = res_map[joined_input_tuple];
         std::vector<u64> tuple(reorder_mapping.size(), 0);
         int reorder_agg_index = input->get_arity() + 1;
         for (int j = 0; j < reorder_mapping.size(); j++) {
             if (reorder_mapping[j] == reorder_agg_index) {
-                tuple[reorder_mapping[j]] = agg_res;
+                tuple[j] = agg_res;
             } else {
-                tuple[reorder_mapping[j]] = input_tuple[j];
+                tuple[j] = input_tuple[reorder_mapping[j]];
             }
         }
+
         uint64_t bucket_id = tuple_hash(tuple.data(), output->get_join_column_count()) % buckets;
         uint64_t sub_bucket_id = 0;
         if (input->get_is_canonical() == false && output->get_arity() != 0 && output->get_arity() >= real_join_count) {
@@ -216,4 +215,5 @@ void parallel_join_aggregate::local_aggregate(
         agg_buffer.local_compute_output[ra_counter][index].vector_buffer_append((const unsigned char*)tuple.data(), sizeof(u64)*agg_buffer.width[ra_counter]);
     }
     agg_target.remove_tuple();
+    res_map.clear();
 }

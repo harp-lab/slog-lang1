@@ -668,31 +668,12 @@
     (number? 1 (1) "builtin_number_huh")
     (not-number? 1 (1) "builtin_not_number_huh")))
 
-;; TODO remove later
-(define OLD-aggregators
-  `((~ 1 (1) "agg_not_1_local" "SpecialAggregator::none" "agg_not_reduce" "agg_not_global")
-    (~ 2 (1 2) "agg_not_2_local" "SpecialAggregator::none" "agg_not_reduce" "agg_not_global")
-    ,@(map (lambda (n)
-              `(count-by ,n ,(range 1 n) "agg_count_local" "SpecialAggregator::count" "agg_count_reduce" "agg_count_global")) 
-           (range 1 11))
-    ,@(map (lambda (n)
-              `(sum ,n ,(range 1 n) "agg_sum_local" "SpecialAggregator::sum" "agg_sum_reduce" "agg_sum_global")) 
-           (range 1 11))
-    ,@(map (lambda (n)
-              `(maximum ,n ,(range 1 n) "agg_maximum_local" "SpecialAggregator::maximum" "agg_maximum_reduce" "agg_maximum_global")) 
-           (range 1 11))
-    ,@(map (lambda (n)
-              `(minimum ,n ,(range 1 n) "agg_minimum_local" "SpecialAggregator::minimum" "agg_minimum_reduce" "agg_minimum_global")) 
-           (range 1 11))
-    ,@(map (lambda (n)
-              `(rec-sum ,n ,(range 1 n) "agg_recsum_local" "SpecialAggregator::recusive" "agg_recsum_reduce" "agg_recsum_global")) 
-           (range 1 11))
-    ))
-
 (define aggregators
   (hash
     'sum `("agg_sum_local" "SpecialAggregator::sum" "nullptr" "agg_sum_global")
-    'count `("agg_count_local" "SpecialAggregator::count" "agg_count_reduce" "agg_count_global")))
+    'count `("agg_count_local" "SpecialAggregator::count" "nullptr" "agg_count_global")
+    'maximum `("agg_maximum_local" "SpecialAggregator::maximum" "nullptr" "agg_maximum_global")
+    'minimum `("agg_minimum_local" "SpecialAggregator::minimum" "nullptr" "agg_minimum_global")))
 
 (define (cl-input-args cl)
     (match cl

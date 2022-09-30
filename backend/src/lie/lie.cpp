@@ -565,7 +565,7 @@ bool LIE::execute ()
 
         if (mcomm.get_rank() == 0)
         {
-            std::cout << "<<<<<<<<<<< SCC " << executable_task->get_id() << " finish, " << loop_counter << " iteration in total." << std::endl;
+            // std::cout << "<<<<<<<<<<< SCC " << executable_task->get_id() << " finish, " << loop_counter << " iteration in total." << std::endl;
             // print_all_relation_size();
         }
         full_iteration_count += loop_counter;

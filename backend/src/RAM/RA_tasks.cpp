@@ -169,7 +169,12 @@ u64 RAM::intra_bucket_comm_execute()
             parallel_join_aggregate* current_ra = (parallel_join_aggregate*) *it;
             relation* input_rel = current_ra->join_aggregate_input_table;
             relation* target_rel = current_ra->join_aggregate_target_table;
-            std::cout << "Target size : " << target_rel->get_full()[0].size() << std::endl;
+            // std::cout << "Target size : " << target_rel->get_full()[0].size() << std::endl;
+            // for (auto t: target_rel->get_full()[0]) {
+            //     std::cout << "Target full tuple ";
+            //     for (auto c: t) { std::cout << c << " "; }
+            //     std::cout << std::endl;
+            // }
 
             intra_bucket_comm(get_bucket_count(),
                               target_rel->get_full(),
