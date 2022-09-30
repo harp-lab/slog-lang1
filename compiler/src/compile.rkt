@@ -431,7 +431,7 @@
         auto head_tuple = output;
         [zero-arity-extra-result]
         bool compatible = [check-compatibility-code];
-        if (! compatible) return std::make_tuple(nullptr, output);
+        if (! compatible) return state;
 
         [head-tuple-populating-code]
         return std::make_tuple(data, output + [head-tuple-size]);
@@ -496,134 +496,6 @@
           (format "head_tuple[~a] = ~a;" i rhs)) 
       (range 0 (length hvars)))))
   ))
-
-(define (generate-cpp-lambdas-for-rule-with-aggregator-impl r available-indices local-cpp-func-name global-cpp-func-name)
-  ; (printf "(generate-cpp-lambda-for-rule-with-builtin-impl r indices cpp-func-name) args: ~a\n ~a ~a\n" (strip-prov r) indices cpp-func-name)
-  (match-define `(srule (,rel-sel ,hvars ...)
-                        (,rel-ver0 ,bvars0 ...)
-                        ((rel-version ,(? aggregator?) ,arity ,requested-indices ,agg-kind) ,bvars1 ...)) (strip-prov r))
-  
-  (define new-tuple-index-to-old-tuple-index-mapping (map-new-tuple-index-to-old-tuple-index arity requested-indices available-indices))
-  (set! available-indices (map sub1 available-indices))
-  (set! requested-indices (map sub1 requested-indices))
-  (define output-indices (filter (λ (i) (not (member i available-indices))) (range 0 arity)))
-  (define diff-indices (filter (λ (i) (not (member i available-indices))) requested-indices))
-
-  ; local-cpp-func-name
-  (define local-lambda
-  (string-replace-all 
-    "[](const shmap_relation& rel, const std::vector<u64>& data, int join_count) -> local_agg_res_t {
-      std::vector<u64> reordered_data {[populate-args-for-old-bi-code]};
-      std::vector<u64> upper_bound(rel.arity+1, std::numeric_limits<u64>::max());
-      std::vector<u64> lower_bound(rel.arity+1, std::numeric_limits<u64>::min());
-      for(size_t i = 0; i < join_count; i++) {
-        upper_bound[i] = reordered_data[i];
-        lower_bound[i] = reordered_data[i];
-      }
-      auto joined_range = rel.lowerUpperRange(lower_bound, upper_bound);
-      return [local-cpp-func-name](joined_range, reordered_data, join_count);
-    }"
-    "[local-cpp-func-name]" local-cpp-func-name
-    "[populate-args-for-old-bi-code]"
-    (intercalate ", "
-      (foldl (λ (i res)
-        (define arg-pos-in-bvars1 (index-of requested-indices (list-ref available-indices i)))
-        (if arg-pos-in-bvars1
-          (let ([arg (list-ref bvars1 arg-pos-in-bvars1)])
-            (append
-              res
-              (list (match arg
-                [(? string?) (format "s2d(\"~a\")" arg)]
-                [(? number?)  (format "n2d(~a)" arg)]
-                [else 
-                  (define arg-pos-in-bvars0 (index-of bvars0 arg))
-                  (format "data[~a]" arg-pos-in-bvars0)]))))
-          res))
-        (list)
-        (range 0 (length available-indices))))
-        ))
-  ; TODO maybe unify this with generate-cpp-lambda-for-rule-with-builtin-impl?
-  (define global-lambda
-  (string-replace-all 
-    "[](u64* data, local_agg_res_t agg_data, u64 agg_data_count, u64* const output) -> int{
-      auto args_for_old_bi = std::array<u64, [old-indices-size]> {[populate-args-for-old-bi-code]};
-      using TState = std::tuple<const u64*,u64*>;
-      TState state = std::make_tuple(data, output);
-      auto callback = []([callback-params] TState state) -> TState{
-        auto [data, output] = state;
-        auto head_tuple = output;
-        [zero-arity-extra-result]
-        bool compatible = [check-compatibility-code];
-        if (! compatible) return std::make_tuple(nullptr, output);
-
-        [head-tuple-populating-code]
-        return std::make_tuple(data, output + [head-tuple-size]);
-      };
-      auto [_,new_ptr] = [global-cpp-func-name]<TState>(args_for_old_bi.data(), agg_data, agg_data_count, state, callback);
-      auto tuples_count = [new-tuple-count];
-      return tuples_count;
-    }"
-    "[head-tuple-size]" (~a (length hvars))
-    "[zero-arity-extra-result]" (if (equal? (length hvars) 0) "head_tuple[0] = 0;" " ")
-    "[new-tuple-count]"
-    (if (equal? (length hvars) 0) 
-      "new_ptr[0]"
-      (format "(new_ptr - output) / ~a"  (length hvars)))
-    "[old-indices-size]" (~a (length available-indices))
-    "[global-cpp-func-name]" global-cpp-func-name
-    "[populate-args-for-old-bi-code]"
-    (intercalate ", "
-      (foldl (λ (i res)
-        (define arg-pos-in-bvars1 (index-of requested-indices (list-ref available-indices i)))
-        (if arg-pos-in-bvars1
-          (let ([arg (list-ref bvars1 arg-pos-in-bvars1)])
-            (append
-              res
-              (list (match arg
-                [(? string?) (format "s2d(\"~a\")" arg)]
-                [(? number?)  (format "n2d(~a)" arg)]
-                [else 
-                  (define arg-pos-in-bvars0 (index-of bvars0 arg))
-                  (format "data[~a]" arg-pos-in-bvars0)]))))
-          res))
-        (list)
-        (range 0 (length available-indices))))
-    "[callback-params]"
-    (intercalate "" (map (λ (i) (format "u64 res_~a, " i)) (range 0 (length output-indices))))
-    "[check-compatibility-code]"
-    (intercalate " && " 
-      (cons "true" (filter-map (λ (i) 
-                    (define output-index (list-ref output-indices i))
-                    (cond 
-                      [(member output-index diff-indices)
-                        (define arg (list-ref bvars1 (index-of requested-indices output-index)))
-                        (match arg
-                          [(? var?)
-                            (define index-in-input-tuple (index-of bvars0 arg))
-                            (format "res_~a == data[~a]" i index-in-input-tuple)]
-                          [(? lit?) (format "res_~a == ~a" i (lit->cpp-datum arg))])]
-                      [else #f])) 
-                  (range 0 (length output-indices)))))
-    "[head-tuple-populating-code]"
-    (if (equal? (length hvars) 0)
-      "head_tuple[0] = 1;"
-      (intercalate "\n" (map 
-        (λ (i)
-          (define rhs (match (list-ref hvars i)
-            [(? number? x) (format "number_to_datum(~a)" x)]
-            [(? string? str) (error (format "string literals in cpp compiler not supported yet!")) ] ;TODO
-            [(? symbol? var) #:when (member var bvars0)
-              (format "data[~a]" (index-of bvars0 var))]
-            [(? symbol? var) #:when (member var bvars1)
-              (define bi-arg-pos (index-of bvars1 var))
-              (define bi-arg-index (list-ref (extend-indices (map add1 requested-indices) arity) bi-arg-pos))
-              (define index-in-res (index-of output-indices (sub1 bi-arg-index)))
-              (format "res_~a" index-in-res)]
-            [bad-arg (error (format "bad rule: ~a\nbad arg: ~a" (strip-prov r) bad-arg))]))
-          (format "head_tuple[~a] = ~a;" i rhs)) 
-      (range 0 (length hvars)))))
-  ))
-  (cons local-lambda global-lambda))
 
 (define (extend-indices indices arity) (append indices (filter (λ (i) (not (member i indices))) (range 0 (add1 arity)))))
 
@@ -831,9 +703,7 @@
               (match-define `(,name ,arity ,indices ,rest ...) bi-spec)
               (and (equal? rel-name name)
                    (equal? rel-arity arity)
-                  ;  (< (length indices) (length rel-indices))
-                   #;(subset? (list->set indices) (list->set rel-indices)))
-                   ) 
+                   (subset? (list->set indices) (list->set rel-indices)))) 
             specs))
   (when (empty? matching-specs)
         (error (format "no suitable implementation exists for ~a ~a" (if (comp-rel-kind? kind) "builtin" "aggregator") (->rel-select bi))))
