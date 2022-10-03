@@ -1,0 +1,8 @@
+; testing negative and floating
+
+(foo -1)
+[(bar {+ 2 x}) <-- (foo x)]
+
+[(bar-res-check-1 "pass") <-- (bar 1)]
+[(bar-res-check-2 "pass") <-- (bar 0)]
+[(bar-res-check-3 "pass") <-- (bar -1)]
