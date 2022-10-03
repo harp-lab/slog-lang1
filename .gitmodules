@@ -1,3 +1,6 @@
 [submodule "examples/examples/datalog-examples"]
 	path = examples/examples/datalog-examples
 	url = git@github.com:harp-lab/rosetta-slog.git
+[submodule "examples/datalog-example"]
+	path = examples/datalog-example
+	url = git@github.com:harp-lab/rosetta-slog.git
