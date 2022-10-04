@@ -199,9 +199,11 @@ template<typename TState> inline TState builtin_nop(const u64* data, TState init
 
 // //////////////////// AGGREGATORS Alternative design ////////////////////
 
+
+// TODO: add number type check
 //////////////////////////////  count /////////////////////////////////////
 
-local_agg_res_t agg_count_local(std::pair<shmap_relation::iterator, shmap_relation::iterator> joined_range, std::vector<u64>& data, int join_count)
+local_agg_res_t agg_count_local(std::pair<shmap_relation::iterator, shmap_relation::iterator> joined_range)
 {
   local_agg_res_t cnt = 0;
   for(auto it = joined_range.first; it != joined_range.second ; ++it) {
@@ -210,13 +212,13 @@ local_agg_res_t agg_count_local(std::pair<shmap_relation::iterator, shmap_relati
   return cnt;
 }
 
-local_agg_res_t agg_count_global (local_agg_res_t x, local_agg_res_t y) {
+local_agg_res_t agg_count_reduce (local_agg_res_t x, local_agg_res_t y) {
   return x + y;
 }
 
 //////////////////////////////  sum /////////////////////////////////////
 
-local_agg_res_t agg_sum_local(std::pair<shmap_relation::iterator, shmap_relation::iterator> joined_range, std::vector<u64>& data, int join_count)
+local_agg_res_t agg_sum_local(std::pair<shmap_relation::iterator, shmap_relation::iterator> joined_range)
 {
   local_agg_res_t sum_res = 0;
   for(auto it = joined_range.first; it != joined_range.second ; ++it) {
@@ -226,13 +228,13 @@ local_agg_res_t agg_sum_local(std::pair<shmap_relation::iterator, shmap_relation
   return sum_res;
 }
 
-local_agg_res_t agg_sum_global(local_agg_res_t x, local_agg_res_t y) {
+local_agg_res_t agg_sum_reduce(local_agg_res_t x, local_agg_res_t y) {
   return x + y;
 }
 
 //////////////////////////////  maximum  /////////////////////////////////////
 
-local_agg_res_t agg_maximum_local(std::pair<shmap_relation::iterator, shmap_relation::iterator> joined_range, std::vector<u64>& data, int join_count)
+local_agg_res_t agg_maximum_local(std::pair<shmap_relation::iterator, shmap_relation::iterator> joined_range)
 {
   local_agg_res_t max_res = 0;
   for(auto it = joined_range.first; it != joined_range.second ; ++it) {
@@ -245,7 +247,7 @@ local_agg_res_t agg_maximum_local(std::pair<shmap_relation::iterator, shmap_rela
   return max_res;
 }
 
-local_agg_res_t agg_maximum_global (local_agg_res_t x, local_agg_res_t y) {
+local_agg_res_t agg_maximum_reduce(local_agg_res_t x, local_agg_res_t y) {
   if (x > y){
     return x;
   } else{
@@ -255,7 +257,7 @@ local_agg_res_t agg_maximum_global (local_agg_res_t x, local_agg_res_t y) {
 
 //////////////////////////////  minimum  /////////////////////////////////////
 
-local_agg_res_t agg_minimum_local(std::pair<shmap_relation::iterator, shmap_relation::iterator> joined_range, std::vector<u64>& data, int join_count)
+local_agg_res_t agg_minimum_local(std::pair<shmap_relation::iterator, shmap_relation::iterator> joined_range)
 {
   local_agg_res_t min_res = std::numeric_limits<u32>::max();
   for(auto it = joined_range.first; it != joined_range.second ; ++it) {
@@ -268,7 +270,7 @@ local_agg_res_t agg_minimum_local(std::pair<shmap_relation::iterator, shmap_rela
   return min_res;
 }
 
-local_agg_res_t agg_minimum_global (local_agg_res_t x, local_agg_res_t y) {
+local_agg_res_t agg_minimum_reduce(local_agg_res_t x, local_agg_res_t y) {
   if (x < y){
     return x;
   } else{

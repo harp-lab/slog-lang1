@@ -542,10 +542,10 @@
 
 (define aggregators
   (hash
-    'sum `("agg_sum_local" "SpecialAggregator::sum" "nullptr" "agg_sum_global")
-    'count `("agg_count_local" "SpecialAggregator::count" "nullptr" "agg_count_global")
-    'maximum `("agg_maximum_local" "SpecialAggregator::maximum" "nullptr" "agg_maximum_global")
-    'minimum `("agg_minimum_local" "SpecialAggregator::minimum" "nullptr" "agg_minimum_global")))
+    'sum `("agg_sum_local" "SpecialAggregator::sum" "agg_sum_reduce" "nullptr")
+    'count `("agg_count_local" "SpecialAggregator::count" "agg_count_reduce" "nullptr")
+    'maximum `("agg_maximum_local" "SpecialAggregator::maximum" "agg_maximum_reduce" "nullptr")
+    'minimum `("agg_minimum_local" "SpecialAggregator::minimum" "agg_minimum_reduce" "nullptr" )))
 
 (define (cl-input-args cl)
     (match cl

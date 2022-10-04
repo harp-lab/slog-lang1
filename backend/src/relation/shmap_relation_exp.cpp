@@ -392,6 +392,7 @@ void shmap_relation::as_all_to_allv_left_join_buffer(
 }
 
 void shmap_relation::as_all_to_allv_right_outer_join_buffer(
+    shmap_relation* target_relation,
     u64 *input0_buffer, int input0_buffer_size, int input0_buffer_width,
     int *offset,
     all_to_allv_buffer &join_buffer,

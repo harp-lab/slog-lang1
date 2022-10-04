@@ -36,13 +36,13 @@ enum class SpecialAggregator {
   recusive
 };
 
+// TODO: remove unused argument
+//       rename global to reduce
 using local_agg_res_t = u64;
 // typedef local_agg_res_t *local_agg_func_t (shmap_relation& agg_rel, std::vector<u64>& data);
-using local_agg_func_t = std::function<local_agg_res_t(
-  std::pair<shmap_relation::iterator, shmap_relation::iterator> joined_range,
-  std::vector<u64>& data, int join_count)>;
+using local_agg_func_t = std::function<local_agg_res_t(std::pair<shmap_relation::iterator, shmap_relation::iterator> joined_range)>;
 using reduce_agg_func_t = std::function<local_agg_res_t(local_agg_res_t, local_agg_res_t)>;
-using global_agg_func_t = std::function<u64(u64 a, u64 b)>;
+using global_agg_func_t = std::function<u64(local_agg_res_t a, local_agg_res_t b)>;
 // typedef local_agg_res_t *reduce_agg_func_t (local_agg_res_t x, local_agg_res_t y);
 // typedef int *global_agg_func_t (std::vector<u64>& data, local_agg_res_t agg_data, int agg_data_count, std::vector<u64>& output); 
 

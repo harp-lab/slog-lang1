@@ -163,30 +163,25 @@ u64 RAM::intra_bucket_comm_execute()
         }
 
         else if ((*it)->get_RA_type() == AGGREGATION) {
-            // counter++;
-            // continue;
-            // parallel_copy_aggregate* current_ra = (parallel_copy_aggregate*) *it;
             parallel_join_aggregate* current_ra = (parallel_join_aggregate*) *it;
             relation* input_rel = current_ra->join_aggregate_input_table;
             relation* target_rel = current_ra->join_aggregate_target_table;
-            // std::cout << "Target size : " << target_rel->get_full()[0].size() << std::endl;
-            // for (auto t: target_rel->get_full()[0]) {
-            //     std::cout << "Target full tuple ";
-            //     for (auto c: t) { std::cout << c << " "; }
-            //     std::cout << std::endl;
-            // }
-
-            intra_bucket_comm(get_bucket_count(),
-                              target_rel->get_full(),
-                              target_rel->get_distinct_sub_bucket_rank_count(),
-                              target_rel->get_distinct_sub_bucket_rank(),
-                              target_rel->get_bucket_map(),
-                              input_rel->get_distinct_sub_bucket_rank_count(),
-                              input_rel->get_distinct_sub_bucket_rank(),
-                              input_rel->get_bucket_map(),
-                              &intra_bucket_buf_output_size[counter],
-                              &intra_bucket_buf_output[counter],
-                              mcomm.get_local_comm());
+            if (*(target_rel->get_sub_bucket_per_bucket_count()) == 1) {
+                counter++;
+                continue;
+            } else {
+                intra_bucket_comm(get_bucket_count(),
+                                target_rel->get_full(),
+                                target_rel->get_distinct_sub_bucket_rank_count(),
+                                target_rel->get_distinct_sub_bucket_rank(),
+                                target_rel->get_bucket_map(),
+                                input_rel->get_distinct_sub_bucket_rank_count(),
+                                input_rel->get_distinct_sub_bucket_rank(),
+                                input_rel->get_bucket_map(),
+                                &intra_bucket_buf_output_size[counter],
+                                &intra_bucket_buf_output[counter],
+                                mcomm.get_local_comm());
+            }
         }
 
         /// No intra-bucket comm required for acopy
@@ -684,9 +679,20 @@ bool RAM::local_compute(int* offset)
         for (std::vector<parallel_RA*>::iterator it = RA_list.begin() ; it != RA_list.end(); ++it)
         {
             parallel_RA* current_ra = *it;
-            if (current_ra->get_RA_type() == JOIN || current_ra->get_RA_type() == NEGATION)
+            if (current_ra->get_RA_type() == JOIN)
             {
                 delete[] intra_bucket_buf_output[counter];
+            }
+            if (current_ra->get_RA_type() == NEGATION)
+            {
+                // parallel_join_negate* _ra = (parallel_join_negate*)current_ra;
+                delete[] intra_bucket_buf_output[counter];
+            }
+            if (current_ra->get_RA_type() == AGGREGATION) {
+                parallel_join_aggregate* _ra = (parallel_join_aggregate*)current_ra;
+                if (*(_ra->join_aggregate_target_table->get_sub_bucket_per_bucket_count()) != 1) {
+                    delete[] intra_bucket_buf_output[counter];
+                }
             }
 
             offset[counter] = 0;
@@ -760,7 +766,6 @@ void RAM::local_insert_in_newt_comm_compaction(std::map<u64, u64>& intern_map)
             output = RA_list[ra_id]->get_negation_output();
         else if (RA_list[ra_id]->get_RA_type() == AGGREGATION)
             output = ((parallel_join_aggregate*)RA_list[ra_id])->join_aggregate_output_table;
-            // output = ((parallel_copy_aggregate*)RA_list[ra_id])->copy_aggregate_output_table;
         else if (RA_list[ra_id]->get_RA_type() == JOIN)
             output = RA_list[ra_id]->get_join_output();
         else if (RA_list[ra_id]->get_RA_type() == COPY_GENERATE)
