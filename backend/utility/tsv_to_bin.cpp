@@ -2,7 +2,10 @@
 // Subsequently by Kris Micinski
 // Convert Souffle CSV (tab-separated value) files to Slog input tuple files
 // compile with >= c++14
+#include <cmath>
 #include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -37,6 +40,8 @@
 #define BUCKET_MASK 0x00003FFFF0000000
 #define BUCKET_MASK_LENGTH 18
 #define TAG_MASK 0xFFFFC00000000000
+#define SIGN_FILP_CONST 0x0000200000000000
+#define SIGNED_NUM_MASK 0xFFFFE00000000000
 
 using namespace std;
 
@@ -233,16 +238,40 @@ void file_to_slog(char *input_file, char *output_file,
 			{
 				break;
 			}
-			try
-			{
-				// TODO: support float later
-				// FIXME: detect empty space here!
-				u64 u64_v = stoi(col);
-				tuple_buffer[col_count] = TUPLE_MASK & u64_v;
-				// cout << "number at " << col_count << " : " << u64_v << endl;
+			bool convert_success_flag = false;
+			if (!convert_success_flag) {
+				// integer
+				try {
+					// FIXME: detect empty space here!
+					long long int_v = stoll(col);
+					if (int_v < 0) {
+						int_v = SIGN_FILP_CONST - int_v;
+					}
+					tuple_buffer[col_count] = (~ TAG_MASK) & ((u64)int_v);
+					// cout << col << " number at " << col_count << " : " <<int_v << " " << tuple_buffer[col_count] << endl;
+					convert_success_flag = true;
+				} catch (...) {}
 			}
-			catch (...)
-			{
+			if (!convert_success_flag) {
+				// float
+				try {
+					float float_v = stof(col);
+					float float_v_abs = abs(float_v);
+					u64 u64_v = 0;
+					memcpy(&u64_v, &float_v_abs, sizeof(float_v_abs));
+					u64 encoded_v = FLOAT_TAG;
+					if (float_v < 0) {
+						encoded_v = (encoded_v << 1) + 1;
+					} else {
+						encoded_v <<= 1;
+					}
+					encoded_v <<= TUPLE_MASK_LENGTH + BUCKET_MASK_LENGTH - 1;
+					encoded_v |= u64_v & (~ SIGNED_NUM_MASK);
+					tuple_buffer[col_count] = encoded_v;
+				} catch (...) {}
+			}
+			// string is last case
+			if (!convert_success_flag) {
 				// if not number all goes to string
 				u64 u64_v = STRING_TAG;
 				u64_v <<= TUPLE_MASK_LENGTH + BUCKET_MASK_LENGTH;

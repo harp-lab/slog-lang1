@@ -50,6 +50,8 @@ TAG_MASK = 0xFFFFC00000000000
 BUCKET_MASK = 0x00003FFFF0000000
 TUPLE_ID_MASK = 0xFFFFFFFFF0000000
 VAL_MASK = ~ TAG_MASK
+SIGN_FILP_CONST = 0x0000200000000000
+SIGNED_NUM_MASK = 0xFFFFE00000000000
 
 INT_TAG = 0
 STRING_TAG = 2
@@ -115,6 +117,8 @@ def bin_to_tsv(filename, arity, output, index, meta_folder):
                 val_tag = raw_val >> 46
                 if val_tag == INT_TAG:
                     attr_val = raw_val & VAL_MASK
+                    if attr_val >= SIGN_FILP_CONST:
+                        attr_val = -(attr_val - SIGN_FILP_CONST)
                 elif val_tag == STRING_TAG:
                     attr_val = string_dict[raw_val & VAL_MASK]
                 # elif val_tag == SYMBOL_TAG:

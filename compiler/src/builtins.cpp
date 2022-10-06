@@ -20,6 +20,8 @@ const u64 tag_mask = 0xffffc00000000000;
 const u64 tag_position = 46;
 const u64 int_tag = 0;
 const u64 str_tag = 2;
+const u64 sign_flip_const = 0x0000200000000000;
+const u64 signed_num_mask = 0xFFFFE00000000000;
 
 inline bool is_number(u64 datum) {
   // cout << "is_number(" << datum << "): " << (datum >> tag_position == int_tag) << "\n";
@@ -27,13 +29,24 @@ inline bool is_number(u64 datum) {
 }
 
 inline i64 datum_to_number(u64 datum) {
-  return (i64) (datum & ~tag_mask) << (64 - tag_position) >> (64 - tag_position);
+  i64 signed_val = (datum & ~tag_mask) << (64 - tag_position) >> (64 - tag_position);
+  if (signed_val >= sign_flip_const) {
+    signed_val = sign_flip_const - signed_val;
+  }
+  return signed_val;
+  // return (i64) (datum & ~tag_mask) << (64 - tag_position) >> (64 - tag_position);
 }
 const auto d2n = datum_to_number;
 
 inline u64 number_to_datum(i64 number) {
-  return (number & ~tag_mask) | (int_tag << tag_position);
+  i64 unsigned_value = number;
+  if (number < 0) {
+    unsigned_value = (- number) + sign_flip_const;
+  }
+  return (unsigned_value & ~tag_mask) | (int_tag << tag_position);
+  // return (number & ~tag_mask) | (int_tag << tag_position);
 }
+
 const auto n2d = number_to_datum;
 
 inline u64 string_to_datum(std::string str)

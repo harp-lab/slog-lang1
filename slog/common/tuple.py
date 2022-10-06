@@ -9,6 +9,8 @@ TAG_MASK =      0xFFFFC00000000000
 BUCKET_MASK =   0x00003FFFF0000000
 TUPLE_ID_MASK = 0xFFFFFFFFF0000000
 U32_MASK =      0x00000000FFFFFFFF
+SIGN_FILP_CONST = 0x0000200000000000
+SIGNED_NUM_MASK = 0xFFFFE00000000000
 VAL_MASK = ~ TAG_MASK
 INT_TAG = 0
 STRING_TAG = 2
@@ -67,8 +69,8 @@ class SlogTupleParaser:
             val_tag = u64 >> 46
             if val_tag == INT_TAG:
                 attr_val = (u64 & VAL_MASK)
-                if attr_val > 2 ** 31:
-                    attr_val = attr_val - 2 ** 32
+                if attr_val >= SIGN_FILP_CONST:
+                    attr_val = SIGN_FILP_CONST - attr_val
             elif val_tag == STRING_TAG:
                 attr_val = intern_string_dict[u64 & U32_MASK]
             else:
