@@ -255,7 +255,7 @@ class SlogClient:
         req.hashes.extend(program_hashes)
         response = self._stub.CompileHashes(req)
         if response.promise_id == MAXSIZE:
-            writer.write("Already compiled!")
+            # writer.write("Already compiled!")
             return self.cur_db
         # Wait to resolve the promise in the terminal...
         # Break when promise is resolved
