@@ -657,8 +657,11 @@ void relation::initialize_relation(mpi_comm& mcomm, std::map<u64, u64>& intern_m
 
     for (int i = 0 ; i < buckets; i++) {
         delta[i].arity = arity;
+        delta[i].dependant_column_index = dependant_column_index;
         full[i].arity = arity;
+        full[i].dependant_column_index = dependant_column_index;
         newt[i].arity = arity;
+        newt[i].dependant_column_index = dependant_column_index;
     }
 #endif
 
@@ -1334,6 +1337,7 @@ void relation::local_insert_in_delta()
 
     for (int i = 0; i < buckets; i++) {
         newt[i].arity = arity;
+        newt[i].dependant_column_index = dependant_column_index;
     }
 #endif
 

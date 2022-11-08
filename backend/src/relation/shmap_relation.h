@@ -11,6 +11,7 @@
 #include "../btree/btree_set.h"
 #include <cstdint>
 #include <utility>
+#include <optional>
 
 struct shmap_relation {
 
@@ -18,31 +19,37 @@ struct shmap_relation {
 
     int data_structure_type;
 
-    int id_flag;    // does this btree contain id column?
+    std::optional<int> dependant_column_index;     // some column may have functional dependance its support for lattice like language feature
 
     using t_tuple = std::vector<u64>;
     struct t_comparator {
         // 0-arity compare will fail
-        t_comparator() : _id_flag(true) {}
-
-        t_comparator(bool id_flag) : _id_flag(id_flag) {} 
+        t_comparator() : _id_flag(true) { dependant_column_index = std::nullopt; }
+        t_comparator(std::optional<int> dt): dependant_column_index(dt) {}
         
         bool operator()(const t_tuple &a, const t_tuple &b) const {
             // make it an unroll loop when change to array
             int size = a.size();
-            // if (_id_flag) {
-            //     size--;
-            // }
-            for (int i=0; i < size; i++)
-            {
-                if (a[i] < b[i])
-                    return true;
-                if (a[i] > b[i])
-                    return false;
+            if (dependant_column_index.has_value()) {
+                for (int i=0; i < size; i++) {
+                    if (i == dependant_column_index.value()) { continue; }
+                    if (a[i] < b[i])
+                        return true;
+                    if (a[i] > b[i])
+                        return false;
+                }
+            } else {
+                for (int i=0; i < size; i++) {
+                    if (a[i] < b[i])
+                        return true;
+                    if (a[i] > b[i])
+                        return false;
+                }
             }
             return false;
         }
         bool _id_flag;
+        std::optional<int> dependant_column_index; 
     };
 
     // souffle use multi set for some relation
@@ -67,7 +74,7 @@ struct shmap_relation {
 
     bool empty() const { return ind.empty(); }
 
-    // I keep this weird  name from souffle, actually join helper fucntion
+    // I keep this weird  name from souffle, actually join helper function
     // in souffle its index selection function, in slog we don't need select
     // so only one version of this function
     std::pair<iterator, iterator> lowerUpperRange(const t_tuple &lower, const t_tuple &upper) const
@@ -83,7 +90,7 @@ struct shmap_relation {
         auto lower_v = *lower_it;
         auto upper_v = *upper_it;
         int valid = 0;
-        for (int i = 0; i < lower_v.size(); i++) {
+        for (long unsigned i = 0; i < lower_v.size(); i++) {
             if (lower_v[i] > upper_v[i]) {
                 valid = -1;
                 break;
@@ -115,7 +122,8 @@ struct shmap_relation {
 
     shmap_relation(int arity, bool id_flag);
     shmap_relation() {
-        id_flag = true;
+        // id_flag = true;
+        dependant_column_index = std::nullopt;
         // ind = new t_ind(t_comparator(id_flag));
         // int rank;
         // MPI_Comm_rank(MPI_COMM_WORLD, &rank);

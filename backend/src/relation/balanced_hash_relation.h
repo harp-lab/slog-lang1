@@ -79,7 +79,7 @@ private:
     bool restart_flag;
     //bool fact_load=false;
     //std::vector<u64> init_val;
-
+    std::optional<int> dependant_column_index = std::nullopt; 
 
 public:
 
@@ -133,6 +133,8 @@ public:
     //void set_fact_load() {fact_load = true;}
 
     //void set_init_val(std::vector<u64> temp_init_val)   {init_val = temp_init_val;}
+
+    void set_dependant_column(int idx) { dependant_column_index = idx; }
 
     /// used for load balancing
     void set_last_rank(int lr)   {last_rank = lr;}

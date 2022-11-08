@@ -1,8 +1,8 @@
 /**
  * @file btree_relation.cpp
  * @author Yihao Sun (ysun67@syr.edu)
- * @brief the implmentation of slog relation using souffle's btree,
- *        reload all fucntion in original shmap, just to keep other part code working...
+ * @brief the implementation of slog relation using souffle's btree,
+ *        reload all function in original shmap, just to keep other part code working...
  * @version 0.1
  * @date 2021-12-15
  * 
@@ -21,7 +21,6 @@ shmap_relation::shmap_relation(int arity, bool id_flag)
 {
     this->arity = arity;
     // ind = new t_ind(t_comparator(id_flag));
-    this->id_flag = id_flag;
 }
 
 bool shmap_relation::insert_tuple_from_array(u64 *t, int width)
@@ -401,7 +400,7 @@ void shmap_relation::as_all_to_allv_right_outer_join_buffer(
     u32 **output_sub_bucket_rank,
     std::vector<int> &reorder_map,
     int join_column_count,
-    int out_airty,
+    int out_arity,
     int head_rel_hash_col_count,
     bool canonical)
 {
@@ -425,8 +424,8 @@ void shmap_relation::as_all_to_allv_right_outer_join_buffer(
 
             uint64_t bucket_id = tuple_hash(reordered_cur_path, head_rel_hash_col_count) % buckets;
             uint64_t sub_bucket_id=0;
-            if (canonical == false && out_airty != 0 && out_airty >= head_rel_hash_col_count)
-                sub_bucket_id = tuple_hash(reordered_cur_path + head_rel_hash_col_count, out_airty-head_rel_hash_col_count) % output_sub_bucket_count[bucket_id];
+            if (canonical == false && out_arity != 0 && out_arity >= head_rel_hash_col_count)
+                sub_bucket_id = tuple_hash(reordered_cur_path + head_rel_hash_col_count, out_arity-head_rel_hash_col_count) % output_sub_bucket_count[bucket_id];
 
             int index = output_sub_bucket_rank[bucket_id][sub_bucket_id];
             join_buffer.local_compute_output_size_rel[ra_id] = join_buffer.local_compute_output_size_rel[ra_id] + join_buffer.width[ra_id];
