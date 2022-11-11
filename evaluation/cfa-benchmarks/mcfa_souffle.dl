@@ -1,0 +1,123 @@
+
+// Include the program's facts
+//#include "program.dl"
+
+// Types
+.type Exp = Ref {x: symbol} 
+          | App {ef: Exp, ea: Exp} 
+          | Lam {x: symbol, e: Exp} 
+
+.type Env = EmptyEnv {}
+          | UpdateEnv {x: symbol, a: Addr, env: Env}
+
+.type Addr = Address {x: symbol, c: Contour}
+.type Contour = [last: Exp, rest: Contour]
+.type Kont = ArK {exp: Exp, env: Env, call: Exp, c: Contour, k: Kont}
+           | FnK {v: Value, call: Exp, c: Contour, k: Kont} 
+           | KAddr {exp: Exp, env: Env}
+	   | Halt {}
+.type Value = Clo {lam: Exp, env: Env}
+
+
+// Inputs
+
+.input program
+.decl program(id: number, pid: number)
+.input syn_app
+.decl syn_app(id: number, ef: number, ea: number)
+.input syn_ref
+.decl syn_ref(id: number, x: symbol)
+.input syn_lam
+.decl syn_lam(id: number, x: symbol, eb: number)
+           
+           
+// Construct AST for the input program
+
+.decl ast(id: number, ast: Exp)
+ast(id, $App(ef_obj, ea_obj)) :- syn_app(id, ef_id, ea_id), ast(ef_id, ef_obj), ast(ea_id, ea_obj).
+ast(id, $Ref(x)) :- syn_ref(id, x).
+ast(id, $Lam(x, eb_obj)) :- syn_lam(id, x, eb_id), ast(eb_id, eb_obj).
+
+.decl program_ast(ast: Exp)
+
+program_ast(id_obj)
+  :- program(_, id), ast(id, id_obj).
+
+
+// Program Injection
+
+.decl program_ret(v: Value)
+
+.decl eval(exp: Exp, env: Env, k: Kont, c: Contour)
+.decl ret(v: Value, k: Kont)
+.decl apply(call: Exp, vf: Value, va: Value, k: Kont, c: Contour)
+
+eval(ast, $EmptyEnv(), $Halt(), [ast, [ast, [ast, nil]]])
+  :- program_ast(ast).
+
+// Eval States
+
+ret(v, k)
+  :- eval($Ref(x), env, k, _),
+     env_map(x, env, a),
+     store(a, v).
+ret($Clo($Lam(x,body), env), k)
+  :- eval($Lam(x,body), env, k, _). 
+eval(ef, env, $ArK(ea, env, $App(ef, ea), c, k), c)
+  :- eval($App(ef, ea), env, k, c).
+
+// Ret States
+
+eval(ea, env, $FnK(vf, call, c, k), c)
+  :- ret(vf, $ArK(ea, env, call, c, k)).
+apply(call, vf, va, k, c)
+  :- ret(va, $FnK(vf, call, c, k)).
+ret(v, k)
+  :- ret(v, $KAddr(e, env)),
+     kont_map($KAddr(e, env), k).
+program_ret(v)
+  :- ret(v, $Halt()).
+
+// Apply States
+
+.decl kont_map(ka: Kont, k: Kont)
+
+/*  // ugh, for some reason Souffle does not allow new variables in the head...
+eval(body, env1, ka, c),
+kont_map(ka, k),
+store(a, va),
+env_update(env, env1),
+ka = $KAddr(body, env1),
+env1 = $UpdateEnv(x, a, env),
+a = $Address(x, c),
+c = [call, [hist0, [hist1, nil]]]
+  :- apply(call, $Clo($Lam(x, body), env), va, k, [hist0, [hist1, _]]).
+*/
+
+eval(body, $UpdateEnv(x, $Address(x, [call, [hist0, [hist1, nil]]]), env), $KAddr(body, $UpdateEnv(x, $Address(x, [call, [hist0, [hist1, nil]]]), env)), [call, [hist0, [hist1, nil]]]),
+kont_map($KAddr(body, $UpdateEnv(x, $Address(x, [call, [hist0, [hist1, nil]]]), env)), k),
+store($Address(x, [call, [hist0, [hist1, nil]]]), va),
+env_update(env, $UpdateEnv(x, $Address(x, [call, [hist0, [hist1, nil]]]), env))
+  :- apply(call, $Clo($Lam(x, body), env), va, k, [hist0, [hist1, _]]).
+
+// Environment & Store Updates      
+
+.decl env_map(x: symbol, env: Env, a: Addr)
+.decl store(a: Addr, v: Value)
+.decl env_update(env: Env, env1: Env)
+
+env_map(x, env1, a)
+  :- env_update(env, env1),
+     env1 = $UpdateEnv(x, a, env).
+env_map(x, env1, a)
+  :- env_update(env, env1),
+     env_map(x, env, a).
+
+
+// Outputs
+
+.output eval
+.output ret
+.output apply
+.output program_ret
+

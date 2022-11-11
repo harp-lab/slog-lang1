@@ -39,7 +39,7 @@ def prep(n,p,expt_id):
     run("mkdir results/{}".format(expt_id))
     run("racket prog-encoder.rkt dvh-{}-{}.scm".format(n,p))
     run("mv syntax-edb results/{}".format(expt_id))
-    run("mv dvh-{}-{}.scm popl-expts/{}".format(n,p,expt_id))
+    run("mv dvh-{}-{}.scm results/{}".format(n,p,expt_id))
 
 # Slog run/analyze
 
@@ -77,11 +77,11 @@ def run_slog(mork,n,m,procs,exptid):
     print("(RUN Expt -- Slog {} {} {} {} {})".format(mork,n,m,procs,exptid))
     file = ""
     if mork == "m":
-        file = "popl22-slog/code/mcfa-{}.slog".format(m)
+        file = "evaluation/cfa-benchmarks/mcfa-{}.slog".format(m)
     else:
-        file = "popl22-slog/code/kcfa-{}.slog".format(m)
-    run("cd ../..; ./runslog -ov -v -j {} -f popl22-slog/code/popl-expts/{}/syntax-edb  -cb {} {} >{}.log; mv {}.log popl22-slog/code/popl-expts/{}".format(procs,exptid,file,exptid,exptid,exptid,exptid))
-    analyze_slog("popl-expts/{}/{}.log".format(exptid,exptid),mork,n,m,procs)
+        file = "evaluation/cfa-benchmarks/kcfa-{}.slog".format(m)
+    run("cd ../..; ./runslog -ov -v -j {} -f evaluation/cfa-benchmarks/results/{}/syntax-edb  -cb {} {} >{}.log; mv {}.log evaluation/cfa-benchmarks/results/{}".format(procs,exptid,file,exptid,exptid,exptid,exptid))
+    analyze_slog("results/{}/{}.log".format(exptid,exptid),mork,n,m,procs)
 
 # Souffle run / analyze
 
@@ -119,7 +119,7 @@ def run_souffle(mork,n,m,procs,exptid):
         file = "mcfa-{}.dl".format(m)
     else:
         file = "kcfa-{}.dl".format(m)
-    run("souffle -j {} -c -F popl-expts/{}/syntax-edb -o souffle-bin-{} {} 2>{}-souffle-compile.log".format(procs,exptid,exptid,file,exptid))
+    run("souffle -j {} -c -F results/{}/syntax-edb -o souffle-bin-{} {} 2>{}-souffle-compile.log".format(procs,exptid,exptid,file,exptid))
     run("/usr/bin/time -v ./souffle-bin-{} -j {} 2>{}-souffle.log".format(exptid,procs,exptid))
     analyze_souffle("{}-souffle.log".format(exptid),mork,n,m,procs)
 
@@ -161,26 +161,4 @@ elif (len(sys.argv) == 2 and sys.argv[1] == "runall"):
     # Repeat n times
     n = 1
     for i in range(1,n+1):
-        #combos(["k"],[8,9,10],[3,4],[3, 6, 12, 24, 48, 96],["both"])
-        #combos(["k"],[10],[3],[3,6,12,24,48,96],["slog"])
-        #combos(["k"],[10],[3],[45],["slog"])
-        #combos(["m"],[50],[5],[3,6,12,24,48,96],["souffle"])
-        # Good?
-        #combos(["m"],[200],[10],[3,6,12,24,48,96],["slog"])
-        # combos(["m"],[400],[15],[24,48,96,3,6,12],["slog"]) segfault
-        #combos(["m"],[425],[10],[24],["slog"]) ok 
-        #combos(["m"],[450],[10],[24],["slog"]) ok
-        # combos(["m"],[500],[10],[24],["slog"])
-        # combos(["m"],[700],[10],[24],["slog"])
-        #combos(["m"],[800],[10],[24,48,96,3,6,12],["slog"])
-        
-        # combos(["m"],[1200],[10],[24,48],["slog"])
-        #combos(["m"],[500],[10],[96,3,6,12],["slog"])
-
-        combos(["m"],[390,395,400,410,420,430,440,450],[12],[24,48],["slog"])
-
-        #combos(["k"],[10],[3],[50],["slog"])
-        #combos(["k"],[10],[3],[47],["slog"])
-        #combos(["k"],[10],[3],[49],["slog"])
-        #combos(["k"],[6,7,8],[3,4],[3, 6, 12, 24, 48, 96],["both"])
-        #combos(["k"],[10,11,12,13],[3],[3, 6, 12, 24, 48, 96],["slog"])
+        combos(["m"],[100,200],[5],[2,4,8,16,32,64],["slog"])

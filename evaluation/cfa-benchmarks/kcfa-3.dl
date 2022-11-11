@@ -1,0 +1,149 @@
+
+// Include the program's facts
+//#include "program.dl"
+
+// Types
+.type Exp = Ref {x: symbol} 
+          | App {ef: Exp, ea: Exp} 
+          | Lam {x: symbol, e: Exp} 
+
+.type Env = EmptyEnv {}
+          | UpdateEnv {x: symbol, a: Addr, env: Env}
+
+.type Addr = Address {x: symbol, c: Contour}
+           | SynLamAddress {exp: Exp, c: Env}
+	   | SynCallAddress {call: Exp, c: Env, k: Kont}
+.type Contour = Contour {i0 : Exp, i1 : Exp, i2 : Exp}
+.type Kont = ArK {exp: Exp, env: Env, call: Exp, c: Contour, k: Kont}
+           | FnK {a: Addr, syn_a: Addr, c: Contour, k: Kont} 
+           | KAddr {exp: Exp, env: Env}
+	   | Halt {}
+.type Value = Clo {lam: Exp, env: Env}
+
+
+// Inputs
+
+.input program
+.decl program(id: number, pid: number)
+.input syn_app
+.decl syn_app(id: number, ef: number, ea: number)
+.input syn_ref
+.decl syn_ref(id: number, x: symbol)
+.input syn_lam
+.decl syn_lam(id: number, x: symbol, eb: number)
+           
+           
+// Construct AST for the input program
+
+.decl ast(id: number, ast: Exp)
+ast(id, $App(ef_obj, ea_obj)) :- syn_app(id, ef_id, ea_id), ast(ef_id, ef_obj), ast(ea_id, ea_obj).
+ast(id, $Ref(x)) :- syn_ref(id, x).
+ast(id, $Lam(x, eb_obj)) :- syn_lam(id, x, eb_id), ast(eb_id, eb_obj).
+
+.decl program_ast(ast: Exp)
+
+program_ast(id_obj)
+  :- program(_, id), ast(id, id_obj).
+
+
+// Program Injection
+
+.decl program_ret(v: Value)
+.decl cf_pts(x:number)
+.decl sto_sz(x:number)
+
+.decl eval(exp: Exp, env: Env, k: Kont, c: Contour)
+.decl ret(a: Addr, k: Kont)
+.decl apply(call: Exp, vf: Value, av: Addr, k: Kont, c: Contour)
+
+eval(ast, $EmptyEnv(), $Halt(), $Contour(ast,ast,ast))
+  :- program_ast(ast).
+
+// Eval States
+
+ret(a, k)
+  :- eval($Ref(x), env, k, _),
+     env_map(x, env, a).
+ret($SynLamAddress($Lam(x,body), env), k),
+store($SynLamAddress($Lam(x,body), env), $Clo($Lam(x,body), env))
+  :- eval($Lam(x,body), env, k, _). 
+eval(ef, env, $ArK(ea, env, $App(ef, ea), c, k), c)
+  :- eval($App(ef, ea), env, k, c).
+
+// Ret States
+
+eval(ea, env, $FnK(af, $SynCallAddress(call,env,k), c, k), c),
+apply(call, clo_f, $SynCallAddress(call,env,k), k, c)
+  :- ret(af, $ArK(ea, env, call, c, k)),
+     store(af, clo_f).
+store_flow(av, syn_a)
+  :- ret(av, $FnK(af, syn_a, c, k)).
+ret(av, k)
+  :- ret(av, $KAddr(e, env)),
+     kont_map($KAddr(e, env), k).
+program_ret(v)
+  :- ret(av, $Halt()),
+     store(av, v).
+
+// Apply States
+
+.decl kont_map(ka: Kont, k: Kont)
+
+/*  // ugh, for some reason Souffle does not allow new variables in the head...
+eval(body, env1, ka, c),
+kont_map(ka, k),
+store_flow(syn_a, a),
+env_update(env, env1),
+ka = $KAddr(body, env1),
+env1 = $UpdateEnv(x, a, env),
+a = $Address(x, c),
+c = $Contour(call,hist0,hist1)
+  :- apply(call, $Clo($Lam(x, body), env), syn_a, k, [hist0, [hist1, _]]).
+*/
+
+eval(body, $UpdateEnv(x, $Address(x, $Contour(call,hist0,hist1)), env), $KAddr(body, $UpdateEnv(x, $Address(x, $Contour(call,hist0,hist1)), env)), $Contour(call,hist0,hist1)),
+kont_map($KAddr(body, $UpdateEnv(x, $Address(x, $Contour(call,hist0,hist1)), env)), k),
+store_flow(syn_a, $Address(x, $Contour(call,hist0,hist1))),
+env_update(env, $UpdateEnv(x, $Address(x, $Contour(call,hist0,hist1)), env))
+  :- apply(call, $Clo($Lam(x, body), env), syn_a, k, $Contour(hist0,hist1,_)).
+
+// Environment & Store Updates      
+
+.decl env_map(x: symbol, env: Env, a: Addr)
+.decl store(a: Addr, v: Value)
+.decl env_update(env: Env, env1: Env)
+
+env_map(x, env1, a)
+  :- env_update(env, env1),
+     env1 = $UpdateEnv(x, a, env).
+env_map(x, env1, a)
+  :- env_update(env, env1),
+     env_map(x, env, a).
+
+// Store flows
+
+.decl store_flow(from_a: Addr, to_a: Addr)
+.decl store_source_flows(a0: Addr, a1: Addr)
+
+store(a1,v)
+  :- store_source_flows(a0, a1),
+     store(a0, v).
+
+store_source_flows(a, a1)
+  :- store_flow(a0, a1),
+     store_source_flows(a, a0).
+
+store_source_flows($SynLamAddress(lam, env), $SynLamAddress(lam, env))
+  :- ret($SynLamAddress(lam, env), _).
+
+// Outputs
+sto_sz(x) :- x = count : {store(_,_)}.
+cf_pts(e+r+a) :- e = count : {eval(_,_,_,_)}, r = count : {ret(_,_)}, a = count : {apply(_,_,_,_,_)}.
+
+.output cf_pts 
+.output sto_sz
+//.output eval
+//.output ret
+//.output apply
+.output program_ret
+
