@@ -528,9 +528,9 @@ void relation::load_data_from_separate_files()
 	double read_data_end = MPI_Wtime();
 	double read_data_time = read_data_end - read_data_start;
 
-	if (initailization_type == DELTA)
+	if (initialization_type == DELTA)
 		 populate_delta(file_io.get_hash_buffer_size(), file_io.get_hash_buffer());
-	else if (initailization_type == FULL)
+	else if (initialization_type == FULL)
 		populate_full(file_io.get_hash_buffer_size(), file_io.get_hash_buffer());
 
 	file_io.delete_hash_buffers();
@@ -539,7 +539,7 @@ void relation::load_data_from_separate_files()
     MPI_Reduce(&read_data_time, &max_read_data_time, 1, MPI_DOUBLE, MPI_MAX, 0, mcomm.get_local_comm());
 
     std::string read_io = (share_io == true)? "MPI IO": "POSIX IO";
-    std::string type = (initailization_type == DELTA)? "DELTA": "FULL";
+    std::string type = (initialization_type == DELTA)? "DELTA": "FULL";
 
     if (mcomm.get_rank() == 0 && restart_flag == true)
     	std::cout << "Read " << get_debug_id() << " (" << read_io << ") :\n  " << type << " [RD], " <<
@@ -554,9 +554,9 @@ void relation::load_data_from_file_with_offset()
 	double read_data_end = MPI_Wtime();
 	double read_data_time = read_data_end - read_data_start;
 
-	if (initailization_type == DELTA)
+	if (initialization_type == DELTA)
 		 populate_delta(file_io.get_hash_buffer_size(), file_io.get_hash_buffer());
-	else if (initailization_type == FULL)
+	else if (initialization_type == FULL)
 		populate_full(file_io.get_hash_buffer_size(), file_io.get_hash_buffer());
 
 	file_io.delete_hash_buffers();
@@ -565,7 +565,7 @@ void relation::load_data_from_file_with_offset()
     MPI_Reduce(&read_data_time, &max_read_data_time, 1, MPI_DOUBLE, MPI_MAX, 0, mcomm.get_local_comm());
 
     std::string read_io = (share_io == true)? "MPI IO": "POSIX IO";
-    std::string type = (initailization_type == DELTA)? "DELTA": "FULL";
+    std::string type = (initialization_type == DELTA)? "DELTA": "FULL";
 
     if (mcomm.get_rank() == 0 && restart_flag == true)
     	std::cout << "Read " << get_debug_id() << " (" << read_io << ") :\n  " << type << " [RD], " <<
@@ -584,7 +584,7 @@ void relation::load_data_from_file()
     //         //   << "c++ object " << this
     //           << "start normal IO" << std::endl;
     /// reading from file
-    if (initailization_type != -1)
+    if (initialization_type != -1)
     {
         /// Main : Execute : init : io : end
     	double read_data_start = MPI_Wtime();
@@ -601,10 +601,10 @@ void relation::load_data_from_file()
         file_io.delete_raw_buffers();
 
         /* Copy data from buffer to relation */
-        if (initailization_type == DELTA)
+        if (initialization_type == DELTA)
             populate_delta(file_io.get_hash_buffer_size(), file_io.get_hash_buffer());
 
-        else if (initailization_type == FULL)
+        else if (initialization_type == FULL)
             populate_full(file_io.get_hash_buffer_size(), file_io.get_hash_buffer());
 
         file_io.delete_hash_buffers();
@@ -615,7 +615,7 @@ void relation::load_data_from_file()
         MPI_Reduce(&all_to_all_time, &max_all_to_all_time, 1, MPI_DOUBLE, MPI_MAX, 0, mcomm.get_local_comm());
 
         std::string read_io = (share_io == true)? "MPI IO": "POSIX IO";
-        std::string type = (initailization_type == DELTA)? "DELTA": "FULL";
+        std::string type = (initialization_type == DELTA)? "DELTA": "FULL";
 
         if (mcomm.get_rank() == 0 && restart_flag == true)
         	std::cout << "Read " << get_debug_id() << " (" << read_io << ") :\n " << type << " [RD] [AC], " <<
@@ -655,13 +655,16 @@ void relation::initialize_relation(mpi_comm& mcomm, std::map<u64, u64>& intern_m
     full = new shmap_relation[buckets];
     newt = new shmap_relation[buckets];
 
-    for (int i = 0 ; i < buckets; i++) {
+    for (u32 i = 0 ; i < buckets; i++) {
         delta[i].arity = arity;
-        delta[i].dependant_column_index = dependant_column_index;
+        delta[i].dependent_column_indices = dependent_column_indices;
+        delta[i].update_compare_func = update_compare_func;
         full[i].arity = arity;
-        full[i].dependant_column_index = dependant_column_index;
+        full[i].dependent_column_indices = dependent_column_indices;
+        full[i].update_compare_func = update_compare_func;
         newt[i].arity = arity;
-        newt[i].dependant_column_index = dependant_column_index;
+        newt[i].dependent_column_indices = dependent_column_indices;
+        newt[i].update_compare_func = update_compare_func;
     }
 #endif
 
@@ -777,6 +780,7 @@ void relation::populate_full(int buffer_size, u64* buffer)
     u32 counter = 0;
     u64 t[arity+1];
     u32 buckets = get_bucket_count();
+    std::cout << "populating full for " << intern_tag << std::endl;
 
     for (int i = 0; i < buffer_size; i = i + (arity+1))
     {
@@ -800,6 +804,7 @@ void relation::populate_delta (int buffer_size, u64* buffer)
 {
     u64 t[arity+1];
     u32 buckets = get_bucket_count();
+    std::cout << "populating delta for " << intern_tag << std::endl;
 
     for (int i = 0; i < buffer_size; i = i + (arity+1))
     {
@@ -908,7 +913,7 @@ void relation::finalize_relation()
     full_element_count = 0;
     delta_element_count = 0;
 
-    initailization_type = -1;
+    initialization_type = -1;
 
     delete[] distinct_sub_bucket_rank_count;
     for (u64 b = 0; b < buckets; b++)
@@ -1064,7 +1069,7 @@ void relation::copy_relation(relation*& recv_rel, mpi_comm output_comm, int targ
 
 
     finalize_relation();
-    recv_rel->set_initailization_type(-1);
+    recv_rel->set_initialization_type(-1);
     //recv_rel->initialize_relation(output_comm);
 
 
@@ -1128,6 +1133,7 @@ bool relation::insert_in_delta(u64* t)
     if (is_canonical == false   && arity != 0 && arity >= join_column_count)
         sub_bucket_id = tuple_hash(t + join_column_count, arity-join_column_count) % sub_bucket_per_bucket_count[bucket_id];
 
+    // std::cout << "inserting delta for " << intern_tag << std::endl;
     //assert((int)bucket_id == mcomm.get_local_rank());
     if (delta[bucket_id].insert_tuple_from_array(t, arity+1) == true)
     {
@@ -1150,6 +1156,7 @@ bool relation::insert_in_newt(u64* t)
     if (is_canonical == false && arity != 0 && arity >= join_column_count)
         sub_bucket_id = tuple_hash(t + join_column_count, arity-join_column_count) % sub_bucket_per_bucket_count[bucket_id];
 
+    // std::cout << "inserting newt for " << intern_tag << std::endl;
     //assert((int)bucket_id == mcomm.get_local_rank());
     if (newt[bucket_id].insert_tuple_from_array(t, arity+1) == true)
     {
@@ -1184,7 +1191,9 @@ bool relation::insert_in_full(u64* t)
         std::cout << std::endl;
     }
 #endif
+    // std::cout << "inserting full for " << intern_tag << std::endl;
 
+    // TODO: use normal insert here!
     if (full[bucket_id].insert_tuple_from_array(t, arity+1) == true)
     {
         full_element_count++;
@@ -1274,75 +1283,49 @@ int relation::insert_full_in_delta()
     return insert_success;
 }
 
-
-
 void relation::local_insert_in_delta()
 {
     int rank;
     MPI_Comm_rank(mcomm.get_comm(), &rank);
     u32 buckets = get_bucket_count();
 
-    delete[] delta;
-
-
-    delta = newt;
-
-
-    /*
-    u32 i = mcomm.get_rank();
-    vector_buffer *vb_newt = new vector_buffer[buckets];
-    vb_newt[i].vector_buffer_create_empty();
-    std::vector<u64> prefix = {};
-    newt[i].as_vector_buffer_recursive(&(vb_newt[i]), prefix);
-
-    if (i == 0)
-        std::cout << "XX [" << get_debug_id() << "] Test " << mcomm.get_rank() << " DELTA " << vb_newt[i].size/(sizeof(u64) * (arity + 1)) << " arity " << arity + 1 << std::endl;
-
-    vb_newt[i].vector_buffer_free();
-
-    delete[] vb_newt;
-
-
-
-    //u32 i = mcomm.get_rank();
-    vector_buffer *vb_delta = new vector_buffer[buckets];
-    vb_delta[i].vector_buffer_create_empty();
-    //std::vector<u64> prefix = {};
-    delta[i].as_vector_buffer_recursive(&(vb_delta[i]), prefix);
-
-    if (i == 0)
-        std::cout << "YY [" << get_debug_id() << "] Test " << mcomm.get_rank() << " DELTA " << vb_delta[i].size/(sizeof(u64) * (arity + 1)) << " arity " << arity + 1 << std::endl;
-
-    vb_delta[i].vector_buffer_free();
-
-    delete[] vb_delta;
-    */
-
-
-    delta_element_count = newt_element_count;
-    //if (rank == 0)
-    //    std::cout << "[" << get_debug_id() << "] copyng newt pointer to delta   " << delta_element_count << std::endl;
-
-    memcpy(delta_bucket_element_count, newt_bucket_element_count, buckets * sizeof(u32));
-    for (u32 b = 0; b < buckets; b++)
-    {
-        memcpy(delta_sub_bucket_element_count[b], newt_sub_bucket_element_count[b], sub_bucket_per_bucket_count[b] * sizeof(u32));
-        memset(newt_sub_bucket_element_count[b], 0, sub_bucket_per_bucket_count[b] * sizeof(u32));
+    if (dependent_column_indices.size() > 0) {
+        delta_element_count = 0;
+        for (u32 i = 0; i < buckets; i++) {
+            delta[i].purge();
+            memset(delta_sub_bucket_element_count[i], 0, sub_bucket_per_bucket_count[i] * sizeof(u32));
+            for (auto& t: newt[i]) {
+                if (full[i].check_dependent_insertion(t)) {
+                    delta[i].insert(t);
+                    uint64_t bucket_id = tuple_hash(t.data(), join_column_count) % get_bucket_count();
+                    u32 sub_bucket_id = 0;
+                    if (is_canonical == false   && arity != 0 && arity >= join_column_count)
+                        sub_bucket_id = tuple_hash(t.data() + join_column_count, arity-join_column_count) % sub_bucket_per_bucket_count[bucket_id];
+                    delta_sub_bucket_element_count[bucket_id][sub_bucket_id]++;
+                    delta_element_count++;
+                }
+            }
+            newt[i].purge();
+            memset(newt_sub_bucket_element_count[i], 0, sub_bucket_per_bucket_count[i] * sizeof(u32));
+        }
+    } else {
+        delete[] delta;
+        delta = newt;
+        delta_element_count = newt_element_count;
+        memcpy(delta_bucket_element_count, newt_bucket_element_count, buckets * sizeof(u32));
+        for (u32 b = 0; b < buckets; b++)
+        {
+            memcpy(delta_sub_bucket_element_count[b], newt_sub_bucket_element_count[b], sub_bucket_per_bucket_count[b] * sizeof(u32));
+            memset(newt_sub_bucket_element_count[b], 0, sub_bucket_per_bucket_count[b] * sizeof(u32));
+        }
+        newt = new shmap_relation[buckets];
+        for (u32 i = 0; i < buckets; i++) {
+            newt[i].arity = arity;
+            newt[i].dependent_column_indices = dependent_column_indices;
+            newt[i].update_compare_func = update_compare_func;
+        }
     }
 
-#ifdef GOOGLE_MAP
-    newt = new google_relation[buckets];
-#else
-    newt = new shmap_relation[buckets];
-
-    for (int i = 0; i < buckets; i++) {
-        newt[i].arity = arity;
-        newt[i].dependant_column_index = dependant_column_index;
-    }
-#endif
-
-    //for(u32 i=0; i<buckets; i++)
-    //    newt[i] = new google_relation();
     newt_element_count = 0;
     memset(newt_bucket_element_count, 0, buckets * sizeof(u32));
 }

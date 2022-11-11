@@ -6,7 +6,9 @@
 
 
 #pragma once
+#include "../parallel_RA_inc.h"
 #include "../ds.h"
+#include <vector>
 
 class parallel_join: public parallel_RA {
 
@@ -22,6 +24,11 @@ private:
 
     std::vector<int> projection_reorder_index_array;
     int projection_reorder_index_array_length;
+
+    // a function used to generate new tuple based on join input, target tuple (optional)
+    // if this is provided, it will make join works similar to `copy_generate`
+    join_generator_func_t generator_func;
+    bool generator_mode = false;
 
 public:
     parallel_join()
@@ -64,6 +71,7 @@ public:
     int get_join_input1_graph_type()    {return join_input1_graph_type;}
     relation* get_join_output() {return join_output_table;}
     void get_join_projection_index(std::vector<int>* projection_reorder_index_array)    {*projection_reorder_index_array = this->projection_reorder_index_array; }
+    void set_generator_func(join_generator_func_t func) { generator_func = func; generator_mode = true; }
 
 #ifdef GOOGLE_MAP
     bool local_join(int threshold, int* offset,
@@ -75,7 +83,7 @@ public:
                     relation* output,
                     all_to_allv_buffer& join_buffer,
                     int counter,
-                    int join_colun_count,
+                    int join_column_count,
                     u32* local_join_duplicates,
                     u32* local_join_inserts);
 #else
@@ -88,7 +96,7 @@ public:
                     relation* output,
                     all_to_allv_buffer& join_buffer,
                     int counter,
-                    int join_colun_count,
+                    int join_column_count,
                     u32* local_join_duplicates,
                     u32* local_join_inserts);
 

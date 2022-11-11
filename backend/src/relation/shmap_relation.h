@@ -11,7 +11,6 @@
 #include "../btree/btree_set.h"
 #include <cstdint>
 #include <utility>
-#include <optional>
 
 struct shmap_relation {
 
@@ -19,37 +18,28 @@ struct shmap_relation {
 
     int data_structure_type;
 
-    std::optional<int> dependant_column_index;     // some column may have functional dependance its support for lattice like language feature
+    // some column may have functional dependance its support for lattice like language feature
+    // please always consider id column as a functional dependent column
+    std::vector<int> dependent_column_indices;     
+    update_partial_compare_func_t update_compare_func;
 
     using t_tuple = std::vector<u64>;
     struct t_comparator {
         // 0-arity compare will fail
-        t_comparator() : _id_flag(true) { dependant_column_index = std::nullopt; }
-        t_comparator(std::optional<int> dt): dependant_column_index(dt) {}
+        t_comparator() {}
         
         bool operator()(const t_tuple &a, const t_tuple &b) const {
             // make it an unroll loop when change to array
             int size = a.size();
-            if (dependant_column_index.has_value()) {
-                for (int i=0; i < size; i++) {
-                    if (i == dependant_column_index.value()) { continue; }
-                    if (a[i] < b[i])
-                        return true;
-                    if (a[i] > b[i])
-                        return false;
-                }
-            } else {
                 for (int i=0; i < size; i++) {
                     if (a[i] < b[i])
                         return true;
                     if (a[i] > b[i])
                         return false;
                 }
-            }
+
             return false;
         }
-        bool _id_flag;
-        std::optional<int> dependant_column_index; 
     };
 
     // souffle use multi set for some relation
@@ -123,7 +113,7 @@ struct shmap_relation {
     shmap_relation(int arity, bool id_flag);
     shmap_relation() {
         // id_flag = true;
-        dependant_column_index = std::nullopt;
+        // dependent_column_indices = std::nullopt;
         // ind = new t_ind(t_comparator(id_flag));
         // int rank;
         // MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -134,8 +124,11 @@ struct shmap_relation {
     bool insert_tuple_from_array(u64* t, int arity);
     void remove_tuple();
     bool find_tuple_from_array(u64* t, int arity);
+    bool check_dependent_insertion(const std::vector<u64> &v);
 
     void as_vector_buffer_recursive(vector_buffer* vb, std::vector<u64> prefix);
+
+    // TODO: move all these logic to RA operation!
 
     void as_all_to_allv_copy_buffer(all_to_allv_buffer& buffer, std::vector<u64> prefix, std::vector<int> reorder_map, int ra_id, u32 buckets, u32* output_sub_bucket_count, u32** output_sub_bucket_rank, u32 arity, u32 join_column_count, int head_rel_hash_col_count, bool canonical);
     
@@ -150,7 +143,8 @@ struct shmap_relation {
         int join_column_count, shmap_relation& deduplicate,
         int* local_join_count, u32* local_join_duplicates,
         u32* local_join_inserts,
-        int head_rel_hash_col_count, bool canonical);
+        int head_rel_hash_col_count, bool canonical,
+        bool generator_mode, join_generator_func_t gen_func);
 
     void as_all_to_allv_left_join_buffer(
         std::vector<u64> prefix, all_to_allv_buffer& join_buffer,
@@ -161,7 +155,8 @@ struct shmap_relation {
         int join_column_count, shmap_relation& deduplicate,
         int* local_join_count, u32* local_join_duplicates,
         u32* local_join_inserts, int head_rel_hash_col_count,
-        bool canonical);
+        bool canonical,
+        bool generator_mode, join_generator_func_t gen_func);
     
     void as_all_to_allv_right_outer_join_buffer(
         shmap_relation* target_relation,
@@ -171,7 +166,7 @@ struct shmap_relation {
         int ra_id,
         u32 buckets, u32* output_sub_bucket_count,
         u32** output_sub_bucket_rank, std::vector<int>& reorder_map,
-        int join_column_count, int out_airty,
+        int join_column_count, int out_arity,
         int head_rel_hash_col_count, bool canonical);
 
     void as_all_to_allv_copy_generate_buffer(all_to_allv_buffer& buffer, std::vector<u64> prefix, int ra_id, u32 buckets, u32* output_sub_bucket_count, u32** output_sub_bucket_rank, u32 arity, u32 join_column_count, int(*lambda)(const u64* const, u64* const), int head_rel_hash_col_count, bool canonical);

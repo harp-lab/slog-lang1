@@ -1003,15 +1003,10 @@ void RAM::local_insert_in_newt(std::map<u64, u64>& intern_map)
 void RAM::local_insert_in_full()
 {
     for (u32 i=0; i < ram_relation_count; i++)
-        //for (std::map<relation*, bool>::iterator it = ram_relations.begin() ; it != ram_relations.end(); ++it)
     {
-        //relation* current_r = it->first;
         relation* current_r = ram_relations[i];
         current_r->insert_delta_in_full();
         current_r->local_insert_in_delta();
-
-        //if (current_r->get_debug_id() == 11)
-        //    current_r->print();
     }
     return;
 }

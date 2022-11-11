@@ -79,7 +79,7 @@ public:
     local_agg_func_t local_func;
     reduce_agg_func_t reduce_func;
     global_agg_func_t global_func;
-    std::vector<u64> reorder_mapping;
+    std::vector<int> reorder_mapping;
 
     parallel_join_aggregate(relation* output, relation* target_rel, relation* input,
                             int t_type, local_agg_func_t local_agg_func, 

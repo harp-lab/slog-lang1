@@ -1,0 +1,3 @@
+
+[(spath from to dist) <-- (edge from to dist)]
+[(spath from to l) <-- (spath from mid dist) (edge mid to l)]

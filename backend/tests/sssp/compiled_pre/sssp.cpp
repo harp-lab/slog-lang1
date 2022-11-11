@@ -4,6 +4,7 @@
 #include <iostream>
 #include <iterator>
 #include <map>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <unordered_set>
@@ -401,24 +402,116 @@ int main(int argc, char **argv) {
       slog_input_dir + "/" +
           std::to_string(get_tag_for_rel("edge", "1__2__3")) + ".edge.3.table",
       FULL);
+  relation* rel__edge__3__1 = new relation(
+    1, false, 3, get_tag_for_rel("edge","1"),
+    std::to_string(get_tag_for_rel("edge","1")) + ".edge.3.table",
+    FULL);
+
+  // the dependent column must be exclude from hash computation, so join column count is 3 - 1 = 2
   relation *rel__spath__3__1__2__3 = new relation(
-      3, true, 3, get_tag_for_rel("spath", "1__2__3"),
+      2, true, 3, get_tag_for_rel("spath", "1__2__3"),
       std::to_string(get_tag_for_rel("spath", "1__2__3")) + ".spath.3.table",
       slog_input_dir + "/" +
           std::to_string(get_tag_for_rel("spath", "1__2__3")) +
           ".spath.3.table",
       FULL);
+  // set functional dependency for spath
+  rel__spath__3__1__2__3->set_dependent_column_update(
+    {2, 3},   // len and id column
+    [](std::vector<u64> old_v, std::vector<u64> new_v) -> std::optional<bool> {
+      // if (new_v[0] < old_v[0]) {
+      // std::cout << "Comparing  >>>> ";
+      // for (auto v: old_v) {
+      //   std::cout << v << " ";
+      // }
+      // std::cout << " with ";
+      // for (auto v: new_v) {
+      //   std::cout << v << " ";
+      // }
+      // std::cout << std::endl;
+      // }
+      return new_v[0] < old_v[0]; 
+    }
+  );
+  relation* rel__spath__3__2 = new relation(
+    1, false, 3, get_tag_for_rel("spath","2"),
+    std::to_string(get_tag_for_rel("spath","2")) + ".spath.3.table",
+    FULL);
+  rel__spath__3__2->set_dependent_column_update(
+    {2, 3},
+    [](std::vector<u64> old_v, std::vector<u64> new_v) -> std::optional<bool> {
+      // if (new_v[0] < old_v[0]) {
+      // std::cout << "Comparing  >>>> ";
+      // for (auto v: old_v) {
+      //   std::cout << v << " ";
+      // }
+      // std::cout << " with ";
+      // for (auto v: new_v) {
+      //   std::cout << v << " ";
+      // }
+      // std::cout << std::endl;
+      // }
+      return new_v[0] < old_v[0];
+    }
+  );
 
-  RAM *scc0 = new RAM(false, 0);
-  scc0->add_relation(rel__edge__3__1__2__3, false, false);
-  scc0->add_relation(rel__spath__3__1__2__3, true, false);
-  scc0->add_rule(new parallel_copy(rel__spath__3__1__2__3,
+  RAM* scc0 = new RAM(false, 0);
+  scc0->add_relation(rel__edge__3__1, true, false);
+  scc0->add_relation(rel__edge__3__1__2__3, true, false);
+  scc0->add_rule(new parallel_acopy(rel__edge__3__1, rel__edge__3__1__2__3, DELTA, {0, 3, 1, 2}));
+
+  RAM *scc1 = new RAM(false, 0);
+  scc1->add_relation(rel__edge__3__1__2__3, false, false);
+  scc1->add_relation(rel__spath__3__1__2__3, true, false);
+  scc1->add_rule(new parallel_copy(rel__spath__3__1__2__3,
                                    rel__edge__3__1__2__3, FULL, {0, 1, 2}));
 
+  RAM *scc2 = new RAM(true, 1);
+  scc2->add_relation(rel__edge__3__1__2__3, false, false);
+  scc2->add_relation(rel__spath__3__2, true, false);
+  scc2->add_relation(rel__spath__3__1__2__3, true, false);
+  //  the order of non join column also need to be carefully arranged because, dependent column
+  //  should always at last
+  scc2->add_rule(new parallel_acopy(
+    rel__spath__3__2,
+    rel__spath__3__1__2__3, DELTA,
+    {1, 0, 2, 3})); // 2, 1, 3, id
+  parallel_join* update_spath_j = new parallel_join(
+    rel__spath__3__1__2__3,
+    rel__edge__3__1, FULL,
+    rel__spath__3__2, DELTA,
+    {5, 2, 3}// useless
+  );
+  update_spath_j->set_generator_func([](std::vector<u64>& target_v, std::vector<u64>& input_v, u64* res) {
+    // std::cout << "Join  >>>> ";
+    // for (auto v: target_v) {
+    //   std::cout << v << " ";
+    // }
+    // std::cout << " with ";
+    // for (auto v: input_v) {
+    //   std::cout << v << " ";
+    // }
+    // std::cout << std::endl;
+    res[0] = target_v[1];
+    res[1] = input_v[2];
+    if (res[0] == res[1]) {
+      res[2] = 0;      
+    } else {
+      res[2] = target_v[2] + input_v[3];
+    }
+  });
+  scc2->add_rule(update_spath_j);
+
   LIE *lie = new LIE();
+  lie->add_relation(rel__edge__3__1);
   lie->add_relation(rel__edge__3__1__2__3);
+  lie->add_relation(rel__spath__3__2);
   lie->add_relation(rel__spath__3__1__2__3);
   lie->add_scc(scc0);
+  lie->add_scc(scc1);
+  lie->add_scc(scc2);
+  lie->add_scc_dependance(scc0, scc2);
+  lie->add_scc_dependance(scc1, scc2);
 
   // Enable IO
   lie->enable_all_to_all_dump();

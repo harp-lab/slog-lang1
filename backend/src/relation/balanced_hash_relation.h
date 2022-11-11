@@ -8,13 +8,20 @@
 #pragma once
 
 #include "../ds.h"
+#include "../parallel_RA_inc.h"
 #include <algorithm>
+#include <functional>
+#include <optional>
 #include <string>
+#include <vector>
 
 enum {LEFT=0, RIGHT};
 enum {DELTA=0, FULL, FULL_AND_DELTA};
-enum {COPY=0, COPY_FILTER, COPY_GENERATE, ACOPY, JOIN, FACT, NEGATION, AGGREGATION};
+enum {COPY=0, COPY_FILTER, COPY_GENERATE, ACOPY, JOIN, FACT, NEGATION, AGGREGATION, UPDATE};
 enum {STATIC=0, DYNAMIC};
+
+// this is update function for column has functional dependence
+// the size of vector arguments must have exactly same size as dependent_column_indices
 
 class relation
 {
@@ -27,7 +34,7 @@ private:
     u32 intern_tag;                             /// id of relation (to be used for interning)
 
     std::string debug_id;
-    int initailization_type = -1;               /// used when task balancing is required
+    int initialization_type = -1;               /// used when task balancing is required
     std::string filename = NULL;                /// Name of file to open
 
 
@@ -79,7 +86,8 @@ private:
     bool restart_flag;
     //bool fact_load=false;
     //std::vector<u64> init_val;
-    std::optional<int> dependant_column_index = std::nullopt; 
+    std::vector<int> dependent_column_indices;
+    update_partial_compare_func_t update_compare_func;
 
 public:
 
@@ -92,7 +100,7 @@ public:
     /// "/var/tmp/g13236/path_2_1_2": location of data file that gets loaded in the relation
     /// FULL: load in FULL (other option is to loadin DELTA, but we alwys load in FULL)
     relation (u32 jcc, bool is_c, u32 ar, u32 tg, std::string fname, int version)
-        :join_column_count(jcc), is_canonical(is_c), arity(ar), intern_tag(tg), initailization_type(version), filename(fname)
+        :join_column_count(jcc), is_canonical(is_c), arity(ar), intern_tag(tg), initialization_type(version), filename(fname)
     {
         //fact_load = false;
         full_element_count=0;
@@ -100,7 +108,7 @@ public:
     }
 
     relation (u32 jcc, bool is_c, u32 ar, u32 tg, std::string did, std::string fname, int version)
-        :join_column_count(jcc), is_canonical(is_c), arity(ar), intern_tag(tg), debug_id(did), initailization_type(version), filename(fname)
+        :join_column_count(jcc), is_canonical(is_c), arity(ar), intern_tag(tg), debug_id(did), initialization_type(version), filename(fname)
     {
         //fact_load = false;
         full_element_count=0;
@@ -108,7 +116,7 @@ public:
     }
 
     relation (u32 jcc, bool is_c, u32 ar, u32 tg, int version)
-        :join_column_count(jcc), is_canonical(is_c), arity(ar), intern_tag(tg), initailization_type(version), filename("")
+        :join_column_count(jcc), is_canonical(is_c), arity(ar), intern_tag(tg), initialization_type(version), filename("")
     {
         //fact_load = false;
         full_element_count=0;
@@ -134,14 +142,27 @@ public:
 
     //void set_init_val(std::vector<u64> temp_init_val)   {init_val = temp_init_val;}
 
-    void set_dependant_column(int idx) { dependant_column_index = idx; }
+    void set_dependent_column_update(std::vector<int> idx, update_partial_compare_func_t f) {
+        dependent_column_indices = idx;
+        update_compare_func= f;
+        // for (int i = 0; i < get_bucket_count(); i++) {
+        //     delta[i].dependent_column_indices = dependent_column_indices;
+        //     delta[i].update_compare_func = update_compare_func;
+        //     full[i].dependent_column_indices = dependent_column_indices;
+        //     full[i].update_compare_func = update_compare_func;
+        //     newt[i].dependent_column_indices = dependent_column_indices;
+        //     newt[i].update_compare_func = update_compare_func;
+        // }
+    }
+    std::vector<int> get_dependent_column() { return dependent_column_indices; }
+    update_partial_compare_func_t get_update_compare_func() { return update_compare_func; }
 
     /// used for load balancing
     void set_last_rank(int lr)   {last_rank = lr;}
     int get_last_rank() {   return last_rank;}
 
     /// used for task-level parallelism
-    void set_initailization_type(int x) { initailization_type = x;  }
+    void set_initialization_type(int x) { initialization_type = x;  }
 
 
     bool get_is_canonical() {return is_canonical;}

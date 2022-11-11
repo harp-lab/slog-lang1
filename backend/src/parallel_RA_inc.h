@@ -13,10 +13,12 @@
 #include "compat.h"
 // #include "shmap/shmap.h"
 #include "shmap/shmap_goog.h"
-#include <functional>
 
 //#define DEBUG_OUTPUT 1
 #define MAX_LOOP_COUNT 120000
+
+using update_partial_compare_func_t = std::function<std::optional<bool>(std::vector<u64> old_v, std::vector<u64> new_v)>;
+using join_generator_func_t = std::function<void(std::vector<u64>& target_v, std::vector<u64>& input_v, u64* res)>;
 
 #include "log/logger.h"
 #include "hash/hash.h"
@@ -33,7 +35,7 @@ enum class SpecialAggregator {
   count,
   maximum,
   minimum,
-  recusive
+  recursive
 };
 
 // TODO: remove unused argument
@@ -45,6 +47,7 @@ using reduce_agg_func_t = std::function<local_agg_res_t(local_agg_res_t, local_a
 using global_agg_func_t = std::function<u64(local_agg_res_t a, local_agg_res_t b)>;
 // typedef local_agg_res_t *reduce_agg_func_t (local_agg_res_t x, local_agg_res_t y);
 // typedef int *global_agg_func_t (std::vector<u64>& data, local_agg_res_t agg_data, int agg_data_count, std::vector<u64>& output); 
+
 
 #include "relation/balanced_hash_relation.h"
 #include "RA/parallel_RA.h"

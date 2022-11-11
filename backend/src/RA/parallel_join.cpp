@@ -6,6 +6,7 @@
 
 
 #include "../parallel_RA_inc.h"
+#include <cstddef>
 
 
 bool parallel_join::local_join(int threshold, int* offset,
@@ -24,6 +25,13 @@ bool parallel_join::local_join(int threshold, int* offset,
     join_buffer.width[counter] = reorder_map_array.size();
 
     shmap_relation deduplicate(join_column_count, false);
+    auto out_dep_cols = output->get_dependent_column();
+    if (out_dep_cols.size() != 0) {
+        for (size_t i = 0; i < out_dep_cols.size() - 1; i++) {
+            deduplicate.dependent_column_indices.push_back(out_dep_cols[i]);
+        }
+        deduplicate.update_compare_func = output->get_update_compare_func();
+    }
     u32* output_sub_bucket_count = output->get_sub_bucket_per_bucket_count();
     u32** output_sub_bucket_rank = output->get_sub_bucket_rank();
 
@@ -53,7 +61,8 @@ bool parallel_join::local_join(int threshold, int* offset,
                 join_column_count, deduplicate,
                 &local_join_count, global_join_duplicates,
                 global_join_inserts, output->get_join_column_count(),
-                output->get_is_canonical());
+                output->get_is_canonical(),
+                generator_mode, generator_func);
 
             // std::cout << "local_join_count " << local_join_count << " Threshold " << threshold << " k1 " << k1 << " offset " << *offset << " " << input0_buffer_width << std::endl;
             if (local_join_count > threshold)
@@ -84,7 +93,8 @@ bool parallel_join::local_join(int threshold, int* offset,
                 join_column_count, deduplicate,
                 &local_join_count, global_join_duplicates,
                 global_join_inserts,
-                output->get_join_column_count(),output->get_is_canonical());
+                output->get_join_column_count(),output->get_is_canonical(),
+                generator_mode, generator_func);
 
             // std::cout << "local_join_count " << local_join_count << " Threshold " << threshold << " k1 " << k1 << " offset " << *offset << " " << input0_buffer_width << std::endl;
             if (local_join_count > threshold)

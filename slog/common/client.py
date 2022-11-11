@@ -318,12 +318,12 @@ class SlogClient:
     def _update_intern_strings(self, db_id):
         """ update cached string.csv data """
         if self.local_db_path:
-            with open(os.path.join(self.local_db_path, '$strings.csv'), 'r') as string_file:
-                for s_line in string_file:
-                    if s_line.strip() == '':
-                        continue
-                    sv = s_line.split('\t')[1]
-                    self.intern_string_dict[string_hash(sv.strip())] = sv.strip()
+            # with open(os.path.join(self.local_db_path, '$strings.csv'), 'r') as string_file:
+            #     for s_line in string_file:
+            #         if s_line.strip() == '':
+            #             continue
+            #         sv = s_line.split('\t')[1]
+            #         self.intern_string_dict[string_hash(sv.strip())] = sv.strip()
             return
         req = slog_pb2.StringRequest()
         req.database_id = db_id

@@ -12,10 +12,12 @@
 
 #include "../parallel_RA_inc.h"
 #include "shmap_relation.h"
+#include <cassert>
 #include <cstddef>
 #include <iostream>
-
-
+#include <mpi.h>
+#include <ostream>
+#include <vector>
 
 shmap_relation::shmap_relation(int arity, bool id_flag)
 {
@@ -26,8 +28,134 @@ shmap_relation::shmap_relation(int arity, bool id_flag)
 bool shmap_relation::insert_tuple_from_array(u64 *t, int width)
 {
     t_tuple tp(t, t+width);
+    // check if relation has functional dependance
+    if (dependent_column_indices.size() > 0) {
+        std::vector<u64> index_columns;
+        std::vector<u64> dependent_columns;
+        t_tuple upper_bound(width, std::numeric_limits<u64>::max());
+        t_tuple lower_bound(width, std::numeric_limits<u64>::min());
+        for (int i = 0; i < width-dependent_column_indices.size();  i++) {
+            upper_bound[i] = tp[i];
+            lower_bound[i] = tp[i];
+        }
+        for (auto i: dependent_column_indices) {
+            dependent_columns.push_back(t[i]);
+        }
+        auto exist_tuples_range = lowerUpperRange(lower_bound, upper_bound);
+        if (exist_tuples_range.first == ind.end()) {
+            // std::cout << "adding to lattice with <<<<<< ";
+            // for (auto c: tp) {
+            //     std::cout << c << " ";
+            // }
+            // std::cout << " while lower bound ... ";
+            // for (auto c: lower_bound) {
+            //     std::cout << c << " ";
+            // }
+            // std::cout << std::endl;
+            // std::cout << "The current btree: " << std::endl;
+            // for (auto t: ind) {
+            //     std::cout << "Tuple : ";
+            //     for (auto c: t) {
+            //         std::cout << c << " ";
+            //     }
+            //     std::cout << std::endl;
+            // }
+            return insert(tp);
+        } else {
+            // update
+            // iterator need_delete = ind.end();
+            std::vector<iterator> need_deletes;
+            for (auto it = exist_tuples_range.first; it != exist_tuples_range.second; it++) {
+                auto cur_tuple = *it;
+                // std::cout << "comparing  <<<<<< ";
+                // for (auto c: cur_tuple) {
+                //     std::cout << c << " ";
+                // }
+                // std::cout << std::endl;
+                std::vector<u64> old_t;
+                for (auto i: dependent_column_indices) {
+                    old_t.push_back(cur_tuple[i]);
+                }
+                auto compare_res = update_compare_func(old_t, dependent_columns);
+                if (compare_res.has_value() && compare_res.value()) {
+                    need_deletes.push_back(it);
+                    // std::cout << "update with <<<<<< ";
+                    // for (auto c: tp) {
+                    //     std::cout << c << " ";
+                    // }
+                    // std::cout << std::endl;
+                }
+            }
+            if (!need_deletes.empty()) {
+                for (auto d: need_deletes) {
+                    ind.erase(*d);
+                }
+                return insert(tp);
+            } else {
+                return false;
+            }
+        }
+    } else {
+        // std::cout << "adding to normal "<< arity << "  with <<<<<< ";
+        // for (auto c: tp) {
+        //     std::cout << c << " ";
+        // }
+        // std::cout << std::endl;
+        return insert(tp);
+    }
+}
 
-    return insert(tp);
+bool
+shmap_relation::check_dependent_insertion(const std::vector<u64> &tp) {
+    if (dependent_column_indices.size() > 0) {
+        std::vector<u64> index_columns;
+        std::vector<u64> dependent_columns;
+        t_tuple upper_bound(tp.size(), std::numeric_limits<u64>::max());
+        t_tuple lower_bound(tp.size(), std::numeric_limits<u64>::min());
+        for (size_t i = 0; i < tp.size()-dependent_column_indices.size();  i++) {
+            upper_bound[i] = tp[i];
+            lower_bound[i] = tp[i];
+        }
+        for (auto i: dependent_column_indices) {
+            dependent_columns.push_back(tp[i]);
+        }
+        auto exist_tuples_range = lowerUpperRange(lower_bound, upper_bound);
+        if (exist_tuples_range.first == ind.end()) {
+            return true;
+        } else {
+            for (auto it = exist_tuples_range.first; it != exist_tuples_range.second; it++) {
+                auto cur_tuple = *it;
+                std::vector<u64> old_t;
+                for (auto i: dependent_column_indices) {
+                    old_t.push_back(cur_tuple[i]);
+                }
+                auto compare_res = update_compare_func(old_t, dependent_columns);
+                if (compare_res.has_value() && compare_res.value()) {
+                    return true;
+                }
+            }
+            // std::cout << " not adding to lattice with <<<<<< ";
+            // for (auto c: tp) {
+            //     std::cout << c << " ";
+            // }
+            // std::cout << " while lower bound ... ";
+            // for (auto c: lower_bound) {
+            //     std::cout << c << " ";
+            // }
+            // std::cout << std::endl;
+            // std::cout << "The current btree: " << std::endl;
+            // for (auto& t: ind) {
+            //     std::cout << "Tuple : ";
+            //     for (auto c: t) {
+            //         std::cout << c << " ";
+            //     }
+            //     std::cout << std::endl;
+            // }
+            return false;
+        }
+    } else {
+        return true;
+    }
 }
 
 std::pair<shmap_relation::iterator, shmap_relation::iterator>
@@ -267,7 +395,8 @@ void shmap_relation::as_all_to_allv_right_join_buffer(
     u32 *local_join_duplicates,
     u32 *local_join_inserts,
     int head_rel_hash_col_count,
-    bool canonical)
+    bool canonical,
+    bool generator_mode, join_generator_func_t gen_func)
 {
     if (size() == 0)
         return;
@@ -284,16 +413,20 @@ void shmap_relation::as_all_to_allv_right_join_buffer(
     {
         auto cur_path = *it;
         u64 projected_path[join_buffer.width[ra_id]];
-        u64 reordered_cur_path[input0_buffer_width + input1_buffer_width - join_column_count];
-        for (int i = 0; i < input1_buffer_width; i++)
-            reordered_cur_path[i] = cur_path[i];
+        if (generator_mode) {
+            std::vector<u64> input_t(input0_buffer, input0_buffer+input0_buffer_width);
+            gen_func(input_t, cur_path, projected_path);
+        } else {
+            u64 reordered_cur_path[input0_buffer_width + input1_buffer_width - join_column_count];
+            for (int i = 0; i < input1_buffer_width; i++)
+                reordered_cur_path[i] = cur_path[i];
 
-        for (int i = join_column_count; i < input0_buffer_width; i++)
-            reordered_cur_path[input1_buffer_width + (i - join_column_count)] = input0_buffer[i];
+            for (int i = join_column_count; i < input0_buffer_width; i++)
+                reordered_cur_path[input1_buffer_width + (i - join_column_count)] = input0_buffer[i];
 
-        for (int i =0; i < join_buffer.width[ra_id]; i++)
-            projected_path[i] = reordered_cur_path[reorder_map[i]];
-
+            for (int i =0; i < join_buffer.width[ra_id]; i++)
+                projected_path[i] = reordered_cur_path[reorder_map[i]];
+        }
         if (deduplicate.insert_tuple_from_array(projected_path, join_buffer.width[ra_id]) == true)
         {
             uint64_t bucket_id = tuple_hash(projected_path, head_rel_hash_col_count) % buckets;
@@ -318,7 +451,6 @@ void shmap_relation::as_all_to_allv_right_join_buffer(
             (*local_join_duplicates)++;
         }
     }
-    // std::cout << "inserted " << *local_join_inserts << std::endl;
 }
 
 void shmap_relation::as_all_to_allv_left_join_buffer(
@@ -335,7 +467,8 @@ void shmap_relation::as_all_to_allv_left_join_buffer(
     u32 *local_join_duplicates,
     u32 *local_join_inserts,
     int head_rel_hash_col_count,
-    bool canonical)
+    bool canonical,
+    bool generator_mode, join_generator_func_t gen_func)
 {
     if (size() == 0)
         return;
@@ -352,16 +485,21 @@ void shmap_relation::as_all_to_allv_left_join_buffer(
     {
         auto cur_path = *it;
         u64 projected_path[join_buffer.width[ra_id]];
-        u64 reordered_cur_path[input0_buffer_width + input1_buffer_width - join_column_count];
-        for (int i = 0; i < input0_buffer_width; i++)
-            reordered_cur_path[i] = input0_buffer[i];
+        if (generator_mode) {
+            std::vector<u64> input_t(input0_buffer, input0_buffer+input0_buffer_width);
+            gen_func(cur_path, input_t, projected_path);
+        } else {
+            u64 reordered_cur_path[input0_buffer_width + input1_buffer_width - join_column_count];
+            for (int i = 0; i < input0_buffer_width; i++)
+                reordered_cur_path[i] = input0_buffer[i];
 
-        for (int i = join_column_count; i < input1_buffer_width; i++)
-            reordered_cur_path[input0_buffer_width + (i - join_column_count)] = cur_path[i];
+            for (int i = join_column_count; i < input1_buffer_width; i++)
+                reordered_cur_path[input0_buffer_width + (i - join_column_count)] = cur_path[i];
 
-        for (int i =0; i < join_buffer.width[ra_id]; i++)
-            projected_path[i] = reordered_cur_path[reorder_map[i]];
-
+            for (int i =0; i < join_buffer.width[ra_id]; i++)
+                projected_path[i] = reordered_cur_path[reorder_map[i]];
+        }
+        
         //std::cout << "NT " << projected_path[0] << " " << projected_path[1] << std::endl;
         if (deduplicate.insert_tuple_from_array(projected_path, join_buffer.width[ra_id]) == true)
         {

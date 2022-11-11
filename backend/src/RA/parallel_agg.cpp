@@ -80,7 +80,7 @@ void parallel_join_aggregate::local_aggregate(
 
     u32* output_sub_bucket_count = output->get_sub_bucket_per_bucket_count();
     u32** output_sub_bucket_rank = output->get_sub_bucket_rank();
-    int real_join_count = output->get_join_column_count() - 1;
+    u32 real_join_count = output->get_join_column_count() - 1;
     agg_buffer.width[ra_counter] = real_join_count + 1;
 
     shmap_relation* agg_target;
@@ -95,7 +95,7 @@ void parallel_join_aggregate::local_aggregate(
     }
 
     btree::btree_map<std::vector<u64>, u64, shmap_relation::t_comparator> res_map;
-    for (int bucket=0; bucket < buckets; bucket ++) {
+    for (u32 bucket=0; bucket < buckets; bucket ++) {
         for (auto tuple: input->get_full()[bucket]) {
             std::vector<u64> data_v(tuple.begin(), tuple.begin()+target->get_join_column_count());
             // std::cout << "On rank " << mcomm.get_rank() << " bucket " << *(target->get_sub_bucket_per_bucket_count()) << std::endl;
@@ -111,18 +111,18 @@ void parallel_join_aggregate::local_aggregate(
         }
     }
 
-    for (int bucket=0; bucket < buckets; bucket ++) {
+    for (u32 bucket=0; bucket < buckets; bucket ++) {
         for (auto input_tuple: input->get_full()[bucket]) {
             std::vector<u64> joined_input_tuple(input_tuple.begin(), input_tuple.begin()+input->get_join_column_count());
             auto agg_res = res_map[joined_input_tuple];
             std::vector<u64> tuple(reorder_mapping.size(), 0);
             int reorder_agg_index = input->get_arity() + 1;
-            for (int j = 0; j < reorder_mapping.size(); j++) {
-                if (reorder_mapping[j] == reorder_agg_index) {
-                    tuple[j] = agg_res;
-                } else {
-                    tuple[j] = input_tuple[reorder_mapping[j]];
-                }
+            for (long unsigned int j = 0; j < reorder_mapping.size(); j++) {
+              if (reorder_mapping[j] == reorder_agg_index) {
+                tuple[j] = agg_res;
+              } else {
+                tuple[j] = input_tuple[reorder_mapping[j]];
+              }
             }
 
             uint64_t bucket_id = tuple_hash(tuple.data(), output->get_join_column_count()) % buckets;
