@@ -476,9 +476,9 @@ bool LIE::execute ()
             else
                 executable_task->execute_in_batches_comm_compaction(app_name, batch_size, history, intern_map, &loop_counter, executable_task->get_id(), output_dir, all_to_all_meta_data_dump, sloav_mode, rotate_index_array, send_indexes, sendb_num);
 
-            std::cout << "<<<<<<<<<<<<<<<<<<<<<<<<< AFTER ITERATION " << loop_counter <<" <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << std::endl;
-            for (u32 i = 0 ; i < scc_relation_count; i++)
-                print_relation_size(scc_relation[i]);
+            // std::cout << "<<<<<<<<<<<<<<<<<<<<<<<<< AFTER ITERATION " << loop_counter <<" <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << std::endl;
+            // for (u32 i = 0 ; i < scc_relation_count; i++)
+            //     print_relation_size(scc_relation[i]);
             // stat_intermediate();
             //executed_scc_id.push_back(executable_task->get_id());
 #if 0
@@ -546,9 +546,9 @@ bool LIE::execute ()
                 }
 #endif 
                 // if (loop_counter < 20) {
-                std::cout << "<<<<<<<<<<<<<<<<<<<<<<<<< AFTER ITERATION " << loop_counter <<" <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << std::endl;
-                for (u32 i = 0 ; i < scc_relation_count; i++)
-                    print_relation_size(scc_relation[i]);
+                // std::cout << "<<<<<<<<<<<<<<<<<<<<<<<<< AFTER ITERATION " << loop_counter <<" <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << std::endl;
+                // for (u32 i = 0 ; i < scc_relation_count; i++)
+                //     print_relation_size(scc_relation[i]);
                 // }
                 // stat_intermediate();
                 // loop_counter++;

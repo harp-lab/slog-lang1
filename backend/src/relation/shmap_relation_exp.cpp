@@ -417,6 +417,7 @@ void shmap_relation::as_all_to_allv_right_join_buffer(
             std::vector<u64> input_t(input0_buffer, input0_buffer+input0_buffer_width);
             gen_func(input_t, cur_path, projected_path);
         } else {
+            // std::cout << "here" << std::endl;
             u64 reordered_cur_path[input0_buffer_width + input1_buffer_width - join_column_count];
             for (int i = 0; i < input1_buffer_width; i++)
                 reordered_cur_path[i] = cur_path[i];
