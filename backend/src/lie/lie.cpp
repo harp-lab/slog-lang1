@@ -589,7 +589,7 @@ bool LIE::execute ()
 
     write_final_checkpoint_dump();
 
-    std::cout << "finish writting checkpoint!" << std::endl;
+    // std::cout << "finish writting checkpoint!" << std::endl;
 
     delete[] rotate_index_array;
     for (int i=0; i < nprocs; i++)

@@ -780,7 +780,7 @@ void relation::populate_full(int buffer_size, u64* buffer)
     u32 counter = 0;
     u64 t[arity+1];
     u32 buckets = get_bucket_count();
-    std::cout << "populating full for " << intern_tag << std::endl;
+    // std::cout << "populating full for " << intern_tag << std::endl;
 
     for (int i = 0; i < buffer_size; i = i + (arity+1))
     {

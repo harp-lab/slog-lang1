@@ -624,7 +624,7 @@ int main(int argc, char **argv) {
   // output dir from compiler
   std::string slog_output_dir =
       "/home/stargazermiao/workspace/PL/slog/out/checkpoints";
-  if (argc == 3) {
+  if (argc > 2) {
     slog_input_dir = argv[1];
     slog_output_dir = argv[2];
   }
