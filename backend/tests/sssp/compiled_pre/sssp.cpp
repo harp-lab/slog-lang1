@@ -631,9 +631,7 @@ int main(int argc, char **argv) {
   mpi_comm mcomm;
   mcomm.create(argc, argv);
 
-  for (int i = 0; i < 5; i++) {
-    compute_sssp_from(mcomm, i, slog_input_dir, slog_output_dir, argc, argv);
-  }
+  compute_sssp_from(mcomm, atoi(argv[3]), slog_input_dir, slog_output_dir, argc, argv);
 
   mcomm.destroy();
   return 0;
