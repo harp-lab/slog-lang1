@@ -33,6 +33,7 @@ const u64 int_tag = 0;
 const u64 str_tag = 2;
 const u64 sign_flip_const = 0x0000200000000000;
 const u64 signed_num_mask = 0xFFFFE00000000000;
+int start_node = 1;
 
 inline bool is_number(u64 datum) {
   // cout << "is_number(" << datum << "): " << (datum >> tag_position ==
@@ -381,20 +382,10 @@ int get_tag_for_rel(std::string relation_name, std::string index_str) {
   return max_rel;
 }
 
-int main(int argc, char **argv) {
-  // input dir from compiler
-  std::string slog_input_dir =
-      "/home/stargazermiao/workspace/PL/slog/out/input-data";
-  // output dir from compiler
-  std::string slog_output_dir =
-      "/home/stargazermiao/workspace/PL/slog/out/checkpoints";
-  if (argc == 3) {
-    slog_input_dir = argv[1];
-    slog_output_dir = argv[2];
-  }
-  load_input_relation(slog_input_dir);
-  mpi_comm mcomm;
-  mcomm.create(argc, argv);
+void compute_sssp_from(mpi_comm& mcomm, int sp, std::string input_dir, std::string output_dir, int argc, char **argv) {
+  start_node = sp;
+  load_input_relation(input_dir);
+
 
   // relation *rel__edge__3__1__2__3 = new relation(
   //     3, true, 3, get_tag_for_rel("edge", "1__2__3"),
@@ -491,7 +482,7 @@ int main(int argc, char **argv) {
   relation *rel__spath__2__1__2 = new relation(
       2, true, 2, get_tag_for_rel("spath", "1__2"),
       std::to_string(get_tag_for_rel("spath", "1__2")) + ".spath.2.table",
-      slog_input_dir + "/" + std::to_string(get_tag_for_rel("spath", "1__2")) +
+      input_dir + "/" + std::to_string(get_tag_for_rel("spath", "1__2")) +
           ".spath.2.table",
       FULL);
   rel__spath__2__1__2->set_dependent_column_update(
@@ -507,7 +498,7 @@ int main(int argc, char **argv) {
   relation *rel__edge__3__1__2__3 = new relation(
       3, true, 3, get_tag_for_rel("edge", "1__2__3"),
       std::to_string(get_tag_for_rel("edge", "1__2__3")) + ".edge.3.table",
-      slog_input_dir + "/" +
+      input_dir + "/" +
           std::to_string(get_tag_for_rel("edge", "1__2__3")) + ".edge.3.table",
       FULL);
   relation *rel__spath__2__1 = new relation(
@@ -540,7 +531,7 @@ int main(int argc, char **argv) {
           auto [data, output] = state;
           auto head_tuple = output;
 
-          bool compatible = true && res_0 == n2d(1);
+          bool compatible = true && res_0 == n2d(start_node);
           if (!compatible)
             return state;
 
@@ -597,7 +588,7 @@ int main(int argc, char **argv) {
   lie->enable_all_to_all_dump();
   lie->enable_data_IO();
   lie->enable_IO();
-  lie->set_output_dir(slog_output_dir); // Write to this directory
+  lie->set_output_dir(output_dir); // Write to this directory
   lie->set_comm(mcomm);
   lie->set_batch_size(1);
   lie->execute();
@@ -624,7 +615,26 @@ int main(int argc, char **argv) {
 
   delete lie;
 
-  mcomm.destroy();
+}
 
+int main(int argc, char **argv) {
+  // input dir from compiler
+  std::string slog_input_dir =
+      "/home/stargazermiao/workspace/PL/slog/out/input-data";
+  // output dir from compiler
+  std::string slog_output_dir =
+      "/home/stargazermiao/workspace/PL/slog/out/checkpoints";
+  if (argc == 3) {
+    slog_input_dir = argv[1];
+    slog_output_dir = argv[2];
+  }
+  mpi_comm mcomm;
+  mcomm.create(argc, argv);
+
+  for (int i = 0; i < 5; i++) {
+    compute_sssp_from(mcomm, i, slog_input_dir, slog_output_dir, argc, argv);
+  }
+
+  mcomm.destroy();
   return 0;
 }
