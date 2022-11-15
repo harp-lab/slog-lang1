@@ -1307,6 +1307,7 @@ void relation::local_insert_in_delta()
             }
             newt[i].purge();
             memset(newt_sub_bucket_element_count[i], 0, sub_bucket_per_bucket_count[i] * sizeof(u32));
+            newt_element_count = 0;
         }
     } else {
         delete[] delta;
@@ -1324,8 +1325,7 @@ void relation::local_insert_in_delta()
             newt[i].dependent_column_indices = dependent_column_indices;
             newt[i].update_compare_func = update_compare_func;
         }
+        newt_element_count = 0;
+        memset(newt_bucket_element_count, 0, buckets * sizeof(u32));
     }
-
-    newt_element_count = 0;
-    memset(newt_bucket_element_count, 0, buckets * sizeof(u32));
 }

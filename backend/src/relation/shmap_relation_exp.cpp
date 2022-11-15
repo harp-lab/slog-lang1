@@ -408,6 +408,14 @@ void shmap_relation::as_all_to_allv_right_join_buffer(
         upper_bound[i] = prefix[i];
         lower_bound[i] = prefix[i];
     }
+    // std::cout << "cur tree >>> " << std::endl;
+    // for (auto r:  ind) {
+    //     std::cout << ">>> ";
+    //     for (auto c: r) {
+    //         std::cout << c << " ";
+    //     }
+    //     std::cout << std::endl;
+    // }
     auto joined_range = lowerUpperRange(lower_bound, upper_bound);
     for(auto it = joined_range.first; it != joined_range.second && it != ind.end(); ++it)
     {
@@ -415,6 +423,11 @@ void shmap_relation::as_all_to_allv_right_join_buffer(
         u64 projected_path[join_buffer.width[ra_id]];
         if (generator_mode) {
             std::vector<u64> input_t(input0_buffer, input0_buffer+input0_buffer_width);
+            // std::cout << "join facts ";
+            // for (auto c: input_t) {
+            //     std::cout << c << " ";
+            // }
+            // std::cout << std::endl;
             gen_func(input_t, cur_path, projected_path);
         } else {
             // std::cout << "here" << std::endl;
@@ -428,6 +441,11 @@ void shmap_relation::as_all_to_allv_right_join_buffer(
             for (int i =0; i < join_buffer.width[ra_id]; i++)
                 projected_path[i] = reordered_cur_path[reorder_map[i]];
         }
+        // std::cout << "add new facts ";
+        // for (auto c: projected_path) {
+        //     std::cout << c << " ";
+        // }
+        // std::cout << std::endl;
         if (deduplicate.insert_tuple_from_array(projected_path, join_buffer.width[ra_id]) == true)
         {
             uint64_t bucket_id = tuple_hash(projected_path, head_rel_hash_col_count) % buckets;
@@ -481,6 +499,19 @@ void shmap_relation::as_all_to_allv_left_join_buffer(
         upper_bound[i] = prefix[i];
         lower_bound[i] = prefix[i];
     }
+    // std::cout << "join >>> ";
+    // for (auto c: prefix) {
+    //     std::cout << c << " ";
+    // }
+    // std::cout << std::endl;
+    // std::cout << "cur tree >>> " << std::endl;
+    // for (auto r:  ind) {
+    //     std::cout << ">>> ";
+    //     for (auto c: r) {
+    //         std::cout << c << " ";
+    //     }
+    //     std::cout << std::endl;
+    // }
     auto joined_range = lowerUpperRange(lower_bound, upper_bound);
     for(auto it = joined_range.first; it != joined_range.second && it != ind.end(); ++it)
     {

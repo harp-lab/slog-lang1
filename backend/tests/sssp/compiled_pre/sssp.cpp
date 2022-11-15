@@ -489,6 +489,14 @@ void compute_sssp_from(mpi_comm& mcomm, int sp, std::string input_dir, std::stri
     {1, 2},   // len and id column
     [](std::vector<u64> old_v, std::vector<u64> new_v) -> std::optional<bool>
     {
+      // std::cout << "Comparing  ";
+      // for (auto c : old_v) {
+      //   std::cout << c << " ";
+      // }
+      // std::cout << " <<<<<<  ";
+      // for (auto c : new_v) {
+      //   std::cout << c << " ";
+      // }
       return new_v[0] < old_v[0];
     }
   );
@@ -508,6 +516,14 @@ void compute_sssp_from(mpi_comm& mcomm, int sp, std::string input_dir, std::stri
     {1, 2},
     [](std::vector<u64> old_v, std::vector<u64> new_v) -> std::optional<bool>
     {
+      // std::cout << "Comparing  ";
+      // for (auto c : old_v) {
+      //   std::cout << c << " ";
+      // }
+      // std::cout << " <<<<<<  ";
+      // for (auto c : new_v) {
+      //   std::cout << c << " ";
+      // }
       return new_v[0] < old_v[0];
     }
   );
@@ -559,17 +575,17 @@ void compute_sssp_from(mpi_comm& mcomm, int sp, std::string input_dir, std::stri
   );
   update_spath_j->set_generator_func([](std::vector<u64>& target_v,
   std::vector<u64>& input_v, u64* res) {
-    res[0] = target_v[0];
-    // res[1] = input_v[2];
-    if (res[0] == input_v[2]) {
+    // res[0] = target_v[0];
+    res[0] = input_v[2];
+    if (res[0] == start_node) {
       res[1] = 0;
     } else {
       res[1] = target_v[1] + input_v[3];
     }
   });
+  scc2->add_rule(update_spath_j);
   scc2->add_rule(new parallel_acopy(rel__spath__2__1, rel__spath__2__1__2,
                                     DELTA, {0, 1, 2}));
-  scc2->add_rule(update_spath_j);
 
 
   LIE *lie = new LIE();
