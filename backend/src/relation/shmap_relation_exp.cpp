@@ -76,7 +76,7 @@ bool shmap_relation::insert_tuple_from_array(u64 *t, int width)
                 for (auto i: dependent_column_indices) {
                     old_t.push_back(cur_tuple[i]);
                 }
-                auto compare_res = update_compare_func(old_t, dependent_columns);
+                auto compare_res = update_compare_func(old_t, dependent_columns, tp);
                 if (compare_res.has_value() && compare_res.value()) {
                     need_deletes.push_back(it);
                     // std::cout << "update with <<<<<< ";
@@ -129,7 +129,7 @@ shmap_relation::check_dependent_insertion(const std::vector<u64> &tp) {
                 for (auto i: dependent_column_indices) {
                     old_t.push_back(cur_tuple[i]);
                 }
-                auto compare_res = update_compare_func(old_t, dependent_columns);
+                auto compare_res = update_compare_func(old_t, dependent_columns, tp);
                 if (compare_res.has_value() && compare_res.value()) {
                     return true;
                 }

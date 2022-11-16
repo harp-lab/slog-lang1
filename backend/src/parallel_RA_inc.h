@@ -13,11 +13,12 @@
 #include "compat.h"
 // #include "shmap/shmap.h"
 #include "shmap/shmap_goog.h"
+#include <vector>
 
 //#define DEBUG_OUTPUT 1
 #define MAX_LOOP_COUNT 120000
 
-using update_partial_compare_func_t = std::function<std::optional<bool>(std::vector<u64> old_v, std::vector<u64> new_v)>;
+using update_partial_compare_func_t = std::function<std::optional<bool>(const std::vector<u64>& old_v, const std::vector<u64>& new_v, const std::vector<u64>& prefix)>;
 using join_generator_func_t = std::function<void(std::vector<u64>& target_v, std::vector<u64>& input_v, u64* res)>;
 
 #include "log/logger.h"
