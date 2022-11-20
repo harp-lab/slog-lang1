@@ -89,6 +89,8 @@ def ingest_facts(factloc, inputloc, tsv_bin_path, cores):
             tableloc = os.path.join(inputloc, table[1])
         try:
             # idk why 16 is buckets, got from rpc.py
+            print(" ".join([tsv_bin_path, factfile, str(arity),
+                            tableloc, str(cores), str(tabletag), inputloc]))
             subprocess.check_output([tsv_bin_path, factfile, str(arity),
                                      tableloc, str(cores), str(tabletag), inputloc])
         except subprocess.CalledProcessError as e:

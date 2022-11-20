@@ -333,7 +333,7 @@ void load_input_relation(std::string db_dir) {
   for (const auto &entry : std::filesystem::directory_iterator(db_dir)) {
     // check if ends with table
     std::string filename_ss = entry.path().filename().string();
-    //std::cout << "input database has file " << filename_ss << std::endl;
+    // std::cout << "input database has file " << filename_ss << std::endl;
     std::string suffix = ".table";
     int ft = filename_ss.size() - suffix.size();
     if (ft < 0)
@@ -356,8 +356,8 @@ void load_input_relation(std::string db_dir) {
     }
     if (tag > max_rel)
       max_rel = tag;
-    //std::cout << "load " << tag << "." << index_stream.str() << "has arity "
-    //          << arity << std::endl;
+    // std::cout << "load " << tag << "." << index_stream.str() << "has arity "
+    //           << arity << std::endl;
     rel_tag_map[index_stream.str()] = tag;
   }
 }
@@ -377,73 +377,43 @@ int get_tag_for_rel(std::string relation_name, std::string index_str) {
   }
   max_rel++;
   rel_tag_map[name_arity] = max_rel;
-  //std::cout << "generate rel tag: " << name_arity << " " << max_rel
-  //          << std::endl;
+  // std::cout << "generate rel tag: " << name_arity << " " << max_rel
+  //           << std::endl;
   return max_rel;
 }
 
-void compute_sssp_from(mpi_comm& mcomm, int sp, std::string input_dir, std::string output_dir, int argc, char **argv) {
+void compute_sssp_from(mpi_comm &mcomm, int sp, std::string input_dir,
+                       std::string output_dir, int argc, char **argv) {
   start_node = sp;
   load_input_relation(input_dir);
 
-  relation *rel__edge__3__1__2__3 = new relation(
-      3, true, 3, get_tag_for_rel("edge", "1__2__3"),
-      std::to_string(get_tag_for_rel("edge", "1__2__3")) + ".edge.3.table",
-      input_dir + "/" +
-          std::to_string(get_tag_for_rel("edge", "1__2__3")) +
-          ".edge.3.table",
+  relation *rel__edge__2__1__2 = new relation(
+      1, true, 2, get_tag_for_rel("edge", "1__2"),
+      std::to_string(get_tag_for_rel("edge", "1__2")) + ".edge.2.table",
+      input_dir + "/" + std::to_string(get_tag_for_rel("edge", "1__2")) +
+          ".edge.2.table",
       FULL);
-  relation* rel__edge__3__1 = new relation(
-    1, false, 3, get_tag_for_rel("edge","1"),
-    std::to_string(get_tag_for_rel("edge","1")) + ".edge.3.table",
-    FULL);
 
-  // the dependent column must be exclude from hash computation, so join
-  // column count is 3 - 1 = 2
-  relation *rel__spath__3__1__2__3 = new relation(
-      2, true, 3, get_tag_for_rel("spath", "1__2__3"),
-      std::to_string(get_tag_for_rel("spath", "1__2__3")) + ".spath.3.table",
-      input_dir + "/" +
-          std::to_string(get_tag_for_rel("spath", "1__2__3")) +
-          ".spath.3.table",
-      FULL);
-  // set functional dependency for spath
-  rel__spath__3__1__2__3->set_dependent_column_update(
-    {2, 3},   // len and id column
-    [](const std::vector<u64>& old_v, const std::vector<u64>& new_v, const vector<u64>& nt) -> std::optional<bool>
-    {
-      return new_v[0] < old_v[0];
-    }
-  );
-  relation* rel__spath__3__2 = new relation(
-    1, false, 3, get_tag_for_rel("spath","2"),
-    std::to_string(get_tag_for_rel("spath","2")) + ".spath.3.table",
-    FULL);
+  relation *rel__spath__3__2 = new relation(
+      1, true, 3, get_tag_for_rel("spath", "2"),
+      std::to_string(get_tag_for_rel("spath", "2")) + ".spath.3.table",
+      std::to_string(get_tag_for_rel("spath", "2")) + ".spath.3.table", FULL);
   rel__spath__3__2->set_dependent_column_update(
-    {2, 3},
-    [](const std::vector<u64>& old_v, const std::vector<u64>& new_v, const vector<u64>& nt) -> std::optional<bool>
-    {
-      return new_v[0] < old_v[0];
-    }
-  );
+      {2, 3},
+      [](const std::vector<u64> &old_v, const std::vector<u64> &new_v,
+         const vector<u64> &nt) -> std::optional<bool> {
+        return new_v[0] < old_v[0];
+      });
 
-  RAM* scc0 = new RAM(false, 0);
-  scc0->add_relation(rel__edge__3__1, true, false);
-  scc0->add_relation(rel__edge__3__1__2__3, true, false);
-  scc0->add_rule(new parallel_acopy(rel__edge__3__1, rel__edge__3__1__2__3,
-  DELTA, {0, 3, 1, 2}));
-
-  RAM *scc1 = new RAM(false, 1);
-  scc1->add_relation(rel__edge__3__1__2__3, false, false);
-  scc1->add_relation(rel__spath__3__1__2__3, true, false);
-  // scc1->add_rule(new parallel_copy(rel__spath__3__1__2__3,
-  //                                  rel__edge__3__1__2__3, FULL, {0, 1, 2}));
-  scc1->add_rule(new parallel_copy_generate(
-      rel__spath__3__1__2__3, rel__edge__3__1__2__3, FULL,
+  RAM *scc0 = new RAM(false, 0);
+  scc0->add_relation(rel__edge__2__1__2, false, false);
+  scc0->add_relation(rel__spath__3__2, true, false);
+  scc0->add_rule(new parallel_copy_generate(
+      rel__spath__3__2, rel__edge__2__1__2, FULL,
       [](const u64 *const data, u64 *const output) -> int {
-        auto args_for_old_bi = std::array<u64, 3>{data[0], data[1], data[2]};
+        auto args_for_old_bi = std::array<u64, 3>{data[0], data[1], n2d(1)};
         using TState = std::tuple<const u64 *, u64 *>;
-        TState state = std::make_tuple(data, output);
+        TState state = std::make_tuple(args_for_old_bi.data(), output);
         auto callback = [](u64 res_0, TState state) -> TState {
           auto [data, output] = state;
           auto head_tuple = output;
@@ -452,8 +422,8 @@ void compute_sssp_from(mpi_comm& mcomm, int sp, std::string input_dir, std::stri
           if (!compatible)
             return state;
 
-          head_tuple[0] = data[0];
-          head_tuple[1] = data[1];
+          head_tuple[0] = data[1];
+          head_tuple[1] = data[0];
           head_tuple[2] = data[2];
           return std::make_tuple(data, output + 2);
         };
@@ -463,183 +433,57 @@ void compute_sssp_from(mpi_comm& mcomm, int sp, std::string input_dir, std::stri
         return tuples_count;
       }));
 
-  RAM *scc2 = new RAM(true, 2);
-  scc2->add_relation(rel__edge__3__1__2__3, false, false);
-  scc2->add_relation(rel__spath__3__2, true, false);
-  scc2->add_relation(rel__spath__3__1__2__3, true, false);
-  //  the order of non join column also need to be carefully arranged
-  // because, dependent column
-  //  should always at last
-  scc2->add_rule(new parallel_acopy(
-    rel__spath__3__2,
-    rel__spath__3__1__2__3, DELTA,
-    {1, 0, 2, 3})); // 2, 1, 3, id
-  parallel_join* update_spath_j = new parallel_join(
-    rel__spath__3__1__2__3,
-    rel__edge__3__1, FULL,
-    rel__spath__3__2, DELTA,
-    {5, 2, 3}// useless
-  );
-  update_spath_j->set_generator_func([](std::vector<u64>& target_v,
-  std::vector<u64>& input_v, u64* res) {
-    res[0] = target_v[1];
-    res[1] = input_v[2];
-    if (res[0] == res[1]) {
-      res[2] = 0;
-    } else {
-      res[2] = target_v[2] + input_v[3];
-    }
-  });
-  scc2->add_rule(update_spath_j);
+  RAM *scc1 = new RAM(true, 1);
+  scc1->add_relation(rel__edge__2__1__2, false, false);
+  scc1->add_relation(rel__spath__3__2, true, false);
+  parallel_join *update_spath_j =
+      new parallel_join(rel__spath__3__2, rel__edge__2__1__2, FULL,
+                        rel__spath__3__2, DELTA, {5, 2, 3} // useless
+      );
+  update_spath_j->set_generator_func(
+      [](std::vector<u64> &target_v, std::vector<u64> &input_v, u64 *res) {
+        // std::cout << "Joining  >>> ";
+        // for (auto c : input_v) {
+        //   std::cout << c << " ";
+        // }
+        // std::cout << " and >>>>>>>";
+        // for (auto c : target_v) {
+        //     std::cout << c << " ";
+        // }
+        // std::cout << std::endl;
+        res[0] = input_v[1];
+        res[1] = target_v[1];
+        if (res[0] == res[1]) {
+          res[2] = 0;
+        } else {
+          res[2] = target_v[2] + 1;
+        }
+      });
+  scc1->add_rule(update_spath_j);
 
   LIE *lie = new LIE();
-  lie->add_relation(rel__edge__3__1);
-  lie->add_relation(rel__edge__3__1__2__3);
+  lie->add_relation(rel__edge__2__1__2);
   lie->add_relation(rel__spath__3__2);
-  lie->add_relation(rel__spath__3__1__2__3);
   lie->add_scc(scc0);
   lie->add_scc(scc1);
-  lie->add_scc(scc2);
-  lie->add_scc_dependance(scc0, scc2);
-  lie->add_scc_dependance(scc1, scc2);
-
-  // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-  // relation *rel__spath__2__1__2 = new relation(
-  //     2, true, 2, get_tag_for_rel("spath", "1__2"),
-  //     std::to_string(get_tag_for_rel("spath", "1__2")) + ".spath.2.table",
-  //     input_dir + "/" + std::to_string(get_tag_for_rel("spath", "1__2")) +
-  //         ".spath.2.table",
-  //     FULL);
-  // rel__spath__2__1__2->set_dependent_column_update(
-  //   {1, 2},   // len and id column
-  //   [](std::vector<u64> old_v, std::vector<u64> new_v) -> std::optional<bool>
-  //   {
-  //     // std::cout << "Comparing  ";
-  //     // for (auto c : old_v) {
-  //     //   std::cout << c << " ";
-  //     // }
-  //     // std::cout << " <<<<<<  ";
-  //     // for (auto c : new_v) {
-  //     //   std::cout << c << " ";
-  //     // }
-  //     return new_v[0] < old_v[0];
-  //   }
-  // );
-  // relation *rel__edge__3__1 = new relation(
-  //     1, false, 3, get_tag_for_rel("edge", "1"),
-  //     std::to_string(get_tag_for_rel("edge", "1")) + ".edge.3.table", FULL);
-  // relation *rel__edge__3__1__2__3 = new relation(
-  //     3, true, 3, get_tag_for_rel("edge", "1__2__3"),
-  //     std::to_string(get_tag_for_rel("edge", "1__2__3")) + ".edge.3.table",
-  //     input_dir + "/" +
-  //         std::to_string(get_tag_for_rel("edge", "1__2__3")) + ".edge.3.table",
-  //     FULL);
-  // relation *rel__spath__2__1 = new relation(
-  //     1, false, 2, get_tag_for_rel("spath", "1"),
-  //     std::to_string(get_tag_for_rel("spath", "1")) + ".spath.2.table", FULL);
-  // rel__spath__2__1->set_dependent_column_update(
-  //   {1, 2},
-  //   [](std::vector<u64> old_v, std::vector<u64> new_v) -> std::optional<bool>
-  //   {
-  //     // std::cout << "Comparing  ";
-  //     // for (auto c : old_v) {
-  //     //   std::cout << c << " ";
-  //     // }
-  //     // std::cout << " <<<<<<  ";
-  //     // for (auto c : new_v) {
-  //     //   std::cout << c << " ";
-  //     // }
-  //     return new_v[0] < old_v[0];
-  //   }
-  // );
-
-  // RAM *scc0 = new RAM(false, 0);
-  // scc0->add_relation(rel__edge__3__1, true, false);
-  // scc0->add_relation(rel__edge__3__1__2__3, true, false);
-  // scc0->add_rule(new parallel_acopy(rel__edge__3__1, rel__edge__3__1__2__3,
-  //                                   DELTA, {0, 3, 1, 2}));
-
-  // RAM *scc1 = new RAM(false, 1);
-  // scc1->add_relation(rel__spath__2__1__2, true, false);
-  // scc1->add_relation(rel__edge__3__1, false, false);
-  // scc1->add_rule(new parallel_copy_generate(
-  //     rel__spath__2__1__2, rel__edge__3__1, FULL,
-  //     [](const u64 *const data, u64 *const output) -> int {
-  //       auto args_for_old_bi = std::array<u64, 1>{data[0]};
-  //       using TState = std::tuple<const u64 *, u64 *>;
-  //       TState state = std::make_tuple(data, output);
-  //       auto callback = [](u64 res_0, TState state) -> TState {
-  //         auto [data, output] = state;
-  //         auto head_tuple = output;
-
-  //         bool compatible = true && res_0 == n2d(start_node);
-  //         if (!compatible)
-  //           return state;
-
-  //         head_tuple[0] = data[2];
-  //         head_tuple[1] = data[3];
-  //         return std::make_tuple(data, output + 2);
-  //       };
-  //       auto [_, new_ptr] =
-  //           builtin_eq_1<TState>(args_for_old_bi.data(), state, callback);
-  //       auto tuples_count = (new_ptr - output) / 2;
-  //       return tuples_count;
-  //     }));
-
-  // RAM *scc2 = new RAM(true, 2);
-  // scc2->add_relation(rel__spath__2__1__2, true, false);
-  // scc2->add_relation(rel__edge__3__1, false, false);
-  // scc2->add_relation(rel__spath__2__1, true, false);
-  // // scc2->add_rule(new parallel_join(rel__spath__2__1__2, rel__spath__2__1, DELTA,
-  // //                                  rel__edge__3__1, FULL, {4, 5}));
-  // parallel_join* update_spath_j = new parallel_join(
-  //   rel__spath__2__1__2,
-  //   rel__edge__3__1, FULL,
-  //   rel__spath__2__1, DELTA,
-  //   {5,4}// useless
-  // );
-  // update_spath_j->set_generator_func([](std::vector<u64>& target_v,
-  // std::vector<u64>& input_v, u64* res) {
-  //   // res[0] = target_v[0];
-  //   res[0] = input_v[2];
-  //   if (res[0] == start_node) {
-  //     res[1] = 0;
-  //   } else {
-  //     res[1] = target_v[1] + input_v[3];
-  //   }
-  // });
-  // scc2->add_rule(update_spath_j);
-  // scc2->add_rule(new parallel_acopy(rel__spath__2__1, rel__spath__2__1__2,
-  //                                   DELTA, {0, 1, 2}));
-
-
-  // LIE *lie = new LIE();
-  // lie->add_relation(rel__spath__2__1__2);
-  // lie->add_relation(rel__edge__3__1);
-  // lie->add_relation(rel__edge__3__1__2__3);
-  // lie->add_relation(rel__spath__2__1);
-  // lie->add_scc(scc0);
-  // lie->add_scc(scc1);
-  // lie->add_scc(scc2);
-  // lie->add_scc_dependance(scc0, scc2);
-  // lie->add_scc_dependance(scc0, scc1);
-  // lie->add_scc_dependance(scc1, scc2);
+  lie->add_scc_dependance(scc0, scc1);
 
   // Enable IO
   lie->enable_all_to_all_dump();
   lie->enable_data_IO();
+  //   lie->enable_share_io();
   lie->enable_IO();
   lie->set_output_dir(output_dir); // Write to this directory
   lie->set_comm(mcomm);
   lie->set_batch_size(1);
   lie->execute();
   lie->print_all_relation_size(); // Continuously print relation sizes
-  lie->stat_intermediate();
+                                  //   lie->stat_intermediate();
 
   // rel__spath__3__1__2__3->print();
 
   // rel__spath__2__1__2->print();
-  // rel__spath__2__1->print();
+//   rel__spath__3__2->print();
   // rel__edge__3__1->print();
   // rel__edge__3__1__2__3->print();
 
@@ -657,7 +501,6 @@ void compute_sssp_from(mpi_comm& mcomm, int sp, std::string input_dir, std::stri
   // lie->print_all_relation_size(); // Continuously print relation sizes
 
   delete lie;
-
 }
 
 int main(int argc, char **argv) {
@@ -674,7 +517,8 @@ int main(int argc, char **argv) {
   mpi_comm mcomm;
   mcomm.create(argc, argv);
 
-  compute_sssp_from(mcomm, atoi(argv[3]), slog_input_dir, slog_output_dir, argc, argv);
+  compute_sssp_from(mcomm, atoi(argv[3]), slog_input_dir, slog_output_dir, argc,
+                    argv);
 
   mcomm.destroy();
   return 0;
