@@ -56,6 +56,8 @@ private:
 
 public:
 
+    double all_to_all_time = 0;
+
     ~RAM();
     RAM (bool ic, int ram_id);
 

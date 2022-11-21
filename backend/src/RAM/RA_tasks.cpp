@@ -6,6 +6,7 @@
 
 
 #include "../parallel_RA_inc.h"
+#include "mpi.h"
 #include <iostream>
 
 RAM::~RAM()
@@ -579,6 +580,7 @@ bool RAM::local_compute(int* offset)
 
         else if ((*it)->get_RA_type() == JOIN)
         {
+            // auto before_time = MPI_Wtime();
             parallel_join* current_ra = (parallel_join*) *it;
             relation* output_relation = current_ra->get_join_output();
 
@@ -603,6 +605,7 @@ bool RAM::local_compute(int* offset)
                                                                          &join_tuples_duplicates,
                                                                          &join_tuples);
                 total_join_tuples = total_join_tuples + join_tuples;
+
             }
             else if (current_ra->get_join_input0_graph_type() == DELTA && current_ra->get_join_input1_graph_type() == FULL)
             {
@@ -654,8 +657,12 @@ bool RAM::local_compute(int* offset)
                                                                          &join_tuples);
                 total_join_tuples = total_join_tuples + join_tuples;
             }
+            // auto after_time = MPI_Wtime();
+            // if (mcomm.get_local_rank() == 0) {
+            //     std::cout << "local join on rank " << mcomm.get_local_rank() << " takes " << after_time - before_time << std::endl;
+            // }
         }
-        counter++;
+        counter++;      
     }
 
 #if 0
@@ -714,12 +721,14 @@ void RAM::local_comm()
     int cnt=0;
     cumulative_all_to_allv_buffer_cmp = new u64*[RA_list.size()];
     cumulative_all_to_allv_recv_process_size_array_cmp = new int[RA_list.size()];
-
+    auto before_time = MPI_Wtime();
     for (std::vector<parallel_RA*>::iterator it = RA_list.begin() ; it != RA_list.end(); ++it)
     {
         all_to_all_comm(compute_buffer.local_compute_output[cnt], compute_buffer.local_compute_output_size_rel[cnt], compute_buffer.local_compute_output_size[cnt], &cumulative_all_to_allv_recv_process_size_array_cmp[cnt], &cumulative_all_to_allv_buffer_cmp[cnt], mcomm.get_local_comm());
         cnt++;
     }
+    auto after_time = MPI_Wtime();
+    all_to_all_time += (after_time - before_time);
 }
 #endif
 
@@ -1226,22 +1235,28 @@ void RAM::execute_in_batches_comm_compaction(std::string name, int batch_size, s
         bool local_join_status = false;
         while (local_join_status == false)
         {
+            auto allocate_buffers_start = MPI_Wtime();
             allocate_compute_buffers();
+            auto allocate_buffers_end = MPI_Wtime();
 
-
+            auto compute_start = MPI_Wtime();
             local_join_status = local_compute(offset);
+            auto compute_end = MPI_Wtime();
 
+            auto all_to_all_start = MPI_Wtime();
             comm_compaction_all_to_all(compute_buffer, &cumulative_all_to_allv_recv_process_count_array, &cumulative_all_to_allv_buffer, mcomm.get_local_comm(), *loop_counter, task_id, output_dir, all_to_all_record, sloav_mode, rotate_index_array, send_indexes, sendb_num);
+            auto all_to_all_end = MPI_Wtime();
 
-
+            auto free_buffers_start = MPI_Wtime();
             free_compute_buffers();
+            auto free_buffers_end = MPI_Wtime();
 
-
-
+            auto insert_in_newt_start = MPI_Wtime();
             local_insert_in_newt_comm_compaction(intern_map);
+            auto insert_in_newt_end = MPI_Wtime();
 
 
-#if DEBUG_OUTPUT
+#if 1
             if (mcomm.get_rank() == 0)
             {
 #if 0
