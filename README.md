@@ -18,15 +18,42 @@ data-parallel deductive programming.
 
 ![cli](./cli.gif)
 
-## Using Docker ##
+## Using Docker
+
+First, build the Docker image and start up the server:
 
 ```sh
-docker build -t slog-daemon .
-docker run -d --name slog-server slog-daemon
-## To run a script on the server
-# IP was found by `docker network inspect bridge` and getting the IPV4 address
-./runslog 172.17.0.2 tests/tc.slog
-## To go onto the REPL
-docker exec -it slog-server bash
+docker build --tag slog .
+docker run --name=slog --entrypoint=/slog/slog-server --rm --detach slog
+```
+
+You may want to run with `--network=host` to expose all the Slog ports to your
+host.
+
+### Using the REPL from inside the container
+
+In a separate terminal:
+```sh
+docker exec --interactive --tty slog bash
 ./slog-repl
+```
+
+### Running scripts from outside the container
+
+First, install the Python dependencies:
+
+```sh
+pip install -r requirements.txt
+```
+
+Then:
+
+```sh
+./runslog 127.0.0.1 tests/tc.slog
+```
+
+If you ran without `--network=host`, you can find the container's IP like so:
+
+```sh
+docker container inspect slog --format '{{.NetworkSettings.IPAddress}}'
 ```
