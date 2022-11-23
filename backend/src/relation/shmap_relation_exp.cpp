@@ -123,6 +123,7 @@ shmap_relation::check_dependent_insertion(const std::vector<u64> &tp) {
         if (exist_tuples_range.first == ind.end()) {
             return true;
         } else {
+            auto joined = false;
             for (auto it = exist_tuples_range.first; it != exist_tuples_range.second; it++) {
                 auto cur_tuple = *it;
                 std::vector<u64> old_t;
@@ -130,8 +131,14 @@ shmap_relation::check_dependent_insertion(const std::vector<u64> &tp) {
                     old_t.push_back(cur_tuple[i]);
                 }
                 auto compare_res = update_compare_func(old_t, dependent_columns, tp);
-                if (compare_res.has_value() && compare_res.value()) {
+                if (!compare_res.has_value()) {
+                    continue;
+                }
+                if (compare_res.value()) {
+                    joined = true;
                     return true;
+                } else {
+                    joined = true;
                 }
             }
             // std::cout << " not adding to lattice with <<<<<< ";
@@ -151,7 +158,11 @@ shmap_relation::check_dependent_insertion(const std::vector<u64> &tp) {
             //     }
             //     std::cout << std::endl;
             // }
-            return false;
+            if (!joined) {
+                return true;
+            } else {
+                return false;        
+            }
         }
     } else {
         return true;
@@ -416,21 +427,60 @@ void shmap_relation::as_all_to_allv_right_join_buffer(
     //     }
     //     std::cout << std::endl;
     // }
+    // std::cout << "upper bound >> ";
+    // for (auto c: upper_bound) {
+    //     std::cout << c << " ";
+    // }
+    std::cout << std::endl;
     auto joined_range = lowerUpperRange(lower_bound, upper_bound);
-    for(auto it = joined_range.first; it != joined_range.second && it != ind.end(); ++it)
-    {
-        auto cur_path = *it;
-        u64 projected_path[join_buffer.width[ra_id]];
-        if (generator_mode) {
-            std::vector<u64> input_t(input0_buffer, input0_buffer+input0_buffer_width);
-            // std::cout << "join facts ";
-            // for (auto c: input_t) {
-            //     std::cout << c << " ";
-            // }
-            // std::cout << std::endl;
-            gen_func(input_t, cur_path, projected_path);
-        } else {
-            // std::cout << "here" << std::endl;
+
+    if (generator_mode) {
+        std::vector<u64> input_t(input0_buffer, input0_buffer+input0_buffer_width);
+        std::vector<std::vector<u64>> eq_tuple_set;
+        std::vector<std::vector<u64>> generated_tuple_set;
+        std::vector<u64> prev_non_dependent_columns;
+        for(auto it = joined_range.first; it != joined_range.second && it != ind.end(); ++it){
+            auto cur_path = *it;
+            std::vector<u64> cur_non_dependent_columns(cur_path.begin(), cur_path.begin()+arity+1-dependent_column_indices.size());
+            if (cur_non_dependent_columns == prev_non_dependent_columns) {
+                eq_tuple_set.push_back(cur_path);
+                continue;
+            } else {
+                if (eq_tuple_set.size() != 0) {
+                    gen_func(eq_tuple_set, input_t, generated_tuple_set);
+                    eq_tuple_set.clear();
+                }
+                prev_non_dependent_columns = cur_non_dependent_columns;
+                eq_tuple_set.push_back(cur_path);
+            }
+        }
+        if (eq_tuple_set.size() != 0) {
+            gen_func(eq_tuple_set, input_t, generated_tuple_set);
+        }
+        for (auto& tp: generated_tuple_set) {
+            uint64_t bucket_id = tuple_hash(tp.data(), head_rel_hash_col_count) % buckets;
+            uint64_t sub_bucket_id=0;
+            if (canonical == false)
+                sub_bucket_id = tuple_hash(tp.data() + head_rel_hash_col_count, join_buffer.width[ra_id]-head_rel_hash_col_count) % output_sub_bucket_count[bucket_id];
+
+            int index = output_sub_bucket_rank[bucket_id][sub_bucket_id];
+
+            join_buffer.local_compute_output_size_rel[ra_id] = join_buffer.local_compute_output_size_rel[ra_id] + join_buffer.width[ra_id];
+            join_buffer.local_compute_output_size_total = join_buffer.local_compute_output_size_total + join_buffer.width[ra_id];
+            join_buffer.local_compute_output_size_flat[index*join_buffer.ra_count + ra_id] = join_buffer.local_compute_output_size_flat[index*join_buffer.ra_count + ra_id] + join_buffer.width[ra_id];
+            join_buffer.local_compute_output_count_flat[index * join_buffer.ra_count + ra_id] ++;
+
+            join_buffer.local_compute_output_size[ra_id][index] = join_buffer.local_compute_output_size[ra_id][index] + join_buffer.width[ra_id];
+            join_buffer.cumulative_tuple_process_map[index] = join_buffer.cumulative_tuple_process_map[index] + join_buffer.width[ra_id];
+            join_buffer.local_compute_output[ra_id][index].vector_buffer_append((const unsigned char*)tp.data(), sizeof(u64)*join_buffer.width[ra_id]);
+            (*local_join_inserts)++;
+            (*local_join_count)++;
+        }
+    } else {
+        for(auto it = joined_range.first; it != joined_range.second && it != ind.end(); ++it)
+        {
+            auto cur_path = *it;
+            u64 projected_path[join_buffer.width[ra_id]];
             u64 reordered_cur_path[input0_buffer_width + input1_buffer_width - join_column_count];
             for (int i = 0; i < input1_buffer_width; i++)
                 reordered_cur_path[i] = cur_path[i];
@@ -440,34 +490,34 @@ void shmap_relation::as_all_to_allv_right_join_buffer(
 
             for (int i =0; i < join_buffer.width[ra_id]; i++)
                 projected_path[i] = reordered_cur_path[reorder_map[i]];
-        }
-        // std::cout << "add new facts ";
-        // for (auto c: projected_path) {
-        //     std::cout << c << " ";
-        // }
-        // std::cout << std::endl;
-        if (deduplicate.insert_tuple_from_array(projected_path, join_buffer.width[ra_id]) == true)
-        {
-            uint64_t bucket_id = tuple_hash(projected_path, head_rel_hash_col_count) % buckets;
-            uint64_t sub_bucket_id=0;
-            if (canonical == false)
-                sub_bucket_id = tuple_hash(projected_path + head_rel_hash_col_count, join_buffer.width[ra_id]-head_rel_hash_col_count) % output_sub_bucket_count[bucket_id];
+            // std::cout << "add new facts ";
+            // for (auto c: projected_path) {
+            //     std::cout << c << " ";
+            // }
+            // std::cout << std::endl;
+            if (deduplicate.insert_tuple_from_array(projected_path, join_buffer.width[ra_id]) == true)
+            {
+                uint64_t bucket_id = tuple_hash(projected_path, head_rel_hash_col_count) % buckets;
+                uint64_t sub_bucket_id=0;
+                if (canonical == false)
+                    sub_bucket_id = tuple_hash(projected_path + head_rel_hash_col_count, join_buffer.width[ra_id]-head_rel_hash_col_count) % output_sub_bucket_count[bucket_id];
 
-            int index = output_sub_bucket_rank[bucket_id][sub_bucket_id];
+                int index = output_sub_bucket_rank[bucket_id][sub_bucket_id];
 
-            join_buffer.local_compute_output_size_rel[ra_id] = join_buffer.local_compute_output_size_rel[ra_id] + join_buffer.width[ra_id];
-            join_buffer.local_compute_output_size_total = join_buffer.local_compute_output_size_total + join_buffer.width[ra_id];
-            join_buffer.local_compute_output_size_flat[index*join_buffer.ra_count + ra_id] = join_buffer.local_compute_output_size_flat[index*join_buffer.ra_count + ra_id] + join_buffer.width[ra_id];
-            join_buffer.local_compute_output_count_flat[index * join_buffer.ra_count + ra_id] ++;
-            join_buffer.local_compute_output_size[ra_id][index] = join_buffer.local_compute_output_size[ra_id][index] + join_buffer.width[ra_id];
+                join_buffer.local_compute_output_size_rel[ra_id] = join_buffer.local_compute_output_size_rel[ra_id] + join_buffer.width[ra_id];
+                join_buffer.local_compute_output_size_total = join_buffer.local_compute_output_size_total + join_buffer.width[ra_id];
+                join_buffer.local_compute_output_size_flat[index*join_buffer.ra_count + ra_id] = join_buffer.local_compute_output_size_flat[index*join_buffer.ra_count + ra_id] + join_buffer.width[ra_id];
+                join_buffer.local_compute_output_count_flat[index * join_buffer.ra_count + ra_id] ++;
+                join_buffer.local_compute_output_size[ra_id][index] = join_buffer.local_compute_output_size[ra_id][index] + join_buffer.width[ra_id];
 
-            join_buffer.cumulative_tuple_process_map[index] = join_buffer.cumulative_tuple_process_map[index] + join_buffer.width[ra_id];
-            join_buffer.local_compute_output[ra_id][index].vector_buffer_append((const unsigned char*)projected_path, sizeof(u64)*join_buffer.width[ra_id]);
-            (*local_join_inserts)++;
-            (*local_join_count)++;
-        }
-        else {
-            (*local_join_duplicates)++;
+                join_buffer.cumulative_tuple_process_map[index] = join_buffer.cumulative_tuple_process_map[index] + join_buffer.width[ra_id];
+                join_buffer.local_compute_output[ra_id][index].vector_buffer_append((const unsigned char*)projected_path, sizeof(u64)*join_buffer.width[ra_id]);
+                (*local_join_inserts)++;
+                (*local_join_count)++;
+            }
+            else {
+                (*local_join_duplicates)++;
+            }
         }
     }
 }
@@ -499,11 +549,9 @@ void shmap_relation::as_all_to_allv_left_join_buffer(
         upper_bound[i] = prefix[i];
         lower_bound[i] = prefix[i];
     }
-    // std::cout << "join >>> ";
-    // for (auto c: prefix) {
-    //     std::cout << c << " ";
-    // }
-    // std::cout << std::endl;
+
+    auto joined_range = lowerUpperRange(lower_bound, upper_bound);
+
     // std::cout << "cur tree >>> " << std::endl;
     // for (auto r:  ind) {
     //     std::cout << ">>> ";
@@ -512,33 +560,35 @@ void shmap_relation::as_all_to_allv_left_join_buffer(
     //     }
     //     std::cout << std::endl;
     // }
-    auto joined_range = lowerUpperRange(lower_bound, upper_bound);
-    for(auto it = joined_range.first; it != joined_range.second && it != ind.end(); ++it)
-    {
-        auto cur_path = *it;
-        u64 projected_path[join_buffer.width[ra_id]];
-        if (generator_mode) {
-            std::vector<u64> input_t(input0_buffer, input0_buffer+input0_buffer_width);
-            gen_func(cur_path, input_t, projected_path);
-        } else {
-            u64 reordered_cur_path[input0_buffer_width + input1_buffer_width - join_column_count];
-            for (int i = 0; i < input0_buffer_width; i++)
-                reordered_cur_path[i] = input0_buffer[i];
 
-            for (int i = join_column_count; i < input1_buffer_width; i++)
-                reordered_cur_path[input0_buffer_width + (i - join_column_count)] = cur_path[i];
-
-            for (int i =0; i < join_buffer.width[ra_id]; i++)
-                projected_path[i] = reordered_cur_path[reorder_map[i]];
+    if (generator_mode) {
+        std::vector<u64> input_t(input0_buffer, input0_buffer+input0_buffer_width);
+        std::vector<std::vector<u64>> eq_tuple_set;
+        std::vector<std::vector<u64>> generated_tuple_set;
+        std::vector<u64> prev_non_dependent_columns;
+        for(auto it = joined_range.first; it != joined_range.second && it != ind.end(); ++it){
+            auto cur_path = *it;
+            std::vector<u64> cur_non_dependent_columns(cur_path.begin(), cur_path.begin()+arity+1-dependent_column_indices.size());
+            if (cur_non_dependent_columns == prev_non_dependent_columns) {
+                eq_tuple_set.push_back(cur_path);
+                continue;
+            } else {
+                if (eq_tuple_set.size() != 0) {
+                    gen_func(eq_tuple_set, input_t, generated_tuple_set);
+                    eq_tuple_set.clear();
+                }
+                prev_non_dependent_columns = cur_non_dependent_columns;
+                eq_tuple_set.push_back(cur_path);
+            }
         }
-        
-        //std::cout << "NT " << projected_path[0] << " " << projected_path[1] << std::endl;
-        if (deduplicate.insert_tuple_from_array(projected_path, join_buffer.width[ra_id]) == true)
-        {
-            uint64_t bucket_id = tuple_hash(projected_path, head_rel_hash_col_count) % buckets;
+        if (eq_tuple_set.size() != 0) {
+            gen_func(eq_tuple_set, input_t, generated_tuple_set);
+        }
+        for (auto& tp: generated_tuple_set) {
+            uint64_t bucket_id = tuple_hash(tp.data(), head_rel_hash_col_count) % buckets;
             uint64_t sub_bucket_id=0;
             if (canonical == false)
-                sub_bucket_id = tuple_hash(projected_path + head_rel_hash_col_count, join_buffer.width[ra_id]-head_rel_hash_col_count) % output_sub_bucket_count[bucket_id];
+                sub_bucket_id = tuple_hash(tp.data() + head_rel_hash_col_count, join_buffer.width[ra_id]-head_rel_hash_col_count) % output_sub_bucket_count[bucket_id];
 
             int index = output_sub_bucket_rank[bucket_id][sub_bucket_id];
 
@@ -549,12 +599,49 @@ void shmap_relation::as_all_to_allv_left_join_buffer(
 
             join_buffer.local_compute_output_size[ra_id][index] = join_buffer.local_compute_output_size[ra_id][index] + join_buffer.width[ra_id];
             join_buffer.cumulative_tuple_process_map[index] = join_buffer.cumulative_tuple_process_map[index] + join_buffer.width[ra_id];
-            join_buffer.local_compute_output[ra_id][index].vector_buffer_append((const unsigned char*)projected_path, sizeof(u64)*join_buffer.width[ra_id]);
+            join_buffer.local_compute_output[ra_id][index].vector_buffer_append((const unsigned char*)tp.data(), sizeof(u64)*join_buffer.width[ra_id]);
             (*local_join_inserts)++;
             (*local_join_count)++;
         }
-        else {
-            (*local_join_duplicates)++;
+    } else {
+        for(auto it = joined_range.first; it != joined_range.second && it != ind.end(); ++it)
+        {
+            auto cur_path = *it;
+            u64 projected_path[join_buffer.width[ra_id]];
+            u64 reordered_cur_path[input0_buffer_width + input1_buffer_width - join_column_count];
+            for (int i = 0; i < input0_buffer_width; i++)
+                reordered_cur_path[i] = input0_buffer[i];
+
+            for (int i = join_column_count; i < input1_buffer_width; i++)
+                reordered_cur_path[input0_buffer_width + (i - join_column_count)] = cur_path[i];
+
+            for (int i =0; i < join_buffer.width[ra_id]; i++)
+                projected_path[i] = reordered_cur_path[reorder_map[i]];
+            
+            //std::cout << "NT " << projected_path[0] << " " << projected_path[1] << std::endl;
+            if (deduplicate.insert_tuple_from_array(projected_path, join_buffer.width[ra_id]) == true)
+            {
+                uint64_t bucket_id = tuple_hash(projected_path, head_rel_hash_col_count) % buckets;
+                uint64_t sub_bucket_id=0;
+                if (canonical == false)
+                    sub_bucket_id = tuple_hash(projected_path + head_rel_hash_col_count, join_buffer.width[ra_id]-head_rel_hash_col_count) % output_sub_bucket_count[bucket_id];
+
+                int index = output_sub_bucket_rank[bucket_id][sub_bucket_id];
+
+                join_buffer.local_compute_output_size_rel[ra_id] = join_buffer.local_compute_output_size_rel[ra_id] + join_buffer.width[ra_id];
+                join_buffer.local_compute_output_size_total = join_buffer.local_compute_output_size_total + join_buffer.width[ra_id];
+                join_buffer.local_compute_output_size_flat[index*join_buffer.ra_count + ra_id] = join_buffer.local_compute_output_size_flat[index*join_buffer.ra_count + ra_id] + join_buffer.width[ra_id];
+                join_buffer.local_compute_output_count_flat[index * join_buffer.ra_count + ra_id] ++;
+
+                join_buffer.local_compute_output_size[ra_id][index] = join_buffer.local_compute_output_size[ra_id][index] + join_buffer.width[ra_id];
+                join_buffer.cumulative_tuple_process_map[index] = join_buffer.cumulative_tuple_process_map[index] + join_buffer.width[ra_id];
+                join_buffer.local_compute_output[ra_id][index].vector_buffer_append((const unsigned char*)projected_path, sizeof(u64)*join_buffer.width[ra_id]);
+                (*local_join_inserts)++;
+                (*local_join_count)++;
+            }
+            else {
+                (*local_join_duplicates)++;
+            }
         }
     }
     // std::cout << "inserted " << *local_join_inserts << std::endl;

@@ -511,8 +511,8 @@ bool LIE::execute ()
         /// For SCCs that runs till fixed point is reached
         else
         {
-            if (mcomm.get_rank() == 0)
-                std::cout << "name\tnprocs\tmin\tmax\tmean\tIteration#\tBuffer_creation_time\tComputation_time\tAll_to_all_time\tBuffer_free_time\tInsert_in_newt_time\tIntra_comm_time\tInsert_in_full_time\tTotal_time" << std::endl;
+            //if (mcomm.get_rank() == 0)
+            //    std::cout << "name\tnprocs\tmin\tmax\tmean\tIteration#\tBuffer_creation_time\tComputation_time\tAll_to_all_time\tBuffer_free_time\tInsert_in_newt_time\tIntra_comm_time\tInsert_in_full_time\tTotal_time" << std::endl;
             u64 delta_in_scc = 0;
             do
             {

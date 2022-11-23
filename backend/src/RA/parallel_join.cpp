@@ -7,6 +7,7 @@
 
 #include "../parallel_RA_inc.h"
 #include <cstddef>
+#include <iostream>
 
 
 bool parallel_join::local_join(int threshold, int* offset,
@@ -34,6 +35,7 @@ bool parallel_join::local_join(int threshold, int* offset,
     }
     u32* output_sub_bucket_count = output->get_sub_bucket_per_bucket_count();
     u32** output_sub_bucket_rank = output->get_sub_bucket_rank();
+    // std::cout << "wwwwwwwww " << input0_buffer_size << " " << input0_buffer_size << " " << i1_size << std::endl;
 
     if (*offset > input0_buffer_size || input0_buffer_size == 0 || i1_size == 0)
         return true;

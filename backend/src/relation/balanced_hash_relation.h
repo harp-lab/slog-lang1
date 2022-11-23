@@ -267,6 +267,8 @@ public:
     void local_insert_in_delta();
     void copy_newt_to_delta()   {delta = newt;}
 
+    // lattice value check
+    bool check_dependent_value_insert_avalible(const std::vector<u64>& tuple);
 
     /// for load balancing (implemented in relation_load_balance.cpp)
     bool load_balance_merge_full_and_delta(float rf);

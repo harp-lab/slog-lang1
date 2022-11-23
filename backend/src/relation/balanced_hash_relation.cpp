@@ -6,6 +6,7 @@
 
 
 #include "../parallel_RA_inc.h"
+#include "balanced_hash_relation.h"
 #include <cassert>
 #include <cstddef>
 #include <filesystem>
@@ -1196,6 +1197,7 @@ bool relation::insert_in_full(u64* t)
     // TODO: use normal insert here!
     if (full[bucket_id].insert_tuple_from_array(t, arity+1) == true)
     {
+        // TODO: change how to deal with element counts
         full_element_count++;
         full_bucket_element_count[bucket_id]++;
         full_sub_bucket_element_count[bucket_id][sub_bucket_id]++;
@@ -1289,27 +1291,27 @@ void relation::local_insert_in_delta()
     MPI_Comm_rank(mcomm.get_comm(), &rank);
     u32 buckets = get_bucket_count();
 
-    if (dependent_column_indices.size() > 0) {
-        delta_element_count = 0;
-        for (u32 i = 0; i < buckets; i++) {
-            delta[i].purge();
-            memset(delta_sub_bucket_element_count[i], 0, sub_bucket_per_bucket_count[i] * sizeof(u32));
-            for (auto& t: newt[i]) {
-                if (full[i].check_dependent_insertion(t)) {
-                    delta[i].insert(t);
-                    uint64_t bucket_id = tuple_hash(t.data(), join_column_count) % get_bucket_count();
-                    u32 sub_bucket_id = 0;
-                    if (is_canonical == false   && arity != 0 && arity >= join_column_count)
-                        sub_bucket_id = tuple_hash(t.data() + join_column_count, arity-join_column_count) % sub_bucket_per_bucket_count[bucket_id];
-                    delta_sub_bucket_element_count[bucket_id][sub_bucket_id]++;
-                    delta_element_count++;
-                }
-            }
-            newt[i].purge();
-            memset(newt_sub_bucket_element_count[i], 0, sub_bucket_per_bucket_count[i] * sizeof(u32));
-            newt_element_count = 0;
-        }
-    } else {
+    // if (dependent_column_indices.size() > 0) {
+    //     delta_element_count = 0;
+    //     for (u32 i = 0; i < buckets; i++) {
+    //         delta[i].purge();
+    //         memset(delta_sub_bucket_element_count[i], 0, sub_bucket_per_bucket_count[i] * sizeof(u32));
+    //         for (auto& t: newt[i]) {
+    //             if (full[i].check_dependent_insertion(t)) {
+    //                 delta[i].insert(t);
+    //                 uint64_t bucket_id = tuple_hash(t.data(), join_column_count) % get_bucket_count();
+    //                 u32 sub_bucket_id = 0;
+    //                 if (is_canonical == false   && arity != 0 && arity >= join_column_count)
+    //                     sub_bucket_id = tuple_hash(t.data() + join_column_count, arity-join_column_count) % sub_bucket_per_bucket_count[bucket_id];
+    //                 delta_sub_bucket_element_count[bucket_id][sub_bucket_id]++;
+    //                 delta_element_count++;
+    //             }
+    //         }
+    //         newt[i].purge();
+    //         memset(newt_sub_bucket_element_count[i], 0, sub_bucket_per_bucket_count[i] * sizeof(u32));
+    //         newt_element_count = 0;
+    //     }
+    // } else {
         delete[] delta;
         delta = newt;
         delta_element_count = newt_element_count;
@@ -1327,5 +1329,24 @@ void relation::local_insert_in_delta()
         }
         newt_element_count = 0;
         memset(newt_bucket_element_count, 0, buckets * sizeof(u32));
-    }
+    // }
+}
+
+bool relation::check_dependent_value_insert_avalible(const std::vector<u64>& tuple) {
+    uint64_t bucket_id = tuple_hash(tuple.data(), join_column_count) % get_bucket_count();
+    // return newt[bucket_id].check_dependent_insertion(tuple);
+    // if (!(full[bucket_id].check_dependent_insertion(tuple) && delta[bucket_id].check_dependent_insertion(tuple))) {
+    //     for (auto c: tuple) {
+    //         std::cout << c << " ";
+    //     }
+    //     std::cout << std::endl;
+    //     std::cout << "current tree >>" << std::endl;
+    //     for (auto t: delta[bucket_id]) {
+    //         for (auto c: t) {
+    //             std::cout << c << " ";
+    //         }
+    //         std::cout << std::endl;
+    //     }
+    // }
+    return delta[bucket_id].check_dependent_insertion(tuple) && full[bucket_id].check_dependent_insertion(tuple) ;
 }

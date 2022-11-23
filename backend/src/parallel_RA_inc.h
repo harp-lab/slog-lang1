@@ -18,8 +18,26 @@
 //#define DEBUG_OUTPUT 1
 #define MAX_LOOP_COUNT 120000
 
+struct vec_comparator {
+  vec_comparator() {}
+
+  bool operator()(const std::vector<u64> &a, const std::vector<u64> &b) const {
+      // make it an unroll loop when change to array
+      int size = a.size();
+          for (int i=0; i < size; i++) {
+              if (a[i] < b[i])
+                  return true;
+              if (a[i] > b[i])
+                  return false;
+          }
+
+      return false;
+  }
+};
+
+using depend_val_t = std::vector<std::vector<u64>>;
 using update_partial_compare_func_t = std::function<std::optional<bool>(const std::vector<u64>& old_v, const std::vector<u64>& new_v, const std::vector<u64>& prefix)>;
-using join_generator_func_t = std::function<void(std::vector<u64>& target_v, std::vector<u64>& input_v, u64* res)>;
+using join_generator_func_t = std::function<bool(const depend_val_t& target_vs, const std::vector<u64>& input_v, depend_val_t& res_set)>;
 
 #include "log/logger.h"
 #include "hash/hash.h"

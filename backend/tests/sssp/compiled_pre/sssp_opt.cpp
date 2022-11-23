@@ -1,5 +1,5 @@
 // location of `parallel_RA_inc.h` here
-#include "/home/ysun67/workspace/slog/compiler/../backend/src/parallel_RA_inc.h"
+#include "/home/ubuntu/workspace/slog/compiler/../backend/src/parallel_RA_inc.h"
 
 #include <optional>
 #include <iterator>
@@ -412,7 +412,7 @@ void compute_sssp_from(mpi_comm &mcomm, int sp, std::string input_dir,
   scc0->add_rule(new parallel_copy_generate(
       rel__spath__3__2, rel__edge__2__1__2, FULL,
       [](const u64 *const data, u64 *const output) -> int {
-        auto args_for_old_bi = std::array<u64, 3>{data[0], data[1], n2d(1)};
+        auto args_for_old_bi = std::array<u64, 3>{data[0], data[1], 1};
         using TState = std::tuple<const u64 *, u64 *>;
         TState state = std::make_tuple(args_for_old_bi.data(), output);
         auto callback = [](u64 res_0, TState state) -> TState {
@@ -442,7 +442,7 @@ void compute_sssp_from(mpi_comm &mcomm, int sp, std::string input_dir,
                         rel__spath__3__2, DELTA, {5, 2, 3} // useless
       );
   update_spath_j->set_generator_func(
-      [](std::vector<u64> &target_v, std::vector<u64> &input_v, u64 *res) {
+      [](const depend_val_t& target_vs, const std::vector<u64>& input_v, depend_val_t& res_set) -> bool {
         // std::cout << "Joining  >>> ";
         // for (auto c : input_v) {
         //   std::cout << c << " ";
@@ -452,13 +452,18 @@ void compute_sssp_from(mpi_comm &mcomm, int sp, std::string input_dir,
         //     std::cout << c << " ";
         // }
         // std::cout << std::endl;
+        auto target_v = target_vs[0];
+        std::vector<u64> res(3, 0);
         res[0] = input_v[1];
         res[1] = target_v[1];
         if (res[0] == res[1]) {
+          // std::cout << "Warning detect a loop for node " << res[0] << std::endl;
           res[2] = 0;
         } else {
           res[2] = target_v[2] + 1;
         }
+        res_set.push_back(res);
+        return true;
       });
   scc1->add_rule(update_spath_j);
 
@@ -484,7 +489,8 @@ void compute_sssp_from(mpi_comm &mcomm, int sp, std::string input_dir,
   // rel__spath__3__1__2__3->print();
 
   // rel__spath__2__1__2->print();
-//   rel__spath__3__2->print();
+  // rel__edge__2__1__2->print();
+  // rel__spath__3__2->print();
   // rel__edge__3__1->print();
   // rel__edge__3__1__2__3->print();
 

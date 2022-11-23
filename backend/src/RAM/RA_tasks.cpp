@@ -7,7 +7,9 @@
 
 #include "../parallel_RA_inc.h"
 #include "mpi.h"
+#include <iomanip>
 #include <iostream>
+#include <vector>
 
 RAM::~RAM()
 {
@@ -256,12 +258,22 @@ u64 RAM::intra_bucket_comm_execute()
             /// Join between full and delta
             else if (current_ra->get_join_input0_graph_type() == FULL && current_ra->get_join_input1_graph_type() == DELTA)
             {
-                intra_bucket_comm(get_bucket_count(),
-                                  input1->get_delta(),
-                                  input1->get_distinct_sub_bucket_rank_count(), input1->get_distinct_sub_bucket_rank(), input1->get_bucket_map(),
+                // std::cout << "here>>>>>>>>>>>>>"  << std::endl;
+                if (input1->get_dependent_column().size() > 0) {
+                    intra_bucket_comm(get_bucket_count(),
+                                  input0->get_full(),
                                   input0->get_distinct_sub_bucket_rank_count(), input0->get_distinct_sub_bucket_rank(), input0->get_bucket_map(),
+                                  input1->get_distinct_sub_bucket_rank_count(), input1->get_distinct_sub_bucket_rank(), input1->get_bucket_map(),
                                   &intra_bucket_buf_output_size[counter], &intra_bucket_buf_output[counter],
                                   mcomm.get_local_comm());
+                } else {
+                    intra_bucket_comm(get_bucket_count(),
+                                    input1->get_delta(),
+                                    input1->get_distinct_sub_bucket_rank_count(), input1->get_distinct_sub_bucket_rank(), input1->get_bucket_map(),
+                                    input0->get_distinct_sub_bucket_rank_count(), input0->get_distinct_sub_bucket_rank(), input0->get_bucket_map(),
+                                    &intra_bucket_buf_output_size[counter], &intra_bucket_buf_output[counter],
+                                    mcomm.get_local_comm());
+                }
                 total_data_moved = total_data_moved + intra_bucket_buf_output_size[counter];
             }
 
@@ -626,19 +638,33 @@ bool RAM::local_compute(int* offset)
             }
             else if (current_ra->get_join_input0_graph_type() == FULL && current_ra->get_join_input1_graph_type() == DELTA)
             {
-
-                join_completed = join_completed & current_ra->local_join(threshold, &(offset[counter]),
-                                                                         RIGHT,
-                                                                         get_bucket_count(),
-                                                                         intra_bucket_buf_output_size[counter], input1->get_arity()+1, intra_bucket_buf_output[counter],
-                                                                         input0->get_full(), input0->get_full_element_count(), input0->get_arity()+1,
-                                                                         reorder_map_array,
-                                                                         output_relation,
-                                                                         compute_buffer,
-                                                                         counter,
-                                                                         join_column_count,
-                                                                         &join_tuples_duplicates,
-                                                                         &join_tuples);
+                if (input1->get_dependent_column().size() > 0) {
+                    join_completed = join_completed & current_ra->local_join(threshold, &(offset[counter]),
+                                                                            LEFT,
+                                                                            get_bucket_count(),
+                                                                            intra_bucket_buf_output_size[counter], input0->get_arity()+1, intra_bucket_buf_output[counter],
+                                                                            input1->get_delta(), input1->get_delta_element_count(), input1->get_arity()+1,
+                                                                            reorder_map_array,
+                                                                            output_relation,
+                                                                            compute_buffer,
+                                                                            counter,
+                                                                            join_column_count,
+                                                                            &join_tuples_duplicates,
+                                                                            &join_tuples); 
+                } else {
+                    join_completed = join_completed & current_ra->local_join(threshold, &(offset[counter]),
+                                                                            RIGHT,
+                                                                            get_bucket_count(),
+                                                                            intra_bucket_buf_output_size[counter], input1->get_arity()+1, intra_bucket_buf_output[counter],
+                                                                            input0->get_full(), input0->get_full_element_count(), input0->get_arity()+1,
+                                                                            reorder_map_array,
+                                                                            output_relation,
+                                                                            compute_buffer,
+                                                                            counter,
+                                                                            join_column_count,
+                                                                            &join_tuples_duplicates,
+                                                                            &join_tuples);
+                }
                 total_join_tuples = total_join_tuples + join_tuples;
             }
             else if (current_ra->get_join_input0_graph_type() == FULL && current_ra->get_join_input1_graph_type() == FULL)
@@ -824,10 +850,22 @@ void RAM::local_insert_in_newt_comm_compaction(std::map<u64, u64>& intern_map)
             for (int tuple_ind = 0; tuple_ind < tuples_to_read; tuple_ind ++)
             {
                 u32 x = starting + tuple_ind * width;
-                if (output->find_in_full(cumulative_all_to_allv_buffer + x, width) == false &&
+                bool insert_flag = true;
+                if (output->get_dependent_column().size() > 1) {
+                    std::vector<u64> tt;
+                    for (int i = 0; i < width; i++) {
+                        tt.push_back(cumulative_all_to_allv_buffer[x+i]);
+                    }
+                    // temporary index column just to match size of column
+                    tt.push_back(0);
+                    insert_flag = output->check_dependent_value_insert_avalible(tt);
+
+                } else {
+                    insert_flag = output->find_in_full(cumulative_all_to_allv_buffer + x, width) == false &&
                         output->find_in_delta(cumulative_all_to_allv_buffer + x, width) == false &&
-                        output->find_in_newt(cumulative_all_to_allv_buffer + x, width) == false)
-                {
+                        output->find_in_newt(cumulative_all_to_allv_buffer + x, width) == false;
+                }
+                if (insert_flag){
                     for (u32 i = 0; i < width; i++)
                         tuple[i] = cumulative_all_to_allv_buffer[x+i];
 
@@ -850,17 +888,7 @@ void RAM::local_insert_in_newt_comm_compaction(std::map<u64, u64>& intern_map)
 
                     if (output->insert_in_newt(tuple) == true)
                         successful_insert++;
-
-                    //if (RA_list[ra_id]->get_RA_type() == FACT)
-                    //    std::cout << "FFFFFFFFFF "<< tuple[0] << " " << tuple[1] << " " << successful_insert << std::endl;
                 } 
-                // else {
-                    // std::cout << "insert fail ";
-                    // for (int i = 0; i < width; i++) {
-                    //     std::cout << cumulative_all_to_allv_buffer[i] << " ";
-                // }
-                // std::cout << std::endl;
-                // }
             }
             starting = starting + elements_to_read;
         }
@@ -1097,35 +1125,35 @@ void RAM::execute_in_batches(std::string name, int batch_size, std::vector<u32>&
         //    std::cout << "--------------FIXED POINT ITERATION " << loop_count_tracker << "--------------" << std::endl;
 #endif
 
-
+        auto intra_start = MPI_Wtime(); 
         intra_bucket_comm_execute();
+        auto intra_end = MPI_Wtime(); 
 
-
+        std::cout << std::setiosflags(std::ios::fixed);
         bool local_join_status = false;
         while (local_join_status == false)
         {
-
+            auto allocate_buffers_start = MPI_Wtime();
             allocate_compute_buffers();
+            auto allocate_buffers_end = MPI_Wtime();
 
-
-
+            auto compute_start = MPI_Wtime();
             local_join_status = local_compute(offset);
+            auto compute_end = MPI_Wtime();
 
-
-
+            auto all_to_all_start = MPI_Wtime();
             local_comm();
+            auto all_to_all_end = MPI_Wtime();
 
-
-
-
+            auto free_buffers_start = MPI_Wtime();
             free_compute_buffers();
+            auto free_buffers_end = MPI_Wtime();
 
-
-
+            auto insert_in_newt_start = MPI_Wtime();
             local_insert_in_newt(intern_map);
+            auto insert_in_newt_end = MPI_Wtime();
 
-
-#if DEBUG_OUTPUT
+#if 1
             if (mcomm.get_rank() == 0)
             {
 #if 0
@@ -1145,19 +1173,24 @@ void RAM::execute_in_batches(std::string name, int batch_size, std::vector<u32>&
                           << " newt " << *running_insert_newt
                           << std::endl;
 #endif
-                std::cout << loop_count_tracker << "\t"
-                          << (allocate_buffers_end - allocate_buffers_start) << "\t"
-                          << (compute_end - compute_start) << "\t"
-                          << (all_to_all_end - all_to_all_start) << "\t"
-                          << (free_buffers_end - free_buffers_start) << "\t"
-                          << (insert_in_newt_end - insert_in_newt_start) << "\t";
+                std::cout << "loop" << std::setw(12) << "alloc_buf" << std::setw(12) << "compute" << std::setw(12)
+                          << "all2all" << std::setw(12) << "free_buf" << std::setw(12) << "insert_newt" << std::setw(12)
+                          << "intra" << std::setw(12) << "insert_full" << std::setw(12) << "total" << "\n" ;
+                std::cout << loop_count_tracker << std::setprecision(4) << std::setw(12)
+                          << (allocate_buffers_end - allocate_buffers_start) << std::setprecision(4) << std::setw(12)
+                          << (compute_end - compute_start) << std::setprecision(4) << std::setw(12)
+                          << (all_to_all_end - all_to_all_start) << std::setprecision(4) << std::setw(12)
+                          << (free_buffers_end - free_buffers_start) << std::setprecision(4) << std::setw(12)
+                          << (insert_in_newt_end - insert_in_newt_start) << std::setprecision(4) << std::setw(12);
             }
 #endif
             inner_loop++;
         }
+        auto insert_in_full_start = MPI_Wtime(); 
         local_insert_in_full();
-
-#if DEBUG_OUTPUT
+        auto insert_in_full_end = MPI_Wtime(); 
+        
+#if 1
         if (mcomm.get_rank() == 0)
         {
 #if 0
@@ -1174,8 +1207,8 @@ void RAM::execute_in_batches(std::string name, int batch_size, std::vector<u32>&
                        << " full " << *running_insert_in_full
                        << " Total " << *running_intra_bucket_comm + *running_buffer_allocate + *running_local_compute + *running_all_to_all + *running_buffer_free + *running_insert_newt + *running_insert_in_full << std::endl;
 #endif
-            std::cout << (intra_end - intra_start) << "\t"
-                      << (insert_in_full_end - insert_in_full_start)  << "\t"
+            std::cout << (intra_end - intra_start) << std::setw(12)
+                      << (insert_in_full_end - insert_in_full_start)  << std::setw(12)
                       << (insert_in_full_end - intra_start) << std::endl;
 
         }
@@ -1229,8 +1262,10 @@ void RAM::execute_in_batches_comm_compaction(std::string name, int batch_size, s
         //    std::cout << "--------------FIXED POINT ITERATION " << loop_count_tracker << "--------------" << std::endl;
 #endif
 
-
+        std::cout << std::setiosflags(std::ios::fixed);
+        auto intra_start = MPI_Wtime(); 
         intra_bucket_comm_execute();
+        auto intra_end = MPI_Wtime(); 
 
         bool local_join_status = false;
         while (local_join_status == false)
@@ -1276,22 +1311,25 @@ void RAM::execute_in_batches_comm_compaction(std::string name, int batch_size, s
                           << " newt " << *running_insert_newt
                           << std::endl;
 #endif
-                std::cout << loop_count_tracker << "\t"
-                          << (allocate_buffers_end - allocate_buffers_start) << "\t"
-                          << (compute_end - compute_start) << "\t"
-                          << (all_to_all_end - all_to_all_start) << "\t"
-                          << (free_buffers_end - free_buffers_start) << "\t"
-                          << (insert_in_newt_end - insert_in_newt_start) << "\t";
+                std::cout << "loop" << std::setw(12) << "alloc_buf" << std::setw(12) << "compute" << std::setw(12)
+                          << "all2all" << std::setw(12) << "free_buf" << std::setw(12) << "insert_newt" << std::setw(12)
+                          << "intra" << std::setw(12) << "insert_full" << std::setw(12) << "total" << "\n" ;
+                std::cout << loop_count_tracker << std::setprecision(4) << std::setw(12)
+                          << (allocate_buffers_end - allocate_buffers_start) << std::setprecision(4) << std::setw(12)
+                          << (compute_end - compute_start) << std::setprecision(4) << std::setw(12)
+                          << (all_to_all_end - all_to_all_start) << std::setprecision(4) << std::setw(12)
+                          << (free_buffers_end - free_buffers_start) << std::setprecision(4) << std::setw(12)
+                          << (insert_in_newt_end - insert_in_newt_start) << std::setprecision(4) << std::setw(12);
             }
 #endif
             inner_loop++;
         }
 
-
+        auto insert_in_full_start = MPI_Wtime(); 
         local_insert_in_full();
+        auto insert_in_full_end = MPI_Wtime(); 
 
-
-#if DEBUG_OUTPUT
+#if 1
         if (mcomm.get_rank() == 0)
         {
 #if 0
@@ -1308,8 +1346,8 @@ void RAM::execute_in_batches_comm_compaction(std::string name, int batch_size, s
                        << " full " << *running_insert_in_full
                        << " Total " << *running_intra_bucket_comm + *running_buffer_allocate + *running_local_compute + *running_all_to_all + *running_buffer_free + *running_insert_newt + *running_insert_in_full << std::endl;
 #endif
-            std::cout << (intra_end - intra_start) << "\t"
-                      << (insert_in_full_end - insert_in_full_start)  << "\t"
+            std::cout << (intra_end - intra_start) << std::setw(12)
+                      << (insert_in_full_end - insert_in_full_start)  << std::setw(12)
                       << (insert_in_full_end - intra_start) << std::endl;
 
         }
