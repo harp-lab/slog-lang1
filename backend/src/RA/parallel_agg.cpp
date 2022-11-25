@@ -80,8 +80,8 @@ void parallel_join_aggregate::local_aggregate(
 
     u32* output_sub_bucket_count = output->get_sub_bucket_per_bucket_count();
     u32** output_sub_bucket_rank = output->get_sub_bucket_rank();
-    u32 real_join_count = output->get_join_column_count() - 1;
-    agg_buffer.width[ra_counter] = real_join_count + 1;
+    u32 real_join_count = output->get_join_column_count();
+    agg_buffer.width[ra_counter] = output->get_arity();
 
     shmap_relation* agg_target;
     if (*(target->get_sub_bucket_per_bucket_count()) == 1) {

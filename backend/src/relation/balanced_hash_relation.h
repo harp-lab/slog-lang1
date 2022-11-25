@@ -89,6 +89,9 @@ private:
     std::vector<int> dependent_column_indices;
     update_partial_compare_func_t update_compare_func;
 
+    // This is only used when this relation need to be reused in another computation loop
+    bool init_flag = true;
+
 public:
 
     /// Example: relation* rel_path_2_1_2 = new relation(2, true, 2, 257, "rel_path_2_1_2", "../data/g5955/path_2_1_2", FULL);
@@ -283,4 +286,9 @@ public:
         }
         return !is_canonical;
     }
+
+    // skip initialization/loading facts
+    void disable_initialization() { init_flag = false; }
+    void enable_initialization() { init_flag = true; }
+
 };

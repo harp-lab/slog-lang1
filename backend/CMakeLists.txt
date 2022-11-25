@@ -12,7 +12,7 @@ find_package(MPI REQUIRED)
 #     set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 # endif()
 
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++17 -lstdc++fs -Werror=class-memaccess -fpermissive")
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++20 -lstdc++fs -Werror=class-memaccess -fpermissive")
 set (source_dir "${PROJECT_SOURCE_DIR}/src")
 set (tests_dir "${PROJECT_SOURCE_DIR}/tests")
 set (data_dir "${PROJECT_SOURCE_DIR}/data")

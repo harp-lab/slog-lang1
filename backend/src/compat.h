@@ -25,6 +25,7 @@
 #include "btree/btree_set.h"
 #include <filesystem>
 #include <optional>
+#include <bit>
 
 
 #ifdef __GNUC__
