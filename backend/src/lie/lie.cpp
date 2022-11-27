@@ -305,12 +305,13 @@ bool LIE::execute ()
     /// Initialize all relations
     for (u32 i = 0 ; i < lie_relations.size(); i++)
     {
-        lie_relations[i]->set_restart_flag(restart_flag);
-        lie_relations[i]->set_share_io(share_io);
-        lie_relations[i]->set_separate_io(separate_io);
-        lie_relations[i]->set_offset_io(offset_io);
-        lie_relations[i]->initialize_relation(mcomm, intern_map);
-
+        if (lie_relations[i]->need_init_huh()) {
+            lie_relations[i]->set_restart_flag(restart_flag);
+            lie_relations[i]->set_share_io(share_io);
+            lie_relations[i]->set_separate_io(separate_io);
+            lie_relations[i]->set_offset_io(offset_io);
+            lie_relations[i]->initialize_relation(mcomm, intern_map);
+        }
 #if DEBUG_OUTPUT
         //lie_relations[i]->print();
 #endif

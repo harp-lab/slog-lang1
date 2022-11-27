@@ -65,29 +65,50 @@ bool shmap_relation::insert_tuple_from_array(u64 *t, int width)
             // update
             // iterator need_delete = ind.end();
             std::vector<iterator> need_deletes;
+            bool joined = false;
             for (auto it = exist_tuples_range.first; it != exist_tuples_range.second; it++) {
                 auto cur_tuple = *it;
-                // std::cout << "comparing  <<<<<< ";
-                // for (auto c: cur_tuple) {
-                //     std::cout << c << " ";
+                // if (tp[0] == 59 && tp[1] == 58) {
+                //     std::cout << "tppppp  <<<<<< ";
+                //     for (auto c: cur_tuple) {
+                //         std::cout << c << " ";
+                //     }
+                //     std::cout << std::endl;
                 // }
-                // std::cout << std::endl;
+                
                 std::vector<u64> old_t;
                 for (auto i: dependent_column_indices) {
                     old_t.push_back(cur_tuple[i]);
                 }
                 auto compare_res = update_compare_func(old_t, dependent_columns, tp);
-                if (compare_res.has_value() && compare_res.value()) {
-                    need_deletes.push_back(it);
-                    // std::cout << "update with <<<<<< ";
-                    // for (auto c: tp) {
-                    //     std::cout << c << " ";
-                    // }
-                    // std::cout << std::endl;
+                if (!compare_res.has_value()) {
+                    continue;
                 }
+                if (compare_res.value()) {
+                    need_deletes.push_back(it);  
+                    // if (tp[0] == 59 && tp[1] == 58) {
+                    //     for (auto c: cur_tuple) {
+                    //         std::cout << c << " ";
+                    //     }
+                    //     std::cout << "update with " << compare_res.value() <<" <<<<<< ";
+                    //     for (auto c: tp) {
+                    //         std::cout << c << " ";
+                    //     }
+                    //     std::cout << std::endl;
+                    // }
+                }
+                joined = true;
+            }
+            if (!joined) {
+                return insert(tp);
             }
             if (!need_deletes.empty()) {
                 for (auto d: need_deletes) {
+                    // std::cout << "delete >>>>  ";
+                    // for (auto c: *d) {
+                    //     std::cout << c << " ";
+                    // }
+                    // std::cout << std::endl;
                     ind.erase(*d);
                 }
                 return insert(tp);
@@ -563,12 +584,22 @@ void shmap_relation::as_all_to_allv_left_join_buffer(
 
     if (generator_mode) {
         std::vector<u64> input_t(input0_buffer, input0_buffer+input0_buffer_width);
+        // std::cout << "Input >>>>>> ";
+        // for (auto c: input_t) {
+        //     std::cout << c << " ";
+        // }
+        // std::cout << std::endl;
         std::vector<std::vector<u64>> eq_tuple_set;
         std::vector<std::vector<u64>> generated_tuple_set;
         std::vector<u64> prev_non_dependent_columns;
         for(auto it = joined_range.first; it != joined_range.second && it != ind.end(); ++it){
             auto cur_path = *it;
-            std::vector<u64> cur_non_dependent_columns(cur_path.begin(), cur_path.begin()+arity+1-dependent_column_indices.size());
+            std::vector<u64> cur_non_dependent_columns(cur_path.begin(), cur_path.begin()+cur_path.size()-dependent_column_indices.size());
+            // std::cout << " cur prefix >>>>>>> ";
+            // for (auto c: cur_path) {
+            //     std::cout << c << " ";
+            // }
+            // std::cout << std::endl;
             if (cur_non_dependent_columns == prev_non_dependent_columns) {
                 eq_tuple_set.push_back(cur_path);
                 continue;

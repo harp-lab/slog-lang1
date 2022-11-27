@@ -488,6 +488,70 @@ void relation::print()
 //    }
 }
 
+void relation::print(tuple_formator_t ft)
+{
+    u32 buckets = get_bucket_count();
+//    if (mcomm.get_rank() == 0)
+//    {
+        vector_buffer *vb_full = new vector_buffer[buckets];
+        for (u32 i=0; i < buckets; i++)
+        {
+            vb_full[i].vector_buffer_create_empty();
+            std::vector<u64> prefix = {};
+            full[i].as_vector_buffer_recursive(&(vb_full[i]), prefix);
+
+            if (vb_full[i].size != 0)
+            	std::cout << get_debug_id() << " " << mcomm.get_rank() << " FULL Rows " << vb_full[i].size/(sizeof(u64) * (arity + 1)) << " columns " << arity + 1 << std::endl;
+            for (u32 j=0; j < vb_full[i].size/sizeof(u64); j = j + arity+1)
+            {
+                if (j % (arity+1) == 0) {
+                    std::cout << "F [" << j/(arity+1) << "] ";
+
+                }
+                std::vector<u64> cur_tuple;
+                for (u32 k = 0; k < arity+1; k++)
+                {
+                    u64 temp;
+                    memcpy(&temp, (vb_full[i].buffer) + (j + k)*sizeof(u64), sizeof(u64));
+                    // std::cout << temp << " ";
+                    cur_tuple.push_back(temp);
+                }
+                ft(cur_tuple);
+            }
+
+            vb_full[i].vector_buffer_free();
+        }
+        delete[] vb_full;
+
+
+        // vector_buffer *vb_delta = new vector_buffer[buckets];
+        // for (u32 i=0; i < buckets; i++)
+        // {
+        //     vb_delta[i].vector_buffer_create_empty();
+        //     std::vector<u64> prefix = {};
+        //     delta[i].as_vector_buffer_recursive(&(vb_delta[i]), prefix);
+
+        //     if (vb_delta[i].size != 0)
+        //         std::cout << get_debug_id() << " " << mcomm.get_rank() << " DELTA Rows " << vb_delta[i].size/(sizeof(u64) * (arity + 1)) << " columns " << arity + 1 << std::endl;
+
+        //     for (u32 j=0; j < vb_delta[i].size/sizeof(u64); j = j + arity+1)
+        //     {
+        //         if (j % (arity+1) == 0)
+        //             std::cout << "D ";
+
+        //         for (u32 k = 0; k < arity+1; k++)
+        //         {
+        //             u64 temp;
+        //             memcpy(&temp, (vb_delta[i].buffer) + (j + k)*sizeof(u64), sizeof(u64));
+        //             std::cout << temp << " ";
+        //         }
+        //         std::cout << std::endl;
+        //     }
+
+        //     vb_delta[i].vector_buffer_free();
+        // }
+        // delete[] vb_delta;
+}
 
 #if 0
 void relation::flush_full()

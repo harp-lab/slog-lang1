@@ -20,6 +20,8 @@ enum {DELTA=0, FULL, FULL_AND_DELTA};
 enum {COPY=0, COPY_FILTER, COPY_GENERATE, ACOPY, JOIN, FACT, NEGATION, AGGREGATION, UPDATE};
 enum {STATIC=0, DYNAMIC};
 
+using tuple_formator_t = std::function<void(const std::vector<u64>&)>;
+
 // this is update function for column has functional dependence
 // the size of vector arguments must have exactly same size as dependent_column_indices
 
@@ -223,6 +225,7 @@ public:
 
     /// print all tuples of newt, delta and full
     void print();
+    void print(tuple_formator_t ft);
 
 
     void serial_IO(std::string filename_template);
@@ -290,5 +293,6 @@ public:
     // skip initialization/loading facts
     void disable_initialization() { init_flag = false; }
     void enable_initialization() { init_flag = true; }
+    bool need_init_huh() { return init_flag; }
 
 };
