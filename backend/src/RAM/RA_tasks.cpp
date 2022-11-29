@@ -1129,7 +1129,7 @@ void RAM::execute_in_batches(std::string name, int batch_size, std::vector<u32>&
         intra_bucket_comm_execute();
         auto intra_end = MPI_Wtime(); 
 
-        // std::cout << std::setiosflags(std::ios::fixed);
+        std::cout << std::setiosflags(std::ios::fixed);
         bool local_join_status = false;
         while (local_join_status == false)
         {
@@ -1262,7 +1262,7 @@ void RAM::execute_in_batches_comm_compaction(std::string name, int batch_size, s
         //    std::cout << "--------------FIXED POINT ITERATION " << loop_count_tracker << "--------------" << std::endl;
 #endif
 
-        // std::cout << std::setiosflags(std::ios::fixed);
+        std::cout << std::setiosflags(std::ios::fixed);
         auto intra_start = MPI_Wtime(); 
         intra_bucket_comm_execute();
         auto intra_end = MPI_Wtime(); 

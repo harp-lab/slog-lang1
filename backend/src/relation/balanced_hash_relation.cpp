@@ -23,6 +23,7 @@ u32 relation::get_global_delta_element_count()
 
 u32 relation::get_global_full_element_count()
 {
+    // TODO: change to use size of shamp_relation rather than counter
     u32 global_full_element_count;
     MPI_Allreduce(&full_element_count, &global_full_element_count, 1, MPI_INT, MPI_SUM, mcomm.get_local_comm());
     return global_full_element_count;
@@ -856,6 +857,7 @@ void relation::populate_full(int buffer_size, u64* buffer)
 
         if (full[bucket_id].insert_tuple_from_array(t, (arity+1)) == true)
         {
+            // TODO: check if its update, if it is keep full count same
             full_element_count++;
             full_bucket_element_count[bucket_id]++;
             counter++;

@@ -1,6 +1,5 @@
 // location of `parallel_RA_inc.h` here
 #include "/home/ubuntu/workspace/slog/compiler/../backend/src/parallel_RA_inc.h"
-#include "mpi.h"
 
 #include <bit>
 #include <iostream>
@@ -35,14 +34,6 @@ const u64 int_tag = 0;
 const u64 str_tag = 2;
 const u64 sign_flip_const = 0x0000200000000000;
 const u64 signed_num_mask = 0xFFFFE00000000000;
-
-#define FLOAT_SCALE_CONST 100000
-float ALPHA = 0.85;
-u64 total_node_size = 0;
-u64 dangling_value = 0;
-u64 current_iter = 0;
-int MAX_PG_ITERATION = 2;
-u64 dangling_node_cnt;
 
 inline bool is_number(u64 datum) {
   // cout << "is_number(" << datum << "): " << (datum >> tag_position ==
@@ -273,9 +264,7 @@ agg_sum_local(std::pair<shmap_relation::iterator, shmap_relation::iterator>
   for (shmap_relation::iterator it = joined_range.first;
        it != joined_range.second; ++it) {
     auto tuple = (*it);
-    // if (tuple[1] == MAX_PG_ITERATION) {
-      sum_res += tuple[tuple.size() - 2];
-    // }
+    sum_res += tuple[tuple.size() - 2];
   }
   return sum_res;
 }
@@ -421,6 +410,10 @@ int get_tag_for_rel(std::string relation_name, std::string index_str) {
   return max_rel;
 }
 
+float ALPHA = 0.85;
+u64 total_node_size = 0;
+u64 dangling_value = 0;
+
 int main(int argc, char **argv) {
   // input dir from compiler
   std::string slog_input_dir = "/home/ubuntu/workspace/slog/out/input-data";
@@ -433,8 +426,6 @@ int main(int argc, char **argv) {
   load_input_relation(slog_input_dir);
   mpi_comm mcomm;
   mcomm.create(argc, argv);
-
-  MAX_PG_ITERATION = atoi(argv[3]);
 
   // (edge from to)
   relation *rel__edge__2__1 = new relation(
@@ -471,39 +462,6 @@ int main(int argc, char **argv) {
           ".$unit.1.table",
       FULL);
 
-  // relation *rel__edge__2__2 = new relation(
-  //   1, false, 2, get_tag_for_rel("edge", "2"),
-  //   std::to_string(get_tag_for_rel("edge", "2")) + ".edge.2.table",
-  //   std::to_string(get_tag_for_rel("edge", "2")) + ".edge.2.table", FULL);
-
-    //   matrix edge + successor count
-  relation *rel__matrix__3__1 = new relation(
-    1, true, 3, get_tag_for_rel("matrix", "1"),
-    std::to_string(get_tag_for_rel("matrix", "1")) + ".matrix.3.table",
-    std::to_string(get_tag_for_rel("matrix", "1")) + ".matrix.3.table", FULL);
-
-  
-  relation *rel__dangling_node = new relation(
-    1, true, 1, get_tag_for_rel("dangling_node", "1"),
-    std::to_string(get_tag_for_rel("dangling_node", "1")) + ".dangling_node.table",
-    std::to_string(get_tag_for_rel("dangling_node", "1")) + ".dangling_node.table",
-    FULL);
-
-  // RAM *scc_copy_edge = new RAM(false, 0);
-  // scc_copy_edge->add_relation(rel__edge__2__1, false, false);
-  // scc_copy_edge->add_relation(rel__edge__2__2, true, false);
-  // scc_copy_edge->add_rule(
-  //     new parallel_acopy(rel__edge__2__2, rel__edge__2__1, FULL, {1, 0, 2}));
-
-  RAM *scc_compute_matrix = new RAM(false, 1);
-  scc_compute_matrix->add_relation(rel__edge__2__1, false, false);
-  // scc_compute_matrix->add_relation(rel__edge__2__2, false, false);
-  scc_compute_matrix->add_relation(rel__matrix__3__1, true, false);
-  scc_compute_matrix->add_rule(new parallel_join_aggregate(
-      rel__matrix__3__1, rel__edge__2__1, rel__edge__2__1, FULL,
-      agg_count_local, SpecialAggregator::count, agg_count_reduce, nullptr,
-      {0, 1, 3}));
-
   RAM *scc_helper_fact = new RAM(false, 0);
   scc_helper_fact->add_relation(rel___dollorunit__1__1, true, false);
   scc_helper_fact->add_rule(new fact(rel___dollorunit__1__1, {n2d(0)}));
@@ -535,30 +493,14 @@ int main(int argc, char **argv) {
       agg_count_local, SpecialAggregator::count, agg_count_reduce, nullptr,
       {2}));
 
-  RAM *scc_populate_dangling = new RAM(false, 3);
-  scc_populate_dangling->add_relation(rel__edge__2__1, false);
-  scc_populate_dangling->add_relation(rel__dangling_node, true);
-  scc_populate_dangling->add_relation(rel__node__1__1, false);
-  scc_populate_dangling->add_rule(new parallel_join_negate(
-    rel__dangling_node, rel__node__1__1, FULL, rel__edge__2__1,
-    {0}
-  ));
-
   LIE *cnt_lie = new LIE();
   cnt_lie->add_relation(rel__edge__2__1);
-  // cnt_lie->add_relation(rel__edge__2__2);
   cnt_lie->add_relation(rel__node__1__1);
   cnt_lie->add_relation(rel___dollorunit__1__1);
   cnt_lie->add_relation(rel__total_node_cnt__1__1);
-  cnt_lie->add_relation(rel__matrix__3__1);
-  cnt_lie->add_relation(rel__dangling_node);
   cnt_lie->add_scc(scc_helper_fact);
   cnt_lie->add_scc(scc_compute_node);
   cnt_lie->add_scc(scc_count_nodes);
-  // cnt_lie->add_scc(scc_copy_edge);
-  cnt_lie->add_scc(scc_compute_matrix);
-  cnt_lie->add_scc(scc_populate_dangling);
-  // cnt_lie->add_scc_dependance(scc_copy_edge, scc_compute_matrix);
   cnt_lie->add_scc_dependance(scc_helper_fact, scc_count_nodes);
   cnt_lie->add_scc_dependance(scc_compute_node, scc_count_nodes);
 
@@ -572,32 +514,29 @@ int main(int argc, char **argv) {
   // only 1 data in this rel so its safe
   rel__total_node_cnt__1__1->print();
 
-  u64 local_node_size = 0;
   for (auto &t : rel__total_node_cnt__1__1->get_full()[mcomm.get_rank()]) {
-    if (t[0] != 0) {
-      local_node_size = t[0];
-    }
+    total_node_size = t[0];
+    dangling_value = (u64)(((1 - ALPHA) / total_node_size) * 100000);
+    std::cout << ">>>>>>>>> Number of nodes: " << total_node_size << std::endl;
   }
-  rel__matrix__3__1->print();
-  MPI_Barrier(mcomm.get_comm());
 
-  MPI_Allreduce(&local_node_size, &total_node_size, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, mcomm.get_comm());
-
-  dangling_node_cnt = rel__dangling_node->get_global_full_element_count();
-  dangling_value = FLOAT_SCALE_CONST / total_node_size;
-  std::cout << ">>>>>>>>> Number of nodes: " << total_node_size
-            << " >>>>>>>>> Dangling node count: " << dangling_node_cnt
-            << " >>>>>>>>> Dangling value: " << dangling_value * 1.0 / FLOAT_SCALE_CONST
-            << std::endl;
+  // >>>>>>>>>>>>>>> compute page rank
+  std::cout << ">>>>>>>>>> Computing pagerank ... " << std::endl;
 
   rel__edge__2__1->disable_initialization();
   rel__node__1__1->disable_initialization();
-  rel__matrix__3__1->disable_initialization();
-  rel__dangling_node->disable_initialization();
-  
-  // rel__matrix__3__1->print();
 
-  //////////////////  compute  Page rank
+  relation *rel__edge__2__2 = new relation(
+      1, false, 2, get_tag_for_rel("edge", "2"),
+      std::to_string(get_tag_for_rel("edge", "2")) + ".edge.2.table",
+      std::to_string(get_tag_for_rel("edge", "2")) + ".edge.2.table", FULL);
+
+  //   matrix edge + successor count
+  relation *rel__matrix__3__1 = new relation(
+      1, true, 3, get_tag_for_rel("matrix", "1"),
+      std::to_string(get_tag_for_rel("matrix", "1")) + ".matrix.3.table",
+      std::to_string(get_tag_for_rel("matrix", "1")) + ".matrix.3.table", FULL);
+
   relation *rel__rank__3__1 = new relation(
       1, true, 3, get_tag_for_rel("rank", "1"),
       std::to_string(get_tag_for_rel("rank", "1")) + ".rank.3.table",
@@ -607,143 +546,205 @@ int main(int argc, char **argv) {
       {1, 2, 3},
       [](const std::vector<u64> &old_v, const std::vector<u64> &new_v,
          const vector<u64> &nt) -> std::optional<bool> {
-        if (new_v[0] != old_v[0]) {
-          return std::nullopt;
-        }
-        // if (std::abs((int)new_v[1] - (int)old_v[1]) < 10) {
-        //   return false;
+        // if (nt[0] == 59 && nt[1] == 58) {
+        //   std::cout << "dependent column size " << new_v.size() << std::endl;
+        //   std::cout << new_v[0] << " " << new_v[1] << " " << new_v[2] << "
+        //   comparing with " << old_v[0] << " " << old_v[1] << " " << old_v[2]
+        //   << std::endl;
         // }
-        return true;
+        if (new_v[0] != old_v[0]) {
+          // std::cout << " www >>>>>>>>>" << std::endl;
+          return std::nullopt;
+        } else {
+          // monotonic
+          // assert(new_v[1] > old_v[1]);
+          // u32 new_sum_raw = new_v[1];
+          // u32 old_sum_raw = old_v[1];
+          // float new_sum = *reinterpret_cast<float*>(&new_sum_raw);
+          // float old_sum = *reinterpret_cast<float*>(&old_sum_raw);
+          // if (new_sum > old_sum) {
+          //   std::cout << "new >> " << new_sum << " old >> " << old_sum <<
+          //   std::endl;
+          // }
+          // return new_sum > old_sum;
+          return new_v[1] > old_v[1];
+          // return true;
+        }
       });
 
-  std::vector<LIE*> pg_lie_list;
-
-  for (int i = 0; i < MAX_PG_ITERATION; i++) {
-    std::cout << ">>>>>>>>>>>>>>>>>>>>> Compute pagerank iter " << current_iter
-              << std::endl;
-    LIE *pg_lie = new LIE();
-
-    // RAM *scc_
-    RAM *scc_init = new RAM(false, 0);
-    scc_init->add_relation(rel__matrix__3__1, false, false);
-    scc_init->add_relation(rel__rank__3__1, true, false);
-    scc_init->add_rule(new parallel_copy_generate(
-        rel__rank__3__1, rel__matrix__3__1, FULL,
-        [](const u64 *const data, u64 *const output) -> int {
-          output[0] = data[0];
-          output[1] = data[0];
-          output[2] = dangling_value;
-          return 1;
-        }));
-    RAM *scc_page_rank = new RAM(false, 1);
-    scc_page_rank->add_relation(rel__matrix__3__1, false, false);
-    scc_page_rank->add_relation(rel__rank__3__1, true, false);
-    parallel_join *rank_join =
-        new parallel_join(rel__rank__3__1, rel__matrix__3__1, FULL,
-                          rel__rank__3__1, DELTA, {3, 1, 2} // useless
-        );
-    rank_join->set_generator_func([](const depend_val_t &target_vs,
-                                     const std::vector<u64> &input_v,
-                                     depend_val_t &res_set) -> bool {
-      // if (current_iter > MAX_PG_ITERATION) {
-      //   return false;
-      // }
-      u64 pg_sum = dangling_node_cnt * dangling_value;
-      int count = 0;
-      for (auto &tv : target_vs) {
-        if ((tv[0] == tv[1]) && (current_iter != 0)) {
-          continue;
-        }
-        u32 raw_succ_pg_v_sub = tv[2]; // all columns are u64, cast to u32 first
-        if (current_iter == 0) {
-          raw_succ_pg_v_sub = raw_succ_pg_v_sub / input_v[2];
-        }
-        pg_sum += (u64)(raw_succ_pg_v_sub * ALPHA);
-        count++;
-      }
-      pg_sum += (1 - ALPHA) * FLOAT_SCALE_CONST / total_node_size;
-      std::vector<u64> res_tuple(3, 0);
-      res_tuple[0] = input_v[1];
-      res_tuple[1] = input_v[0];
-      res_tuple[2] = pg_sum / input_v[2];
-      res_set.push_back(res_tuple);
-      return true;
-    });
-    scc_page_rank->add_rule(rank_join);
-
-    pg_lie_list.push_back(pg_lie);
-    pg_lie->add_relation(rel__matrix__3__1);
-    pg_lie->add_relation(rel__node__1__1);
-    pg_lie->add_relation(rel__rank__3__1);
-    pg_lie->add_scc(scc_page_rank);
-    if (current_iter == 0) {
-      pg_lie->add_scc(scc_init);
-      pg_lie->add_scc_dependance(scc_init, scc_page_rank);
-    }
-    // Enable IO
-    if (i == MAX_PG_ITERATION - 1) {
-      pg_lie->enable_all_to_all_dump();
-      pg_lie->enable_data_IO();
-      pg_lie->enable_IO();
-    }
-    // lie->enable_share_io();
-    pg_lie->set_output_dir(slog_output_dir); // Write to this directory
-    pg_lie->set_comm(mcomm);
-    pg_lie->set_batch_size(1);
-    pg_lie->execute();
-    current_iter++;
-    rel__rank__3__1->disable_initialization();
-    pg_lie->print_all_relation_size(); // Continuously print relation sizes
-  }
-  // rel__rank__4__1->print(
-  //   [](const std::vector<u64>& tp){
-  //     u32 pg_v = tp[3];
-  //     std::cout << tp[0] << " " << tp[1] << " "
-  //     // *reinterpret_cast<float*>(&pg_v) << std::cout << tp[0] << " " << tp[1]
-  //     << tp[2] << " " << pg_v << std::endl;
-  //   }
-  // );
-  // delete pg_pre_lie;
-  // delete pg_lie;
-
-  std::cout << "Aggregating sum ..." << std::endl;
   relation *rel__result__2__1__2 = new relation(
       2, true, 2, get_tag_for_rel("result", "1__2"),
-      std::to_string(get_tag_for_rel("result", "1__2")) +
-      ".result.2.table", std::to_string(get_tag_for_rel("result", "1__2"))
-      + ".result.2.table", FULL);
+      std::to_string(get_tag_for_rel("result", "1__2")) + ".result.2.table",
+      std::to_string(get_tag_for_rel("result", "1__2")) + ".result.2.table",
+      FULL);
+
+  //
+
+  RAM *scc_copy_edge = new RAM(false, 0);
+  scc_copy_edge->add_relation(rel__edge__2__1, false, false);
+  scc_copy_edge->add_relation(rel__edge__2__2, true, false);
+  scc_copy_edge->add_rule(
+      new parallel_acopy(rel__edge__2__2, rel__edge__2__1, FULL, {1, 0, 2}));
+
+  RAM *scc_compute_matrix = new RAM(false, 1);
+  scc_compute_matrix->add_relation(rel__edge__2__1, false, false);
+  scc_compute_matrix->add_relation(rel__edge__2__2, false, false);
+  scc_compute_matrix->add_relation(rel__matrix__3__1, true, false);
+  scc_compute_matrix->add_rule(new parallel_join_aggregate(
+      rel__matrix__3__1, rel__edge__2__2, rel__edge__2__1, FULL,
+      agg_count_local, SpecialAggregator::count, agg_count_reduce, nullptr,
+      {0, 1, 3}));
+
+  RAM *scc_init = new RAM(false, 2);
+  scc_init->add_relation(rel__matrix__3__1, false, false);
+  scc_init->add_relation(rel__rank__3__1, true, false);
+  scc_init->add_rule(new parallel_copy_generate(
+      rel__rank__3__1, rel__matrix__3__1, FULL,
+      [](const u64 *const data, u64 *const output) -> int {
+        output[0] = data[0];
+        output[1] = data[0];
+        // float init_pg_v = (1 - ALPHA) / total_node_size;
+        u64 init_pg_v = dangling_value;
+        // std::cout << init_pg_v << std::endl;
+        // output[2] = *reinterpret_cast<u32*>(&init_pg_v);
+        output[2] = init_pg_v;
+        return 1;
+      }));
+
+  RAM *scc_page_rank = new RAM(true, 3);
+  scc_page_rank->add_relation(rel__matrix__3__1, false, false);
+  scc_page_rank->add_relation(rel__rank__3__1, true, false);
+  parallel_join *rank_join =
+      new parallel_join(rel__rank__3__1, rel__matrix__3__1, FULL,
+                        rel__rank__3__1, DELTA, {3, 1, 2} // useless
+      );
+  rank_join->set_generator_func([](const depend_val_t &target_vs,
+                                   const std::vector<u64> &input_v,
+                                   depend_val_t &res_set) -> bool {
+    // float pg_sum = 0.0;
+    u64 pg_sum = dangling_value;
+
+    int count = 0;
+    for (auto &tv : target_vs) {
+      // std::cout << "tagret v >>>>> ";
+      // for (auto c: tv) {
+      //   std::cout << c << " ";
+      // }
+      // std::cout << std::endl;
+      u32 raw_succ_pg_v = tv[2]; // all columns are u64, cast to u32 first
+      // std::cout << ">>>>>>>>>>>>>>> " <<
+      // *reinterpret_cast<float*>(&raw_succ_pg_v) << std::endl;
+      // auto succ_pg_v = *reinterpret_cast<float*>(&raw_succ_pg_v);
+      // if(succ_pg_v == 0) {
+      //   // std::cout << ">>>>>>>>>> " << succ_pg_v << std::endl;
+      // std::cout << "tagret v >>>>> ";
+      // for (auto c: tv) {
+      //   std::cout << c << " ";
+      // }
+      // std::cout << std::endl;
+      // }
+      if (input_v[2] != 0) {
+        // pg_sum += ((ALPHA * succ_pg_v) / input_v[2]);
+        pg_sum += (u64)(((u64)(ALPHA * raw_succ_pg_v)) / input_v[2]);
+        // if (input_v[1] == 51) {
+        //   std::cout << "Sum 51 " << input_v[0] << " with ";
+        //   for (auto c: tv) {
+        //     std::cout << c << " ";
+        //   }
+        //   std::cout << " result " << pg_sum << std::endl;
+        // }
+      }
+      count++;
+    }
+    if (pg_sum == 0) {
+      return false;
+    }
+    if (count == 0) {
+      return false;
+    }
+    std::vector<u64> res_tuple(3, 0);
+    res_tuple[0] = input_v[1];
+    res_tuple[1] = input_v[0];
+    // res_tuple[2] = *reinterpret_cast<u32*>(&pg_sum);
+    res_tuple[2] = pg_sum;
+    // std::cout << "New tuple >>>>>>> " << pg_sum << std::endl;
+    // for (auto c: res_tuple) {
+    //   std::cout << c << " ";
+    // }
+    // std::cout << std::endl;
+    res_set.push_back(res_tuple);
+    return true;
+  });
+  scc_page_rank->add_rule(rank_join);
 
   RAM *scc_result = new RAM(false, 4);
   scc_result->add_relation(rel__rank__3__1, false, false);
   scc_result->add_relation(rel__result__2__1__2, true, false);
   scc_result->add_relation(rel__node__1__1, false, false);
+  // scc_result->add_rule(new parallel_join_aggregate(
+  //     rel__result__2__1__2, rel__rank__3__1, rel__node__1__1, FULL,
+  //     agg_sum_float_local, SpecialAggregator::sum, agg_sum_float_reduce,
+  //     nullptr, {0, 2}));
   scc_result->add_rule(new parallel_join_aggregate(
       rel__result__2__1__2, rel__rank__3__1, rel__node__1__1, FULL,
-      agg_sum_local, SpecialAggregator::sum, agg_sum_reduce, nullptr, {0,
-      2}));
+      agg_sum_local, SpecialAggregator::sum, agg_sum_reduce, nullptr, {0, 2}));
 
-  LIE* final_lie = new LIE();
-  final_lie->add_relation(rel__result__2__1__2);
-  final_lie->add_relation(rel__node__1__1);
-  final_lie->add_relation(rel__rank__3__1);
-  final_lie->add_scc(scc_result);
-  final_lie->enable_all_to_all_dump();
-  final_lie->enable_data_IO();
-  final_lie->enable_IO();
+  LIE *pg_lie = new LIE();
+  pg_lie->add_relation(rel__edge__2__1);
+  pg_lie->add_relation(rel__matrix__3__1);
+  pg_lie->add_relation(rel__node__1__1);
+  pg_lie->add_relation(rel__edge__2__2);
+  pg_lie->add_relation(rel__rank__3__1);
+  pg_lie->add_relation(rel__result__2__1__2);
+  pg_lie->add_scc(scc_copy_edge);
+  pg_lie->add_scc(scc_compute_matrix);
+  pg_lie->add_scc(scc_init);
+  pg_lie->add_scc(scc_page_rank);
+  pg_lie->add_scc(scc_result);
+  pg_lie->add_scc_dependance(scc_copy_edge, scc_compute_matrix);
+  pg_lie->add_scc_dependance(scc_compute_matrix, scc_init);
+  pg_lie->add_scc_dependance(scc_init, scc_page_rank);
+  pg_lie->add_scc_dependance(scc_page_rank, scc_result);
 
-  final_lie->set_output_dir(slog_output_dir); // Write to this directory
-  final_lie->set_comm(mcomm);
-  final_lie->set_batch_size(1);
-  final_lie->execute();
-  final_lie->print_all_relation_size(); // Continuously print relation sizes
-
-  // rel__rank__3__1->print();
-
+  // Enable IO
+  pg_lie->enable_all_to_all_dump();
+  pg_lie->enable_data_IO();
+  pg_lie->enable_IO();
+  // lie->enable_share_io();
+  pg_lie->set_output_dir(slog_output_dir); // Write to this directory
+  pg_lie->set_comm(mcomm);
+  pg_lie->set_batch_size(1);
+  pg_lie->execute();
+  pg_lie->print_all_relation_size(); // Continuously print relation sizes
+  // lie->stat_intermediate();
+  // rel__matrix__3__1->print();
+  // rel__rank__3__1->print(
+  //   [](const std::vector<u64>& tp){
+  //     u32 pg_v = tp[2];
+  //     // std::cout << tp[0] << " " << tp[1] << " " <<
+  //     *reinterpret_cast<float*>(&pg_v) << std::cout << tp[0] << " " << tp[1]
+  //     << " " << pg_v << std::endl;
+  //   }
+  // );
   rel__result__2__1__2->print([](const std::vector<u64> &tp) {
     u32 pg_v = tp[1];
     // std::cout << tp[0] << " " << *reinterpret_cast<float*>(&pg_v) <<
-    std::cout << tp[0] << " " << pg_v * 1.0 / FLOAT_SCALE_CONST << std::endl;
+    std::cout << tp[0] << " " << pg_v * 1.0 / 100000 << std::endl;
   });
+
+  // print all variants(non-canonical index of each relation)
+  //   if (mcomm.get_rank() == 0) {
+  //     std::cout << "rel_name"
+  //               << ",\t"
+  //               << "indices\n";
+  //     for (auto const &rel_p : rel_index_map) {
+  //       std::cout << rel_p.first << ",\t" << rel_p.second.size() << "\n";
+  //     }
+  //     std::cout << std::endl;
+  //   }
+
+  delete pg_lie;
+
   // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
   mcomm.destroy();

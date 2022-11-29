@@ -588,7 +588,9 @@ bool LIE::execute ()
     if (mcomm.get_rank() == 0)
         std::cout << "Total interation count: " << full_iteration_count << std::endl;
 
-    write_final_checkpoint_dump();
+    if (enable_data_io) {
+        write_final_checkpoint_dump();
+    }
 
     // std::cout << "finish writting checkpoint!" << std::endl;
 
@@ -604,9 +606,9 @@ bool LIE::execute ()
 
 LIE::~LIE ()
 {
-    for (u32 i = 0 ; i < lie_relations.size(); i++)
-    {
-        lie_relations[i]->finalize_relation();
-        delete (lie_relations[i]);
-    }
+    // for (u32 i = 0 ; i < lie_relations.size(); i++)
+    // {
+    //     lie_relations[i]->finalize_relation();
+    //     delete (lie_relations[i]);
+    // }
 }
