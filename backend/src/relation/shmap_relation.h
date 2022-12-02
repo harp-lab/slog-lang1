@@ -121,7 +121,7 @@ struct shmap_relation {
     };
 
     int count();
-    bool insert_tuple_from_array(u64* t, int arity);
+    int insert_tuple_from_array(u64* t, int arity);
     void remove_tuple();
     bool find_tuple_from_array(u64* t, int arity);
     bool check_dependent_insertion(const std::vector<u64> &v);

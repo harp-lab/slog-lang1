@@ -11,6 +11,7 @@
  */
 
 #include "../parallel_RA_inc.h"
+#include "balanced_hash_relation.h"
 #include "shmap_relation.h"
 #include <cassert>
 #include <cstddef>
@@ -25,7 +26,7 @@ shmap_relation::shmap_relation(int arity, bool id_flag)
     // ind = new t_ind(t_comparator(id_flag));
 }
 
-bool shmap_relation::insert_tuple_from_array(u64 *t, int width)
+int shmap_relation::insert_tuple_from_array(u64 *t, int width)
 {
     t_tuple tp(t, t+width);
     // check if relation has functional dependance
@@ -60,7 +61,11 @@ bool shmap_relation::insert_tuple_from_array(u64 *t, int width)
             //     }
             //     std::cout << std::endl;
             // }
-            return insert(tp);
+            if (insert(tp)) {
+                return INSERT_SUCCESS;
+            } else {
+                return INSERT_FAIL;
+            }
         } else {
             // update
             // iterator need_delete = ind.end();
@@ -100,7 +105,11 @@ bool shmap_relation::insert_tuple_from_array(u64 *t, int width)
                 joined = true;
             }
             if (!joined) {
-                return insert(tp);
+                if (insert(tp)) {
+                    return INSERT_SUCCESS;
+                } else {
+                    return INSERT_FAIL;
+                }
             }
             if (!need_deletes.empty()) {
                 for (auto d: need_deletes) {
@@ -111,9 +120,13 @@ bool shmap_relation::insert_tuple_from_array(u64 *t, int width)
                     // std::cout << std::endl;
                     ind.erase(*d);
                 }
-                return insert(tp);
+                if (insert(tp)) {
+                    return INSERT_SUCCESS;
+                } else {
+                    return INSERT_UPDATED;
+                }
             } else {
-                return false;
+                return INSERT_FAIL;
             }
         }
     } else {
@@ -122,7 +135,11 @@ bool shmap_relation::insert_tuple_from_array(u64 *t, int width)
         //     std::cout << c << " ";
         // }
         // std::cout << std::endl;
-        return insert(tp);
+        if (insert(tp)) {
+            return INSERT_SUCCESS;
+        } else {
+            return INSERT_FAIL;
+        }
     }
 }
 
@@ -452,7 +469,7 @@ void shmap_relation::as_all_to_allv_right_join_buffer(
     // for (auto c: upper_bound) {
     //     std::cout << c << " ";
     // }
-    std::cout << std::endl;
+    // std::cout << std::endl;
     auto joined_range = lowerUpperRange(lower_bound, upper_bound);
 
     if (generator_mode) {
@@ -516,7 +533,7 @@ void shmap_relation::as_all_to_allv_right_join_buffer(
             //     std::cout << c << " ";
             // }
             // std::cout << std::endl;
-            if (deduplicate.insert_tuple_from_array(projected_path, join_buffer.width[ra_id]) == true)
+            if (deduplicate.insert_tuple_from_array(projected_path, join_buffer.width[ra_id]) != INSERT_FAIL)
             {
                 uint64_t bucket_id = tuple_hash(projected_path, head_rel_hash_col_count) % buckets;
                 uint64_t sub_bucket_id=0;
@@ -650,7 +667,7 @@ void shmap_relation::as_all_to_allv_left_join_buffer(
                 projected_path[i] = reordered_cur_path[reorder_map[i]];
             
             //std::cout << "NT " << projected_path[0] << " " << projected_path[1] << std::endl;
-            if (deduplicate.insert_tuple_from_array(projected_path, join_buffer.width[ra_id]) == true)
+            if (deduplicate.insert_tuple_from_array(projected_path, join_buffer.width[ra_id]) != INSERT_FAIL)
             {
                 uint64_t bucket_id = tuple_hash(projected_path, head_rel_hash_col_count) % buckets;
                 uint64_t sub_bucket_id=0;

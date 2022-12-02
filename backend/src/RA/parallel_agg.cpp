@@ -117,6 +117,7 @@ void parallel_join_aggregate::local_aggregate(
             std::vector<u64> joined_input_tuple(input_tuple.begin(), input_tuple.begin()+input->get_join_column_count());
             auto agg_res = res_map[joined_input_tuple];
             std::vector<u64> tuple(output->get_arity(), 0);
+            // std::cout << "wwwwwwwwwwwwwwwwwwwwwwww  " << output->get_arity() << std::endl;
             int reorder_agg_index = input->get_arity() + 1;
             for (long unsigned int j = 0; j < reorder_mapping.size(); j++) {
             //   std::cout << reorder_mapping[j] << " " << reorder_agg_index << std::endl;

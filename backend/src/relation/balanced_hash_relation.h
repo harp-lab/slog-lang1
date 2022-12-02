@@ -19,6 +19,7 @@ enum {LEFT=0, RIGHT};
 enum {DELTA=0, FULL, FULL_AND_DELTA};
 enum {COPY=0, COPY_FILTER, COPY_GENERATE, ACOPY, JOIN, FACT, NEGATION, AGGREGATION, UPDATE};
 enum {STATIC=0, DYNAMIC};
+enum {INSERT_SUCCESS=0, INSERT_FAIL, INSERT_UPDATED};
 
 using tuple_formator_t = std::function<void(const std::vector<u64>&)>;
 
@@ -188,7 +189,7 @@ public:
 
 
     void set_full_element_count(int val)   {full_element_count = val;}
-    int get_full_element_count()    {return full_element_count;}
+    int get_full_element_count()    {return full[mcomm.get_rank()].count();}
     u32** get_full_sub_bucket_element_count()   {return full_sub_bucket_element_count;}
     u32 get_global_full_element_count();
 

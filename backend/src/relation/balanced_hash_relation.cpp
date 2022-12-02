@@ -14,6 +14,7 @@
 
 u32 relation::get_global_delta_element_count()
 {
+    delta_element_count = delta[mcomm.get_rank()].count();
     int dec = (int)delta_element_count;
     int global_delta_element_count;
     MPI_Allreduce(&dec, &global_delta_element_count, 1, MPI_INT, MPI_SUM, mcomm.get_local_comm());
@@ -25,6 +26,7 @@ u32 relation::get_global_full_element_count()
 {
     // TODO: change to use size of shamp_relation rather than counter
     u32 global_full_element_count;
+    full_element_count = full[mcomm.get_rank()].count();
     MPI_Allreduce(&full_element_count, &global_full_element_count, 1, MPI_INT, MPI_SUM, mcomm.get_local_comm());
     return global_full_element_count;
 }
@@ -854,8 +856,8 @@ void relation::populate_full(int buffer_size, u64* buffer)
 
         for (u32 a = i; a < i + arity + 1; a++)
             t[a-i] = buffer[a];
-
-        if (full[bucket_id].insert_tuple_from_array(t, (arity+1)) == true)
+        int insert_res = full[bucket_id].insert_tuple_from_array(t, (arity+1));
+        if (insert_res == INSERT_SUCCESS)
         {
             // TODO: check if its update, if it is keep full count same
             full_element_count++;
@@ -880,7 +882,8 @@ void relation::populate_delta (int buffer_size, u64* buffer)
         for (u32 a = i; a < i + arity + 1; a++)
             t[a-i] = buffer[a];
 
-        if (delta[bucket_id].insert_tuple_from_array(t, arity+1) == true)
+        int insert_res = delta[bucket_id].insert_tuple_from_array(t, arity+1);
+        if (insert_res == INSERT_SUCCESS)
         {
             delta_element_count++;
             delta_bucket_element_count[bucket_id]++;
@@ -1202,13 +1205,17 @@ bool relation::insert_in_delta(u64* t)
 
     // std::cout << "inserting delta for " << intern_tag << std::endl;
     //assert((int)bucket_id == mcomm.get_local_rank());
-    if (delta[bucket_id].insert_tuple_from_array(t, arity+1) == true)
+    int insert_res = delta[bucket_id].insert_tuple_from_array(t, arity+1);
+    if (insert_res == INSERT_SUCCESS)
     {
         delta_element_count++;
         delta_bucket_element_count[bucket_id]++;
         delta_sub_bucket_element_count[bucket_id][sub_bucket_id]++;
         bucket_map[bucket_id] = 1;
 
+        return true;
+    } else if (insert_res == INSERT_UPDATED) {
+        bucket_map[bucket_id] = 1;
         return true;
     }
     return false;
@@ -1225,13 +1232,17 @@ bool relation::insert_in_newt(u64* t)
 
     // std::cout << "inserting newt for " << intern_tag << std::endl;
     //assert((int)bucket_id == mcomm.get_local_rank());
-    if (newt[bucket_id].insert_tuple_from_array(t, arity+1) == true)
+    int insert_res = newt[bucket_id].insert_tuple_from_array(t, arity+1);
+    if (insert_res == INSERT_SUCCESS)
     {
         newt_element_count++;
         newt_bucket_element_count[bucket_id]++;
         newt_sub_bucket_element_count[bucket_id][sub_bucket_id]++;
         bucket_map[bucket_id] = 1;
 
+        return true;
+    } else if (insert_res == INSERT_UPDATED) {
+        bucket_map[bucket_id] = 1;
         return true;
     }
     return false;
