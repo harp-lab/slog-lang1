@@ -6,6 +6,7 @@
 
 
 #include "../parallel_RA_inc.h"
+#include <iostream>
 
 #ifdef GOOGLE_MAP
 void parallel_copy::local_copy(u32 buckets, google_relation* input, u32* input_bucket_map, relation* output, std::vector<int> reorder_map, u32 arity, u32 join_column_count, all_to_allv_buffer& copy_buffer, int ra_counter)
