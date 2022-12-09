@@ -385,6 +385,7 @@ bool LIE::execute ()
             }
         }
     }
+    std::vector<double> run_time_vector(4,0);
 
     //int c = 0;
     /// Running one task at a time
@@ -475,7 +476,7 @@ bool LIE::execute ()
             if (comm_compaction == 0)
                 executable_task->execute_in_batches(app_name, batch_size, history, intern_map, &loop_counter, executable_task->get_id(), output_dir, all_to_all_meta_data_dump, sloav_mode, rotate_index_array, send_indexes, sendb_num);
             else
-                executable_task->execute_in_batches_comm_compaction(app_name, batch_size, history, intern_map, &loop_counter, executable_task->get_id(), output_dir, all_to_all_meta_data_dump, sloav_mode, rotate_index_array, send_indexes, sendb_num);
+                executable_task->execute_in_batches_comm_compaction(app_name, batch_size, history, intern_map, &loop_counter, executable_task->get_id(), output_dir, all_to_all_meta_data_dump, sloav_mode, rotate_index_array, send_indexes, sendb_num, run_time_vector);
 
             // std::cout << "<<<<<<<<<<<<<<<<<<<<<<<<< AFTER ITERATION " << loop_counter <<" <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << std::endl;
             // for (u32 i = 0 ; i < scc_relation_count; i++)
@@ -523,11 +524,14 @@ bool LIE::execute ()
                 if (comm_compaction == 0)
                     executable_task->execute_in_batches(app_name, batch_size, history, intern_map, &loop_counter, executable_task->get_id(), output_dir, all_to_all_meta_data_dump, sloav_mode, rotate_index_array, send_indexes, sendb_num);
                 else
-                    executable_task->execute_in_batches_comm_compaction(app_name, batch_size, history, intern_map, &loop_counter, executable_task->get_id(), output_dir, all_to_all_meta_data_dump, sloav_mode, rotate_index_array, send_indexes, sendb_num);
+                    executable_task->execute_in_batches_comm_compaction(app_name, batch_size, history, intern_map, &loop_counter, executable_task->get_id(), output_dir, all_to_all_meta_data_dump, sloav_mode, rotate_index_array, send_indexes, sendb_num, run_time_vector);
 
                 //executable_task->print_all_relation();
 
                 delta_in_scc = history[history.size()-2];
+                if(mcomm.get_rank() == 0) {
+                    std::cout << "DELTA " << delta_in_scc << std::endl;
+                }
                 //if (delta_in_scc == 0)
                 //    executed_scc_id.push_back(executable_task->get_id());
 #if 0
@@ -569,6 +573,11 @@ bool LIE::execute ()
         if (mcomm.get_rank() == 0)
         {
             std::cout << "<<<<<<<<<<< SCC " << executable_task->get_id() << " finish, " << loop_counter << " iteration in total." << std::endl;
+            std::cout << "TOTAL STAT >>>>>>>> " << executable_task->get_id() << " >>>>>>>> "
+            << "COMM TIME: " << run_time_vector[0] << "  LCOMPUTE TIME: " << run_time_vector[1] << "  INSERT TIME: " << run_time_vector[2]
+            << "  OTHER TIME: " << run_time_vector[3] - run_time_vector[0] - run_time_vector[1] - run_time_vector[2]
+            << "  ALL TIME: " << run_time_vector[3]
+            << std::endl;
             // print_all_relation_size();
         }
         full_iteration_count += loop_counter;

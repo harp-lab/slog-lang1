@@ -58,9 +58,9 @@ class btree_container {
 
   // Iterator routines.
   iterator begin() { return tree_.begin(); }
-  const_iterator begin() const { return tree_.begin(); }
+  const_iterator cbegin() const { return tree_.begin(); }
   iterator end() { return tree_.end(); }
-  const_iterator end() const { return tree_.end(); }
+  const_iterator cend() const { return tree_.end(); }
   reverse_iterator rbegin() { return tree_.rbegin(); }
   const_reverse_iterator rbegin() const { return tree_.rbegin(); }
   reverse_iterator rend() { return tree_.rend(); }
@@ -70,13 +70,13 @@ class btree_container {
   iterator lower_bound(const key_type &key) {
     return tree_.lower_bound(key);
   }
-  const_iterator lower_bound(const key_type &key) const {
+  const_iterator clower_bound(const key_type &key) const {
     return tree_.lower_bound(key);
   }
   iterator upper_bound(const key_type &key) {
     return tree_.upper_bound(key);
   }
-  const_iterator upper_bound(const key_type &key) const {
+  const_iterator cupper_bound(const key_type &key) const {
     return tree_.upper_bound(key);
   }
   std::pair<iterator,iterator> equal_range(const key_type &key) {

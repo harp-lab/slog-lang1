@@ -215,7 +215,7 @@ public:
 #endif
 
     void set_delta_element_count(int val)   {delta_element_count = val;}
-    int get_delta_element_count()   {return delta_element_count;}
+    int get_delta_element_count()   {return delta[mcomm.get_rank()].count();}
     u32** get_delta_sub_bucket_element_count()  {return delta_sub_bucket_element_count;}
     u32 get_global_delta_element_count();
 

@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <iostream>
+#include <vector>
 
 u32 relation::get_global_delta_element_count()
 {
@@ -1273,6 +1274,8 @@ bool relation::insert_in_full(u64* t)
 
     // TODO: use normal insert here!
     if (full[bucket_id].insert_tuple_from_array(t, arity+1) == true)
+    // std::vector<u64> tp(t, t+arity+1);
+    // if (full[bucket_id].insert(tp))
     {
         // TODO: change how to deal with element counts
         full_element_count++;
@@ -1410,20 +1413,10 @@ void relation::local_insert_in_delta()
 }
 
 bool relation::check_dependent_value_insert_avalible(const std::vector<u64>& tuple) {
-    uint64_t bucket_id = tuple_hash(tuple.data(), join_column_count) % get_bucket_count();
-    // return newt[bucket_id].check_dependent_insertion(tuple);
-    // if (!(full[bucket_id].check_dependent_insertion(tuple) && delta[bucket_id].check_dependent_insertion(tuple))) {
-    //     for (auto c: tuple) {
-    //         std::cout << c << " ";
-    //     }
-    //     std::cout << std::endl;
-    //     std::cout << "current tree >>" << std::endl;
-    //     for (auto t: delta[bucket_id]) {
-    //         for (auto c: t) {
-    //             std::cout << c << " ";
-    //         }
-    //         std::cout << std::endl;
-    //     }
+    // uint64_t bucket_id = tuple_hash(tuple.data(), join_column_count) % get_bucket_count();
+    // if (bucket_id != mcomm.get_rank()) {
+    //     std::cout << "wwwwwwwwwwwwwwwwwwwwwwwwwwwwww " << std::endl; 
     // }
+    int bucket_id = mcomm.get_rank();
     return delta[bucket_id].check_dependent_insertion(tuple) && full[bucket_id].check_dependent_insertion(tuple) ;
 }

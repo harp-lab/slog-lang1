@@ -1,5 +1,5 @@
 // location of `parallel_RA_inc.h` here
-#include "/home/ubuntu/workspace/slog/compiler/../backend/src/parallel_RA_inc.h"
+#include "/home/ysun67/workspace/slog/compiler/../backend/src/parallel_RA_inc.h"
 
 #include <optional>
 #include <iterator>
@@ -385,6 +385,7 @@ int get_tag_for_rel(std::string relation_name, std::string index_str) {
 
 void compute_sssp_from(mpi_comm &mcomm, int sp, std::string input_dir,
                        std::string output_dir, int argc, char **argv) {
+  double start_time = 0;
   start_node = sp;
   load_input_relation(input_dir);
 
@@ -483,6 +484,13 @@ void compute_sssp_from(mpi_comm &mcomm, int sp, std::string input_dir,
   lie->set_comm(mcomm);
   lie->set_batch_size(1);
   lie->execute();
+  double end_time = MPI_Wtime();
+  double rank_running_time = end_time - start_time;
+  double final_time;
+  MPI_Reduce(&rank_running_time, &final_time, 1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, mcomm.get_comm());
+  if (mcomm.get_rank() == 0) {
+    std::cout << "RUNNING TIME: >>>>>>>>>>>>>>>>>>>>>> " << final_time << std::endl;
+  }
   lie->print_all_relation_size(); // Continuously print relation sizes
                                   //   lie->stat_intermediate();
 

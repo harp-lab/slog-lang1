@@ -1,8 +1,8 @@
 // location of `parallel_RA_inc.h` here
-#include "/home/stargazermiao/workspace/PL/slog/backend/src/parallel_RA_inc.h"
+#include "/home/ysun67/workspace/slog/backend/src/parallel_RA_inc.h"
 #include "mpi.h"
 
-#include <bit>
+// #include <bit>
 #include <iostream>
 #include <iterator>
 #include <map>
@@ -415,6 +415,7 @@ int get_tag_for_rel(std::string relation_name, std::string index_str) {
 }
 
 int main(int argc, char **argv) {
+  double start_time = MPI_Wtime();
   // input dir from compiler
   std::string slog_input_dir = "/home/ubuntu/workspace/slog/out/input-data";
   // output dir from compiler
@@ -467,16 +468,16 @@ int main(int argc, char **argv) {
     std::to_string(get_tag_for_rel("cc_represent", "1")) + ".cc_represent.2.table",
     FULL);
 
-  RAM *to_undirected_scc = new RAM(false, 0);
-  to_undirected_scc->add_relation(rel__edge__2__1, false);
-  to_undirected_scc->add_rule(new parallel_copy_generate(
-    rel__edge__2__1, rel__edge__2__1, FULL,
-    [](const u64 *const data, u64 *const output) -> int {
-      output[0] = data[1];
-      output[1] = data[0];
-      return 1;
-    }
-  ));
+  // RAM *to_undirected_scc = new RAM(false, 0);
+  // to_undirected_scc->add_relation(rel__edge__2__1, false);
+  // to_undirected_scc->add_rule(new parallel_copy_generate(
+  //   rel__edge__2__1, rel__edge__2__1, FULL,
+  //   [](const u64 *const data, u64 *const output) -> int {
+  //     output[0] = data[1];
+  //     output[1] = data[0];
+  //     return 1;
+  //   }
+  // ));
 
   RAM *cc_init_scc = new RAM(false, 1);
   cc_init_scc->add_relation(rel__edge__2__1, false);
@@ -529,12 +530,12 @@ int main(int argc, char **argv) {
     agg_minimum_local, SpecialAggregator::minimum, agg_minimum_reduce,
     nullptr, {0,2}));
   
-  RAM* cc_rep_scc = new RAM(false, 3);
-  cc_rep_scc->add_relation(rel__cc_final__2__1, false);
-  cc_rep_scc->add_relation(rel__cc_represent__1__1, true);
-  cc_rep_scc->add_rule(new parallel_copy(
-    rel__cc_represent__1__1, rel__cc_final__2__1, FULL, {1}
-  ));
+  // RAM* cc_rep_scc = new RAM(false, 3);
+  // cc_rep_scc->add_relation(rel__cc_final__2__1, false);
+  // cc_rep_scc->add_relation(rel__cc_represent__1__1, true);
+  // cc_rep_scc->add_rule(new parallel_copy(
+  //   rel__cc_represent__1__1, rel__cc_final__2__1, FULL, {1}
+  // ));
 
 
   LIE *cc_lie = new LIE();
@@ -544,27 +545,35 @@ int main(int argc, char **argv) {
   cc_lie->add_relation(rel__cc_final__2__1);
   cc_lie->add_relation(rel__cc_represent__1__1);
 
-  cc_lie->add_scc(to_undirected_scc);
+  // cc_lie->add_scc(to_undirected_scc);
   cc_lie->add_scc(cc_init_scc);
   cc_lie->add_scc(cc_compute_scc);
   cc_lie->add_scc(cc_agg_scc);
-  cc_lie->add_scc(cc_rep_scc);
+  // cc_lie->add_scc(cc_rep_scc);
 
-  cc_lie->add_scc_dependance(to_undirected_scc, cc_init_scc);
+  // cc_lie->add_scc_dependance(to_undirected_scc, cc_init_scc);
   cc_lie->add_scc_dependance(cc_init_scc, cc_compute_scc);
   cc_lie->add_scc_dependance(cc_compute_scc, cc_agg_scc);
-  cc_lie->add_scc_dependance(cc_agg_scc, cc_rep_scc);
+  // cc_lie->add_scc_dependance(cc_agg_scc, cc_rep_scc);
 
   cc_lie->enable_all_to_all_dump();
   cc_lie->set_output_dir(slog_output_dir); // Write to this directory
   cc_lie->set_comm(mcomm);
   cc_lie->set_batch_size(1);
   cc_lie->execute();
+
+  double end_time = MPI_Wtime();
+  double rank_running_time = end_time - start_time;
+  double final_time;
+  MPI_Reduce(&rank_running_time, &final_time, 1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, mcomm.get_comm());
+  if (mcomm.get_rank() == 0) {
+    std::cout << "RUNNING TIME: >>>>>>>>>>>>>>>>>>>>>> " << final_time << std::endl;
+  }
   cc_lie->print_all_relation_size(); // Continuously print relation sizes
 
   // rel__node__1__1->print();
   // rel__edge__2__1->print();
-  rel__cc__2__1->print();
+  // rel__cc__2__1->print();
   // rel__cc_final__2__1->print();
   // rel__cc_represent__1__1->print();
   // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>

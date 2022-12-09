@@ -73,13 +73,6 @@ int shmap_relation::insert_tuple_from_array(u64 *t, int width)
             bool joined = false;
             for (auto it = exist_tuples_range.first; it != exist_tuples_range.second; it++) {
                 auto cur_tuple = *it;
-                // if (tp[0] == 59 && tp[1] == 58) {
-                //     std::cout << "tppppp  <<<<<< ";
-                //     for (auto c: cur_tuple) {
-                //         std::cout << c << " ";
-                //     }
-                //     std::cout << std::endl;
-                // }
                 
                 std::vector<u64> old_t;
                 for (auto i: dependent_column_indices) {
@@ -91,16 +84,6 @@ int shmap_relation::insert_tuple_from_array(u64 *t, int width)
                 }
                 if (compare_res.value()) {
                     need_deletes.push_back(it);  
-                    // if (tp[0] == 59 && tp[1] == 58) {
-                    //     for (auto c: cur_tuple) {
-                    //         std::cout << c << " ";
-                    //     }
-                    //     std::cout << "update with " << compare_res.value() <<" <<<<<< ";
-                    //     for (auto c: tp) {
-                    //         std::cout << c << " ";
-                    //     }
-                    //     std::cout << std::endl;
-                    // }
                 }
                 joined = true;
             }
@@ -113,13 +96,9 @@ int shmap_relation::insert_tuple_from_array(u64 *t, int width)
             }
             if (!need_deletes.empty()) {
                 for (auto d: need_deletes) {
-                    // std::cout << "delete >>>>  ";
-                    // for (auto c: *d) {
-                    //     std::cout << c << " ";
-                    // }
-                    // std::cout << std::endl;
-                    ind.erase(*d);
+                    ind.erase(d);
                 }
+
                 if (insert(tp)) {
                     return INSERT_SUCCESS;
                 } else {
@@ -179,23 +158,6 @@ shmap_relation::check_dependent_insertion(const std::vector<u64> &tp) {
                     joined = true;
                 }
             }
-            // std::cout << " not adding to lattice with <<<<<< ";
-            // for (auto c: tp) {
-            //     std::cout << c << " ";
-            // }
-            // std::cout << " while lower bound ... ";
-            // for (auto c: lower_bound) {
-            //     std::cout << c << " ";
-            // }
-            // std::cout << std::endl;
-            // std::cout << "The current btree: " << std::endl;
-            // for (auto& t: ind) {
-            //     std::cout << "Tuple : ";
-            //     for (auto c: t) {
-            //         std::cout << c << " ";
-            //     }
-            //     std::cout << std::endl;
-            // }
             if (!joined) {
                 return true;
             } else {

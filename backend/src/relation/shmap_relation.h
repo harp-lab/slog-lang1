@@ -45,7 +45,7 @@ struct shmap_relation {
     // souffle use multi set for some relation
     using t_ind = btree::btree_set<t_tuple, t_comparator>;
     t_ind ind;
-    using iterator = t_ind::const_iterator;
+    using iterator = t_ind::iterator;
 
     bool insert(const t_tuple &t) {
         return ind.insert(t).second;
