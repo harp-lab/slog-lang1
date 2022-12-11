@@ -57,3 +57,41 @@ If you ran without `--network=host`, you can find the container's IP like so:
 ```sh
 docker container inspect slog --format '{{.NetworkSettings.IPAddress}}'
 ```
+
+## Another way to setup slog
+
+Open Terminal -> Download slog repo using the git repo (https://github.com/harp-lab/slog.git)
+
+Using Docker desktop application:
+         1.    Install Docker desktopapplication using https://docs.docker.com/desktop/install/mac-install/
+         2.    Place the downloadedfile In Applications folder. Double-click on the the downloaded .dmg file toget started.
+         3.    Go to Terminal -> cd to slog directory
+         
+         # Create docker image
+
+         docker build -t slog-daemon .
+
+         docker run -d --name slog-server slog-daemon
+         
+         # keep two terminals open and change the current directory to the directory where slog is installed.
+
+         One terminal to run the slog-server and another to run the slog-repl
+          
+         # To Up the slog-server
+
+         docker exec -it slog-server bash
+
+         ./slog-server
+         
+         # To go onto the REPL
+
+         docker exec -it slog-server bash
+
+         ./slog-repl
+
+         4.   Work on the programs / slog-repl as required
+
+
+
+
+         
