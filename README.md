@@ -63,8 +63,11 @@ docker container inspect slog --format '{{.NetworkSettings.IPAddress}}'
 Open Terminal -> Download slog repo using the git repo (https://github.com/harp-lab/slog.git)
 
 Using Docker desktop application:
+
          1.    Install Docker desktopapplication using https://docs.docker.com/desktop/install/mac-install/
+         
          2.    Place the downloadedfile In Applications folder. Double-click on the the downloaded .dmg file toget started.
+         
          3.    Go to Terminal -> cd to slog directory
          
          # Create docker image
