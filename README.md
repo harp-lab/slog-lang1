@@ -64,9 +64,9 @@ Open Terminal -> Download slog repo using the git repo (https://github.com/harp-
 
 Using Docker desktop application:
 
-         1.    Install Docker desktopapplication using https://docs.docker.com/desktop/install/mac-install/
+         1.    Install Docker desktop application using https://docs.docker.com/desktop/
          
-         2.    Place the downloadedfile In Applications folder. Double-click on the the downloaded .dmg file toget started.
+         2.    Place the downloaded file in Applications folder(if on mac). Double-click on the the downloaded .dmg file to get started.
          
          3.    Go to Terminal -> cd to slog directory
          
