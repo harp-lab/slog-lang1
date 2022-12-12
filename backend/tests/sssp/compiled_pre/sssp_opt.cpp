@@ -420,7 +420,7 @@ void compute_sssp_from(mpi_comm &mcomm, int sp, std::string input_dir,
           auto [data, output] = state;
           auto head_tuple = output;
 
-          bool compatible = true && res_0 < n2d(start_node);
+          bool compatible = true && res_0 == n2d(start_node);
           if (!compatible)
             return state;
 
@@ -444,21 +444,11 @@ void compute_sssp_from(mpi_comm &mcomm, int sp, std::string input_dir,
       );
   update_spath_j->set_generator_func(
       [](const depend_val_t& target_vs, const std::vector<u64>& input_v, depend_val_t& res_set) -> bool {
-        // std::cout << "Joining  >>> ";
-        // for (auto c : input_v) {
-        //   std::cout << c << " ";
-        // }
-        // std::cout << " and >>>>>>>";
-        // for (auto c : target_v) {
-        //     std::cout << c << " ";
-        // }
-        // std::cout << std::endl;
         auto target_v = target_vs[0];
         std::vector<u64> res(3, 0);
         res[0] = input_v[1];
         res[1] = target_v[1];
         if (res[0] == res[1]) {
-          // std::cout << "Warning detect a loop for node " << res[0] << std::endl;
           res[2] = 0;
         } else {
           res[2] = target_v[2] + 1;

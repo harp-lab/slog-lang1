@@ -573,8 +573,8 @@ int main(int argc, char **argv) {
 
   // rel__node__1__1->print();
   // rel__edge__2__1->print();
-  // rel__cc__2__1->print();
-  // rel__cc_final__2__1->print();
+ // rel__cc__2__1->print();
+ // rel__cc_final__2__1->print();
   // rel__cc_represent__1__1->print();
   // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 

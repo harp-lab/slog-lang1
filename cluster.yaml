@@ -1,0 +1,50 @@
+Region: us-east-2
+Image:
+  Os: ubuntu2004
+HeadNode:
+  InstanceType: c6a.xlarge
+  Networking:
+    SubnetId: subnet-0b2659c4d572b0d41
+  Ssh:
+    KeyName: us-east-2
+  LocalStorage:
+    RootVolume:
+      Size: 256
+Scheduling:
+  Scheduler: slurm
+  SlurmQueues:
+  - Name: queue1
+    ComputeResources:
+    - Name: m5nmetal
+      Instances:
+      - InstanceType: m5n.metal
+      MinCount: 0
+      MaxCount: 4
+      Efa:
+        Enabled: true
+    - Name: c6a32x
+      Instances:
+      - InstanceType: c6a.32xlarge
+      MinCount: 0
+      MaxCount: 4
+      Efa:
+        Enabled: true
+    - Name: c6imetal
+      Instances:
+      - InstanceType: c6i.metal
+      MinCount: 0
+      MaxCount: 4
+      Efa:
+        Enabled: true
+    - Name: m6imetal
+      Instances:
+      - InstanceType: m6i.metal
+      MinCount: 0
+      MaxCount: 4
+      Efa:
+        Enabled: truev
+    Networking:
+      PlacementGroup:
+        Enabled: true
+      SubnetIds:
+      - subnet-03f9e3c05f7ec22c3
