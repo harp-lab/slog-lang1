@@ -94,7 +94,14 @@ Using Docker desktop application:
 
          4.   Work on the programs / slog-repl as required
 
-
+  ## Common issues on setup & how to solve
+  - Windows
+	  - <strong>WSL</strong>:
+		  - Docker has issues running on WSL if you are using a Linux Distribution running on WSL 1. To check your distribution version run
+		  - ``wsl -l -v``
+		  - If your main distribution (denoted by the asterisk) is version 1, upgrade it using 
+		  - ``wsl --set-version <distro name> 2``
+		  - Restart your terminal and try Docker again
 
 
          
