@@ -1,5 +1,6 @@
 // location of `parallel_RA_inc.h` here
 #include "/home/ysun67/workspace/slog/compiler/../backend/src/parallel_RA_inc.h"
+#include "mpi.h"
 
 #include <optional>
 #include <iterator>
@@ -35,6 +36,7 @@ const u64 str_tag = 2;
 const u64 sign_flip_const = 0x0000200000000000;
 const u64 signed_num_mask = 0xFFFFE00000000000;
 int start_node = 1;
+int end_node = 2;
 
 inline bool is_number(u64 datum) {
   // cout << "is_number(" << datum << "): " << (datum >> tag_position ==
@@ -383,10 +385,10 @@ int get_tag_for_rel(std::string relation_name, std::string index_str) {
   return max_rel;
 }
 
-void compute_sssp_from(mpi_comm &mcomm, int sp, std::string input_dir,
+void compute_sssp_from(mpi_comm &mcomm, int sp, int ep, std::string input_dir,
                        std::string output_dir, int argc, char **argv) {
-  double start_time = 0;
   start_node = sp;
+  end_node = ep;
   load_input_relation(input_dir);
 
   relation *rel__edge__2__1__2 = new relation(
@@ -420,7 +422,7 @@ void compute_sssp_from(mpi_comm &mcomm, int sp, std::string input_dir,
           auto [data, output] = state;
           auto head_tuple = output;
 
-          bool compatible = true && res_0 == n2d(start_node);
+          bool compatible = true && (res_0 < n2d(end_node)) && (res_0 >= n2d(start_node));
           if (!compatible)
             return state;
 
@@ -458,6 +460,7 @@ void compute_sssp_from(mpi_comm &mcomm, int sp, std::string input_dir,
       });
   scc1->add_rule(update_spath_j);
 
+  double start_time = MPI_Wtime();
   LIE *lie = new LIE();
   lie->add_relation(rel__edge__2__1__2);
   lie->add_relation(rel__spath__3__2);
@@ -467,9 +470,9 @@ void compute_sssp_from(mpi_comm &mcomm, int sp, std::string input_dir,
 
   // Enable IO
   lie->enable_all_to_all_dump();
-  lie->enable_data_IO();
+  //lie->enable_data_IO();
   //   lie->enable_share_io();
-  lie->enable_IO();
+  //lie->enable_IO();
   lie->set_output_dir(output_dir); // Write to this directory
   lie->set_comm(mcomm);
   lie->set_batch_size(1);
@@ -488,7 +491,7 @@ void compute_sssp_from(mpi_comm &mcomm, int sp, std::string input_dir,
 
   // rel__spath__2__1__2->print();
   // rel__edge__2__1__2->print();
-  // rel__spath__3__2->print();
+ // rel__spath__3__2->print();
   // rel__edge__3__1->print();
   // rel__edge__3__1__2__3->print();
 
@@ -522,7 +525,7 @@ int main(int argc, char **argv) {
   mpi_comm mcomm;
   mcomm.create(argc, argv);
 
-  compute_sssp_from(mcomm, atoi(argv[3]), slog_input_dir, slog_output_dir, argc,
+  compute_sssp_from(mcomm, atoi(argv[3]), atoi(argv[4]), slog_input_dir, slog_output_dir, argc,
                     argv);
 
   mcomm.destroy();
