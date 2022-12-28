@@ -8,11 +8,13 @@
 #include "../parallel_RA_inc.h"
 #include <cstddef>
 #include <iostream>
+#include <vector>
 
 
 bool parallel_join::local_join(int threshold, int* offset,
                                int join_order,
                                u32 buckets,
+                               shmap_relation *input0,
                                int input0_buffer_size, int input0_buffer_width, u64 *input0_buffer,
                                shmap_relation *input1, u32 i1_size, int input1_buffer_width,
                                std::vector<int> reorder_map_array,
@@ -78,6 +80,68 @@ bool parallel_join::local_join(int threshold, int* offset,
 
     else if (join_order == RIGHT)
     {
+        if (input0->dependent_column_indices.size() > 0 && generator_mode) {
+            // right lattice join
+            std::vector<std::vector<u64>> input_ts;
+            std::vector<u64> prev_non_dependent_columns;
+            for (int k1 = *offset; k1 < input0_buffer_size; k1 = k1 + input0_buffer_width) {
+                std::vector<u64> cur_non_dependent_columns(
+                    input0_buffer+k1,
+                    input0_buffer+k1+input0_buffer_width-input0->dependent_column_indices.size()
+                );
+                // std::vector<u64> prefix;
+                // for (int jc=0; jc < join_column_count; jc++)
+                //     prefix.push_back(input0_buffer[k1 + jc]);
+                
+                std::vector<u64> input_t(input0_buffer+k1, input0_buffer+k1+input0_buffer_width);
+                // std::cout << "LT >>> ";
+                // for (auto c: input_t) {
+                //     std::cout << c << " ";
+                // }
+                // std::cout << std::endl;
+                if (cur_non_dependent_columns == prev_non_dependent_columns) {
+                    input_ts.push_back(input_t);
+                } else {
+                    if (input_ts.size() != 0) {
+                        u64 bucket_id = tuple_hash(input0_buffer + k1, join_column_count) % buckets;
+                        input1[bucket_id].as_all_to_allv_right_join_buffer(
+                            std::vector<u64>(prev_non_dependent_columns.begin(),
+                                             prev_non_dependent_columns.begin()+join_column_count),
+                            join_buffer,
+                            input_ts,
+                            input1_buffer_width, counter,
+                            buckets, output_sub_bucket_count,
+                            output_sub_bucket_rank, reorder_map_array,
+                            join_column_count, deduplicate,
+                            &local_join_count, global_join_duplicates,
+                            global_join_inserts,
+                            output->get_join_column_count(),output->get_is_canonical(),
+                            generator_mode, generator_func);
+                        input_ts.clear();
+                    }
+                    prev_non_dependent_columns = cur_non_dependent_columns;
+                    input_ts.push_back(input_t);
+                }
+            }
+            if (input_ts.size() != 0) {
+                u64 bucket_id = tuple_hash(prev_non_dependent_columns.data(), join_column_count) % buckets;
+                input1[bucket_id].as_all_to_allv_right_join_buffer(
+                    std::vector<u64>(prev_non_dependent_columns.begin(),
+                                    prev_non_dependent_columns.begin()+join_column_count),
+                    join_buffer,
+                    input_ts,
+                    input1_buffer_width, counter,
+                    buckets, output_sub_bucket_count,
+                    output_sub_bucket_rank, reorder_map_array,
+                    join_column_count, deduplicate,
+                    &local_join_count, global_join_duplicates,
+                    global_join_inserts,
+                    output->get_join_column_count(),output->get_is_canonical(),
+                    generator_mode, generator_func);
+                input_ts.clear();
+            }
+        } else {
+        // original code    
         for (int k1 = *offset; k1 < input0_buffer_size; k1 = k1 + input0_buffer_width)
         {
             std::vector<u64> prefix;
@@ -85,10 +149,12 @@ bool parallel_join::local_join(int threshold, int* offset,
                 prefix.push_back(input0_buffer[k1 + jc]);
 
             u64 bucket_id = tuple_hash(input0_buffer + k1, join_column_count) % buckets;
-
+            std::vector<std::vector<u64>> input_ts;
+            input_ts.push_back(std::vector<u64>(input0_buffer+k1, input0_buffer+k1+input0_buffer_width));
             input1[bucket_id].as_all_to_allv_right_join_buffer(
                 prefix, join_buffer,
-                input0_buffer + k1, input0_buffer_width,
+                // input0_buffer + k1, input0_buffer_width,
+                input_ts,
                 input1_buffer_width, counter,
                 buckets, output_sub_bucket_count,
                 output_sub_bucket_rank, reorder_map_array,
@@ -106,6 +172,8 @@ bool parallel_join::local_join(int threshold, int* offset,
                 deduplicate.remove_tuple();
                 return false;
             }
+        }
+
         }
     }
 

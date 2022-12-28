@@ -90,6 +90,7 @@ public:
     bool local_join(int threshold, int* offset,
                     int join_order,
                     u32 buckets,
+                    shmap_relation *input0,
                     int input0_buffer_size, int input0_buffer_width, u64 *input0_buffer,
                     shmap_relation *input1, u32 i1_size, int input1_buffer_width,
                     std::vector<int> reorder_map_array,
