@@ -702,7 +702,6 @@ bool RAM::local_compute(int* offset)
     }
     auto after_compute_time = MPI_Wtime();
 
-    auto after_compute_time =  MPI_Wtime();
 #if 0
     int global_total_join_tuples = 0;
     int global_join_tuples_duplicates = 0;
@@ -992,7 +991,7 @@ void RAM::local_insert_in_newt(std::map<u64, u64>& intern_map)
 
             if (RA_list[r]->get_RA_type() == COPY)
                 output = RA_list[r]->get_copy_output();
-            	dist_relational_alg else if (RA_list[r]->get_RA_type() == COPY_FILTER)
+            else if (RA_list[r]->get_RA_type() == COPY_FILTER)
                 output = RA_list[r]->get_copy_filter_output();
             else if (RA_list[r]->get_RA_type() == NEGATION)
                 output = RA_list[r]->get_negation_output();
