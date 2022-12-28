@@ -1,6 +1,5 @@
 // location of `parallel_RA_inc.h` here
-#include "/home/ysun67/workspace/slog/compiler/../backend/src/parallel_RA_inc.h"
-#include "mpi.h"
+#include "/home/ysun67/slog/compiler/../backend/src/parallel_RA_inc.h"
 
 #include <optional>
 #include <iterator>
@@ -22,7 +21,7 @@
 #include <tuple>
 #include <utility>
 #include <vector>
-#include <filesystem>
+#include <experimental/filesystem>
 
 using namespace std;
 #define u64 uint64_t
@@ -333,7 +332,8 @@ std::map<std::string, std::unordered_set<std::string>> rel_index_map;
 
 // load all relation inside input database
 void load_input_relation(std::string db_dir) {
-  for (const auto &entry : std::filesystem::directory_iterator(db_dir)) {
+// logistic regression
+  for (const auto &entry : std::experimental::filesystem::directory_iterator(db_dir)) {
     // check if ends with table
     std::string filename_ss = entry.path().filename().string();
     // std::cout << "input database has file " << filename_ss << std::endl;

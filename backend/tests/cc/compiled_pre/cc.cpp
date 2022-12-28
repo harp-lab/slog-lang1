@@ -1,5 +1,5 @@
 // location of `parallel_RA_inc.h` here
-#include "/home/ysun67/workspace/slog/backend/src/parallel_RA_inc.h"
+#include "/home/ysun67/slog/backend/src/parallel_RA_inc.h"
 #include "mpi.h"
 
 // #include <bit>
@@ -362,10 +362,10 @@ std::map<std::string, std::unordered_set<std::string>> rel_index_map;
 
 // load all relation inside input database
 void load_input_relation(std::string db_dir) {
-  for (const auto &entry : std::filesystem::directory_iterator(db_dir)) {
+  for (const auto &entry : std::experimental::filesystem::directory_iterator(db_dir)) {
     // check if ends with table
     std::string filename_ss = entry.path().filename().string();
-    // std::cout << "input database has file " << filename_ss << std::endl;
+    //std::cout << "input database has file " << filename_ss << std::endl;
     std::string suffix = ".table";
     int ft = filename_ss.size() - suffix.size();
     if (ft < 0)
@@ -388,8 +388,8 @@ void load_input_relation(std::string db_dir) {
     }
     if (tag > max_rel)
       max_rel = tag;
-    // std::cout << "load " << tag << "." << index_stream.str() << "has arity "
-    //           << arity << std::endl;
+    //std::cout << "load " << tag << "." << index_stream.str() << "has arity "
+    //          << arity << std::endl;
     rel_tag_map[index_stream.str()] = tag;
   }
 }
@@ -409,13 +409,12 @@ int get_tag_for_rel(std::string relation_name, std::string index_str) {
   }
   max_rel++;
   rel_tag_map[name_arity] = max_rel;
-  // std::cout << "generate rel tag: " << name_arity << " " << max_rel
-  //           << std::endl;
+  //std::cout << "generate rel tag: " << name_arity << " " << max_rel
+  //          << std::endl;
   return max_rel;
 }
 
 int main(int argc, char **argv) {
-  double start_time = MPI_Wtime();
   // input dir from compiler
   std::string slog_input_dir = "/home/ubuntu/workspace/slog/out/input-data";
   // output dir from compiler
@@ -542,6 +541,7 @@ int main(int argc, char **argv) {
   // ));
 
 
+  double start_time = MPI_Wtime();
   LIE *cc_lie = new LIE();
   cc_lie->add_relation(rel__edge__2__1);
   cc_lie->add_relation(rel__node__1__1);
