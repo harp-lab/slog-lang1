@@ -115,25 +115,20 @@ bool parallel_join::local_join(int threshold, int* offset,
                     input_ts.push_back(input_t);
                 } else {
                     if (input_ts.size() != 0) {
-                        auto before_actual_join = MPI_Wtime();
-                        u64 bucket_id = tuple_hash(prev_non_dependent_columns.data(), join_column_count) % buckets;
-                        // for (u32 sb = 0; sb < input0_rel->get_sub_bucket_per_bucket_count()[bucket_id]; sb++) {
-                            input1[bucket_id].as_all_to_allv_right_join_buffer(
-                                std::vector<u64>(prev_non_dependent_columns.begin(),
-                                                prev_non_dependent_columns.begin()+join_column_count),
-                                join_buffer,
-                                input_ts,
-                                input1_buffer_width, counter,
-                                buckets, output_sub_bucket_count,
-                                output_sub_bucket_rank, reorder_map_array,
-                                join_column_count, deduplicate,
-                                &local_join_count, global_join_duplicates,
-                                global_join_inserts,
-                                output->get_join_column_count(),output->get_is_canonical(),
-                                generator_mode, generator_func);
-                        // }
-                        auto after_actual_join = MPI_Wtime();
-                        join_time_total += after_actual_join - before_actual_join;
+                        u64 bucket_id = tuple_hash(input0_buffer + k1, join_column_count) % buckets;
+                        input1[bucket_id].as_all_to_allv_right_join_buffer(
+                            std::vector<u64>(prev_non_dependent_columns.begin(),
+                                             prev_non_dependent_columns.begin()+join_column_count),
+                            join_buffer,
+                            input_ts,
+                            input1_buffer_width, counter,
+                            buckets, output_sub_bucket_count,
+                            output_sub_bucket_rank, reorder_map_array,
+                            join_column_count, deduplicate,
+                            &local_join_count, global_join_duplicates,
+                            global_join_inserts,
+                            output->get_join_column_count(),output->get_is_canonical(),
+                            generator_mode, generator_func);
                         input_ts.clear();
                     }
                     prev_non_dependent_columns = cur_non_dependent_columns;
@@ -142,24 +137,19 @@ bool parallel_join::local_join(int threshold, int* offset,
             }
             if (input_ts.size() != 0) {
                 u64 bucket_id = tuple_hash(prev_non_dependent_columns.data(), join_column_count) % buckets;
-                auto before_actual_join = MPI_Wtime();
-                // for (u32 sb = 0; sb < input0_rel->get_sub_bucket_per_bucket_count()[bucket_id]; sb++) {
-                    input1[bucket_id].as_all_to_allv_right_join_buffer(
-                        std::vector<u64>(prev_non_dependent_columns.begin(),
-                                        prev_non_dependent_columns.begin()+join_column_count),
-                        join_buffer,
-                        input_ts,
-                        input1_buffer_width, counter,
-                        buckets, output_sub_bucket_count,
-                        output_sub_bucket_rank, reorder_map_array,
-                        join_column_count, deduplicate,
-                        &local_join_count, global_join_duplicates,
-                        global_join_inserts,
-                        output->get_join_column_count(),output->get_is_canonical(),
-                        generator_mode, generator_func);
-                // }
-                auto after_actual_join = MPI_Wtime();
-                join_time_total += after_actual_join - before_actual_join;
+                input1[bucket_id].as_all_to_allv_right_join_buffer(
+                    std::vector<u64>(prev_non_dependent_columns.begin(),
+                                    prev_non_dependent_columns.begin()+join_column_count),
+                    join_buffer,
+                    input_ts,
+                    input1_buffer_width, counter,
+                    buckets, output_sub_bucket_count,
+                    output_sub_bucket_rank, reorder_map_array,
+                    join_column_count, deduplicate,
+                    &local_join_count, global_join_duplicates,
+                    global_join_inserts,
+                    output->get_join_column_count(),output->get_is_canonical(),
+                    generator_mode, generator_func);
                 input_ts.clear();
             }
         } else {
@@ -173,23 +163,18 @@ bool parallel_join::local_join(int threshold, int* offset,
             u64 bucket_id = tuple_hash(input0_buffer + k1, join_column_count) % buckets;
             std::vector<std::vector<u64>> input_ts;
             input_ts.push_back(std::vector<u64>(input0_buffer+k1, input0_buffer+k1+input0_buffer_width));
-            auto before_actual_join = MPI_Wtime();
-            // for (u32 sb = 0; sb < input0_rel->get_sub_bucket_per_bucket_count()[bucket_id]; sb++) {
-                input1[bucket_id].as_all_to_allv_right_join_buffer(
-                    prefix, join_buffer,
-                    // input0_buffer + k1, input0_buffer_width,
-                    input_ts,
-                    input1_buffer_width, counter,
-                    buckets, output_sub_bucket_count,
-                    output_sub_bucket_rank, reorder_map_array,
-                    join_column_count, deduplicate,
-                    &local_join_count, global_join_duplicates,
-                    global_join_inserts,
-                    output->get_join_column_count(),output->get_is_canonical(),
-                    generator_mode, generator_func);
-            // }
-            auto after_actual_join = MPI_Wtime();
-            join_time_total += after_actual_join - before_actual_join;
+            input1[bucket_id].as_all_to_allv_right_join_buffer(
+                prefix, join_buffer,
+                // input0_buffer + k1, input0_buffer_width,
+                input_ts,
+                input1_buffer_width, counter,
+                buckets, output_sub_bucket_count,
+                output_sub_bucket_rank, reorder_map_array,
+                join_column_count, deduplicate,
+                &local_join_count, global_join_duplicates,
+                global_join_inserts,
+                output->get_join_column_count(),output->get_is_canonical(),
+                generator_mode, generator_func);
 
             // std::cout << "local_join_count " << local_join_count << " Threshold " << threshold << " k1 " << k1 << " offset " << *offset << " " << input0_buffer_width << std::endl;
             if (local_join_count > threshold)
