@@ -242,17 +242,12 @@ u64 RAM::intra_bucket_comm_execute()
                 input1_trees = input1->get_delta();
                 input1_size = input1->get_delta_element_count();
             }
-            double before_reduce_time = MPI_Wtime();
             int join_direction = LEFT;
             int local_join_direction_count = input0_size < input1_size ? 0 : 1;   // true if size of input0 > input1
             int global_join_direction_count = local_join_direction_count;
             MPI_Allreduce(&local_join_direction_count, &global_join_direction_count, 1, MPI_INT, MPI_SUM, mcomm.get_comm());
             if (global_join_direction_count > mcomm.get_nprocs() / 2) {
                 join_direction = RIGHT;
-            }
-            double after_reduce_time = MPI_Wtime();
-            if (mcomm.get_rank() == 0) {
-                std::cout << "Reduced time : " << after_reduce_time - before_reduce_time << std::endl;
             }
 
             if (join_direction == LEFT) {
@@ -264,42 +259,7 @@ u64 RAM::intra_bucket_comm_execute()
                                   mcomm.get_local_comm());
             } else {
                 intra_bucket_comm(get_bucket_count(),
-                                  input0->get_delta(),
-                                  input0->get_distinct_sub_bucket_rank_count(), input0->get_distinct_sub_bucket_rank(), input0->get_bucket_map(),
-                                  input1->get_distinct_sub_bucket_rank_count(), input1->get_distinct_sub_bucket_rank(), input1->get_bucket_map(),
-                                  &intra_bucket_buf_output_size[counter], &intra_bucket_buf_output[counter],
-                                  mcomm.get_local_comm());
-                total_data_moved = total_data_moved + intra_bucket_buf_output_size[counter];
-            }
-
-            /// Join between full and delta
-            else if (current_ra->get_join_input0_graph_type() == FULL && current_ra->get_join_input1_graph_type() == DELTA)
-            {
-                // std::cout << "here>>>>>>>>>>>>>"  << std::endl;
-                // if (input1->get_dependent_column().size() > 0) {
-                //     intra_bucket_comm(get_bucket_count(),
-                //                   input0->get_full(),
-                //                   input0->get_distinct_sub_bucket_rank_count(), input0->get_distinct_sub_bucket_rank(), input0->get_bucket_map(),
-                //                   input1->get_distinct_sub_bucket_rank_count(), input1->get_distinct_sub_bucket_rank(), input1->get_bucket_map(),
-                //                   &intra_bucket_buf_output_size[counter], &intra_bucket_buf_output[counter],
-                //                   mcomm.get_local_comm());
-                // } else {
-                    intra_bucket_comm(get_bucket_count(),
-                                    input1->get_delta(),
-                                    input1->get_distinct_sub_bucket_rank_count(), input1->get_distinct_sub_bucket_rank(), input1->get_bucket_map(),
-                                    input0->get_distinct_sub_bucket_rank_count(), input0->get_distinct_sub_bucket_rank(), input0->get_bucket_map(),
-                                    &intra_bucket_buf_output_size[counter], &intra_bucket_buf_output[counter],
-                                    mcomm.get_local_comm());
-                // }
-                total_data_moved = total_data_moved + intra_bucket_buf_output_size[counter];
-            }
-
-            /// Join between full and full
-            else if (current_ra->get_join_input0_graph_type() == FULL && current_ra->get_join_input1_graph_type() == FULL)
-            {
-
-                intra_bucket_comm(get_bucket_count(),
-                                  input1->get_full(),
+                                  input1_trees,
                                   input1->get_distinct_sub_bucket_rank_count(), input1->get_distinct_sub_bucket_rank(), input1->get_bucket_map(),
                                   input0->get_distinct_sub_bucket_rank_count(), input0->get_distinct_sub_bucket_rank(), input0->get_bucket_map(),
                                   &intra_bucket_buf_output_size[counter], &intra_bucket_buf_output[counter],
@@ -636,95 +596,31 @@ bool RAM::local_compute(int* offset)
             int join_direction = LEFT;
             int local_join_direction_count = input0_size < input1_size ? 0 : 1;   // true if size of input0 > input1
             int global_join_direction_count = local_join_direction_count;
-
-            auto before_size_sync = MPI_Wtime();
             MPI_Allreduce(&local_join_direction_count, &global_join_direction_count, 1, MPI_INT, MPI_SUM, mcomm.get_comm());
             if (global_join_direction_count > mcomm.get_nprocs() / 2) {
                 join_direction = RIGHT;
             }
-            auto after_size_sync = MPI_Wtime();
-            size_sync_time += after_size_sync - before_size_sync;
-            std::vector<double> real_j_time_stat;
+
             if (join_direction == LEFT) {
                 join_completed = join_completed & current_ra->local_join(threshold, &(offset[counter]),
                                                                          LEFT,
                                                                          get_bucket_count(),
-                                                                         input0->get_delta(),
+                                                                         input0_trees,
                                                                          intra_bucket_buf_output_size[counter], input0->get_arity()+1, intra_bucket_buf_output[counter],
                                                                          input1_trees, input1_size, input1->get_arity()+1,
                                                                          reorder_map_array,
                                                                          output_relation,
-                                                                         input0,
-                                                                         input1,
                                                                          compute_buffer,
                                                                          counter,
                                                                          join_column_count,
                                                                          &join_tuples_duplicates,
                                                                          &join_tuples);
-                total_join_tuples = total_join_tuples + join_tuples;
-                jtarget_size += input1->get_delta_element_count();
-            }
-            else if (current_ra->get_join_input0_graph_type() == DELTA && current_ra->get_join_input1_graph_type() == FULL)
-            {
-
-                join_completed = join_completed & current_ra->local_join(threshold, &(offset[counter]),
-                                                                         LEFT,
-                                                                         get_bucket_count(),
-                                                                         input0->get_delta(),
-                                                                         intra_bucket_buf_output_size[counter], input0->get_arity()+1, intra_bucket_buf_output[counter],
-                                                                         input1->get_full(), input1->get_full_element_count(), input1->get_arity()+1,
-                                                                         reorder_map_array,
-                                                                         output_relation,
-                                                                         compute_buffer,
-                                                                         counter,
-                                                                         join_column_count,
-                                                                         &join_tuples_duplicates,
-                                                                         &join_tuples);
-                total_join_tuples = total_join_tuples + join_tuples;
-                jtarget_size += input1->get_full_element_count();
-            }
-            else if (current_ra->get_join_input0_graph_type() == FULL && current_ra->get_join_input1_graph_type() == DELTA)
-            {
-                // if (input1->get_dependent_column().size() > 0) {
-                //     join_completed = join_completed & current_ra->local_join(threshold, &(offset[counter]),
-                //                                                             LEFT,
-                //                                                             get_bucket_count(),
-                //                                                             input0->get_delta(),
-                //                                                             intra_bucket_buf_output_size[counter], input0->get_arity()+1, intra_bucket_buf_output[counter],
-                //                                                             input1->get_delta(), input1->get_delta_element_count(), input1->get_arity()+1,
-                //                                                             reorder_map_array,
-                //                                                             output_relation,
-                //                                                             compute_buffer,
-                //                                                             counter,
-                //                                                             join_column_count,
-                //                                                             &join_tuples_duplicates,
-                //                                                             &join_tuples); 
-                //     jtarget_size += input1->get_delta_element_count();
-                // } else {
-                    join_completed = join_completed & current_ra->local_join(threshold, &(offset[counter]),
-                                                                            RIGHT,
-                                                                            get_bucket_count(),
-                                                                            input1->get_delta(),
-                                                                            intra_bucket_buf_output_size[counter], input1->get_arity()+1, intra_bucket_buf_output[counter],
-                                                                            input0->get_full(), input0->get_full_element_count(), input0->get_arity()+1,
-                                                                            reorder_map_array,
-                                                                            output_relation,
-                                                                            compute_buffer,
-                                                                            counter,
-                                                                            join_column_count,
-                                                                            &join_tuples_duplicates,
-                                                                            &join_tuples);
-                    jtarget_size += input0->get_full_element_count();
-                // }
-                total_join_tuples = total_join_tuples + join_tuples;
-                
-            }
-            else if (current_ra->get_join_input0_graph_type() == FULL && current_ra->get_join_input1_graph_type() == FULL)
-            {
+                           
+            } else {
                 join_completed = join_completed & current_ra->local_join(threshold, &(offset[counter]),
                                                                          RIGHT,
                                                                          get_bucket_count(),
-                                                                         input1->get_full(),
+                                                                         input1_trees,
                                                                          intra_bucket_buf_output_size[counter], input1->get_arity()+1, intra_bucket_buf_output[counter],
                                                                          input0_trees, input0_size, input0->get_arity()+1,
                                                                          reorder_map_array,
@@ -736,9 +632,9 @@ bool RAM::local_compute(int* offset)
                                                                          join_column_count,
                                                                          &join_tuples_duplicates,
                                                                          &join_tuples);
-                total_join_tuples = total_join_tuples + join_tuples;
-                jtarget_size += input0->get_full_element_count();
             }
+            total_join_tuples = total_join_tuples + join_tuples;
+            jtarget_size += input1->get_delta_element_count();  
             
             ibf_size += intra_bucket_buf_output_size[counter];
         }
@@ -1210,6 +1106,12 @@ void RAM::execute_in_batches(std::string name, int batch_size, std::vector<u32>&
     double all_insert_newt = 0;
     double all_comm = 0;
     double all_time = 0;
+    double all_insert_in_full = 0;
+    double all_allocate_buf = 0;
+    double all_intra = 0;
+    double all_free_buf =0;
+
+    // auto before_batch = MPI_Wtime();
     while (batch_size != 0)
     {
 #if DEBUG_OUTPUT
