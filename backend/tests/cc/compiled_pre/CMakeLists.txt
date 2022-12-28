@@ -2,7 +2,7 @@ cmake_minimum_required (VERSION 3.9)
 
 project (cc)
 
-add_compile_options(--std=c++17 -lstdc++fs -Wno-strict-aliasing -Werror=class-memaccess -fpermissive)
+add_compile_options(-std=c++17 -lstdc++fs -Wno-strict-aliasing -Werror=class-memaccess -fpermissive)
 
 link_libraries(stdc++fs)
 

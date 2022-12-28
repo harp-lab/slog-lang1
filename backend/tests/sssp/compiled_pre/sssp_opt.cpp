@@ -1,5 +1,5 @@
 // location of `parallel_RA_inc.h` here
-#include "/home/ysun67/workspace/slog/compiler/../backend/src/parallel_RA_inc.h"
+#include "/home/ysun67/slog/compiler/../backend/src/parallel_RA_inc.h"
 
 #include <optional>
 #include <iterator>
@@ -21,7 +21,7 @@
 #include <tuple>
 #include <utility>
 #include <vector>
-#include <filesystem>
+#include <experimental/filesystem>
 
 using namespace std;
 #define u64 uint64_t
@@ -331,7 +331,8 @@ std::map<std::string, std::unordered_set<std::string>> rel_index_map;
 
 // load all relation inside input database
 void load_input_relation(std::string db_dir) {
-  for (const auto &entry : std::filesystem::directory_iterator(db_dir)) {
+// logistic regression
+  for (const auto &entry : std::experimental::filesystem::directory_iterator(db_dir)) {
     // check if ends with table
     std::string filename_ss = entry.path().filename().string();
     // std::cout << "input database has file " << filename_ss << std::endl;
@@ -444,21 +445,11 @@ void compute_sssp_from(mpi_comm &mcomm, int sp, std::string input_dir,
       );
   update_spath_j->set_generator_func(
       [](const depend_val_t& target_vs, const std::vector<u64>& input_v, depend_val_t& res_set) -> bool {
-        // std::cout << "Joining  >>> ";
-        // for (auto c : input_v) {
-        //   std::cout << c << " ";
-        // }
-        // std::cout << " and >>>>>>>";
-        // for (auto c : target_v) {
-        //     std::cout << c << " ";
-        // }
-        // std::cout << std::endl;
         auto target_v = target_vs[0];
         std::vector<u64> res(3, 0);
         res[0] = input_v[1];
         res[1] = target_v[1];
         if (res[0] == res[1]) {
-          // std::cout << "Warning detect a loop for node " << res[0] << std::endl;
           res[2] = 0;
         } else {
           res[2] = target_v[2] + 1;
@@ -468,6 +459,7 @@ void compute_sssp_from(mpi_comm &mcomm, int sp, std::string input_dir,
       });
   scc1->add_rule(update_spath_j);
 
+  start_time = MPI_Wtime();
   LIE *lie = new LIE();
   lie->add_relation(rel__edge__2__1__2);
   lie->add_relation(rel__spath__3__2);
@@ -477,7 +469,7 @@ void compute_sssp_from(mpi_comm &mcomm, int sp, std::string input_dir,
 
   // Enable IO
   lie->enable_all_to_all_dump();
-  lie->enable_data_IO();
+  //lie->enable_data_IO();
   //   lie->enable_share_io();
   lie->enable_IO();
   lie->set_output_dir(output_dir); // Write to this directory

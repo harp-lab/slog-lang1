@@ -385,6 +385,7 @@ bool RAM::local_compute(int* offset)
     u32 counter = 0;
     int threshold = 20000000;
 
+    auto before_compute_time = MPI_Wtime();
     for (std::vector<parallel_RA*>::iterator it = RA_list.begin() ; it != RA_list.end(); ++it)
     {
         // std::cout << "RA type : " << (*it)->get_RA_type() << std::endl;
@@ -691,6 +692,7 @@ bool RAM::local_compute(int* offset)
         counter++;      
     }
 
+    auto after_compute_time =  MPI_Wtime();
 #if 0
     int global_total_join_tuples = 0;
     int global_join_tuples_duplicates = 0;
@@ -700,12 +702,14 @@ bool RAM::local_compute(int* offset)
         std::cout << "Joins: " << global_total_join_tuples << " Duplicates " << global_join_tuples_duplicates << " " << std::endl;
 #endif
 
+    auto before_sync_time = MPI_Wtime();
     int global_synchronizer = 0;
     int synchronizer = 0;
     if (join_completed == true)
         synchronizer = 1;
 
     MPI_Allreduce(&synchronizer, &global_synchronizer, 1, MPI_INT, MPI_BAND, mcomm.get_comm());
+    auto res = false;
     if (global_synchronizer == 1)
     {
         counter = 0;
@@ -734,10 +738,15 @@ bool RAM::local_compute(int* offset)
 
         delete[] intra_bucket_buf_output_size;
         delete[] intra_bucket_buf_output;
-        return true;
+        res = true;
     }
-    else
-        return false;
+    auto after_sync_time = MPI_Wtime();
+        if (mcomm.get_rank() == 0) {
+	    std::cout << "Real local compute time >>> " << after_compute_time - before_compute_time
+                      << "    Sync time >>> " << after_sync_time - before_sync_time << std::endl;
+    }
+
+    return res;
 }
 
 
@@ -1117,7 +1126,7 @@ void RAM::io_all_relation(int status)
 }
 
 
-void RAM::execute_in_batches(std::string name, int batch_size, std::vector<u32>& history, std::map<u64, u64>& intern_map, int* loop_counter, int task_id, std::string output_dir, bool all_to_all_record, int sloav_mode, int* rotate_index_array, int** send_indexes, int *sendb_num)
+void RAM::execute_in_batches(std::string name, int batch_size, std::vector<u32>& history, std::map<u64, u64>& intern_map, int* loop_counter, int task_id, std::string output_dir, bool all_to_all_record, int sloav_mode, int* rotate_index_array, int** send_indexes, int *sendb_num, std::vector<double>& runtime_vector)
 {
     int inner_loop = 0;
     u32 RA_count = RA_list.size();
@@ -1125,6 +1134,11 @@ void RAM::execute_in_batches(std::string name, int batch_size, std::vector<u32>&
     int *offset = new int[RA_count];
     for (u32 i =0; i < RA_count; i++)
         offset[i] = 0;
+
+    double all_local_compute = 0;
+    double all_insert_newt = 0;
+    double all_comm = 0;
+    double all_time = 0; 
 
     while (batch_size != 0)
     {
@@ -1148,10 +1162,12 @@ void RAM::execute_in_batches(std::string name, int batch_size, std::vector<u32>&
             auto compute_start = MPI_Wtime();
             local_join_status = local_compute(offset);
             auto compute_end = MPI_Wtime();
+	    all_local_compute += compute_end - compute_start;
 
             auto all_to_all_start = MPI_Wtime();
             local_comm();
             auto all_to_all_end = MPI_Wtime();
+	    all_comm += all_to_all_end - all_to_all_start;
 
             auto free_buffers_start = MPI_Wtime();
             free_compute_buffers();
@@ -1160,6 +1176,7 @@ void RAM::execute_in_batches(std::string name, int batch_size, std::vector<u32>&
             auto insert_in_newt_start = MPI_Wtime();
             local_insert_in_newt(intern_map);
             auto insert_in_newt_end = MPI_Wtime();
+	    all_insert_newt += insert_in_newt_end - insert_in_newt_start;
 
 #if 1
             if (mcomm.get_rank() == 0)
@@ -1228,6 +1245,13 @@ void RAM::execute_in_batches(std::string name, int batch_size, std::vector<u32>&
         *loop_counter = *loop_counter + 1;
         if (iteration_count == 1)
             break;
+    }
+
+    if (mcomm.get_rank() == 0) {
+        runtime_vector[0] = runtime_vector[0] + all_comm;
+	runtime_vector[1] = runtime_vector[1] + all_local_compute;
+	runtime_vector[2] = runtime_vector[2] + all_insert_newt;
+	runtime_vector[3] = runtime_vector[3] + all_time;
     }
 
     delete[] offset;

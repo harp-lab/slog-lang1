@@ -8,7 +8,7 @@
 #include "../parallel_RA_inc.h"
 #include <algorithm>
 #include <cstddef>
-#include <filesystem>
+#include <experimental/filesystem>
 #include <iostream>
 #include <ostream>
 #include <tuple>
@@ -249,7 +249,7 @@ void LIE::write_final_checkpoint_dump()
     std::string dir_name;
     dir_name = output_dir + "/checkpoint-final";
     if (mcomm.get_local_rank() == 0)
-        std::filesystem::create_directories(dir_name.c_str());
+        std::experimental::filesystem::create_directories(dir_name.c_str());
     MPI_Barrier(mcomm.get_local_comm());
     for (u32 i = 0 ; i < lie_relations.size(); i++)
     {
@@ -262,9 +262,9 @@ void LIE::write_final_checkpoint_dump()
 void LIE::write_final_checkpoint_dump(relation* rel) {
     std::string dir_name;
     dir_name = output_dir + "/checkpoint-final";
-    std::filesystem::path dir_path(dir_name);
-    if (mcomm.get_local_rank() == 0 && (!std::filesystem::exists(dir_path))) {
-        std::filesystem::create_directories(dir_path);
+    std::experimental::filesystem::path dir_path(dir_name);
+    if (mcomm.get_local_rank() == 0 && (!std::experimental::filesystem::exists(dir_path))) {
+        std::experimental::filesystem::create_directories(dir_path);
     }
     MPI_Barrier(mcomm.get_local_comm());
     if (rel->get_is_canonical())
@@ -474,7 +474,7 @@ bool LIE::execute ()
                 create_checkpoint_dump(loop_counter, executable_task->get_id());
 
             if (comm_compaction == 0)
-                executable_task->execute_in_batches(app_name, batch_size, history, intern_map, &loop_counter, executable_task->get_id(), output_dir, all_to_all_meta_data_dump, sloav_mode, rotate_index_array, send_indexes, sendb_num);
+                executable_task->execute_in_batches(app_name, batch_size, history, intern_map, &loop_counter, executable_task->get_id(), output_dir, all_to_all_meta_data_dump, sloav_mode, rotate_index_array, send_indexes, sendb_num, run_time_vector);
             else
                 executable_task->execute_in_batches_comm_compaction(app_name, batch_size, history, intern_map, &loop_counter, executable_task->get_id(), output_dir, all_to_all_meta_data_dump, sloav_mode, rotate_index_array, send_indexes, sendb_num, run_time_vector);
 
@@ -522,7 +522,7 @@ bool LIE::execute ()
                     create_checkpoint_dump(loop_counter, executable_task->get_id());
 
                 if (comm_compaction == 0)
-                    executable_task->execute_in_batches(app_name, batch_size, history, intern_map, &loop_counter, executable_task->get_id(), output_dir, all_to_all_meta_data_dump, sloav_mode, rotate_index_array, send_indexes, sendb_num);
+                    executable_task->execute_in_batches(app_name, batch_size, history, intern_map, &loop_counter, executable_task->get_id(), output_dir, all_to_all_meta_data_dump, sloav_mode, rotate_index_array, send_indexes, sendb_num, run_time_vector);
                 else
                     executable_task->execute_in_batches_comm_compaction(app_name, batch_size, history, intern_map, &loop_counter, executable_task->get_id(), output_dir, all_to_all_meta_data_dump, sloav_mode, rotate_index_array, send_indexes, sendb_num, run_time_vector);
 
