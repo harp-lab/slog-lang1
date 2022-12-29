@@ -629,9 +629,9 @@ bool RAM::local_compute(int* offset)
                                                                          &join_tuples);
             }
             total_join_tuples = total_join_tuples + join_tuples;
-            jtarget_size += input1->get_delta_element_count();  
+            jtarget_size += input1_size;  
             
-            ibf_size += intra_bucket_buf_output_size[counter];
+            ibf_size += input0_size;
         }
         counter++;      
     }
