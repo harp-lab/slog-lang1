@@ -6,6 +6,7 @@
 
 
 #include "../parallel_RA_inc.h"
+#include "mpi.h"
 #include <cstddef>
 #include <iostream>
 #include <vector>
@@ -23,7 +24,8 @@ bool parallel_join::local_join(int threshold, int* offset,
                                int counter,
                                int join_column_count,
                                u32* global_join_duplicates,
-                               u32* global_join_inserts)
+                               u32* global_join_inserts,
+                               std::vector<double>& time_stat)
 {
     join_buffer.width[counter] = reorder_map_array.size();
 
@@ -39,9 +41,12 @@ bool parallel_join::local_join(int threshold, int* offset,
     u32** output_sub_bucket_rank = output->get_sub_bucket_rank();
     // std::cout << "wwwwwwwww " << input0_buffer_size << " " << input0_buffer_size << " " << i1_size << std::endl;
 
-    if (*offset > input0_buffer_size || input0_buffer_size == 0 || i1_size == 0)
+    if (*offset > input0_buffer_size || input0_buffer_size == 0 || i1_size == 0) {
+        time_stat.push_back(0);
         return true;
+    }
 
+    double join_time_total = 0;
     int local_join_count=0;
     if (join_order == LEFT)
     {
@@ -56,6 +61,7 @@ bool parallel_join::local_join(int threshold, int* offset,
 
             u64 bucket_id = tuple_hash(input0_buffer + k1, join_column_count) % buckets;
 
+            auto before_actual_join = MPI_Wtime();
             input1[bucket_id].as_all_to_allv_left_join_buffer(
                 prefix, join_buffer,
                 input0_buffer + k1,input0_buffer_width,
@@ -67,6 +73,8 @@ bool parallel_join::local_join(int threshold, int* offset,
                 global_join_inserts, output->get_join_column_count(),
                 output->get_is_canonical(),
                 generator_mode, generator_func);
+            auto after_actual_join = MPI_Wtime();
+            join_time_total += after_actual_join - before_actual_join;
 
             // std::cout << "local_join_count " << local_join_count << " Threshold " << threshold << " k1 " << k1 << " offset " << *offset << " " << input0_buffer_width << std::endl;
             if (local_join_count > threshold)
@@ -103,6 +111,7 @@ bool parallel_join::local_join(int threshold, int* offset,
                     input_ts.push_back(input_t);
                 } else {
                     if (input_ts.size() != 0) {
+                        auto before_actual_join = MPI_Wtime();
                         u64 bucket_id = tuple_hash(input0_buffer + k1, join_column_count) % buckets;
                         input1[bucket_id].as_all_to_allv_right_join_buffer(
                             std::vector<u64>(prev_non_dependent_columns.begin(),
@@ -117,6 +126,8 @@ bool parallel_join::local_join(int threshold, int* offset,
                             global_join_inserts,
                             output->get_join_column_count(),output->get_is_canonical(),
                             generator_mode, generator_func);
+                        auto after_actual_join = MPI_Wtime();
+                        join_time_total += after_actual_join - before_actual_join;
                         input_ts.clear();
                     }
                     prev_non_dependent_columns = cur_non_dependent_columns;
@@ -125,6 +136,7 @@ bool parallel_join::local_join(int threshold, int* offset,
             }
             if (input_ts.size() != 0) {
                 u64 bucket_id = tuple_hash(prev_non_dependent_columns.data(), join_column_count) % buckets;
+                auto before_actual_join = MPI_Wtime();
                 input1[bucket_id].as_all_to_allv_right_join_buffer(
                     std::vector<u64>(prev_non_dependent_columns.begin(),
                                     prev_non_dependent_columns.begin()+join_column_count),
@@ -138,6 +150,8 @@ bool parallel_join::local_join(int threshold, int* offset,
                     global_join_inserts,
                     output->get_join_column_count(),output->get_is_canonical(),
                     generator_mode, generator_func);
+                auto after_actual_join = MPI_Wtime();
+                join_time_total += after_actual_join - before_actual_join;
                 input_ts.clear();
             }
         } else {
@@ -151,6 +165,7 @@ bool parallel_join::local_join(int threshold, int* offset,
             u64 bucket_id = tuple_hash(input0_buffer + k1, join_column_count) % buckets;
             std::vector<std::vector<u64>> input_ts;
             input_ts.push_back(std::vector<u64>(input0_buffer+k1, input0_buffer+k1+input0_buffer_width));
+            auto before_actual_join = MPI_Wtime();
             input1[bucket_id].as_all_to_allv_right_join_buffer(
                 prefix, join_buffer,
                 // input0_buffer + k1, input0_buffer_width,
@@ -163,6 +178,8 @@ bool parallel_join::local_join(int threshold, int* offset,
                 global_join_inserts,
                 output->get_join_column_count(),output->get_is_canonical(),
                 generator_mode, generator_func);
+            auto after_actual_join = MPI_Wtime();
+            join_time_total += after_actual_join - before_actual_join;
 
             // std::cout << "local_join_count " << local_join_count << " Threshold " << threshold << " k1 " << k1 << " offset " << *offset << " " << input0_buffer_width << std::endl;
             if (local_join_count > threshold)
@@ -177,6 +194,7 @@ bool parallel_join::local_join(int threshold, int* offset,
         }
     }
 
+    time_stat.push_back(join_time_total);
     deduplicate.remove_tuple();
     return true;
 }
