@@ -99,7 +99,8 @@ public:
                     int counter,
                     int join_column_count,
                     u32* local_join_duplicates,
-                    u32* local_join_inserts);
+                    u32* local_join_inserts,
+                    std::vector<double>& time_stat);
 
 #endif
 };

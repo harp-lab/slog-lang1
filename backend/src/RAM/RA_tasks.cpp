@@ -361,6 +361,8 @@ bool RAM::local_compute(int* offset)
     auto before_compute_time = MPI_Wtime();
     auto ibf_size = 0;
     u64 jtarget_size = 0;
+    double size_sync_time = 0;
+    double real_join_time = 0;
     for (std::vector<parallel_RA*>::iterator it = RA_list.begin() ; it != RA_list.end(); ++it)
     {
         // std::cout << "RA type : " << (*it)->get_RA_type() << std::endl;
@@ -593,11 +595,15 @@ bool RAM::local_compute(int* offset)
             int join_direction = LEFT;
             int local_join_direction_count = input0_size < input1_size ? 0 : 1;   // true if size of input0 > input1
             int global_join_direction_count = local_join_direction_count;
+
+            auto before_size_sync = MPI_Wtime();
             MPI_Allreduce(&local_join_direction_count, &global_join_direction_count, 1, MPI_INT, MPI_SUM, mcomm.get_comm());
             if (global_join_direction_count > mcomm.get_nprocs() / 2) {
                 join_direction = RIGHT;
             }
-
+            auto after_size_sync = MPI_Wtime();
+            size_sync_time += after_size_sync - before_size_sync;
+            std::vector<double> real_j_time_stat;
             if (join_direction == LEFT) {
                 join_completed = join_completed & current_ra->local_join(threshold, &(offset[counter]),
                                                                          LEFT,
@@ -611,8 +617,10 @@ bool RAM::local_compute(int* offset)
                                                                          counter,
                                                                          join_column_count,
                                                                          &join_tuples_duplicates,
-                                                                         &join_tuples);
-                           
+                                                                         &join_tuples,
+                                                                         real_j_time_stat);
+                jtarget_size += input1_size;             
+                ibf_size += input0_size;           
             } else {
                 join_completed = join_completed & current_ra->local_join(threshold, &(offset[counter]),
                                                                          RIGHT,
@@ -626,12 +634,13 @@ bool RAM::local_compute(int* offset)
                                                                          counter,
                                                                          join_column_count,
                                                                          &join_tuples_duplicates,
-                                                                         &join_tuples);
+                                                                         &join_tuples,
+                                                                         real_j_time_stat);
+                jtarget_size += input0_size;             
+                ibf_size += input1_size;  
             }
             total_join_tuples = total_join_tuples + join_tuples;
-            jtarget_size += input1_size;  
-            
-            ibf_size += input0_size;
+            real_join_time += real_j_time_stat[0];
         }
         counter++;      
     }
@@ -660,7 +669,9 @@ bool RAM::local_compute(int* offset)
     if (lc_all_time == slowest_rank_time) {
         std::cout << "Slowest Rank >>> " << mcomm.get_rank()
                   << "   Comp Time >>> " << after_compute_time - before_compute_time
+                  << "   Real Join >>> " << real_join_time
                   << "   Sync Time >>> " << after_sync_time - before_sync_time
+                  << "   Size Sync Time >>> " << size_sync_time
                   << "  Input Size >>> " << ibf_size
                   << "  Target Count >>> " << jtarget_size
                   << std::endl;
