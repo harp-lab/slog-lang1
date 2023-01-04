@@ -42,7 +42,7 @@ Scheduling:
       MinCount: 0
       MaxCount: 4
       Efa:
-        Enabled: truev
+        Enabled: true
     Networking:
       PlacementGroup:
         Enabled: true

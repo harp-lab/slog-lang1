@@ -7,8 +7,10 @@
 
 #include "../parallel_RA_inc.h"
 #include "balanced_hash_relation.h"
+#include "mpi.h"
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <iostream>
 #include <vector>
@@ -1419,4 +1421,43 @@ bool relation::check_dependent_value_insert_avalible(const std::vector<u64>& tup
     // }
     int bucket_id = mcomm.get_rank();
     return delta[bucket_id].check_dependent_insertion(tuple) && full[bucket_id].check_dependent_insertion(tuple) ;
+}
+
+void relation::test_calc_hash_rank(u64 rank_n) {
+    int hash_types = 6;
+    std::vector<std::vector<u64>> tuple_cnts(hash_types, std::vector<u64>(rank_n, 0));
+    std::vector<std::string> hash_names{"nohash", "fnv1a", "murmur", "spooky", "fasthash", "xxhash"};
+
+    for (auto t: full[mcomm.get_rank()]) {
+        // std::vector<u64> compressed;
+        // for (auto c: t) {
+        //     compressed.push_back(c % rank_n);
+        // }
+        auto hashes = tuple_hash_test_all(t.data(), get_join_column_count());
+        for (int i = 0; i < hash_types; i++) {
+            // u64 hashv_main = hashes[i];
+            // u64 rk_main = hashes[i] % rank_n;
+            // u64 rk_sub = tuple_hash_test_all(&hashv_main, 1)[1] % rank_n;
+            // u64 rk_final = rk_main * 64 + rk_sub;
+            // tuple_cnts[i][rk_final]++;
+            tuple_cnts[i][hashes[i] % (rank_n-1)]++;
+            // u64 rkv = rank_n;
+            // u64 p =  UINT64_MAX / rank_n;
+            // tuple_cnts[i][hashes[i] / p]++;
+        }  
+    }
+    // std::cout << mcomm.get_rank() << std::endl;
+    for (int i = 0; i < hash_types; i++) {
+        // for (auto cnt: tuple_cnts[i]) {
+        //     std::cout << hash_names[i] << ", " << mcomm.get_rank() << ", " << cnt << std::endl;
+        // }
+        for (u64 rk = 0; rk < rank_n; rk++) {
+            u64 local_cnt = tuple_cnts[i][rk];
+            u64 global_cnt = local_cnt;
+            MPI_Reduce(&local_cnt, &global_cnt, 1, MPI_UINT64_T, MPI_SUM, 0, mcomm.get_comm());
+            if (mcomm.get_rank() == 0) {
+                std::cout << hash_names[i] << ", " << rk << ", " << global_cnt << std::endl;
+            }
+        }
+    }
 }

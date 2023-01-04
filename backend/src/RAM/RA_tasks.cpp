@@ -674,6 +674,7 @@ bool RAM::local_compute(int* offset)
                   << "   Size Sync Time >>> " << size_sync_time
                   << "  Input Size >>> " << ibf_size
                   << "  Target Count >>> " << jtarget_size
+                  << "  Join Count >>> " << total_join_tuples
                   << std::endl;
     }
 

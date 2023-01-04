@@ -311,6 +311,9 @@ bool LIE::execute ()
             lie_relations[i]->set_separate_io(separate_io);
             lie_relations[i]->set_offset_io(offset_io);
             lie_relations[i]->initialize_relation(mcomm, intern_map);
+            // if (lie_relations[i]->get_intern_tag() == 258) {
+            //     std::cout << "Edge size on rank " << mcomm.get_rank() << " is " << lie_relations[i]->get_full_element_count() << std::endl; 
+            // }
         }
 #if DEBUG_OUTPUT
         //lie_relations[i]->print();
