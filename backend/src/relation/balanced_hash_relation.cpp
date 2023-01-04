@@ -8,7 +8,6 @@
 #include "../parallel_RA_inc.h"
 #include "balanced_hash_relation.h"
 #include "mpi.h"
-#include "shmap_relation.h"
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
