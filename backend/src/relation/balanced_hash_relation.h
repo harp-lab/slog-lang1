@@ -97,6 +97,8 @@ private:
 
 public:
 
+    bool balance_flag = false;
+
     /// Example: relation* rel_path_2_1_2 = new relation(2, true, 2, 257, "rel_path_2_1_2", "../data/g5955/path_2_1_2", FULL);
     /// 2: arity (Internally one extra id (intern id) column is added to every relation)
     /// true: arity == join column count
@@ -189,7 +191,13 @@ public:
 
 
     void set_full_element_count(int val)   {full_element_count = val;}
-    int get_full_element_count()    {return full[mcomm.get_rank()].count();}
+    int get_full_element_count()    {
+        u64 res = 0;
+        for (int i = 0; i < get_bucket_count();  i++) {
+            res += full[i].size();
+        }
+        return res;
+    }
     u32** get_full_sub_bucket_element_count()   {return full_sub_bucket_element_count;}
     u32 get_global_full_element_count();
 
@@ -215,7 +223,13 @@ public:
 #endif
 
     void set_delta_element_count(int val)   {delta_element_count = val;}
-    int get_delta_element_count()   {return delta[mcomm.get_rank()].count();}
+    int get_delta_element_count()   {
+        u64 res = 0;
+        for (int i = 0; i < get_bucket_count();  i++) {
+            res += delta[i].size();
+        }
+        return res;
+    }
     u32** get_delta_sub_bucket_element_count()  {return delta_sub_bucket_element_count;}
     u32 get_global_delta_element_count();
 
@@ -296,4 +310,5 @@ public:
     void enable_initialization() { init_flag = true; }
     bool need_init_huh() { return init_flag; }
 
+    void test_calc_hash_rank(u64 rank_n);
 };
