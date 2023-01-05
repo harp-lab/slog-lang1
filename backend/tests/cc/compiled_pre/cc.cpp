@@ -365,7 +365,7 @@ void load_input_relation(std::string db_dir) {
   for (const auto &entry : std::filesystem::directory_iterator(db_dir)) {
     // check if ends with table
     std::string filename_ss = entry.path().filename().string();
-    std::cout << "input database has file " << filename_ss << std::endl;
+    // std::cout << "input database has file " << filename_ss << std::endl;
     std::string suffix = ".table";
     int ft = filename_ss.size() - suffix.size();
     if (ft < 0)
@@ -388,8 +388,8 @@ void load_input_relation(std::string db_dir) {
     }
     if (tag > max_rel)
       max_rel = tag;
-    std::cout << "load " << tag << "." << index_stream.str() << "has arity "
-              << arity << std::endl;
+    // std::cout << "load " << tag << "." << index_stream.str() << "has arity "
+    //           << arity << std::endl;
     rel_tag_map[index_stream.str()] = tag;
   }
 }
@@ -409,8 +409,8 @@ int get_tag_for_rel(std::string relation_name, std::string index_str) {
   }
   max_rel++;
   rel_tag_map[name_arity] = max_rel;
-  std::cout << "generate rel tag: " << name_arity << " " << max_rel
-            << std::endl;
+  // std::cout << "generate rel tag: " << name_arity << " " << max_rel
+  //           << std::endl;
   return max_rel;
 }
 
@@ -435,6 +435,15 @@ int main(int argc, char **argv) {
       slog_input_dir + "/" + std::to_string(get_tag_for_rel("edge", "1__2")) +
           ".edge.2.table",
       FULL);
+
+  rel__edge__2__1->balance_flag = true;
+
+  // relation *rel__edge__2__1__2 = new relation(
+  //     2, true, 2, get_tag_for_rel("edge", "1__2"),
+  //     std::to_string(get_tag_for_rel("edge", "1__2")) + ".edge.2.table",
+  //     slog_input_dir + "/" + std::to_string(get_tag_for_rel("edge", "1__2")) +
+  //         ".edge.2.table",
+  //     FULL);
 
   relation *rel__cc__2__1 = new  relation(
     1, true, 2, get_tag_for_rel("cc", "1"),
@@ -480,6 +489,7 @@ int main(int argc, char **argv) {
   // ));
 
   RAM *cc_init_scc = new RAM(false, 1);
+  // cc_init_scc->add_relation(rel__edge__2__1__2, false);
   cc_init_scc->add_relation(rel__edge__2__1, false);
   cc_init_scc->add_relation(rel__cc__2__1, true);
   cc_init_scc->add_relation(rel__node__1__1, true);
@@ -509,11 +519,15 @@ int main(int argc, char **argv) {
   );
   cc_pg->set_generator_func(
     [](const depend_val_t& target_vs, const std::vector<u64>& input_v, depend_val_t& res_set) -> bool {
-      // std::cout << "ww " << input_v[0] << " " << input_v[1] << std::endl;
       auto target_v = target_vs[0];
       std::vector<u64> res(2, 0);
       res[0] = input_v[1];
       res[1] = target_v[1];
+      // if (target_v[0] == 21) {
+      // std::cout << "ww " << input_v[0] << " " << input_v[1] << std::endl;
+      // std::cout << "cc " << target_v[0] << " " << target_v[1] << std::endl;
+      // std::cout << "res " << res[0] << " " << res[1] << std::endl;
+      // }
       res_set.push_back(res);
       return true;
     }
@@ -544,6 +558,7 @@ int main(int argc, char **argv) {
   cc_lie->add_relation(rel__cc__2__1);
   cc_lie->add_relation(rel__cc_final__2__1);
   cc_lie->add_relation(rel__cc_represent__1__1);
+  // cc_lie->add_relation(rel__edge__2__1__2);
 
   // cc_lie->add_scc(to_undirected_scc);
   cc_lie->add_scc(cc_init_scc);
@@ -571,6 +586,10 @@ int main(int argc, char **argv) {
   }
   cc_lie->print_all_relation_size(); // Continuously print relation sizes
 
+
+  // rel__edge__2__1__2->test_calc_hash_rank(4096);
+  // rel__edge__2__1->test_calc_hash_rank(4096);
+  // std::cout << "Edge size on rank " << mcomm.get_rank() << " is " << rel__edge__2__1->get_full_element_count() << std::endl; 
   // rel__node__1__1->print();
   // rel__edge__2__1->print();
  // rel__cc__2__1->print();

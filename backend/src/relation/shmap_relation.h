@@ -11,6 +11,7 @@
 #include "../btree/btree_set.h"
 #include <cstdint>
 #include <utility>
+#include <vector>
 
 struct shmap_relation {
 
@@ -136,7 +137,8 @@ struct shmap_relation {
     void as_all_to_allv_acopy_buffer(all_to_allv_buffer& buffer, std::vector<u64> prefix, std::vector<int> reorder_map, int ra_id, u32 buckets, u32* output_sub_bucket_count, u32** output_sub_bucket_rank, u32 arity, u32 join_column_count, int head_rel_hash_col_count, bool canonical);
     void as_all_to_allv_right_join_buffer(
         std::vector<u64> prefix, all_to_allv_buffer& join_buffer,
-        u64 *input0_buffer, int input0_buffer_width,
+        // u64 *input0_buffer, int input0_buffer_width,
+        std::vector<std::vector<u64>> &input_ts,
         int input1_buffer_width, int ra_id,
         u32 buckets, u32* output_sub_bucket_count,
         u32** output_sub_bucket_rank, std::vector<int> reorder_map,

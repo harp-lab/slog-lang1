@@ -311,6 +311,9 @@ bool LIE::execute ()
             lie_relations[i]->set_separate_io(separate_io);
             lie_relations[i]->set_offset_io(offset_io);
             lie_relations[i]->initialize_relation(mcomm, intern_map);
+            // if (lie_relations[i]->get_intern_tag() == 258) {
+            //     std::cout << "Edge size on rank " << mcomm.get_rank() << " is " << lie_relations[i]->get_full_element_count() << std::endl; 
+            // }
         }
 #if DEBUG_OUTPUT
         //lie_relations[i]->print();
@@ -319,6 +322,11 @@ bool LIE::execute ()
     int full_iteration_count = 0;
 
     print_all_relation_size();
+
+    // balance all relation before program run
+    // for (u32 i = 0 ; i < lie_relations.size(); i++) {
+    
+    // }
 
     //if (mcomm.get_local_rank() == 0)
     //    std::cout << "Done initializing " << lie_relation_count <<  std::endl;
@@ -423,6 +431,10 @@ bool LIE::execute ()
             print_relation_size(scc_relation[i]);
         std::cout << "<<<<<<<<<<<<<<<<<<<<<<<<< BEFORE COMPUTATION <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << std::endl;
 #endif
+
+        // load balance before a SCC executed
+        executable_task->load_balance();
+
         if (restart_flag == false)
         {
             for (u32 i=0; i < scc_relation_count; i++)
@@ -474,7 +486,7 @@ bool LIE::execute ()
                 create_checkpoint_dump(loop_counter, executable_task->get_id());
 
             if (comm_compaction == 0)
-                executable_task->execute_in_batches(app_name, batch_size, history, intern_map, &loop_counter, executable_task->get_id(), output_dir, all_to_all_meta_data_dump, sloav_mode, rotate_index_array, send_indexes, sendb_num);
+                executable_task->execute_in_batches(app_name, batch_size, history, intern_map, &loop_counter, executable_task->get_id(), output_dir, all_to_all_meta_data_dump, sloav_mode, rotate_index_array, send_indexes, sendb_num, run_time_vector);
             else
                 executable_task->execute_in_batches_comm_compaction(app_name, batch_size, history, intern_map, &loop_counter, executable_task->get_id(), output_dir, all_to_all_meta_data_dump, sloav_mode, rotate_index_array, send_indexes, sendb_num, run_time_vector);
 
@@ -522,7 +534,7 @@ bool LIE::execute ()
                     create_checkpoint_dump(loop_counter, executable_task->get_id());
 
                 if (comm_compaction == 0)
-                    executable_task->execute_in_batches(app_name, batch_size, history, intern_map, &loop_counter, executable_task->get_id(), output_dir, all_to_all_meta_data_dump, sloav_mode, rotate_index_array, send_indexes, sendb_num);
+                    executable_task->execute_in_batches(app_name, batch_size, history, intern_map, &loop_counter, executable_task->get_id(), output_dir, all_to_all_meta_data_dump, sloav_mode, rotate_index_array, send_indexes, sendb_num, run_time_vector);
                 else
                     executable_task->execute_in_batches_comm_compaction(app_name, batch_size, history, intern_map, &loop_counter, executable_task->get_id(), output_dir, all_to_all_meta_data_dump, sloav_mode, rotate_index_array, send_indexes, sendb_num, run_time_vector);
 
