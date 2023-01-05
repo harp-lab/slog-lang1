@@ -1419,8 +1419,13 @@ bool relation::check_dependent_value_insert_avalible(const std::vector<u64>& tup
     // if (bucket_id != mcomm.get_rank()) {
     //     std::cout << "wwwwwwwwwwwwwwwwwwwwwwwwwwwwww " << std::endl; 
     // }
-    int bucket_id = mcomm.get_rank();
-    return delta[bucket_id].check_dependent_insertion(tuple) && full[bucket_id].check_dependent_insertion(tuple) ;
+    // int bucket_id = mcomm.get_rank();
+    bool res = true;
+    for (int i = 0 ; i < mcomm.get_nprocs(); i ++) {
+        res = (res && delta[i].check_dependent_insertion(tuple)) && full[i].check_dependent_insertion(tuple);
+    }
+    // return delta[bucket_id].check_dependent_insertion(tuple) && full[bucket_id].check_dependent_insertion(tuple) ;
+    return res;
 }
 
 void relation::test_calc_hash_rank(u64 rank_n) {

@@ -77,6 +77,9 @@ void RAM::load_balance()
     for (u32 i=0; i < ram_relation_count; i++)
     {
         relation* current_relation = ram_relations[i];
+        if (!current_relation->balance_flag) {
+            continue;
+        }
         if (current_relation->load_balance_merge_full_and_delta(refinement_factor) == false)
             current_relation->load_balance_split_full_and_delta(refinement_factor);
 

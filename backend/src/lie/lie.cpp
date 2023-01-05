@@ -323,6 +323,11 @@ bool LIE::execute ()
 
     print_all_relation_size();
 
+    // balance all relation before program run
+    // for (u32 i = 0 ; i < lie_relations.size(); i++) {
+    
+    // }
+
     //if (mcomm.get_local_rank() == 0)
     //    std::cout << "Done initializing " << lie_relation_count <<  std::endl;
 
@@ -426,6 +431,10 @@ bool LIE::execute ()
             print_relation_size(scc_relation[i]);
         std::cout << "<<<<<<<<<<<<<<<<<<<<<<<<< BEFORE COMPUTATION <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << std::endl;
 #endif
+
+        // load balance before a SCC executed
+        executable_task->load_balance();
+
         if (restart_flag == false)
         {
             for (u32 i=0; i < scc_relation_count; i++)

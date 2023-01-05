@@ -97,6 +97,8 @@ private:
 
 public:
 
+    bool balance_flag = false;
+
     /// Example: relation* rel_path_2_1_2 = new relation(2, true, 2, 257, "rel_path_2_1_2", "../data/g5955/path_2_1_2", FULL);
     /// 2: arity (Internally one extra id (intern id) column is added to every relation)
     /// true: arity == join column count
