@@ -1,5 +1,5 @@
 // location of `parallel_RA_inc.h` here
-#include "/home/ysun67/workspace/slog/backend/src/parallel_RA_inc.h"
+#include "/home/stargazermiao/workspace/PL/slog/backend/src/parallel_RA_inc.h"
 #include "mpi.h"
 
 // #include <bit>
@@ -439,6 +439,7 @@ int main(int argc, char **argv) {
       FULL);
 
   rel__edge__2__1->balance_flag = true;
+  rel__edge__2__1->default_sub_bucket_per_bucket_count = 2;
 
   // relation *rel__edge__2__1__2 = new relation(
   //     2, true, 2, get_tag_for_rel("edge", "1__2"),
@@ -527,11 +528,11 @@ int main(int argc, char **argv) {
       std::vector<u64> res(2, 0);
       res[0] = input_v[1];
       res[1] = target_v[1];
-      // if (target_v[0] == 21) {
-      // std::cout << "ww " << input_v[0] << " " << input_v[1] << std::endl;
-      // std::cout << "cc " << target_v[0] << " " << target_v[1] << std::endl;
-      // std::cout << "res " << res[0] << " " << res[1] << std::endl;
-      // }
+      if (target_v[0] == 21) {
+      std::cout << "ww " << input_v[0] << " " << input_v[1] << std::endl;
+      std::cout << "cc " << target_v[0] << " " << target_v[1] << std::endl;
+      std::cout << "res " << res[0] << " " << res[1] << std::endl;
+      }
       res_set.push_back(res);
       return true;
     }
@@ -595,10 +596,10 @@ int main(int argc, char **argv) {
   // rel__edge__2__1->test_calc_hash_rank(4096);
   // std::cout << "Edge size on rank " << mcomm.get_rank() << " is " << rel__edge__2__1->get_full_element_count() << std::endl; 
   // rel__node__1__1->print();
-  // rel__edge__2__1->print();
+  rel__edge__2__1->print();
 //  rel__cc__2__1->print();
- rel__cc_final__2__1->print();
-  rel__cc_represent__1__1->print();
+ // rel__cc_final__2__1->print();
+  // rel__cc_represent__1__1->print();
   // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
   mcomm.destroy();
