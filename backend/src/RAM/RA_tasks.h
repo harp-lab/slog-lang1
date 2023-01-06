@@ -55,7 +55,7 @@ private:
     u32 loop_count_tracker;
 
 public:
-
+    bool balance_flag = false;
     double all_to_all_time = 0;
 
     ~RAM();

@@ -71,7 +71,6 @@ private:
     u32 **delta_sub_bucket_element_count;
     u32 *delta_bucket_element_count;
 
-    u32 default_sub_bucket_per_bucket_count;    /// 1
     u32 *sub_bucket_per_bucket_count;           /// sub_bucket_per_bucket_count[i] holds the total number of sub-buckets at bucket index i
     u32** sub_bucket_rank;                      /// target rank of a subbucket
 
@@ -96,7 +95,7 @@ private:
     bool init_flag = true;
 
 public:
-
+    u32 default_sub_bucket_per_bucket_count = 1;    /// 1
     bool balance_flag = false;
 
     /// Example: relation* rel_path_2_1_2 = new relation(2, true, 2, 257, "rel_path_2_1_2", "../data/g5955/path_2_1_2", FULL);
