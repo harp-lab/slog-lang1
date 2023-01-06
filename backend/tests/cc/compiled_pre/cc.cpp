@@ -1,5 +1,5 @@
 // location of `parallel_RA_inc.h` here
-#include "/home/ysun67/workspace/slog/backend/src/parallel_RA_inc.h"
+#include "/home/stargazermiao/workspace/PL/slog/backend/src/parallel_RA_inc.h"
 #include "mpi.h"
 
 // #include <bit>
@@ -437,6 +437,7 @@ int main(int argc, char **argv) {
       FULL);
 
   rel__edge__2__1->balance_flag = true;
+  rel__edge__2__1->default_sub_bucket_per_bucket_count = 2;
 
   // relation *rel__edge__2__1__2 = new relation(
   //     2, true, 2, get_tag_for_rel("edge", "1__2"),
@@ -477,16 +478,16 @@ int main(int argc, char **argv) {
     std::to_string(get_tag_for_rel("cc_represent", "1")) + ".cc_represent.2.table",
     FULL);
 
-  // RAM *to_undirected_scc = new RAM(false, 0);
-  // to_undirected_scc->add_relation(rel__edge__2__1, false);
-  // to_undirected_scc->add_rule(new parallel_copy_generate(
-  //   rel__edge__2__1, rel__edge__2__1, FULL,
-  //   [](const u64 *const data, u64 *const output) -> int {
-  //     output[0] = data[1];
-  //     output[1] = data[0];
-  //     return 1;
-  //   }
-  // ));
+  RAM *to_undirected_scc = new RAM(false, 0);
+  to_undirected_scc->add_relation(rel__edge__2__1, false);
+  to_undirected_scc->add_rule(new parallel_copy_generate(
+    rel__edge__2__1, rel__edge__2__1, FULL,
+    [](const u64 *const data, u64 *const output) -> int {
+      output[0] = data[1];
+      output[1] = data[0];
+      return 1;
+    }
+  ));
 
   RAM *cc_init_scc = new RAM(false, 1);
   // cc_init_scc->add_relation(rel__edge__2__1__2, false);
@@ -523,11 +524,11 @@ int main(int argc, char **argv) {
       std::vector<u64> res(2, 0);
       res[0] = input_v[1];
       res[1] = target_v[1];
-      // if (target_v[0] == 21) {
-      // std::cout << "ww " << input_v[0] << " " << input_v[1] << std::endl;
-      // std::cout << "cc " << target_v[0] << " " << target_v[1] << std::endl;
-      // std::cout << "res " << res[0] << " " << res[1] << std::endl;
-      // }
+      if (target_v[0] == 21) {
+      std::cout << "ww " << input_v[0] << " " << input_v[1] << std::endl;
+      std::cout << "cc " << target_v[0] << " " << target_v[1] << std::endl;
+      std::cout << "res " << res[0] << " " << res[1] << std::endl;
+      }
       res_set.push_back(res);
       return true;
     }
@@ -560,13 +561,13 @@ int main(int argc, char **argv) {
   cc_lie->add_relation(rel__cc_represent__1__1);
   // cc_lie->add_relation(rel__edge__2__1__2);
 
-  // cc_lie->add_scc(to_undirected_scc);
+  cc_lie->add_scc(to_undirected_scc);
   cc_lie->add_scc(cc_init_scc);
   cc_lie->add_scc(cc_compute_scc);
   cc_lie->add_scc(cc_agg_scc);
   // cc_lie->add_scc(cc_rep_scc);
 
-  // cc_lie->add_scc_dependance(to_undirected_scc, cc_init_scc);
+  cc_lie->add_scc_dependance(to_undirected_scc, cc_init_scc);
   cc_lie->add_scc_dependance(cc_init_scc, cc_compute_scc);
   cc_lie->add_scc_dependance(cc_compute_scc, cc_agg_scc);
   // cc_lie->add_scc_dependance(cc_agg_scc, cc_rep_scc);
@@ -591,8 +592,8 @@ int main(int argc, char **argv) {
   // rel__edge__2__1->test_calc_hash_rank(4096);
   // std::cout << "Edge size on rank " << mcomm.get_rank() << " is " << rel__edge__2__1->get_full_element_count() << std::endl; 
   // rel__node__1__1->print();
-  // rel__edge__2__1->print();
- // rel__cc__2__1->print();
+  rel__edge__2__1->print();
+//  rel__cc__2__1->print();
  // rel__cc_final__2__1->print();
   // rel__cc_represent__1__1->print();
   // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>

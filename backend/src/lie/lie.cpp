@@ -433,7 +433,7 @@ bool LIE::execute ()
 #endif
 
         // load balance before a SCC executed
-        executable_task->load_balance();
+        // executable_task->load_balance();
 
         if (restart_flag == false)
         {

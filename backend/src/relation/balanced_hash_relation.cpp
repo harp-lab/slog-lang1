@@ -416,11 +416,13 @@ void relation::print()
             full[i].as_vector_buffer_recursive(&(vb_full[i]), prefix);
 
             if (vb_full[i].size != 0)
-            	std::cout << get_debug_id() << " " << mcomm.get_rank() << " FULL Rows " << vb_full[i].size/(sizeof(u64) * (arity + 1)) << " columns " << arity + 1 << std::endl;
+            	std::cout << get_debug_id() << " " << mcomm.get_rank() << " " << i << " FULL Rows "
+                          << vb_full[i].size/(sizeof(u64) * (arity + 1)) << " columns " << arity + 1
+                          << std::endl;
             for (u32 j=0; j < vb_full[i].size/sizeof(u64); j = j + arity+1)
             {
                 if (j % (arity+1) == 0)
-                    std::cout << "F [" << j/(arity+1) << "] ";
+                    std::cout << "F [" << mcomm.get_rank() << " " << i << " " << j/(arity+1) << "] ";
                 for (u32 k = 0; k < arity+1; k++)
                 {
                     u64 temp;
@@ -709,7 +711,7 @@ void relation::initialize_relation(mpi_comm& mcomm, std::map<u64, u64>& intern_m
 
     u32 buckets = mcomm.get_local_nprocs();
 
-    default_sub_bucket_per_bucket_count = 1;
+    // default_sub_bucket_per_bucket_count = 1;
     int rank = mcomm.get_local_rank();
     int nprocs = mcomm.get_local_nprocs();
 
