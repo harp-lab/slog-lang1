@@ -1417,17 +1417,17 @@ void relation::local_insert_in_delta()
 }
 
 bool relation::check_dependent_value_insert_avalible(const std::vector<u64>& tuple) {
+    // bool res = true;
+    // for (int i = 0 ; i < mcomm.get_nprocs(); i ++) {
+    //     res = (res && delta[i].check_dependent_insertion(tuple)) && full[i].check_dependent_insertion(tuple);
+    // }
+    // return res;
     // uint64_t bucket_id = tuple_hash(tuple.data(), join_column_count) % get_bucket_count();
     // if (bucket_id != mcomm.get_rank()) {
     //     std::cout << "wwwwwwwwwwwwwwwwwwwwwwwwwwwwww " << std::endl; 
     // }
-    // int bucket_id = mcomm.get_rank();
-    bool res = true;
-    for (int i = 0 ; i < mcomm.get_nprocs(); i ++) {
-        res = (res && delta[i].check_dependent_insertion(tuple)) && full[i].check_dependent_insertion(tuple);
-    }
-    // return delta[bucket_id].check_dependent_insertion(tuple) && full[bucket_id].check_dependent_insertion(tuple) ;
-    return res;
+    int bucket_id = mcomm.get_rank();
+    return delta[bucket_id].check_dependent_insertion(tuple) && full[bucket_id].check_dependent_insertion(tuple) ;
 }
 
 void relation::test_calc_hash_rank(u64 rank_n) {
