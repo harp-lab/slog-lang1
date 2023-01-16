@@ -7,9 +7,11 @@
 
 #include "../parallel_RA_inc.h"
 #include "balanced_hash_relation.h"
+#include "mpi.h"
 #include <cassert>
 #include <cstddef>
 #include <experimental/filesystem>
+#include <cstdint>
 #include <iostream>
 #include <vector>
 
@@ -414,11 +416,13 @@ void relation::print()
             full[i].as_vector_buffer_recursive(&(vb_full[i]), prefix);
 
             if (vb_full[i].size != 0)
-            	std::cout << get_debug_id() << " " << mcomm.get_rank() << " FULL Rows " << vb_full[i].size/(sizeof(u64) * (arity + 1)) << " columns " << arity + 1 << std::endl;
+            	std::cout << get_debug_id() << " " << mcomm.get_rank() << " " << i << " FULL Rows "
+                          << vb_full[i].size/(sizeof(u64) * (arity + 1)) << " columns " << arity + 1
+                          << std::endl;
             for (u32 j=0; j < vb_full[i].size/sizeof(u64); j = j + arity+1)
             {
                 if (j % (arity+1) == 0)
-                    std::cout << "F [" << j/(arity+1) << "] ";
+                    std::cout << "F [" << mcomm.get_rank() << " " << i << " " << j/(arity+1) << "] ";
                 for (u32 k = 0; k < arity+1; k++)
                 {
                     u64 temp;
@@ -707,7 +711,7 @@ void relation::initialize_relation(mpi_comm& mcomm, std::map<u64, u64>& intern_m
 
     u32 buckets = mcomm.get_local_nprocs();
 
-    default_sub_bucket_per_bucket_count = 1;
+    // default_sub_bucket_per_bucket_count = 1;
     int rank = mcomm.get_local_rank();
     int nprocs = mcomm.get_local_nprocs();
 
@@ -1413,10 +1417,54 @@ void relation::local_insert_in_delta()
 }
 
 bool relation::check_dependent_value_insert_avalible(const std::vector<u64>& tuple) {
+    // bool res = true;
+    // for (int i = 0 ; i < mcomm.get_nprocs(); i ++) {
+    //     res = (res && delta[i].check_dependent_insertion(tuple)) && full[i].check_dependent_insertion(tuple);
+    // }
+    // return res;
     // uint64_t bucket_id = tuple_hash(tuple.data(), join_column_count) % get_bucket_count();
     // if (bucket_id != mcomm.get_rank()) {
     //     std::cout << "wwwwwwwwwwwwwwwwwwwwwwwwwwwwww " << std::endl; 
     // }
     int bucket_id = mcomm.get_rank();
     return delta[bucket_id].check_dependent_insertion(tuple) && full[bucket_id].check_dependent_insertion(tuple) ;
+}
+
+void relation::test_calc_hash_rank(u64 rank_n) {
+    int hash_types = 6;
+    std::vector<std::vector<u64>> tuple_cnts(hash_types, std::vector<u64>(rank_n, 0));
+    std::vector<std::string> hash_names{"nohash", "fnv1a", "murmur", "spooky", "fasthash", "xxhash"};
+
+    for (auto t: full[mcomm.get_rank()]) {
+        // std::vector<u64> compressed;
+        // for (auto c: t) {
+        //     compressed.push_back(c % rank_n);
+        // }
+        auto hashes = tuple_hash_test_all(t.data(), get_join_column_count());
+        for (int i = 0; i < hash_types; i++) {
+            // u64 hashv_main = hashes[i];
+            // u64 rk_main = hashes[i] % rank_n;
+            // u64 rk_sub = tuple_hash_test_all(&hashv_main, 1)[1] % rank_n;
+            // u64 rk_final = rk_main * 64 + rk_sub;
+            // tuple_cnts[i][rk_final]++;
+            tuple_cnts[i][hashes[i] % (rank_n-1)]++;
+            // u64 rkv = rank_n;
+            // u64 p =  UINT64_MAX / rank_n;
+            // tuple_cnts[i][hashes[i] / p]++;
+        }  
+    }
+    // std::cout << mcomm.get_rank() << std::endl;
+    for (int i = 0; i < hash_types; i++) {
+        // for (auto cnt: tuple_cnts[i]) {
+        //     std::cout << hash_names[i] << ", " << mcomm.get_rank() << ", " << cnt << std::endl;
+        // }
+        for (u64 rk = 0; rk < rank_n; rk++) {
+            u64 local_cnt = tuple_cnts[i][rk];
+            u64 global_cnt = local_cnt;
+            MPI_Reduce(&local_cnt, &global_cnt, 1, MPI_UINT64_T, MPI_SUM, 0, mcomm.get_comm());
+            if (mcomm.get_rank() == 0) {
+                std::cout << hash_names[i] << ", " << rk << ", " << global_cnt << std::endl;
+            }
+        }
+    }
 }

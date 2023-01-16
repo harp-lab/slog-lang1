@@ -54,7 +54,7 @@ struct shmap_relation {
 
     std::size_t size() const { return ind.size(); }
 
-    bool contains(const t_tuple &t) const {
+    bool contains(const t_tuple &t) {
         auto res = ind.find(t);
         return res != ind.end();
     }
@@ -68,7 +68,7 @@ struct shmap_relation {
     // I keep this weird  name from souffle, actually join helper function
     // in souffle its index selection function, in slog we don't need select
     // so only one version of this function
-    std::pair<iterator, iterator> lowerUpperRange(const t_tuple &lower, const t_tuple &upper) const
+    std::pair<iterator, iterator> lowerUpperRange(const t_tuple &lower, const t_tuple &upper)
     {
         auto lower_it = ind.lower_bound(lower);
         auto upper_it = ind.upper_bound(upper);

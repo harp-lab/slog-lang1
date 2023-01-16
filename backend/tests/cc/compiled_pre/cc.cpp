@@ -435,6 +435,16 @@ int main(int argc, char **argv) {
           ".edge.2.table",
       FULL);
 
+  // rel__edge__2__1->balance_flag = true;
+  rel__edge__2__1->default_sub_bucket_per_bucket_count = 2;
+
+  // relation *rel__edge__2__1__2 = new relation(
+  //     2, true, 2, get_tag_for_rel("edge", "1__2"),
+  //     std::to_string(get_tag_for_rel("edge", "1__2")) + ".edge.2.table",
+  //     slog_input_dir + "/" + std::to_string(get_tag_for_rel("edge", "1__2")) +
+  //         ".edge.2.table",
+  //     FULL);
+
   relation *rel__cc__2__1 = new  relation(
     1, true, 2, get_tag_for_rel("cc", "1"),
     std::to_string(get_tag_for_rel("cc", "1")) + ".cc.2.table",
@@ -479,6 +489,7 @@ int main(int argc, char **argv) {
   // ));
 
   RAM *cc_init_scc = new RAM(false, 1);
+  // cc_init_scc->add_relation(rel__edge__2__1__2, false);
   cc_init_scc->add_relation(rel__edge__2__1, false);
   cc_init_scc->add_relation(rel__cc__2__1, true);
   cc_init_scc->add_relation(rel__node__1__1, true);
@@ -548,6 +559,7 @@ int main(int argc, char **argv) {
   cc_lie->add_relation(rel__cc__2__1);
   cc_lie->add_relation(rel__cc_final__2__1);
   cc_lie->add_relation(rel__cc_represent__1__1);
+  // cc_lie->add_relation(rel__edge__2__1__2);
 
   // cc_lie->add_scc(to_undirected_scc);
   cc_lie->add_scc(cc_init_scc);
@@ -575,9 +587,13 @@ int main(int argc, char **argv) {
   }
   cc_lie->print_all_relation_size(); // Continuously print relation sizes
 
+
+  // rel__edge__2__1__2->test_calc_hash_rank(4096);
+  // rel__edge__2__1->test_calc_hash_rank(4096);
+  // std::cout << "Edge size on rank " << mcomm.get_rank() << " is " << rel__edge__2__1->get_full_element_count() << std::endl; 
   // rel__node__1__1->print();
   // rel__edge__2__1->print();
- // rel__cc__2__1->print();
+//  rel__cc__2__1->print();
  // rel__cc_final__2__1->print();
   // rel__cc_represent__1__1->print();
   // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
