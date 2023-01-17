@@ -20,6 +20,8 @@ bool parallel_join::local_join(int threshold, int* offset,
                                shmap_relation *input1, u32 i1_size, int input1_buffer_width,
                                std::vector<int> reorder_map_array,
                                relation* output,
+                               relation* input0_rel,
+                               relation* input1_rel,
                                all_to_allv_buffer& join_buffer,
                                int counter,
                                int join_column_count,
@@ -59,11 +61,11 @@ bool parallel_join::local_join(int threshold, int* offset,
                 //std::cout << "PREFIX " << input0_buffer[k1 + jc] << std::endl;
             }
 
-            // u64 bucket_id = tuple_hash(input0_buffer + k1, join_column_count) % buckets;
+            u64 bucket_id = tuple_hash(input0_buffer + k1, join_column_count) % buckets;
             
             auto before_actual_join = MPI_Wtime();
-            for (u32 bucket_id = 0; bucket_id < buckets; bucket_id++) {
-                input1[bucket_id].as_all_to_allv_left_join_buffer(
+            for (u32 sb = 0; sb < input1_rel->get_sub_bucket_per_bucket_count()[bucket_id]; sb++) {
+                input1[input1_rel->get_sub_bucket_rank()[bucket_id][sb]].as_all_to_allv_left_join_buffer(
                     prefix, join_buffer,
                     input0_buffer + k1,input0_buffer_width,
                     input1_buffer_width, counter,
@@ -139,10 +141,10 @@ bool parallel_join::local_join(int threshold, int* offset,
                 }
             }
             if (input_ts.size() != 0) {
-                // u64 bucket_id = tuple_hash(prev_non_dependent_columns.data(), join_column_count) % buckets;
+                u64 bucket_id = tuple_hash(prev_non_dependent_columns.data(), join_column_count) % buckets;
                 auto before_actual_join = MPI_Wtime();
-                for (u32 bucket_id = 0; bucket_id < buckets; bucket_id++) {
-                    input1[bucket_id].as_all_to_allv_right_join_buffer(
+                for (u32 sb = 0; sb < input0_rel->get_sub_bucket_per_bucket_count()[bucket_id]; sb++) {
+                    input1[input0_rel->get_sub_bucket_rank()[bucket_id][sb]].as_all_to_allv_right_join_buffer(
                         std::vector<u64>(prev_non_dependent_columns.begin(),
                                         prev_non_dependent_columns.begin()+join_column_count),
                         join_buffer,
@@ -168,12 +170,12 @@ bool parallel_join::local_join(int threshold, int* offset,
             for (int jc=0; jc < join_column_count; jc++)
                 prefix.push_back(input0_buffer[k1 + jc]);
 
-            // u64 bucket_id = tuple_hash(input0_buffer + k1, join_column_count) % buckets;
+            u64 bucket_id = tuple_hash(input0_buffer + k1, join_column_count) % buckets;
             std::vector<std::vector<u64>> input_ts;
             input_ts.push_back(std::vector<u64>(input0_buffer+k1, input0_buffer+k1+input0_buffer_width));
             auto before_actual_join = MPI_Wtime();
-            for (u32 bucket_id = 0; bucket_id < buckets; bucket_id++) {
-                input1[bucket_id].as_all_to_allv_right_join_buffer(
+            for (u32 sb = 0; sb < input0_rel->get_sub_bucket_per_bucket_count()[bucket_id]; sb++) {
+                input1[input0_rel->get_sub_bucket_rank()[bucket_id][sb]].as_all_to_allv_right_join_buffer(
                     prefix, join_buffer,
                     // input0_buffer + k1, input0_buffer_width,
                     input_ts,
