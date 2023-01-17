@@ -95,6 +95,8 @@ public:
                     shmap_relation *input1, u32 i1_size, int input1_buffer_width,
                     std::vector<int> reorder_map_array,
                     relation* output,
+                    relation* input0_rel,
+                    relation* input1_rel,
                     all_to_allv_buffer& join_buffer,
                     int counter,
                     int join_column_count,
