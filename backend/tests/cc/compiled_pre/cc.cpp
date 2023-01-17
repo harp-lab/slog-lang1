@@ -365,7 +365,7 @@ void load_input_relation(std::string db_dir) {
   for (const auto &entry : std::experimental::filesystem::directory_iterator(db_dir)) {
     // check if ends with table
     std::string filename_ss = entry.path().filename().string();
-    //std::cout << "input database has file " << filename_ss << std::endl;
+    // std::cout << "input database has file " << filename_ss << std::endl;
     std::string suffix = ".table";
     int ft = filename_ss.size() - suffix.size();
     if (ft < 0)

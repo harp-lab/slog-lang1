@@ -1,5 +1,6 @@
 // location of `parallel_RA_inc.h` here
 #include "/home/ysun67/slog/compiler/../backend/src/parallel_RA_inc.h"
+#include "mpi.h"
 
 #include <optional>
 #include <iterator>
