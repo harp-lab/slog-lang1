@@ -20,6 +20,10 @@
 #include <ostream>
 #include <vector>
 
+void shmap_relation::delete_tuple(std::vector<u64>& t) {
+    ind.erase(t);
+}
+
 shmap_relation::shmap_relation(int arity, bool id_flag)
 {
     this->arity = arity;

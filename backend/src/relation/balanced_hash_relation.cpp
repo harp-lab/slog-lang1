@@ -8,6 +8,7 @@
 #include "../parallel_RA_inc.h"
 #include "balanced_hash_relation.h"
 #include "mpi.h"
+#include "shmap_relation.h"
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -1276,8 +1277,7 @@ bool relation::insert_in_full(u64* t)
 #endif
     // std::cout << "inserting full for " << intern_tag << std::endl;
 
-    // TODO: use normal insert here!
-    if (full[bucket_id].insert_tuple_from_array(t, arity+1) == true)
+    if (full[bucket_id].insert_tuple_from_array(t, arity+1) != INSERT_FAIL)
     // std::vector<u64> tp(t, t+arity+1);
     // if (full[bucket_id].insert(tp))
     {
@@ -1315,24 +1315,31 @@ int relation::insert_delta_in_full()
             //     if (insert_in_full ( (u64*)( (input_buffer[i].buffer) + (j*sizeof(u64)) )) == true)
             //         insert_success++;
             // }
+            std::vector<std::vector<u64>> tuples_to_del;
             for(auto it=delta[i].begin(); it != delta[i].end(); ++it)
             {
                 auto tuple_d = *it;
-                // std::cout << "inserting into delta ";
+                // std::cout << "inserting into full ";
                 // for (auto v: tuple_d) {
                 //     std::cout << v << " ";
                 // }
                 // std::cout << std::endl;
                 if (insert_in_full(tuple_d.data()) == true)
                     insert_success++;
+                else {
+                    tuples_to_del.push_back(tuple_d);
+                }
             }
-            delta[i].remove_tuple();
+            for (auto t: tuples_to_del) {
+                delta[i].delete_tuple(t);
+            }
+            // delta[i].remove_tuple();
 
             // input_buffer[i].vector_buffer_free();
         }
     }
 
-    set_delta_element_count(0);
+    // set_delta_element_count(0);
     // delete[] input_buffer;
 
     return insert_success;
@@ -1396,6 +1403,7 @@ void relation::local_insert_in_delta()
     //         newt_element_count = 0;
     //     }
     // } else {
+
         delete[] delta;
         delta = newt;
         delta_element_count = newt_element_count;

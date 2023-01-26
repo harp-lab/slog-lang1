@@ -336,11 +336,13 @@ agg_minimum_local(std::pair<shmap_relation::iterator, shmap_relation::iterator>
   local_agg_res_t min_res = std::numeric_limits<u32>::max();
   for (auto it = joined_range.first; it != joined_range.second; ++it) {
     auto tuple = (*it);
-    auto current_v = tuple[tuple.size() - 1];
+    auto current_v = tuple[tuple.size() - 2];
+    // std::cout << tuple[0] << " " << tuple[1] << " " << tuple.size() << std::endl;
     if (current_v < min_res) {
       min_res = current_v;
     }
   }
+  // std::cout << "Min : " << min_res << std::endl;
   return min_res;
 }
 
@@ -476,18 +478,20 @@ int main(int argc, char **argv) {
   relation *rel__cc_represent__1__1 = new relation(
     1, true, 1, get_tag_for_rel("cc_represent", "1"),
     std::to_string(get_tag_for_rel("cc_represent", "1")) + ".cc_represent.2.table",
+    slog_input_dir + "/" + std::to_string(get_tag_for_rel("cc_represent", "1")) +
+          ".cc_represent.1.table",
     FULL);
 
-  // RAM *to_undirected_scc = new RAM(false, 0);
-  // to_undirected_scc->add_relation(rel__edge__2__1, false);
-  // to_undirected_scc->add_rule(new parallel_copy_generate(
-  //   rel__edge__2__1, rel__edge__2__1, FULL,
-  //   [](const u64 *const data, u64 *const output) -> int {
-  //     output[0] = data[1];
-  //     output[1] = data[0];
-  //     return 1;
-  //   }
-  // ));
+  RAM *to_undirected_scc = new RAM(false, 0);
+  to_undirected_scc->add_relation(rel__edge__2__1, false);
+  to_undirected_scc->add_rule(new parallel_copy_generate(
+    rel__edge__2__1, rel__edge__2__1, FULL,
+    [](const u64 *const data, u64 *const output) -> int {
+      output[0] = data[1];
+      output[1] = data[0];
+      return 1;
+    }
+  ));
 
   RAM *cc_init_scc = new RAM(false, 1);
   // cc_init_scc->balance_flag = true;
@@ -546,12 +550,12 @@ int main(int argc, char **argv) {
     agg_minimum_local, SpecialAggregator::minimum, agg_minimum_reduce,
     nullptr, {0,2}));
   
-  // RAM* cc_rep_scc = new RAM(false, 3);
-  // cc_rep_scc->add_relation(rel__cc_final__2__1, false);
-  // cc_rep_scc->add_relation(rel__cc_represent__1__1, true);
-  // cc_rep_scc->add_rule(new parallel_copy(
-  //   rel__cc_represent__1__1, rel__cc_final__2__1, FULL, {1}
-  // ));
+  RAM* cc_rep_scc = new RAM(false, 3);
+  cc_rep_scc->add_relation(rel__cc_final__2__1, false);
+  cc_rep_scc->add_relation(rel__cc_represent__1__1, true);
+  cc_rep_scc->add_rule(new parallel_copy(
+    rel__cc_represent__1__1, rel__cc_final__2__1, FULL, {1}
+  ));
 
 
   LIE *cc_lie = new LIE();
@@ -562,16 +566,16 @@ int main(int argc, char **argv) {
   cc_lie->add_relation(rel__cc_represent__1__1);
   // cc_lie->add_relation(rel__edge__2__1__2);
 
-  // cc_lie->add_scc(to_undirected_scc);
+  cc_lie->add_scc(to_undirected_scc);
   cc_lie->add_scc(cc_init_scc);
   cc_lie->add_scc(cc_compute_scc);
   cc_lie->add_scc(cc_agg_scc);
-  // cc_lie->add_scc(cc_rep_scc);
+  cc_lie->add_scc(cc_rep_scc);
 
-  // cc_lie->add_scc_dependance(to_undirected_scc, cc_init_scc);
+  cc_lie->add_scc_dependance(to_undirected_scc, cc_init_scc);
   cc_lie->add_scc_dependance(cc_init_scc, cc_compute_scc);
   cc_lie->add_scc_dependance(cc_compute_scc, cc_agg_scc);
-  // cc_lie->add_scc_dependance(cc_agg_scc, cc_rep_scc);
+  cc_lie->add_scc_dependance(cc_agg_scc, cc_rep_scc);
 
   cc_lie->enable_all_to_all_dump();
   cc_lie->set_output_dir(slog_output_dir); // Write to this directory
@@ -595,8 +599,8 @@ int main(int argc, char **argv) {
   // rel__node__1__1->print();
   // rel__edge__2__1->print();
 //  rel__cc__2__1->print();
- // rel__cc_final__2__1->print();
-  // rel__cc_represent__1__1->print();
+ rel__cc_final__2__1->print();
+  rel__cc_represent__1__1->print();
   // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
   mcomm.destroy();

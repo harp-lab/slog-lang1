@@ -126,6 +126,7 @@ struct shmap_relation {
     void remove_tuple();
     bool find_tuple_from_array(u64* t, int arity);
     bool check_dependent_insertion(const std::vector<u64> &v);
+    void delete_tuple(std::vector<u64>& t);
 
     void as_vector_buffer_recursive(vector_buffer* vb, std::vector<u64> prefix);
 

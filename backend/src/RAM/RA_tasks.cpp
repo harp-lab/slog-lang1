@@ -242,12 +242,17 @@ u64 RAM::intra_bucket_comm_execute()
                 input1_trees = input1->get_delta();
                 input1_size = input1->get_delta_element_count();
             }
+            double before_reduce_time = MPI_Wtime();
             int join_direction = LEFT;
             int local_join_direction_count = input0_size < input1_size ? 0 : 1;   // true if size of input0 > input1
             int global_join_direction_count = local_join_direction_count;
             MPI_Allreduce(&local_join_direction_count, &global_join_direction_count, 1, MPI_INT, MPI_SUM, mcomm.get_comm());
             if (global_join_direction_count > mcomm.get_nprocs() / 2) {
                 join_direction = RIGHT;
+            }
+            double after_reduce_time = MPI_Wtime();
+            if (mcomm.get_rank() == 0) {
+                std::cout << "Reduced time : " << after_reduce_time - before_reduce_time << std::endl;
             }
 
             if (join_direction == LEFT) {
@@ -851,7 +856,8 @@ void RAM::local_insert_in_newt_comm_compaction(std::map<u64, u64>& intern_map)
                     // temporary index column just to match size of column
                     tt.push_back(0);
                     auto _before_i = MPI_Wtime();
-                    insert_flag = output->check_dependent_value_insert_avalible(tt);
+                    // insert_flag = output->chmeck_dependent_value_insert_avalible(tt);
+                    insert_flag = true;
                     auto _after_i = MPI_Wtime();
                     check_time += _after_i - _before_i;
                 } else {
@@ -1039,8 +1045,8 @@ void RAM::local_insert_in_full()
     for (u32 i=0; i < ram_relation_count; i++)
     {
         relation* current_r = ram_relations[i];
-        current_r->insert_delta_in_full();
         current_r->local_insert_in_delta();
+        current_r->insert_delta_in_full();
     }
     return;
 }

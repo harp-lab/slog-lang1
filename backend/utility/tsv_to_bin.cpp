@@ -162,8 +162,8 @@ uint64_t MurmurHash64A ( const void * key, int len, uint64_t seed )
 
 uint64_t tuple_hash(const uint64_t* start_ptr, uint64_t prefix_len)
 {
-    // return fnv1a(start_ptr, prefix_len);
-    return MurmurHash64A(start_ptr, (int)prefix_len, MURMUR_SEED);
+    return fnv1a(start_ptr, prefix_len);
+    // return MurmurHash64A(start_ptr, (int)prefix_len, MURMUR_SEED);
 }
 
 u32 string_hash(const std::string& str) {

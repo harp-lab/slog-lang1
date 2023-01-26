@@ -1,5 +1,5 @@
 // location of `parallel_RA_inc.h` here
-#include "/home/ubuntu/workspace/slog/compiler/../backend/src/parallel_RA_inc.h"
+#include "/home/ysun67/workspace/slog/compiler/../backend/src/parallel_RA_inc.h"
 #include "mpi.h"
 
 // #include <bit>
@@ -373,7 +373,7 @@ void load_input_relation(std::string db_dir) {
   for (const auto &entry : std::filesystem::directory_iterator(db_dir)) {
     // check if ends with table
     std::string filename_ss = entry.path().filename().string();
-    std::cout << "input database has file " << filename_ss << std::endl;
+    // std::cout << "input database has file " << filename_ss << std::endl;
     std::string suffix = ".table";
     int ft = filename_ss.size() - suffix.size();
     if (ft < 0)
@@ -396,8 +396,8 @@ void load_input_relation(std::string db_dir) {
     }
     if (tag > max_rel)
       max_rel = tag;
-    std::cout << "load " << tag << "." << index_stream.str() << "has arity "
-              << arity << std::endl;
+    // std::cout << "load " << tag << "." << index_stream.str() << "has arity "
+    //           << arity << std::endl;
     rel_tag_map[index_stream.str()] = tag;
   }
 }
@@ -417,8 +417,8 @@ int get_tag_for_rel(std::string relation_name, std::string index_str) {
   }
   max_rel++;
   rel_tag_map[name_arity] = max_rel;
-  std::cout << "generate rel tag: " << name_arity << " " << max_rel
-            << std::endl;
+  // std::cout << "generate rel tag: " << name_arity << " " << max_rel
+  //           << std::endl;
   return max_rel;
 }
 
@@ -582,10 +582,12 @@ int main(int argc, char **argv) {
 
   dangling_node_cnt = rel__dangling_node->get_global_full_element_count();
   dangling_value = FLOAT_SCALE_CONST / total_node_size;
+  if (mcomm.get_rank() == 0) {
   std::cout << ">>>>>>>>> Number of nodes: " << total_node_size
             << " >>>>>>>>> Dangling node count: " << dangling_node_cnt
             << " >>>>>>>>> Dangling value: "
             << dangling_value * 1.0 / FLOAT_SCALE_CONST << std::endl;
+  }
 
   rel__edge__2__1->disable_initialization();
   rel__node__1__1->disable_initialization();
@@ -616,8 +618,10 @@ int main(int argc, char **argv) {
   std::vector<LIE *> pg_lie_list;
 
   for (int i = 0; i < MAX_PG_ITERATION; i++) {
+    if (mcomm.get_rank() == 0) {
     std::cout << ">>>>>>>>>>>>>>>>>>>>> Compute pagerank iter " << current_iter
               << std::endl;
+    }
     LIE *pg_lie = new LIE();
 
     RAM *scc_init = new RAM(false, 0);
@@ -687,7 +691,9 @@ int main(int argc, char **argv) {
     // MPI_Barrier(mcomm.get_comm());
   }
 
+  if (mcomm.get_rank() == 0) {
   std::cout << "Aggregating Page Rank Result ..." << std::endl;
+  }
   relation *rel__result__2__1__2 = new relation(
       2, true, 2, get_tag_for_rel("result", "1__2"),
       std::to_string(get_tag_for_rel("result", "1__2")) +
@@ -734,10 +740,10 @@ int main(int argc, char **argv) {
   final_lie->execute();
   final_lie->print_all_relation_size(); // Continuously print relation sizes
 
-  rel__result__2__1__2->print([](const std::vector<u64> &tp) {
-    u32 pg_v = tp[1];
-    std::cout << tp[0] << " " << pg_v * 1.0 / FLOAT_SCALE_CONST << std::endl;
-  });
+  // rel__result__2__1__2->print([](const std::vector<u64> &tp) {
+  //   u32 pg_v = tp[1];
+  //   std::cout << tp[0] << " " << pg_v * 1.0 / FLOAT_SCALE_CONST << std::endl;
+  // });
 
   // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
