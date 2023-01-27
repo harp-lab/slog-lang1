@@ -1,0 +1,22 @@
+#!/usr/bin/env python3
+
+"""
+show a local database with limited feature in REPL
+
+Yihao Sun
+"""
+
+import argparse
+
+from slog.repl.repl import Repl
+
+def run_repl(db_path):
+    repl = Repl(local_db_path=db_path)
+    repl.loop()
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("db_path", help="The file folder path of a slog database.")
+
+    args = parser.parse_args()
+    run_repl(args.db_path)

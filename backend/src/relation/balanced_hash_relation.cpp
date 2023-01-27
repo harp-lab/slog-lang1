@@ -6,13 +6,18 @@
 
 
 #include "../parallel_RA_inc.h"
+#include "balanced_hash_relation.h"
+#include "mpi.h"
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <iostream>
+#include <vector>
 
 u32 relation::get_global_delta_element_count()
 {
+    delta_element_count = delta[mcomm.get_rank()].count();
     int dec = (int)delta_element_count;
     int global_delta_element_count;
     MPI_Allreduce(&dec, &global_delta_element_count, 1, MPI_INT, MPI_SUM, mcomm.get_local_comm());
@@ -22,7 +27,9 @@ u32 relation::get_global_delta_element_count()
 
 u32 relation::get_global_full_element_count()
 {
+    // TODO: change to use size of shamp_relation rather than counter
     u32 global_full_element_count;
+    full_element_count = full[mcomm.get_rank()].count();
     MPI_Allreduce(&full_element_count, &global_full_element_count, 1, MPI_INT, MPI_SUM, mcomm.get_local_comm());
     return global_full_element_count;
 }
@@ -409,11 +416,13 @@ void relation::print()
             full[i].as_vector_buffer_recursive(&(vb_full[i]), prefix);
 
             if (vb_full[i].size != 0)
-            	std::cout << get_debug_id() << " " << mcomm.get_rank() << " FULL Rows " << vb_full[i].size/(sizeof(u64) * (arity + 1)) << " columns " << arity + 1 << std::endl;
+            	std::cout << get_debug_id() << " " << mcomm.get_rank() << " " << i << " FULL Rows "
+                          << vb_full[i].size/(sizeof(u64) * (arity + 1)) << " columns " << arity + 1
+                          << std::endl;
             for (u32 j=0; j < vb_full[i].size/sizeof(u64); j = j + arity+1)
             {
                 if (j % (arity+1) == 0)
-                    std::cout << "F [" << j/(arity+1) << "] ";
+                    std::cout << "F [" << mcomm.get_rank() << " " << i << " " << j/(arity+1) << "] ";
                 for (u32 k = 0; k < arity+1; k++)
                 {
                     u64 temp;
@@ -487,6 +496,70 @@ void relation::print()
 //    }
 }
 
+void relation::print(tuple_formator_t ft)
+{
+    u32 buckets = get_bucket_count();
+//    if (mcomm.get_rank() == 0)
+//    {
+        vector_buffer *vb_full = new vector_buffer[buckets];
+        for (u32 i=0; i < buckets; i++)
+        {
+            vb_full[i].vector_buffer_create_empty();
+            std::vector<u64> prefix = {};
+            full[i].as_vector_buffer_recursive(&(vb_full[i]), prefix);
+
+            if (vb_full[i].size != 0)
+            	std::cout << get_debug_id() << " " << mcomm.get_rank() << " FULL Rows " << vb_full[i].size/(sizeof(u64) * (arity + 1)) << " columns " << arity + 1 << std::endl;
+            for (u32 j=0; j < vb_full[i].size/sizeof(u64); j = j + arity+1)
+            {
+                if (j % (arity+1) == 0) {
+                    std::cout << "F [" << j/(arity+1) << "] ";
+
+                }
+                std::vector<u64> cur_tuple;
+                for (u32 k = 0; k < arity+1; k++)
+                {
+                    u64 temp;
+                    memcpy(&temp, (vb_full[i].buffer) + (j + k)*sizeof(u64), sizeof(u64));
+                    // std::cout << temp << " ";
+                    cur_tuple.push_back(temp);
+                }
+                ft(cur_tuple);
+            }
+
+            vb_full[i].vector_buffer_free();
+        }
+        delete[] vb_full;
+
+
+        // vector_buffer *vb_delta = new vector_buffer[buckets];
+        // for (u32 i=0; i < buckets; i++)
+        // {
+        //     vb_delta[i].vector_buffer_create_empty();
+        //     std::vector<u64> prefix = {};
+        //     delta[i].as_vector_buffer_recursive(&(vb_delta[i]), prefix);
+
+        //     if (vb_delta[i].size != 0)
+        //         std::cout << get_debug_id() << " " << mcomm.get_rank() << " DELTA Rows " << vb_delta[i].size/(sizeof(u64) * (arity + 1)) << " columns " << arity + 1 << std::endl;
+
+        //     for (u32 j=0; j < vb_delta[i].size/sizeof(u64); j = j + arity+1)
+        //     {
+        //         if (j % (arity+1) == 0)
+        //             std::cout << "D ";
+
+        //         for (u32 k = 0; k < arity+1; k++)
+        //         {
+        //             u64 temp;
+        //             memcpy(&temp, (vb_delta[i].buffer) + (j + k)*sizeof(u64), sizeof(u64));
+        //             std::cout << temp << " ";
+        //         }
+        //         std::cout << std::endl;
+        //     }
+
+        //     vb_delta[i].vector_buffer_free();
+        // }
+        // delete[] vb_delta;
+}
 
 #if 0
 void relation::flush_full()
@@ -528,9 +601,9 @@ void relation::load_data_from_separate_files()
 	double read_data_end = MPI_Wtime();
 	double read_data_time = read_data_end - read_data_start;
 
-	if (initailization_type == DELTA)
+	if (initialization_type == DELTA)
 		 populate_delta(file_io.get_hash_buffer_size(), file_io.get_hash_buffer());
-	else if (initailization_type == FULL)
+	else if (initialization_type == FULL)
 		populate_full(file_io.get_hash_buffer_size(), file_io.get_hash_buffer());
 
 	file_io.delete_hash_buffers();
@@ -539,7 +612,7 @@ void relation::load_data_from_separate_files()
     MPI_Reduce(&read_data_time, &max_read_data_time, 1, MPI_DOUBLE, MPI_MAX, 0, mcomm.get_local_comm());
 
     std::string read_io = (share_io == true)? "MPI IO": "POSIX IO";
-    std::string type = (initailization_type == DELTA)? "DELTA": "FULL";
+    std::string type = (initialization_type == DELTA)? "DELTA": "FULL";
 
     if (mcomm.get_rank() == 0 && restart_flag == true)
     	std::cout << "Read " << get_debug_id() << " (" << read_io << ") :\n  " << type << " [RD], " <<
@@ -554,9 +627,9 @@ void relation::load_data_from_file_with_offset()
 	double read_data_end = MPI_Wtime();
 	double read_data_time = read_data_end - read_data_start;
 
-	if (initailization_type == DELTA)
+	if (initialization_type == DELTA)
 		 populate_delta(file_io.get_hash_buffer_size(), file_io.get_hash_buffer());
-	else if (initailization_type == FULL)
+	else if (initialization_type == FULL)
 		populate_full(file_io.get_hash_buffer_size(), file_io.get_hash_buffer());
 
 	file_io.delete_hash_buffers();
@@ -565,7 +638,7 @@ void relation::load_data_from_file_with_offset()
     MPI_Reduce(&read_data_time, &max_read_data_time, 1, MPI_DOUBLE, MPI_MAX, 0, mcomm.get_local_comm());
 
     std::string read_io = (share_io == true)? "MPI IO": "POSIX IO";
-    std::string type = (initailization_type == DELTA)? "DELTA": "FULL";
+    std::string type = (initialization_type == DELTA)? "DELTA": "FULL";
 
     if (mcomm.get_rank() == 0 && restart_flag == true)
     	std::cout << "Read " << get_debug_id() << " (" << read_io << ") :\n  " << type << " [RD], " <<
@@ -584,7 +657,7 @@ void relation::load_data_from_file()
     //         //   << "c++ object " << this
     //           << "start normal IO" << std::endl;
     /// reading from file
-    if (initailization_type != -1)
+    if (initialization_type != -1)
     {
         /// Main : Execute : init : io : end
     	double read_data_start = MPI_Wtime();
@@ -601,10 +674,10 @@ void relation::load_data_from_file()
         file_io.delete_raw_buffers();
 
         /* Copy data from buffer to relation */
-        if (initailization_type == DELTA)
+        if (initialization_type == DELTA)
             populate_delta(file_io.get_hash_buffer_size(), file_io.get_hash_buffer());
 
-        else if (initailization_type == FULL)
+        else if (initialization_type == FULL)
             populate_full(file_io.get_hash_buffer_size(), file_io.get_hash_buffer());
 
         file_io.delete_hash_buffers();
@@ -615,7 +688,7 @@ void relation::load_data_from_file()
         MPI_Reduce(&all_to_all_time, &max_all_to_all_time, 1, MPI_DOUBLE, MPI_MAX, 0, mcomm.get_local_comm());
 
         std::string read_io = (share_io == true)? "MPI IO": "POSIX IO";
-        std::string type = (initailization_type == DELTA)? "DELTA": "FULL";
+        std::string type = (initialization_type == DELTA)? "DELTA": "FULL";
 
         if (mcomm.get_rank() == 0 && restart_flag == true)
         	std::cout << "Read " << get_debug_id() << " (" << read_io << ") :\n " << type << " [RD] [AC], " <<
@@ -638,7 +711,7 @@ void relation::initialize_relation(mpi_comm& mcomm, std::map<u64, u64>& intern_m
 
     u32 buckets = mcomm.get_local_nprocs();
 
-    default_sub_bucket_per_bucket_count = 1;
+    // default_sub_bucket_per_bucket_count = 1;
     int rank = mcomm.get_local_rank();
     int nprocs = mcomm.get_local_nprocs();
 
@@ -655,10 +728,16 @@ void relation::initialize_relation(mpi_comm& mcomm, std::map<u64, u64>& intern_m
     full = new shmap_relation[buckets];
     newt = new shmap_relation[buckets];
 
-    for (int i = 0 ; i < buckets; i++) {
+    for (u32 i = 0 ; i < buckets; i++) {
         delta[i].arity = arity;
+        delta[i].dependent_column_indices = dependent_column_indices;
+        delta[i].update_compare_func = update_compare_func;
         full[i].arity = arity;
+        full[i].dependent_column_indices = dependent_column_indices;
+        full[i].update_compare_func = update_compare_func;
         newt[i].arity = arity;
+        newt[i].dependent_column_indices = dependent_column_indices;
+        newt[i].update_compare_func = update_compare_func;
     }
 #endif
 
@@ -774,6 +853,7 @@ void relation::populate_full(int buffer_size, u64* buffer)
     u32 counter = 0;
     u64 t[arity+1];
     u32 buckets = get_bucket_count();
+    // std::cout << "populating full for " << intern_tag << std::endl;
 
     for (int i = 0; i < buffer_size; i = i + (arity+1))
     {
@@ -781,9 +861,10 @@ void relation::populate_full(int buffer_size, u64* buffer)
 
         for (u32 a = i; a < i + arity + 1; a++)
             t[a-i] = buffer[a];
-
-        if (full[bucket_id].insert_tuple_from_array(t, (arity+1)) == true)
+        int insert_res = full[bucket_id].insert_tuple_from_array(t, (arity+1));
+        if (insert_res == INSERT_SUCCESS)
         {
+            // TODO: check if its update, if it is keep full count same
             full_element_count++;
             full_bucket_element_count[bucket_id]++;
             counter++;
@@ -797,6 +878,7 @@ void relation::populate_delta (int buffer_size, u64* buffer)
 {
     u64 t[arity+1];
     u32 buckets = get_bucket_count();
+    std::cout << "populating delta for " << intern_tag << std::endl;
 
     for (int i = 0; i < buffer_size; i = i + (arity+1))
     {
@@ -805,7 +887,8 @@ void relation::populate_delta (int buffer_size, u64* buffer)
         for (u32 a = i; a < i + arity + 1; a++)
             t[a-i] = buffer[a];
 
-        if (delta[bucket_id].insert_tuple_from_array(t, arity+1) == true)
+        int insert_res = delta[bucket_id].insert_tuple_from_array(t, arity+1);
+        if (insert_res == INSERT_SUCCESS)
         {
             delta_element_count++;
             delta_bucket_element_count[bucket_id]++;
@@ -905,7 +988,7 @@ void relation::finalize_relation()
     full_element_count = 0;
     delta_element_count = 0;
 
-    initailization_type = -1;
+    initialization_type = -1;
 
     delete[] distinct_sub_bucket_rank_count;
     for (u64 b = 0; b < buckets; b++)
@@ -1061,7 +1144,7 @@ void relation::copy_relation(relation*& recv_rel, mpi_comm output_comm, int targ
 
 
     finalize_relation();
-    recv_rel->set_initailization_type(-1);
+    recv_rel->set_initialization_type(-1);
     //recv_rel->initialize_relation(output_comm);
 
 
@@ -1125,14 +1208,19 @@ bool relation::insert_in_delta(u64* t)
     if (is_canonical == false   && arity != 0 && arity >= join_column_count)
         sub_bucket_id = tuple_hash(t + join_column_count, arity-join_column_count) % sub_bucket_per_bucket_count[bucket_id];
 
+    // std::cout << "inserting delta for " << intern_tag << std::endl;
     //assert((int)bucket_id == mcomm.get_local_rank());
-    if (delta[bucket_id].insert_tuple_from_array(t, arity+1) == true)
+    int insert_res = delta[bucket_id].insert_tuple_from_array(t, arity+1);
+    if (insert_res == INSERT_SUCCESS)
     {
         delta_element_count++;
         delta_bucket_element_count[bucket_id]++;
         delta_sub_bucket_element_count[bucket_id][sub_bucket_id]++;
         bucket_map[bucket_id] = 1;
 
+        return true;
+    } else if (insert_res == INSERT_UPDATED) {
+        bucket_map[bucket_id] = 1;
         return true;
     }
     return false;
@@ -1147,14 +1235,19 @@ bool relation::insert_in_newt(u64* t)
     if (is_canonical == false && arity != 0 && arity >= join_column_count)
         sub_bucket_id = tuple_hash(t + join_column_count, arity-join_column_count) % sub_bucket_per_bucket_count[bucket_id];
 
+    // std::cout << "inserting newt for " << intern_tag << std::endl;
     //assert((int)bucket_id == mcomm.get_local_rank());
-    if (newt[bucket_id].insert_tuple_from_array(t, arity+1) == true)
+    int insert_res = newt[bucket_id].insert_tuple_from_array(t, arity+1);
+    if (insert_res == INSERT_SUCCESS)
     {
         newt_element_count++;
         newt_bucket_element_count[bucket_id]++;
         newt_sub_bucket_element_count[bucket_id][sub_bucket_id]++;
         bucket_map[bucket_id] = 1;
 
+        return true;
+    } else if (insert_res == INSERT_UPDATED) {
+        bucket_map[bucket_id] = 1;
         return true;
     }
     return false;
@@ -1181,9 +1274,13 @@ bool relation::insert_in_full(u64* t)
         std::cout << std::endl;
     }
 #endif
+    // std::cout << "inserting full for " << intern_tag << std::endl;
 
-    if (full[bucket_id].insert_tuple_from_array(t, arity+1) == true)
+    if (full[bucket_id].insert_tuple_from_array(t, arity+1) != INSERT_FAIL)
+    // std::vector<u64> tp(t, t+arity+1);
+    // if (full[bucket_id].insert(tp))
     {
+        // TODO: change how to deal with element counts
         full_element_count++;
         full_bucket_element_count[bucket_id]++;
         full_sub_bucket_element_count[bucket_id][sub_bucket_id]++;
@@ -1217,24 +1314,31 @@ int relation::insert_delta_in_full()
             //     if (insert_in_full ( (u64*)( (input_buffer[i].buffer) + (j*sizeof(u64)) )) == true)
             //         insert_success++;
             // }
+            std::vector<std::vector<u64>> tuples_to_del;
             for(auto it=delta[i].begin(); it != delta[i].end(); ++it)
             {
                 auto tuple_d = *it;
-                // std::cout << "inserting into delta ";
+                // std::cout << "inserting into full ";
                 // for (auto v: tuple_d) {
                 //     std::cout << v << " ";
                 // }
                 // std::cout << std::endl;
                 if (insert_in_full(tuple_d.data()) == true)
                     insert_success++;
+                else {
+                    tuples_to_del.push_back(tuple_d);
+                }
             }
-            delta[i].remove_tuple();
+            for (auto t: tuples_to_del) {
+                delta[i].delete_tuple(t);
+            }
+            // delta[i].remove_tuple();
 
             // input_buffer[i].vector_buffer_free();
         }
     }
 
-    set_delta_element_count(0);
+    // set_delta_element_count(0);
     // delete[] input_buffer;
 
     return insert_success;
@@ -1271,74 +1375,108 @@ int relation::insert_full_in_delta()
     return insert_success;
 }
 
-
-
 void relation::local_insert_in_delta()
 {
     int rank;
     MPI_Comm_rank(mcomm.get_comm(), &rank);
     u32 buckets = get_bucket_count();
 
-    delete[] delta;
+    // if (dependent_column_indices.size() > 0) {
+    //     delta_element_count = 0;
+    //     for (u32 i = 0; i < buckets; i++) {
+    //         delta[i].purge();
+    //         memset(delta_sub_bucket_element_count[i], 0, sub_bucket_per_bucket_count[i] * sizeof(u32));
+    //         for (auto& t: newt[i]) {
+    //             if (full[i].check_dependent_insertion(t)) {
+    //                 delta[i].insert(t);
+    //                 uint64_t bucket_id = tuple_hash(t.data(), join_column_count) % get_bucket_count();
+    //                 u32 sub_bucket_id = 0;
+    //                 if (is_canonical == false   && arity != 0 && arity >= join_column_count)
+    //                     sub_bucket_id = tuple_hash(t.data() + join_column_count, arity-join_column_count) % sub_bucket_per_bucket_count[bucket_id];
+    //                 delta_sub_bucket_element_count[bucket_id][sub_bucket_id]++;
+    //                 delta_element_count++;
+    //             }
+    //         }
+    //         newt[i].purge();
+    //         memset(newt_sub_bucket_element_count[i], 0, sub_bucket_per_bucket_count[i] * sizeof(u32));
+    //         newt_element_count = 0;
+    //     }
+    // } else {
 
+        delete[] delta;
+        delta = newt;
+        delta_element_count = newt_element_count;
+        memcpy(delta_bucket_element_count, newt_bucket_element_count, buckets * sizeof(u32));
+        for (u32 b = 0; b < buckets; b++)
+        {
+            memcpy(delta_sub_bucket_element_count[b], newt_sub_bucket_element_count[b], sub_bucket_per_bucket_count[b] * sizeof(u32));
+            memset(newt_sub_bucket_element_count[b], 0, sub_bucket_per_bucket_count[b] * sizeof(u32));
+        }
+        newt = new shmap_relation[buckets];
+        for (u32 i = 0; i < buckets; i++) {
+            newt[i].arity = arity;
+            newt[i].dependent_column_indices = dependent_column_indices;
+            newt[i].update_compare_func = update_compare_func;
+        }
+        newt_element_count = 0;
+        memset(newt_bucket_element_count, 0, buckets * sizeof(u32));
+    // }
+}
 
-    delta = newt;
-
-
-    /*
-    u32 i = mcomm.get_rank();
-    vector_buffer *vb_newt = new vector_buffer[buckets];
-    vb_newt[i].vector_buffer_create_empty();
-    std::vector<u64> prefix = {};
-    newt[i].as_vector_buffer_recursive(&(vb_newt[i]), prefix);
-
-    if (i == 0)
-        std::cout << "XX [" << get_debug_id() << "] Test " << mcomm.get_rank() << " DELTA " << vb_newt[i].size/(sizeof(u64) * (arity + 1)) << " arity " << arity + 1 << std::endl;
-
-    vb_newt[i].vector_buffer_free();
-
-    delete[] vb_newt;
-
-
-
-    //u32 i = mcomm.get_rank();
-    vector_buffer *vb_delta = new vector_buffer[buckets];
-    vb_delta[i].vector_buffer_create_empty();
-    //std::vector<u64> prefix = {};
-    delta[i].as_vector_buffer_recursive(&(vb_delta[i]), prefix);
-
-    if (i == 0)
-        std::cout << "YY [" << get_debug_id() << "] Test " << mcomm.get_rank() << " DELTA " << vb_delta[i].size/(sizeof(u64) * (arity + 1)) << " arity " << arity + 1 << std::endl;
-
-    vb_delta[i].vector_buffer_free();
-
-    delete[] vb_delta;
-    */
-
-
-    delta_element_count = newt_element_count;
-    //if (rank == 0)
-    //    std::cout << "[" << get_debug_id() << "] copyng newt pointer to delta   " << delta_element_count << std::endl;
-
-    memcpy(delta_bucket_element_count, newt_bucket_element_count, buckets * sizeof(u32));
-    for (u32 b = 0; b < buckets; b++)
-    {
-        memcpy(delta_sub_bucket_element_count[b], newt_sub_bucket_element_count[b], sub_bucket_per_bucket_count[b] * sizeof(u32));
-        memset(newt_sub_bucket_element_count[b], 0, sub_bucket_per_bucket_count[b] * sizeof(u32));
+bool relation::check_dependent_value_insert_avalible(const std::vector<u64>& tuple) {
+    // bool res = true;
+    // for (int i = 0 ; i < mcomm.get_nprocs(); i ++) {
+    //     res = (res && delta[i].check_dependent_insertion(tuple)) && full[i].check_dependent_insertion(tuple);
+    // }
+    // return res;
+    // uint64_t bucket_id = tuple_hash(tuple.data(), join_column_count) % get_bucket_count();
+    // if (bucket_id != mcomm.get_rank()) {
+    //     std::cout << "wwwwwwwwwwwwwwwwwwwwwwwwwwwwww " << std::endl; 
+    // }
+    // int bucket_id = mcomm.get_rank();
+    bool res = true;
+    for (int i = 0 ; i < mcomm.get_nprocs(); i ++) {
+        res = (res && delta[i].check_dependent_insertion(tuple)) && full[i].check_dependent_insertion(tuple);
     }
+    // return delta[bucket_id].check_dependent_insertion(tuple) && full[bucket_id].check_dependent_insertion(tuple) ;
+    return res;
+}
 
-#ifdef GOOGLE_MAP
-    newt = new google_relation[buckets];
-#else
-    newt = new shmap_relation[buckets];
+void relation::test_calc_hash_rank(u64 rank_n) {
+    int hash_types = 6;
+    std::vector<std::vector<u64>> tuple_cnts(hash_types, std::vector<u64>(rank_n, 0));
+    std::vector<std::string> hash_names{"nohash", "fnv1a", "murmur", "spooky", "fasthash", "xxhash"};
 
-    for (int i = 0; i < buckets; i++) {
-        newt[i].arity = arity;
+    for (auto t: full[mcomm.get_rank()]) {
+        // std::vector<u64> compressed;
+        // for (auto c: t) {
+        //     compressed.push_back(c % rank_n);
+        // }
+        auto hashes = tuple_hash_test_all(t.data(), get_join_column_count());
+        for (int i = 0; i < hash_types; i++) {
+            // u64 hashv_main = hashes[i];
+            // u64 rk_main = hashes[i] % rank_n;
+            // u64 rk_sub = tuple_hash_test_all(&hashv_main, 1)[1] % rank_n;
+            // u64 rk_final = rk_main * 64 + rk_sub;
+            // tuple_cnts[i][rk_final]++;
+            tuple_cnts[i][hashes[i] % (rank_n-1)]++;
+            // u64 rkv = rank_n;
+            // u64 p =  UINT64_MAX / rank_n;
+            // tuple_cnts[i][hashes[i] / p]++;
+        }  
     }
-#endif
-
-    //for(u32 i=0; i<buckets; i++)
-    //    newt[i] = new google_relation();
-    newt_element_count = 0;
-    memset(newt_bucket_element_count, 0, buckets * sizeof(u32));
+    // std::cout << mcomm.get_rank() << std::endl;
+    for (int i = 0; i < hash_types; i++) {
+        // for (auto cnt: tuple_cnts[i]) {
+        //     std::cout << hash_names[i] << ", " << mcomm.get_rank() << ", " << cnt << std::endl;
+        // }
+        for (u64 rk = 0; rk < rank_n; rk++) {
+            u64 local_cnt = tuple_cnts[i][rk];
+            u64 global_cnt = local_cnt;
+            MPI_Reduce(&local_cnt, &global_cnt, 1, MPI_UINT64_T, MPI_SUM, 0, mcomm.get_comm());
+            if (mcomm.get_rank() == 0) {
+                std::cout << hash_names[i] << ", " << rk << ", " << global_cnt << std::endl;
+            }
+        }
+    }
 }

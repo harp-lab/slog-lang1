@@ -1,0 +1,18 @@
+parsing + compilation took 4 ms.
+ir-small: 
+RULES:
+------------------------------------------------------
+/home/ubuntu/workspace/slog/backend/tests/msum/msum.slog 1:
+[((rel-arity cpath 4 db) x y x $=1) <--
+  (= $_1 ((rel-arity edge 2 db) x y))
+  (= $_5 ((rel-arity = 2 comp) $=1 1))]
+------------------------------------------------------
+/home/ubuntu/workspace/slog/backend/tests/msum/msum.slog 2:
+[((rel-arity cpath 4 db) x z y l) <--
+  (= $_3 ((rel-arity cpath 4 db) x y prev l))
+  (= $_4 ((rel-arity edge 2 db) y z))]
+
+
+All rules: 5, arules: 3, copy rules: 0, join rules: 2, facts: 0
+rels: 2, sccs: 4
+[wrote C++ driver and data to "/home/ubuntu/workspace/slog/out/msum.cpp"]

@@ -80,8 +80,8 @@ void parallel_join_aggregate::local_aggregate(
 
     u32* output_sub_bucket_count = output->get_sub_bucket_per_bucket_count();
     u32** output_sub_bucket_rank = output->get_sub_bucket_rank();
-    int real_join_count = output->get_join_column_count() - 1;
-    agg_buffer.width[ra_counter] = real_join_count + 1;
+    u32 real_join_count = output->get_join_column_count();
+    agg_buffer.width[ra_counter] = output->get_arity();
 
     shmap_relation* agg_target;
     if (*(target->get_sub_bucket_per_bucket_count()) == 1) {
@@ -93,11 +93,10 @@ void parallel_join_aggregate::local_aggregate(
             agg_target->insert_tuple_from_array(input0_buffer+k1, target->get_arity()+1);
         }
     }
-
     btree::btree_map<std::vector<u64>, u64, shmap_relation::t_comparator> res_map;
-    for (int bucket=0; bucket < buckets; bucket ++) {
+    for (u32 bucket=0; bucket < buckets; bucket ++) {
         for (auto tuple: input->get_full()[bucket]) {
-            std::vector<u64> data_v(tuple.begin(), tuple.begin()+target->get_join_column_count());
+            std::vector<u64> data_v(tuple.begin(), tuple.begin()+input->get_join_column_count());
             // std::cout << "On rank " << mcomm.get_rank() << " bucket " << *(target->get_sub_bucket_per_bucket_count()) << std::endl;
             auto joined_range = agg_target->prefix_range(data_v);
             auto agg_data = local_func(joined_range);
@@ -110,20 +109,29 @@ void parallel_join_aggregate::local_aggregate(
             }
         }
     }
+            
+    // std::cout << ">>>>>>>>>>>>>>>>>>>>> " << input->get_full()[0].size() << std::endl;
 
-    for (int bucket=0; bucket < buckets; bucket ++) {
+    for (u32 bucket=0; bucket < buckets; bucket ++) {
         for (auto input_tuple: input->get_full()[bucket]) {
             std::vector<u64> joined_input_tuple(input_tuple.begin(), input_tuple.begin()+input->get_join_column_count());
             auto agg_res = res_map[joined_input_tuple];
-            std::vector<u64> tuple(reorder_mapping.size(), 0);
+            std::vector<u64> tuple(output->get_arity(), 0);
+            // std::cout << "wwwwwwwwwwwwwwwwwwwwwwww  " << output->get_arity() << std::endl;
             int reorder_agg_index = input->get_arity() + 1;
-            for (int j = 0; j < reorder_mapping.size(); j++) {
-                if (reorder_mapping[j] == reorder_agg_index) {
-                    tuple[j] = agg_res;
-                } else {
-                    tuple[j] = input_tuple[reorder_mapping[j]];
-                }
+            for (long unsigned int j = 0; j < reorder_mapping.size(); j++) {
+            //   std::cout << reorder_mapping[j] << " " << reorder_agg_index << std::endl;
+              if (reorder_mapping[j] == reorder_agg_index) {
+                tuple[j] = agg_res;
+              } else {
+                tuple[j] = input_tuple[reorder_mapping[j]];
+              }
             }
+            // std::cout << "aggregated tuple <<<"  << reorder_mapping.size() << " >>> ";
+            // for (auto c: tuple) {
+            //     std::cout << c << " ";
+            // }
+            // std::cout << std::endl;
 
             uint64_t bucket_id = tuple_hash(tuple.data(), output->get_join_column_count()) % buckets;
             uint64_t sub_bucket_id = 0;

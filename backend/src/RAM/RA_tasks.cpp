@@ -6,7 +6,10 @@
 
 
 #include "../parallel_RA_inc.h"
+#include "mpi.h"
+#include <iomanip>
 #include <iostream>
+#include <vector>
 
 RAM::~RAM()
 {
@@ -74,6 +77,9 @@ void RAM::load_balance()
     for (u32 i=0; i < ram_relation_count; i++)
     {
         relation* current_relation = ram_relations[i];
+        if (!current_relation->balance_flag) {
+            continue;
+        }
         if (current_relation->load_balance_merge_full_and_delta(refinement_factor) == false)
             current_relation->load_balance_split_full_and_delta(refinement_factor);
 
@@ -224,58 +230,42 @@ u64 RAM::intra_bucket_comm_execute()
             parallel_join* current_ra = (parallel_join*) *it;
             relation* input0 = current_ra->get_join_input0();
             relation* input1 = current_ra->get_join_input1();
+            shmap_relation* input0_trees = input0->get_full();
+            u64 input0_size = input0->get_full_element_count();
+            shmap_relation* input1_trees = input1->get_full();
+            u64 input1_size = input1->get_full_element_count();
+            if (current_ra->get_join_input0_graph_type() == DELTA) {
+                input0_trees = input0->get_delta();
+                input0_size = input0->get_delta_element_count();
+            }
+            if (current_ra->get_join_input1_graph_type() == DELTA) {
+                input1_trees = input1->get_delta();
+                input1_size = input1->get_delta_element_count();
+            }
+            int join_direction = LEFT;
+            int local_join_direction_count = input0_size < input1_size ? 0 : 1;   // true if size of input0 > input1
+            int global_join_direction_count = local_join_direction_count;
+            MPI_Allreduce(&local_join_direction_count, &global_join_direction_count, 1, MPI_INT, MPI_SUM, mcomm.get_comm());
+            if (global_join_direction_count > mcomm.get_nprocs() / 2) {
+                join_direction = RIGHT;
+            }
 
-            /// Join between delta and delta
-            if (current_ra->get_join_input0_graph_type() == DELTA && current_ra->get_join_input1_graph_type() == DELTA)
-            {
-
+            if (join_direction == LEFT) {
                 intra_bucket_comm(get_bucket_count(),
-                                  input0->get_delta(),
+                                  input0_trees,
                                   input0->get_distinct_sub_bucket_rank_count(), input0->get_distinct_sub_bucket_rank(), input0->get_bucket_map(),
                                   input1->get_distinct_sub_bucket_rank_count(), input1->get_distinct_sub_bucket_rank(), input1->get_bucket_map(),
                                   &intra_bucket_buf_output_size[counter], &intra_bucket_buf_output[counter],
                                   mcomm.get_local_comm());
-
-                total_data_moved = total_data_moved + intra_bucket_buf_output_size[counter];
-            }
-
-            /// Join between delta and full
-            else if (current_ra->get_join_input0_graph_type() == DELTA && current_ra->get_join_input1_graph_type() == FULL)
-            {
-
+            } else {
                 intra_bucket_comm(get_bucket_count(),
-                                  input0->get_delta(),
-                                  input0->get_distinct_sub_bucket_rank_count(), input0->get_distinct_sub_bucket_rank(), input0->get_bucket_map(),
-                                  input1->get_distinct_sub_bucket_rank_count(), input1->get_distinct_sub_bucket_rank(), input1->get_bucket_map(),
-                                  &intra_bucket_buf_output_size[counter], &intra_bucket_buf_output[counter],
-                                  mcomm.get_local_comm());
-                total_data_moved = total_data_moved + intra_bucket_buf_output_size[counter];
-            }
-
-            /// Join between full and delta
-            else if (current_ra->get_join_input0_graph_type() == FULL && current_ra->get_join_input1_graph_type() == DELTA)
-            {
-                intra_bucket_comm(get_bucket_count(),
-                                  input1->get_delta(),
+                                  input1_trees,
                                   input1->get_distinct_sub_bucket_rank_count(), input1->get_distinct_sub_bucket_rank(), input1->get_bucket_map(),
                                   input0->get_distinct_sub_bucket_rank_count(), input0->get_distinct_sub_bucket_rank(), input0->get_bucket_map(),
                                   &intra_bucket_buf_output_size[counter], &intra_bucket_buf_output[counter],
                                   mcomm.get_local_comm());
-                total_data_moved = total_data_moved + intra_bucket_buf_output_size[counter];
             }
-
-            /// Join between full and full
-            else if (current_ra->get_join_input0_graph_type() == FULL && current_ra->get_join_input1_graph_type() == FULL)
-            {
-
-                intra_bucket_comm(get_bucket_count(),
-                                  input1->get_full(),
-                                  input1->get_distinct_sub_bucket_rank_count(), input1->get_distinct_sub_bucket_rank(), input1->get_bucket_map(),
-                                  input0->get_distinct_sub_bucket_rank_count(), input0->get_distinct_sub_bucket_rank(), input0->get_bucket_map(),
-                                  &intra_bucket_buf_output_size[counter], &intra_bucket_buf_output[counter],
-                                  mcomm.get_local_comm());
-                total_data_moved = total_data_moved + intra_bucket_buf_output_size[counter];
-            }
+            total_data_moved = total_data_moved + intra_bucket_buf_output_size[counter];
         }
         counter++;
     }
@@ -371,7 +361,11 @@ bool RAM::local_compute(int* offset)
     u32 total_join_tuples = 0;
     u32 counter = 0;
     int threshold = 20000000;
-
+    auto before_compute_time = MPI_Wtime();
+    auto ibf_size = 0;
+    u64 jtarget_size = 0;
+    double size_sync_time = 0;
+    double real_join_time = 0;
     for (std::vector<parallel_RA*>::iterator it = RA_list.begin() ; it != RA_list.end(); ++it)
     {
         // std::cout << "RA type : " << (*it)->get_RA_type() << std::endl;
@@ -579,6 +573,7 @@ bool RAM::local_compute(int* offset)
 
         else if ((*it)->get_RA_type() == JOIN)
         {
+            auto before_join_time = MPI_Wtime();
             parallel_join* current_ra = (parallel_join*) *it;
             relation* output_relation = current_ra->get_join_output();
 
@@ -588,75 +583,73 @@ bool RAM::local_compute(int* offset)
             relation* input1 = current_ra->get_join_input1();
             int join_column_count = input0->get_join_column_count();
 
-            if (current_ra->get_join_input0_graph_type() == DELTA && current_ra->get_join_input1_graph_type() == DELTA)
-            {
+            shmap_relation* input0_trees = input0->get_full();
+            u64 input0_size = input0->get_full_element_count();
+            shmap_relation* input1_trees = input1->get_full();
+            u64 input1_size = input1->get_full_element_count();
+            if (current_ra->get_join_input0_graph_type() == DELTA) {
+                input0_trees = input0->get_delta();
+                input0_size = input0->get_delta_element_count();
+            }
+            if (current_ra->get_join_input1_graph_type() == DELTA) {
+                input1_trees = input1->get_delta();
+                input1_size = input1->get_delta_element_count();
+            }
+            int join_direction = LEFT;
+            int local_join_direction_count = input0_size < input1_size ? 0 : 1;   // true if size of input0 > input1
+            int global_join_direction_count = local_join_direction_count;
+
+            auto before_size_sync = MPI_Wtime();
+            MPI_Allreduce(&local_join_direction_count, &global_join_direction_count, 1, MPI_INT, MPI_SUM, mcomm.get_comm());
+            if (global_join_direction_count > mcomm.get_nprocs() / 2) {
+                join_direction = RIGHT;
+            }
+            auto after_size_sync = MPI_Wtime();
+            size_sync_time += after_size_sync - before_size_sync;
+            std::vector<double> real_j_time_stat;
+            if (join_direction == LEFT) {
                 join_completed = join_completed & current_ra->local_join(threshold, &(offset[counter]),
                                                                          LEFT,
                                                                          get_bucket_count(),
+                                                                         input0_trees,
                                                                          intra_bucket_buf_output_size[counter], input0->get_arity()+1, intra_bucket_buf_output[counter],
-                                                                         input1->get_delta(), input1->get_delta_element_count(), input1->get_arity()+1,
+                                                                         input1_trees, input1_size, input1->get_arity()+1,
                                                                          reorder_map_array,
                                                                          output_relation,
                                                                          compute_buffer,
                                                                          counter,
                                                                          join_column_count,
                                                                          &join_tuples_duplicates,
-                                                                         &join_tuples);
-                total_join_tuples = total_join_tuples + join_tuples;
-            }
-            else if (current_ra->get_join_input0_graph_type() == DELTA && current_ra->get_join_input1_graph_type() == FULL)
-            {
-
-                join_completed = join_completed & current_ra->local_join(threshold, &(offset[counter]),
-                                                                         LEFT,
-                                                                         get_bucket_count(),
-                                                                         intra_bucket_buf_output_size[counter], input0->get_arity()+1, intra_bucket_buf_output[counter],
-                                                                         input1->get_full(), input1->get_full_element_count(), input1->get_arity()+1,
-                                                                         reorder_map_array,
-                                                                         output_relation,
-                                                                         compute_buffer,
-                                                                         counter,
-                                                                         join_column_count,
-                                                                         &join_tuples_duplicates,
-                                                                         &join_tuples);
-                total_join_tuples = total_join_tuples + join_tuples;
-            }
-            else if (current_ra->get_join_input0_graph_type() == FULL && current_ra->get_join_input1_graph_type() == DELTA)
-            {
-
+                                                                         &join_tuples,
+                                                                         real_j_time_stat);
+                jtarget_size += input1_size;             
+                ibf_size += input0_size;           
+            } else {
                 join_completed = join_completed & current_ra->local_join(threshold, &(offset[counter]),
                                                                          RIGHT,
                                                                          get_bucket_count(),
+                                                                         input1_trees,
                                                                          intra_bucket_buf_output_size[counter], input1->get_arity()+1, intra_bucket_buf_output[counter],
-                                                                         input0->get_full(), input0->get_full_element_count(), input0->get_arity()+1,
+                                                                         input0_trees, input0_size, input0->get_arity()+1,
                                                                          reorder_map_array,
                                                                          output_relation,
+                                                                         input0,
+                                                                         input1,
                                                                          compute_buffer,
                                                                          counter,
                                                                          join_column_count,
                                                                          &join_tuples_duplicates,
-                                                                         &join_tuples);
-                total_join_tuples = total_join_tuples + join_tuples;
+                                                                         &join_tuples,
+                                                                         real_j_time_stat);
+                jtarget_size += input0_size;             
+                ibf_size += input1_size;  
             }
-            else if (current_ra->get_join_input0_graph_type() == FULL && current_ra->get_join_input1_graph_type() == FULL)
-            {
-                join_completed = join_completed & current_ra->local_join(threshold, &(offset[counter]),
-                                                                         RIGHT,
-                                                                         get_bucket_count(),
-                                                                         intra_bucket_buf_output_size[counter], input1->get_arity()+1, intra_bucket_buf_output[counter],
-                                                                         input0->get_full(), input0->get_full_element_count(), input0->get_arity()+1,
-                                                                         reorder_map_array,
-                                                                         output_relation,
-                                                                         compute_buffer,
-                                                                         counter,
-                                                                         join_column_count,
-                                                                         &join_tuples_duplicates,
-                                                                         &join_tuples);
-                total_join_tuples = total_join_tuples + join_tuples;
-            }
+            total_join_tuples = total_join_tuples + join_tuples;
+            real_join_time += real_j_time_stat[0];
         }
-        counter++;
+        counter++;      
     }
+    auto after_compute_time = MPI_Wtime();
 
 #if 0
     int global_total_join_tuples = 0;
@@ -667,12 +660,30 @@ bool RAM::local_compute(int* offset)
         std::cout << "Joins: " << global_total_join_tuples << " Duplicates " << global_join_tuples_duplicates << " " << std::endl;
 #endif
 
+    auto before_sync_time = MPI_Wtime();
     int global_synchronizer = 0;
     int synchronizer = 0;
     if (join_completed == true)
         synchronizer = 1;
 
     MPI_Allreduce(&synchronizer, &global_synchronizer, 1, MPI_INT, MPI_BAND, mcomm.get_comm());
+    auto after_sync_time = MPI_Wtime();
+    auto lc_all_time = after_compute_time - before_compute_time;
+    double slowest_rank_time = lc_all_time;
+    MPI_Allreduce(&lc_all_time, &slowest_rank_time, 1, MPI_DOUBLE, MPI_MAX, mcomm.get_comm());
+    if (lc_all_time == slowest_rank_time) {
+        std::cout << "Slowest Rank >>> " << mcomm.get_rank()
+                  << "   Comp Time >>> " << after_compute_time - before_compute_time
+                  << "   Real Join >>> " << real_join_time
+                  << "   Sync Time >>> " << after_sync_time - before_sync_time
+                  << "   Size Sync Time >>> " << size_sync_time
+                  << "  Input Size >>> " << ibf_size
+                  << "  Target Count >>> " << jtarget_size
+                  << "  Join Count >>> " << total_join_tuples
+                  << std::endl;
+    }
+
+    bool res = false;
     if (global_synchronizer == 1)
     {
         counter = 0;
@@ -701,10 +712,19 @@ bool RAM::local_compute(int* offset)
 
         delete[] intra_bucket_buf_output_size;
         delete[] intra_bucket_buf_output;
-        return true;
+        res = true;
     }
-    else
-        return false;
+    
+    
+    if (mcomm.get_rank() == 0) {
+        std::cout << "Rank 0 compute time >>> " << after_compute_time - before_compute_time
+                  << "    Sync time >>> " << after_sync_time - before_sync_time
+                  << "  Input Size >>> " << ibf_size
+                  << "  Target Count >>> " << jtarget_size
+                  << std::endl;
+    }
+
+    return res;
 }
 
 
@@ -714,12 +734,14 @@ void RAM::local_comm()
     int cnt=0;
     cumulative_all_to_allv_buffer_cmp = new u64*[RA_list.size()];
     cumulative_all_to_allv_recv_process_size_array_cmp = new int[RA_list.size()];
-
+    auto before_time = MPI_Wtime();
     for (std::vector<parallel_RA*>::iterator it = RA_list.begin() ; it != RA_list.end(); ++it)
     {
         all_to_all_comm(compute_buffer.local_compute_output[cnt], compute_buffer.local_compute_output_size_rel[cnt], compute_buffer.local_compute_output_size[cnt], &cumulative_all_to_allv_recv_process_size_array_cmp[cnt], &cumulative_all_to_allv_buffer_cmp[cnt], mcomm.get_local_comm());
         cnt++;
     }
+    auto after_time = MPI_Wtime();
+    all_to_all_time += (after_time - before_time);
 }
 #endif
 
@@ -750,6 +772,8 @@ void RAM::local_insert_in_newt_comm_compaction(std::map<u64, u64>& intern_map)
     int nprocs = mcomm.get_local_nprocs();
     int RA_count = RA_list.size();
     u64 relation_id=0, bucket_id=0, intern_key=0, intern_value=0;
+    double check_time = 0;
+    double insert_time = 0;
 
     for (int k = 0; k < RA_count * nprocs; k++)
     {
@@ -812,13 +836,29 @@ void RAM::local_insert_in_newt_comm_compaction(std::map<u64, u64>& intern_map)
             }
 #endif
             u32 elements_to_read = tuples_to_read * width;
-            for (int tuple_ind = 0; tuple_ind < tuples_to_read; tuple_ind ++)
+
+            for (u32 tuple_ind = 0; tuple_ind < tuples_to_read; tuple_ind ++)
             {
                 u32 x = starting + tuple_ind * width;
-                if (output->find_in_full(cumulative_all_to_allv_buffer + x, width) == false &&
+                bool insert_flag = true;
+                if (output->get_dependent_column().size() > 1) {
+                    std::vector<u64> tt(cumulative_all_to_allv_buffer+x, cumulative_all_to_allv_buffer+x+width);
+                    // for (int i = 0; i < width; i++) {
+                    //     tt.push_back(cumulative_all_to_allv_buffer[x+i]);
+                    // }
+                    // temporary index column just to match size of column
+                    tt.push_back(0);
+                    auto _before_i = MPI_Wtime();
+                    // insert_flag = output->chmeck_dependent_value_insert_avalible(tt);
+                    insert_flag = true;
+                    auto _after_i = MPI_Wtime();
+                    check_time += _after_i - _before_i;
+                } else {
+                    insert_flag = output->find_in_full(cumulative_all_to_allv_buffer + x, width) == false &&
                         output->find_in_delta(cumulative_all_to_allv_buffer + x, width) == false &&
-                        output->find_in_newt(cumulative_all_to_allv_buffer + x, width) == false)
-                {
+                        output->find_in_newt(cumulative_all_to_allv_buffer + x, width) == false;
+                }
+                if (insert_flag){
                     for (u32 i = 0; i < width; i++)
                         tuple[i] = cumulative_all_to_allv_buffer[x+i];
 
@@ -838,20 +878,12 @@ void RAM::local_insert_in_newt_comm_compaction(std::map<u64, u64>& intern_map)
                     intern_map[intern_key] = intern_value;
                     tuple[width] = intern_key | intern_value;    /// Intern here
 
-
+                    auto _before_ins = MPI_Wtime();
                     if (output->insert_in_newt(tuple) == true)
                         successful_insert++;
-
-                    //if (RA_list[ra_id]->get_RA_type() == FACT)
-                    //    std::cout << "FFFFFFFFFF "<< tuple[0] << " " << tuple[1] << " " << successful_insert << std::endl;
+                    auto _after_ins = MPI_Wtime();
+                    insert_time += _after_ins - _before_ins;
                 } 
-                // else {
-                    // std::cout << "insert fail ";
-                    // for (int i = 0; i < width; i++) {
-                    //     std::cout << cumulative_all_to_allv_buffer[i] << " ";
-                // }
-                // std::cout << std::endl;
-                // }
             }
             starting = starting + elements_to_read;
         }
@@ -862,7 +894,7 @@ void RAM::local_insert_in_newt_comm_compaction(std::map<u64, u64>& intern_map)
             u64 tuple[width];
             successful_insert = 0;
             u32 elements_to_read = tuples_to_read * width;
-            for (int tuple_ind = 0; tuple_ind < tuples_to_read; tuple_ind ++)
+            for (u32 tuple_ind = 0; tuple_ind < tuples_to_read; tuple_ind ++)
             {
                 u32 x = starting + tuple_ind * width;
                 if (output->find_in_full(cumulative_all_to_allv_buffer + x, width) == false && output->find_in_delta(cumulative_all_to_allv_buffer + x, width) == false)
@@ -886,7 +918,8 @@ void RAM::local_insert_in_newt_comm_compaction(std::map<u64, u64>& intern_map)
 
         // std::cout << output->get_debug_id() << " successful insert: " << successful_insert << " ; failed insert : " << failed_insert <<  std::endl;
     }
-
+    if (mcomm.get_rank() == 0)
+        std::cout << "CHECK TIME: " << check_time << "   INSERT_TIME: " << insert_time << " NEW TUPLES: " << successful_insert << std::endl;
     delete[] cumulative_all_to_allv_recv_process_count_array;
     delete[] cumulative_all_to_allv_buffer;
 }
@@ -1003,15 +1036,10 @@ void RAM::local_insert_in_newt(std::map<u64, u64>& intern_map)
 void RAM::local_insert_in_full()
 {
     for (u32 i=0; i < ram_relation_count; i++)
-        //for (std::map<relation*, bool>::iterator it = ram_relations.begin() ; it != ram_relations.end(); ++it)
     {
-        //relation* current_r = it->first;
         relation* current_r = ram_relations[i];
-        current_r->insert_delta_in_full();
         current_r->local_insert_in_delta();
-
-        //if (current_r->get_debug_id() == 11)
-        //    current_r->print();
+        current_r->insert_delta_in_full();
     }
     return;
 }
@@ -1077,7 +1105,7 @@ void RAM::io_all_relation(int status)
 }
 
 
-void RAM::execute_in_batches(std::string name, int batch_size, std::vector<u32>& history, std::map<u64, u64>& intern_map, int* loop_counter, int task_id, std::string output_dir, bool all_to_all_record, int sloav_mode, int* rotate_index_array, int** send_indexes, int *sendb_num)
+void RAM::execute_in_batches(std::string name, int batch_size, std::vector<u32>& history, std::map<u64, u64>& intern_map, int* loop_counter, int task_id, std::string output_dir, bool all_to_all_record, int sloav_mode, int* rotate_index_array, int** send_indexes, int *sendb_num, std::vector<double>& runtime_vector)
 {
     int inner_loop = 0;
     u32 RA_count = RA_list.size();
@@ -1086,6 +1114,16 @@ void RAM::execute_in_batches(std::string name, int batch_size, std::vector<u32>&
     for (u32 i =0; i < RA_count; i++)
         offset[i] = 0;
 
+    double all_local_compute = 0;
+    double all_insert_newt = 0;
+    double all_comm = 0;
+    double all_time = 0;
+    double all_insert_in_full = 0;
+    double all_allocate_buf = 0;
+    double all_intra = 0;
+    double all_free_buf =0;
+
+    // auto before_batch = MPI_Wtime();
     while (batch_size != 0)
     {
 #if DEBUG_OUTPUT
@@ -1093,35 +1131,41 @@ void RAM::execute_in_batches(std::string name, int batch_size, std::vector<u32>&
         //    std::cout << "--------------FIXED POINT ITERATION " << loop_count_tracker << "--------------" << std::endl;
 #endif
 
-
+        auto intra_start = MPI_Wtime(); 
         intra_bucket_comm_execute();
+        auto intra_end = MPI_Wtime();
+        all_intra += intra_end - intra_start; 
 
-
+        std::cout << std::setiosflags(std::ios::fixed);
         bool local_join_status = false;
         while (local_join_status == false)
         {
-
+            auto allocate_buffers_start = MPI_Wtime();
             allocate_compute_buffers();
+            auto allocate_buffers_end = MPI_Wtime();
+            all_allocate_buf += allocate_buffers_end - allocate_buffers_start;
 
-
-
+            auto compute_start = MPI_Wtime();
             local_join_status = local_compute(offset);
+            auto compute_end = MPI_Wtime();
+            all_local_compute += compute_end - compute_start;
 
-
-
+            auto all_to_all_start = MPI_Wtime();
             local_comm();
+            auto all_to_all_end = MPI_Wtime();
+            all_comm += all_to_all_end - all_to_all_start;
 
-
-
-
+            auto free_buffers_start = MPI_Wtime();
             free_compute_buffers();
+            auto free_buffers_end = MPI_Wtime();
+            all_free_buf += free_buffers_end - free_buffers_start;
 
-
-
+            auto insert_in_newt_start = MPI_Wtime();
             local_insert_in_newt(intern_map);
+            auto insert_in_newt_end = MPI_Wtime();
+            all_insert_newt += insert_in_newt_end - insert_in_newt_start;
 
-
-#if DEBUG_OUTPUT
+#if 1
             if (mcomm.get_rank() == 0)
             {
 #if 0
@@ -1141,20 +1185,29 @@ void RAM::execute_in_batches(std::string name, int batch_size, std::vector<u32>&
                           << " newt " << *running_insert_newt
                           << std::endl;
 #endif
-                std::cout << loop_count_tracker << "\t"
-                          << (allocate_buffers_end - allocate_buffers_start) << "\t"
-                          << (compute_end - compute_start) << "\t"
-                          << (all_to_all_end - all_to_all_start) << "\t"
-                          << (free_buffers_end - free_buffers_start) << "\t"
-                          << (insert_in_newt_end - insert_in_newt_start) << "\t";
+                std::cout << "loop" << std::setw(12) << "alloc_buf" << std::setw(12) << "compute" << std::setw(12)
+                          << "all2all" << std::setw(12) << "free_buf" << std::setw(12) << "insert_newt" << std::setw(12)
+                          << "intra" << std::setw(12) << "insert_full" << std::setw(12) << "total" << "\n" ;
+                std::cout << loop_count_tracker << std::setprecision(4) << std::setw(12)
+                          << (allocate_buffers_end - allocate_buffers_start) << std::setprecision(4) << std::setw(12)
+                          << (compute_end - compute_start) << std::setprecision(4) << std::setw(12)
+                          << (all_to_all_end - all_to_all_start) << std::setprecision(4) << std::setw(12)
+                          << (free_buffers_end - free_buffers_start) << std::setprecision(4) << std::setw(12)
+                          << (insert_in_newt_end - insert_in_newt_start) << std::setprecision(4) << std::setw(12);
             }
 #endif
             inner_loop++;
         }
+        auto insert_in_full_start = MPI_Wtime(); 
         local_insert_in_full();
+        auto insert_in_full_end = MPI_Wtime(); 
+        all_insert_in_full += insert_in_full_end - insert_in_full_start;
 
-#if DEBUG_OUTPUT
-        if (mcomm.get_rank() == 0)
+#if 1
+        double all_l_time = insert_in_full_end - intra_start;
+        double slowest_all_time = all_l_time;
+        MPI_Allreduce(&all_l_time, &slowest_all_time, 1, MPI_DOUBLE, MPI_MAX, mcomm.get_comm());
+        if (mcomm.get_rank() == 0 || slowest_all_time == all_l_time)
         {
 #if 0
             std::cout  << name << " " << mcomm.get_local_nprocs()<< " Current time OUTER LOOP [" << loop_count_tracker << " ] "
@@ -1170,19 +1223,34 @@ void RAM::execute_in_batches(std::string name, int batch_size, std::vector<u32>&
                        << " full " << *running_insert_in_full
                        << " Total " << *running_intra_bucket_comm + *running_buffer_allocate + *running_local_compute + *running_all_to_all + *running_buffer_free + *running_insert_newt + *running_insert_in_full << std::endl;
 #endif
-            std::cout << (intra_end - intra_start) << "\t"
-                      << (insert_in_full_end - insert_in_full_start)  << "\t"
-                      << (insert_in_full_end - intra_start) << std::endl;
-
+            std::cout << "rank" << std::setw(12) << "loop" << std::setw(12) << "alloc_buf" << std::setw(12) << "compute" << std::setw(12)
+                        << "all2all" << std::setw(12) << "free_buf" << std::setw(12) << "insert_newt" << std::setw(12)
+                        << "intra" << std::setw(12) << "insert_full" << std::setw(12) << "total" << "\n" ;
+            std::cout << mcomm.get_rank() << std::setw(12) << loop_count_tracker << std::setprecision(4) << std::setw(12)
+                        << all_allocate_buf << std::setprecision(4) << std::setw(12)
+                        << all_local_compute << std::setprecision(4) << std::setw(12)
+                        << all_comm << std::setprecision(4) << std::setw(12)
+                        << all_free_buf << std::setprecision(4) << std::setw(12)
+                        << all_insert_newt << std::setprecision(4) << std::setw(12);
+            std::cout << all_intra << std::setw(12)
+                      << all_insert_in_full << std::setw(12)
+                      << all_l_time << std::endl;
         }
 #endif
-
+        all_time += all_l_time;
         batch_size--;
         loop_count_tracker++;
 
         *loop_counter = *loop_counter + 1;
         if (iteration_count == 1)
             break;
+    }
+
+    if (mcomm.get_rank() == 0) {
+        runtime_vector[0] = runtime_vector[0] + all_comm;
+        runtime_vector[1] = runtime_vector[1] + all_local_compute;
+        runtime_vector[2] = runtime_vector[2] + all_insert_newt;
+        runtime_vector[3] = runtime_vector[3] + all_time;
     }
 
     delete[] offset;
@@ -1209,7 +1277,7 @@ void RAM::execute_in_batches(std::string name, int batch_size, std::vector<u32>&
 
 
 
-void RAM::execute_in_batches_comm_compaction(std::string name, int batch_size, std::vector<u32>& history, std::map<u64, u64>& intern_map, int* loop_counter, int task_id, std::string output_dir, bool all_to_all_record, int sloav_mode, int* rotate_index_array, int** send_indexes, int *sendb_num)
+void RAM::execute_in_batches_comm_compaction(std::string name, int batch_size, std::vector<u32>& history, std::map<u64, u64>& intern_map, int* loop_counter, int task_id, std::string output_dir, bool all_to_all_record, int sloav_mode, int* rotate_index_array, int** send_indexes, int *sendb_num, std::vector<double>& runtime_vector)
 {
     int inner_loop = 0;
     u32 RA_count = RA_list.size();
@@ -1217,6 +1285,17 @@ void RAM::execute_in_batches_comm_compaction(std::string name, int batch_size, s
     int *offset = new int[RA_count];
     for (u32 i =0; i < RA_count; i++)
         offset[i] = 0;
+    
+    double all_local_compute = 0;
+    double all_insert_newt = 0;
+    double all_comm = 0;
+    double all_time = 0;
+    double all_insert_in_full = 0;
+    double all_allocate_buf = 0;
+    double all_intra = 0;
+    double all_free_buf =0;
+
+    // auto before_batch = MPI_Wtime();
 
     while (batch_size != 0)
     {
@@ -1225,28 +1304,42 @@ void RAM::execute_in_batches_comm_compaction(std::string name, int batch_size, s
         //    std::cout << "--------------FIXED POINT ITERATION " << loop_count_tracker << "--------------" << std::endl;
 #endif
 
-
+        std::cout << std::setiosflags(std::ios::fixed);
+        auto intra_start = MPI_Wtime(); 
         intra_bucket_comm_execute();
+        auto intra_end = MPI_Wtime();
+        all_intra += intra_end - intra_start;
 
         bool local_join_status = false;
         while (local_join_status == false)
         {
+            auto allocate_buffers_start = MPI_Wtime();
             allocate_compute_buffers();
+            auto allocate_buffers_end = MPI_Wtime();
+            all_allocate_buf += allocate_buffers_end - allocate_buffers_start;
 
-
+            auto compute_start = MPI_Wtime();
             local_join_status = local_compute(offset);
+            auto compute_end = MPI_Wtime();
+            all_local_compute += compute_end - compute_start;
 
+            auto all_to_all_start = MPI_Wtime();
             comm_compaction_all_to_all(compute_buffer, &cumulative_all_to_allv_recv_process_count_array, &cumulative_all_to_allv_buffer, mcomm.get_local_comm(), *loop_counter, task_id, output_dir, all_to_all_record, sloav_mode, rotate_index_array, send_indexes, sendb_num);
+            auto all_to_all_end = MPI_Wtime();
+            all_comm += all_to_all_end - all_to_all_start;
 
-
+            auto free_buffers_start = MPI_Wtime();
             free_compute_buffers();
+            auto free_buffers_end = MPI_Wtime();
+            all_free_buf += free_buffers_end - free_buffers_start;
 
-
-
+            auto insert_in_newt_start = MPI_Wtime();
             local_insert_in_newt_comm_compaction(intern_map);
+            auto insert_in_newt_end = MPI_Wtime();
+            all_insert_newt += insert_in_newt_end - insert_in_newt_start;
 
 
-#if DEBUG_OUTPUT
+#if 0
             if (mcomm.get_rank() == 0)
             {
 #if 0
@@ -1266,23 +1359,30 @@ void RAM::execute_in_batches_comm_compaction(std::string name, int batch_size, s
                           << " newt " << *running_insert_newt
                           << std::endl;
 #endif
-                std::cout << loop_count_tracker << "\t"
-                          << (allocate_buffers_end - allocate_buffers_start) << "\t"
-                          << (compute_end - compute_start) << "\t"
-                          << (all_to_all_end - all_to_all_start) << "\t"
-                          << (free_buffers_end - free_buffers_start) << "\t"
-                          << (insert_in_newt_end - insert_in_newt_start) << "\t";
+                std::cout << "loop" << std::setw(12) << "alloc_buf" << std::setw(12) << "compute" << std::setw(12)
+                          << "all2all" << std::setw(12) << "free_buf" << std::setw(12) << "insert_newt" << std::setw(12)
+                          << "intra" << std::setw(12) << "insert_full" << std::setw(12) << "total" << "\n" ;
+                std::cout << loop_count_tracker << std::setprecision(4) << std::setw(12)
+                          << (allocate_buffers_end - allocate_buffers_start) << std::setprecision(4) << std::setw(12)
+                          << (compute_end - compute_start) << std::setprecision(4) << std::setw(12)
+                          << (all_to_all_end - all_to_all_start) << std::setprecision(4) << std::setw(12)
+                          << (free_buffers_end - free_buffers_start) << std::setprecision(4) << std::setw(12)
+                          << (insert_in_newt_end - insert_in_newt_start) << std::setprecision(4) << std::setw(12);
             }
 #endif
             inner_loop++;
         }
 
-
+        auto insert_in_full_start = MPI_Wtime(); 
         local_insert_in_full();
+        auto insert_in_full_end = MPI_Wtime();
+        all_insert_in_full += insert_in_full_end - insert_in_full_start;
 
-
-#if DEBUG_OUTPUT
-        if (mcomm.get_rank() == 0)
+#if 1
+        double all_l_time = insert_in_full_end - intra_start;
+        double slowest_all_time = all_l_time;
+        MPI_Allreduce(&all_l_time, &slowest_all_time, 1, MPI_DOUBLE, MPI_MAX, mcomm.get_comm());
+        if (mcomm.get_rank() == 0 || slowest_all_time == all_l_time)
         {
 #if 0
             std::cout  << name << " " << mcomm.get_local_nprocs()<< " Current time OUTER LOOP [" << loop_count_tracker << " ] "
@@ -1298,19 +1398,34 @@ void RAM::execute_in_batches_comm_compaction(std::string name, int batch_size, s
                        << " full " << *running_insert_in_full
                        << " Total " << *running_intra_bucket_comm + *running_buffer_allocate + *running_local_compute + *running_all_to_all + *running_buffer_free + *running_insert_newt + *running_insert_in_full << std::endl;
 #endif
-            std::cout << (intra_end - intra_start) << "\t"
-                      << (insert_in_full_end - insert_in_full_start)  << "\t"
-                      << (insert_in_full_end - intra_start) << std::endl;
-
+            std::cout << "rank" << std::setw(12) << "loop" << std::setw(12) << "alloc_buf" << std::setw(12) << "compute" << std::setw(12)
+                        << "all2all" << std::setw(12) << "free_buf" << std::setw(12) << "insert_newt" << std::setw(12)
+                        << "intra" << std::setw(12) << "insert_full" << std::setw(12) << "total" << "\n" ;
+            std::cout << mcomm.get_rank()<< std::setw(12) << loop_count_tracker << std::setprecision(4) << std::setw(12)
+                        << all_allocate_buf << std::setprecision(4) << std::setw(12)
+                        << all_local_compute << std::setprecision(4) << std::setw(12)
+                        << all_comm << std::setprecision(4) << std::setw(12)
+                        << all_free_buf << std::setprecision(4) << std::setw(12)
+                        << all_insert_newt << std::setprecision(4) << std::setw(12);
+            std::cout << all_intra << std::setw(12)
+                      << all_insert_in_full  << std::setw(12)
+                      << all_l_time << std::endl;
         }
+        
 #endif
-
+        all_time += all_l_time;
         batch_size--;
         loop_count_tracker++;
 
         *loop_counter = *loop_counter + 1;
         if (iteration_count == 1)
             break;
+    }
+    if (mcomm.get_rank() == 0) {
+        runtime_vector[0] = runtime_vector[0] + all_comm;
+        runtime_vector[1] = runtime_vector[1] + all_local_compute;
+        runtime_vector[2] = runtime_vector[2] + all_insert_newt;
+        runtime_vector[3] = runtime_vector[3] + all_time;
     }
 
     delete[] offset;
@@ -1336,7 +1451,7 @@ void RAM::execute_in_batches_comm_compaction(std::string name, int batch_size, s
 
 bool RAM::contains_relation(int tag) {
     for (auto rel : ram_relations) {
-        if (rel->get_intern_tag() == tag) {
+        if (rel->get_intern_tag() == (u32)tag) {
             return true;
         }
     }

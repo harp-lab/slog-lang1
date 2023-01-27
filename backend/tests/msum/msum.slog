@@ -1,0 +1,3 @@
+
+[(cpath x y {x 1}) <-- (edge x y)]
+[(cpath x z {y l}) <-- (cpath x y prev l) (edge y z)]

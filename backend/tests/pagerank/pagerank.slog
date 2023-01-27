@@ -1,0 +1,3 @@
+
+[(rank x x (computed1 x)) <-- (matrix x _ _)]
+[(rank x y (computed2 c d)) <-- (rank y _ c) (matrix y x d)]

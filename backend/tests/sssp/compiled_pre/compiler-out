@@ -1,0 +1,12 @@
+parsing + compilation took 2 ms.
+ir-small: 
+RULES:
+------------------------------------------------------
+/home/stargazermiao/workspace/PL/slog/backend/tests/update/sssp.slog 1:
+[((rel-arity spath 3 db) from to dist) <--
+  (= $_1 ((rel-arity edge 3 db) from to dist))]
+
+
+All rules: 1, arules: 0, copy rules: 1, join rules: 0, facts: 0
+rels: 2, sccs: 1
+[wrote C++ driver and data to "/home/stargazermiao/workspace/PL/slog/out/sssp.cpp"]

@@ -56,25 +56,114 @@ unsigned buckets;
 string string_intern_file_path;
 string mode = "slog";
 
-// hash a tuple n values long using our hashing algorithm
-u64 hash_tuple(u64 *fact, unsigned num)
+/// Based on the FNV-1a hash function
+#include <cstdint>
+// #include <endian.h>
+#define MURMUR_SEED 7917
+
+///FNV-1a
+uint64_t fnv1a(const uint64_t* start_ptr, uint64_t prefix_len)
 {
-	u64 prime = 1099511628211ull;
-	u64 hash = 14695981039346656037ull;
-	u64 chunk, h0;
-	for (unsigned i = 0; i < num; i++)
-	{
-		chunk = fact[i];
-		h0 = hash ^ (chunk & 255);
-		hash = h0 * prime;
-		for (unsigned j = 0; j < 7; j++)
-		{
-			chunk = chunk >> 8;
-			h0 = hash ^ (chunk & 255);
-			hash = h0 * prime;
-		}
-	}
-	return hash;
+    const uint64_t base = 14695981039346656037ULL;
+    const uint64_t prime = 1099511628211ULL;
+
+    uint64_t hash = base;
+    for (uint64_t i = 0; i < prefix_len; ++i)
+    {
+        uint64_t chunk = start_ptr[i];
+        hash ^= chunk & 255ULL;
+        hash *= prime;
+        for (char j = 0; j < 7; ++j)
+        {
+            chunk = chunk >> 8;
+            hash ^= chunk & 255ULL;
+            hash *= prime;
+        }
+    }
+    return hash;
+}
+
+
+
+// murmurhash
+#if defined(_MSC_VER)
+
+#define BIG_CONSTANT(x) (x)
+
+// Other compilers
+
+#else	// defined(_MSC_VER)
+
+#define BIG_CONSTANT(x) (x##LLU)
+
+#endif // !defined(_MSC_VER)
+
+static inline uint64_t getblock ( const uint64_t * p )
+{
+#if defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+  return *p;
+#else
+  const uint8_t *c = (const uint8_t *)p;
+  return (uint64_t)c[0] |
+	 (uint64_t)c[1] <<  8 |
+	 (uint64_t)c[2] << 16 |
+	 (uint64_t)c[3] << 24 |
+	 (uint64_t)c[4] << 32 |
+	 (uint64_t)c[5] << 40 |
+	 (uint64_t)c[6] << 48 |
+	 (uint64_t)c[7] << 56;
+#endif
+}
+
+uint64_t MurmurHash64A ( const void * key, int len, uint64_t seed )
+{
+  const uint64_t m = BIG_CONSTANT(0xc6a4a7935bd1e995);
+  const int r = 47;
+
+  uint64_t h = seed ^ (len * m);
+
+  const uint64_t * data = (const uint64_t *)key;
+  const uint64_t * end = data + (len/8);
+
+  while(data != end)
+  {
+    uint64_t k = getblock(data++);
+
+    k *= m; 
+    k ^= k >> r; 
+    k *= m; 
+    
+    h ^= k;
+    h *= m; 
+  }
+
+  const unsigned char * data2 = (const unsigned char*)data;
+
+  switch(len & 7)
+  {
+  case 7: h ^= uint64_t(data2[6]) << 48;
+  case 6: h ^= uint64_t(data2[5]) << 40;
+  case 5: h ^= uint64_t(data2[4]) << 32;
+  case 4: h ^= uint64_t(data2[3]) << 24;
+  case 3: h ^= uint64_t(data2[2]) << 16;
+  case 2: h ^= uint64_t(data2[1]) << 8;
+  case 1: h ^= uint64_t(data2[0]);
+          h *= m;
+  };
+ 
+  h ^= h >> r;
+  h *= m;
+  h ^= h >> r;
+
+  return h;
+} 
+
+
+
+uint64_t tuple_hash(const uint64_t* start_ptr, uint64_t prefix_len)
+{
+    return fnv1a(start_ptr, prefix_len);
+    // return MurmurHash64A(start_ptr, (int)prefix_len, MURMUR_SEED);
 }
 
 u32 string_hash(const std::string& str) {
@@ -284,7 +373,7 @@ void file_to_slog(char *input_file, char *output_file,
 			col_count++;
 		}
 
-		u64 t_hash = hash_tuple(tuple_buffer, arity);
+		u64 t_hash = tuple_hash(tuple_buffer, arity);
 		if (tuple_hash_set.find(t_hash) == tuple_hash_set.end()){
 			tuple_hash_set.insert(t_hash);
 			u64 tid = rel_tag;

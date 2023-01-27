@@ -199,7 +199,7 @@ class SlogClient:
             writer.write(f" {response.error_msg} fail to update!")
         ftp_conn.close()
 
-    @lru_cache(maxsize=None)
+    # @lru_cache(maxsize=None)
     def compile_slog(self, filename, writer=Writer()):
         '''
         compile a slog file, and set current DB as the resultant DB.
@@ -254,6 +254,9 @@ class SlogClient:
         req.using_database = ""
         req.hashes.extend(program_hashes)
         response = self._stub.CompileHashes(req)
+        if response.promise_id == MAXSIZE:
+            # writer.write("Already compiled!")
+            return self.cur_db
         # Wait to resolve the promise in the terminal...
         # Break when promise is resolved
         edb = self.run_until_promised(response.promise_id, PING_INTERVAL, writer)
@@ -315,12 +318,12 @@ class SlogClient:
     def _update_intern_strings(self, db_id):
         """ update cached string.csv data """
         if self.local_db_path:
-            with open(os.path.join(self.local_db_path, '$strings.csv'), 'r') as string_file:
-                for s_line in string_file:
-                    if s_line.strip() == '':
-                        continue
-                    sv = s_line.split('\t')[1]
-                    self.intern_string_dict[string_hash(sv.strip())] = sv.strip()
+            # with open(os.path.join(self.local_db_path, '$strings.csv'), 'r') as string_file:
+            #     for s_line in string_file:
+            #         if s_line.strip() == '':
+            #             continue
+            #         sv = s_line.split('\t')[1]
+            #         self.intern_string_dict[string_hash(sv.strip())] = sv.strip()
             return
         req = slog_pb2.StringRequest()
         req.database_id = db_id

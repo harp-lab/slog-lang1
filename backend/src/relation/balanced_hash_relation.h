@@ -8,13 +8,23 @@
 #pragma once
 
 #include "../ds.h"
+#include "../parallel_RA_inc.h"
 #include <algorithm>
+#include <functional>
+#include <optional>
 #include <string>
+#include <vector>
 
 enum {LEFT=0, RIGHT};
 enum {DELTA=0, FULL, FULL_AND_DELTA};
-enum {COPY=0, COPY_FILTER, COPY_GENERATE, ACOPY, JOIN, FACT, NEGATION, AGGREGATION};
+enum {COPY=0, COPY_FILTER, COPY_GENERATE, ACOPY, JOIN, FACT, NEGATION, AGGREGATION, UPDATE};
 enum {STATIC=0, DYNAMIC};
+enum {INSERT_SUCCESS=0, INSERT_FAIL, INSERT_UPDATED};
+
+using tuple_formator_t = std::function<void(const std::vector<u64>&)>;
+
+// this is update function for column has functional dependence
+// the size of vector arguments must have exactly same size as dependent_column_indices
 
 class relation
 {
@@ -27,7 +37,7 @@ private:
     u32 intern_tag;                             /// id of relation (to be used for interning)
 
     std::string debug_id;
-    int initailization_type = -1;               /// used when task balancing is required
+    int initialization_type = -1;               /// used when task balancing is required
     std::string filename = NULL;                /// Name of file to open
 
 
@@ -61,7 +71,6 @@ private:
     u32 **delta_sub_bucket_element_count;
     u32 *delta_bucket_element_count;
 
-    u32 default_sub_bucket_per_bucket_count;    /// 1
     u32 *sub_bucket_per_bucket_count;           /// sub_bucket_per_bucket_count[i] holds the total number of sub-buckets at bucket index i
     u32** sub_bucket_rank;                      /// target rank of a subbucket
 
@@ -79,9 +88,15 @@ private:
     bool restart_flag;
     //bool fact_load=false;
     //std::vector<u64> init_val;
+    std::vector<int> dependent_column_indices;
+    update_partial_compare_func_t update_compare_func;
 
+    // This is only used when this relation need to be reused in another computation loop
+    bool init_flag = true;
 
 public:
+    u32 default_sub_bucket_per_bucket_count = 1;    /// 1
+    bool balance_flag = false;
 
     /// Example: relation* rel_path_2_1_2 = new relation(2, true, 2, 257, "rel_path_2_1_2", "../data/g5955/path_2_1_2", FULL);
     /// 2: arity (Internally one extra id (intern id) column is added to every relation)
@@ -92,7 +107,7 @@ public:
     /// "/var/tmp/g13236/path_2_1_2": location of data file that gets loaded in the relation
     /// FULL: load in FULL (other option is to loadin DELTA, but we alwys load in FULL)
     relation (u32 jcc, bool is_c, u32 ar, u32 tg, std::string fname, int version)
-        :join_column_count(jcc), is_canonical(is_c), arity(ar), intern_tag(tg), initailization_type(version), filename(fname)
+        :join_column_count(jcc), is_canonical(is_c), arity(ar), intern_tag(tg), initialization_type(version), filename(fname)
     {
         //fact_load = false;
         full_element_count=0;
@@ -100,7 +115,7 @@ public:
     }
 
     relation (u32 jcc, bool is_c, u32 ar, u32 tg, std::string did, std::string fname, int version)
-        :join_column_count(jcc), is_canonical(is_c), arity(ar), intern_tag(tg), debug_id(did), initailization_type(version), filename(fname)
+        :join_column_count(jcc), is_canonical(is_c), arity(ar), intern_tag(tg), debug_id(did), initialization_type(version), filename(fname)
     {
         //fact_load = false;
         full_element_count=0;
@@ -108,7 +123,7 @@ public:
     }
 
     relation (u32 jcc, bool is_c, u32 ar, u32 tg, int version)
-        :join_column_count(jcc), is_canonical(is_c), arity(ar), intern_tag(tg), initailization_type(version), filename("")
+        :join_column_count(jcc), is_canonical(is_c), arity(ar), intern_tag(tg), initialization_type(version), filename("")
     {
         //fact_load = false;
         full_element_count=0;
@@ -134,12 +149,27 @@ public:
 
     //void set_init_val(std::vector<u64> temp_init_val)   {init_val = temp_init_val;}
 
+    void set_dependent_column_update(std::vector<int> idx, update_partial_compare_func_t f) {
+        dependent_column_indices = idx;
+        update_compare_func= f;
+        // for (int i = 0; i < get_bucket_count(); i++) {
+        //     delta[i].dependent_column_indices = dependent_column_indices;
+        //     delta[i].update_compare_func = update_compare_func;
+        //     full[i].dependent_column_indices = dependent_column_indices;
+        //     full[i].update_compare_func = update_compare_func;
+        //     newt[i].dependent_column_indices = dependent_column_indices;
+        //     newt[i].update_compare_func = update_compare_func;
+        // }
+    }
+    std::vector<int> get_dependent_column() { return dependent_column_indices; }
+    update_partial_compare_func_t get_update_compare_func() { return update_compare_func; }
+
     /// used for load balancing
     void set_last_rank(int lr)   {last_rank = lr;}
     int get_last_rank() {   return last_rank;}
 
     /// used for task-level parallelism
-    void set_initailization_type(int x) { initailization_type = x;  }
+    void set_initialization_type(int x) { initialization_type = x;  }
 
 
     bool get_is_canonical() {return is_canonical;}
@@ -160,7 +190,13 @@ public:
 
 
     void set_full_element_count(int val)   {full_element_count = val;}
-    int get_full_element_count()    {return full_element_count;}
+    int get_full_element_count()    {
+        u64 res = 0;
+        for (int i = 0; i < get_bucket_count();  i++) {
+            res += full[i].size();
+        }
+        return res;
+    }
     u32** get_full_sub_bucket_element_count()   {return full_sub_bucket_element_count;}
     u32 get_global_full_element_count();
 
@@ -186,7 +222,13 @@ public:
 #endif
 
     void set_delta_element_count(int val)   {delta_element_count = val;}
-    int get_delta_element_count()   {return delta_element_count;}
+    int get_delta_element_count()   {
+        u64 res = 0;
+        for (int i = 0; i < get_bucket_count();  i++) {
+            res += delta[i].size();
+        }
+        return res;
+    }
     u32** get_delta_sub_bucket_element_count()  {return delta_sub_bucket_element_count;}
     u32 get_global_delta_element_count();
 
@@ -197,6 +239,7 @@ public:
 
     /// print all tuples of newt, delta and full
     void print();
+    void print(tuple_formator_t ft);
 
 
     void serial_IO(std::string filename_template);
@@ -244,6 +287,8 @@ public:
     void local_insert_in_delta();
     void copy_newt_to_delta()   {delta = newt;}
 
+    // lattice value check
+    bool check_dependent_value_insert_avalible(const std::vector<u64>& tuple);
 
     /// for load balancing (implemented in relation_load_balance.cpp)
     bool load_balance_merge_full_and_delta(float rf);
@@ -258,4 +303,11 @@ public:
         }
         return !is_canonical;
     }
+
+    // skip initialization/loading facts
+    void disable_initialization() { init_flag = false; }
+    void enable_initialization() { init_flag = true; }
+    bool need_init_huh() { return init_flag; }
+
+    void test_calc_hash_rank(u64 rank_n);
 };

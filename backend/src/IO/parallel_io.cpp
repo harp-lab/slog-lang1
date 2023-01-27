@@ -158,7 +158,7 @@ void parallel_io::parallel_read_input_relation_from_file_to_local_buffer(u32 ari
 
     /* Read all data in parallel */
     uint64_t read_offset;
-    read_offset = ceil((float)global_row_count / nprocs) * rank;
+    read_offset = (int)ceil((float)global_row_count / nprocs) * rank;
 
     if (read_offset > (uint64_t)global_row_count)
     {

@@ -80,7 +80,7 @@ void LIE::update_task_graph(RAM* executable_task)
             taskgraph.erase(lie_sccs[i]);
             // check if relation in this scc need gc
             auto gc_rels = executable_task->get_gc_relation();
-            for (int j=0; j < gc_rels.size(); j++) {
+            for (size_t j=0; j < gc_rels.size(); j++) {
                 auto pos = std::find(lie_relations.begin(), lie_relations.end(), gc_rels[j]);
                 if (pos != lie_relations.end()) {
                     lie_relations.erase(pos);
@@ -305,12 +305,16 @@ bool LIE::execute ()
     /// Initialize all relations
     for (u32 i = 0 ; i < lie_relations.size(); i++)
     {
-        lie_relations[i]->set_restart_flag(restart_flag);
-        lie_relations[i]->set_share_io(share_io);
-        lie_relations[i]->set_separate_io(separate_io);
-        lie_relations[i]->set_offset_io(offset_io);
-        lie_relations[i]->initialize_relation(mcomm, intern_map);
-
+        if (lie_relations[i]->need_init_huh()) {
+            lie_relations[i]->set_restart_flag(restart_flag);
+            lie_relations[i]->set_share_io(share_io);
+            lie_relations[i]->set_separate_io(separate_io);
+            lie_relations[i]->set_offset_io(offset_io);
+            lie_relations[i]->initialize_relation(mcomm, intern_map);
+            // if (lie_relations[i]->get_intern_tag() == 258) {
+            //     std::cout << "Edge size on rank " << mcomm.get_rank() << " is " << lie_relations[i]->get_full_element_count() << std::endl; 
+            // }
+        }
 #if DEBUG_OUTPUT
         //lie_relations[i]->print();
 #endif
@@ -318,6 +322,11 @@ bool LIE::execute ()
     int full_iteration_count = 0;
 
     print_all_relation_size();
+
+    // balance all relation before program run
+    // for (u32 i = 0 ; i < lie_relations.size(); i++) {
+    
+    // }
 
     //if (mcomm.get_local_rank() == 0)
     //    std::cout << "Done initializing " << lie_relation_count <<  std::endl;
@@ -384,6 +393,7 @@ bool LIE::execute ()
             }
         }
     }
+    std::vector<double> run_time_vector(4,0);
 
     //int c = 0;
     /// Running one task at a time
@@ -421,6 +431,10 @@ bool LIE::execute ()
             print_relation_size(scc_relation[i]);
         std::cout << "<<<<<<<<<<<<<<<<<<<<<<<<< BEFORE COMPUTATION <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << std::endl;
 #endif
+
+        // load balance before a SCC executed
+        // executable_task->load_balance();
+
         if (restart_flag == false)
         {
             for (u32 i=0; i < scc_relation_count; i++)
@@ -440,7 +454,7 @@ bool LIE::execute ()
                     delta_filename = delta_filename + "_" + std::to_string(mcomm.get_local_rank());
 
                 scc_relation[i]->set_filename(delta_filename);
-                scc_relation[i]->set_initailization_type(0);
+                scc_relation[i]->set_initialization_type(0);
 
                 int is_access = access(delta_filename.c_str(), F_OK);
                 int access_sum = 0;
@@ -472,9 +486,9 @@ bool LIE::execute ()
                 create_checkpoint_dump(loop_counter, executable_task->get_id());
 
             if (comm_compaction == 0)
-                executable_task->execute_in_batches(app_name, batch_size, history, intern_map, &loop_counter, executable_task->get_id(), output_dir, all_to_all_meta_data_dump, sloav_mode, rotate_index_array, send_indexes, sendb_num);
+                executable_task->execute_in_batches(app_name, batch_size, history, intern_map, &loop_counter, executable_task->get_id(), output_dir, all_to_all_meta_data_dump, sloav_mode, rotate_index_array, send_indexes, sendb_num, run_time_vector);
             else
-                executable_task->execute_in_batches_comm_compaction(app_name, batch_size, history, intern_map, &loop_counter, executable_task->get_id(), output_dir, all_to_all_meta_data_dump, sloav_mode, rotate_index_array, send_indexes, sendb_num);
+                executable_task->execute_in_batches_comm_compaction(app_name, batch_size, history, intern_map, &loop_counter, executable_task->get_id(), output_dir, all_to_all_meta_data_dump, sloav_mode, rotate_index_array, send_indexes, sendb_num, run_time_vector);
 
             // std::cout << "<<<<<<<<<<<<<<<<<<<<<<<<< AFTER ITERATION " << loop_counter <<" <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << std::endl;
             // for (u32 i = 0 ; i < scc_relation_count; i++)
@@ -520,13 +534,16 @@ bool LIE::execute ()
                     create_checkpoint_dump(loop_counter, executable_task->get_id());
 
                 if (comm_compaction == 0)
-                    executable_task->execute_in_batches(app_name, batch_size, history, intern_map, &loop_counter, executable_task->get_id(), output_dir, all_to_all_meta_data_dump, sloav_mode, rotate_index_array, send_indexes, sendb_num);
+                    executable_task->execute_in_batches(app_name, batch_size, history, intern_map, &loop_counter, executable_task->get_id(), output_dir, all_to_all_meta_data_dump, sloav_mode, rotate_index_array, send_indexes, sendb_num, run_time_vector);
                 else
-                    executable_task->execute_in_batches_comm_compaction(app_name, batch_size, history, intern_map, &loop_counter, executable_task->get_id(), output_dir, all_to_all_meta_data_dump, sloav_mode, rotate_index_array, send_indexes, sendb_num);
+                    executable_task->execute_in_batches_comm_compaction(app_name, batch_size, history, intern_map, &loop_counter, executable_task->get_id(), output_dir, all_to_all_meta_data_dump, sloav_mode, rotate_index_array, send_indexes, sendb_num, run_time_vector);
 
                 //executable_task->print_all_relation();
 
                 delta_in_scc = history[history.size()-2];
+                if(mcomm.get_rank() == 0) {
+                    std::cout << "DELTA " << delta_in_scc << std::endl;
+                }
                 //if (delta_in_scc == 0)
                 //    executed_scc_id.push_back(executable_task->get_id());
 #if 0
@@ -544,10 +561,12 @@ bool LIE::execute ()
                     //    std::cout << "Writing checkpoint dump " << checkpoint_dumps_num << " takes " << max_write_cp_time << "(s)" << std::endl;
                     checkpoint_dumps_num++;
                 }
-#endif
+#endif 
+                // if (loop_counter < 20) {
                 // std::cout << "<<<<<<<<<<<<<<<<<<<<<<<<< AFTER ITERATION " << loop_counter <<" <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << std::endl;
                 // for (u32 i = 0 ; i < scc_relation_count; i++)
                 //     print_relation_size(scc_relation[i]);
+                // }
                 // stat_intermediate();
                 // loop_counter++;
                 //iteration_count[executable_task->get_id()] = loop_counter;
@@ -565,7 +584,12 @@ bool LIE::execute ()
 
         if (mcomm.get_rank() == 0)
         {
-            // std::cout << "<<<<<<<<<<< SCC " << executable_task->get_id() << " finish, " << loop_counter << " iteration in total." << std::endl;
+            std::cout << "<<<<<<<<<<< SCC " << executable_task->get_id() << " finish, " << loop_counter << " iteration in total." << std::endl;
+            std::cout << "TOTAL STAT >>>>>>>> " << executable_task->get_id() << " >>>>>>>> "
+            << "COMM TIME: " << run_time_vector[0] << "  LCOMPUTE TIME: " << run_time_vector[1] << "  INSERT TIME: " << run_time_vector[2]
+            << "  OTHER TIME: " << run_time_vector[3] - run_time_vector[0] - run_time_vector[1] - run_time_vector[2]
+            << "  ALL TIME: " << run_time_vector[3]
+            << std::endl;
             // print_all_relation_size();
         }
         full_iteration_count += loop_counter;
@@ -585,9 +609,11 @@ bool LIE::execute ()
     if (mcomm.get_rank() == 0)
         std::cout << "Total interation count: " << full_iteration_count << std::endl;
 
-    write_final_checkpoint_dump();
+    if (enable_data_io) {
+        write_final_checkpoint_dump();
+    }
 
-    std::cout << "finish writting checkpoint!" << std::endl;
+    // std::cout << "finish writting checkpoint!" << std::endl;
 
     delete[] rotate_index_array;
     for (int i=0; i < nprocs; i++)
@@ -601,9 +627,9 @@ bool LIE::execute ()
 
 LIE::~LIE ()
 {
-    for (u32 i = 0 ; i < lie_relations.size(); i++)
-    {
-        lie_relations[i]->finalize_relation();
-        delete (lie_relations[i]);
-    }
+    // for (u32 i = 0 ; i < lie_relations.size(); i++)
+    // {
+    //     lie_relations[i]->finalize_relation();
+    //     delete (lie_relations[i]);
+    // }
 }

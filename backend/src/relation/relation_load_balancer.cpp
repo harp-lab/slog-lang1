@@ -6,6 +6,7 @@
 
 
 #include "../parallel_RA_inc.h"
+#include <iostream>
 
 
 
@@ -270,8 +271,17 @@ bool relation::load_balance_split_full_and_delta(float rf)
     MPI_Allreduce(&min_sub_bucket_size, &global_min, 1, MPI_INT, MPI_MIN, mcomm.get_local_comm());
     MPI_Allreduce(&total_sub_bucket_size, &global_total_sub_bucket_size, 1, MPI_INT, MPI_SUM, mcomm.get_local_comm());
     delete[] max_sub_bucket_size;
+    if (mcomm.get_rank() == 0) {
+    std::cout << "Max sub buckets ";
+    for (u32 i = 0; i < buckets; i++) {
+        std::cout << max_sub_bucket_size[i] << " ";
+    }
+    std::cout << std::endl;
+    std::cout << "Total Sub buckect size : " << total_sub_bucket_size  << std::endl; 
+    }
 
     average_sub_bucket_size = global_total_sub_bucket_size / total_sub_bucket_count;
+    // std::cout << "Total Sub buckect size : " << global_total_sub_bucket_size  << std::endl; 
 
     u32 global_new_sub_bucket[buckets];
     memcpy(global_new_sub_bucket, sub_bucket_per_bucket_count, buckets * sizeof(u32));

@@ -13,10 +13,31 @@
 #include "compat.h"
 // #include "shmap/shmap.h"
 #include "shmap/shmap_goog.h"
-#include <functional>
+#include <vector>
 
 //#define DEBUG_OUTPUT 1
 #define MAX_LOOP_COUNT 120000
+
+struct vec_comparator {
+  vec_comparator() {}
+
+  bool operator()(const std::vector<u64> &a, const std::vector<u64> &b) const {
+      // make it an unroll loop when change to array
+      int size = a.size();
+          for (int i=0; i < size; i++) {
+              if (a[i] < b[i])
+                  return true;
+              if (a[i] > b[i])
+                  return false;
+          }
+
+      return false;
+  }
+};
+
+using depend_val_t = std::vector<std::vector<u64>>;
+using update_partial_compare_func_t = std::function<std::optional<bool>(const std::vector<u64>& old_v, const std::vector<u64>& new_v, const std::vector<u64>& prefix)>;
+using join_generator_func_t = std::function<bool(const depend_val_t& target_vs, const std::vector<u64>& input_v, depend_val_t& res_set)>;
 
 #include "log/logger.h"
 #include "hash/hash.h"
@@ -33,7 +54,7 @@ enum class SpecialAggregator {
   count,
   maximum,
   minimum,
-  recusive
+  recursive
 };
 
 // TODO: remove unused argument
@@ -45,6 +66,7 @@ using reduce_agg_func_t = std::function<local_agg_res_t(local_agg_res_t, local_a
 using global_agg_func_t = std::function<u64(local_agg_res_t a, local_agg_res_t b)>;
 // typedef local_agg_res_t *reduce_agg_func_t (local_agg_res_t x, local_agg_res_t y);
 // typedef int *global_agg_func_t (std::vector<u64>& data, local_agg_res_t agg_data, int agg_data_count, std::vector<u64>& output); 
+
 
 #include "relation/balanced_hash_relation.h"
 #include "RA/parallel_RA.h"
