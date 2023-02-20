@@ -73,4 +73,4 @@ struct all_to_all_buffer
 ///     outer_hash_buffer: buffer that holds data after all to all comm
 void all_to_all_comm(vector_buffer* vectorized_send_buffer, int vectorized_send_buffer_size, int* send_counts, int *outer_hash_buffer_size, u64 **recv_buffer, MPI_Comm comm);
 
-void comm_compaction_all_to_all(all_to_allv_buffer compute_buffer, int **recv_buffer_counts, u64 **recv_buffer, MPI_Comm comm, int loop_counter, int task_id, std::string output_dir, bool record, int sloav_mode, int* rotate_index_array, int** send_indexes, int *sendb_num);
+void comm_compaction_all_to_all(all_to_allv_buffer compute_buffer, int **recv_buffer_counts, u64 **recv_buffer, MPI_Comm comm);
