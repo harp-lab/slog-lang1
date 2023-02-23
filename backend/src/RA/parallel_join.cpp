@@ -44,11 +44,11 @@ bool parallel_join::local_join(int threshold, int* offset,
 
             u64 bucket_id = tuple_hash(input0_buffer + k1, join_column_count) % buckets;
 
-            for (auto& t: input1[bucket_id]) 
-            //for (const t_tuple &cur_path : input1[bucket_id])
-            {
-                std::cout << "TupleXXXXXXX: " << t[0] << std::endl;
-            }
+            // for (auto& t: input1[bucket_id]) 
+            // //for (const t_tuple &cur_path : input1[bucket_id])
+            // {
+            //     std::cout << "TupleXXXXXXX: " << t[0] << std::endl;
+            // }
 
             input1[bucket_id].as_all_to_allv_left_join_buffer(
                 prefix, join_buffer,

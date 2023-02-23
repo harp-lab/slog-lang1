@@ -12,23 +12,8 @@ void RAM::load_balance()
 
         u64 max_full_element_count = 0, min_full_element_count = 0, sum_full_element_count = 0, full_element_count = 0, max_delta_element_count = 0, min_delta_element_count = 0, sum_delta_element_count = 0, delta_element_count = 0;
 
-        u32* bucket_map = current_relation->get_bucket_map();
-        u32* sub_bucket_count = current_relation->get_sub_bucket_per_bucket_count();
-
-        u32** full_sub_bucket_size = current_relation->get_full_sub_bucket_element_count();
-        u32** delta_sub_bucket_size = current_relation->get_delta_sub_bucket_element_count();
-
-        for (u32 i = 0; i < get_bucket_count(); i++)
-        {
-            if (bucket_map[i] == 1)
-            {
-                for (u32 j = 0; j < sub_bucket_count[i]; j++)
-                {
-                    full_element_count = full_element_count + full_sub_bucket_size[i][j];
-                    delta_element_count = delta_element_count + delta_sub_bucket_size[i][j];
-                }
-            }
-        }
+        full_element_count = current_relation->get_full_element_count();
+        delta_element_count = current_relation->get_delta_element_count();
 
         MPI_Allreduce(&full_element_count, &max_full_element_count, 1, MPI_UNSIGNED_LONG_LONG, MPI_MAX, mcomm.get_local_comm());
         MPI_Allreduce(&full_element_count, &min_full_element_count, 1, MPI_UNSIGNED_LONG_LONG, MPI_MIN, mcomm.get_local_comm());

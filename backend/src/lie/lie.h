@@ -41,10 +41,6 @@ private:
 
     bool share_io;                                        /// whether using MPI collective IO to write file
 
-    //bool offset_io;										 /// whether read checkpoint dump with offset
-
-    //bool separate_io;                                    /// whether write checkpoint dump separately for each process
-
     std::string output_dir;
 
     std::map<int, std::tuple<u64, int , bool>> rel_size_map;   // {rel_tag |-> (size, arity, intermediate?)}

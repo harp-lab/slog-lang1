@@ -90,7 +90,6 @@ int main(int argc, char **argv)
 
   
   // Enable IO
-  lie->enable_all_to_all_dump();
   lie->enable_data_IO();
   lie->enable_IO();
   // lie->enable_share_io();

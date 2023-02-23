@@ -235,6 +235,11 @@ bool LIE::execute ()
         lie_relations[i]->set_share_io(share_io);
         lie_relations[i]->initialize_relation(mcomm, intern_map);
     }
+    // if (mcomm.get_rank() == 0) {
+        // std::cout << "Init finish! " << std::endl;
+    // }
+
+    print_all_relation_size();
 
     /// Executable task
     RAM* executable_task = one_runnable_tasks();
@@ -275,6 +280,7 @@ bool LIE::execute ()
             {
                 executable_task->fixed_point_loop(app_name, batch_size, history, intern_map);
                 delta_in_scc = history[history.size()-2];
+                std::cout << "looping" << std::endl;
             }
             while (delta_in_scc != 0);
         }
