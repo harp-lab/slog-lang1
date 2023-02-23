@@ -25,8 +25,8 @@ void load_input_relation(std::string db_dir)
   {
     // check if ends with table
     std::string filename_ss = entry.path().filename().string();
-    std::cout << "input database has file " << filename_ss << std::endl;
-    std::string suffix = ".table";
+    // std::cout << "input database has file " << filename_ss << std::endl;
+    // std::string suffix = ".table";
     int ft = filename_ss.size()-suffix.size();
     if (ft < 0)
       ft = 0;
@@ -48,7 +48,7 @@ void load_input_relation(std::string db_dir)
     }
     if (tag > max_rel)
       max_rel = tag;
-    std::cout << "load " << tag << "." << index_stream.str() << "has arity " << arity << std::endl;
+    // std::cout << "load " << tag << "." << index_stream.str() << "has arity " << arity << std::endl;
     rel_tag_map[index_stream.str()] = tag;
   }
 }
@@ -68,7 +68,7 @@ int get_tag_for_rel(std::string relation_name, std::string index_str) {
   }
   max_rel++;
   rel_tag_map[name_arity] = max_rel;
-  std::cout << "generate rel tag: " << name_arity << " " << max_rel << std::endl;
+  // std::cout << "generate rel tag: " << name_arity << " " << max_rel << std::endl;
   return max_rel;
 }
 
