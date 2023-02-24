@@ -30,9 +30,7 @@ private:
 
     std::vector<relation*> gc_relations;                     // the relation need to be gced after finish compute current SCC
     std::vector<relation*> ram_relations;
-    //relation *ram_relations[1024];
     std::vector<bool> ram_relation_status;
-    //bool ram_relation_status[1024];
 
 
     std::vector<parallel_RA*> RA_list;                      /// All relations of this SCC
@@ -126,7 +124,7 @@ public:
 
 
     /// Buffer to hold new tuples
-    u32 allocate_compute_buffers();
+    u32 allocate_local_join_buffers();
 
     u32 get_loop_count_tracker()    {return loop_count_tracker;}
 
@@ -139,7 +137,7 @@ public:
     void local_comm();
 
     /// Free intermediate buffers
-    void free_compute_buffers();
+    void free_local_join_buffers();
     void free_all_to_all_compute_buffers();
 
 
@@ -161,9 +159,7 @@ public:
     bool contains_relation(int tag);
 
     /// Start running this SCC (task) for "batck_size" iterations
-    void execute_in_batches(std::string name, int batch_size, std::vector<u32>& history, std::map<u64, u64>& intern_map, int *loop_counter,int task_id, std::string output_dir, bool all_to_all_record, int sloav_mode, int* rotate_index_array, int** send_indexes, int *sendb_num);
-
-    void execute_in_batches_comm_compaction(std::string name, int batch_size, std::vector<u32>& history, std::map<u64, u64>& intern_map, int* loop_counter, int task_id, std::string output_dir, bool all_to_all_record, int sloav_mode, int* rotate_index_array, int** send_indexes, int *sendb_num);
+    void fixed_point_loop(std::string name, int batch_size, std::vector<u32>& history, std::map<u64, u64>& intern_map);
 };
 
 #endif

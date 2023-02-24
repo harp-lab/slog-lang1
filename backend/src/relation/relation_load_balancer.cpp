@@ -41,23 +41,33 @@ bool relation::load_balance_merge_full_and_delta(float rf)
     u32 global_total_sub_bucket_size = 0;
     u32 total_sub_bucket_size = 0;
     u32 total_sub_bucket_count = 0;
-    for (int i = 0; i < buckets; i++)
-    {
-        total_sub_bucket_count = total_sub_bucket_count + sub_bucket_per_bucket_count[i];
-        if (bucket_map[i] == 1)
-        {
-            for (u32 j = 0; j < sub_bucket_per_bucket_count[i]; j++)
-            {
-                if (full_sub_bucket_element_count[i][j] != 0)
-                {
-                    if ((int)full_sub_bucket_element_count[i][j] > max_sub_bucket_size[i])
-                        max_sub_bucket_size[i] = full_sub_bucket_element_count[i][j];
 
-                    total_sub_bucket_size = total_sub_bucket_size + full_sub_bucket_element_count[i][j];
-                }
-            }
-        }
+    for (int i = 0; i < buckets; i++) {
+        total_sub_bucket_count = total_sub_bucket_count + sub_bucket_per_bucket_count[i];
+        if (bucket_map[i] == 1) {
+            u32 cur_bucket_elements = full[i].count();
+            // find the bucket and sub bucket 
+            max_sub_bucket_size[i] = cur_bucket_elements;
+        } 
     }
+    total_old_sub_bucket_count = get_full_element_count();
+    // for (int i = 0; i < buckets; i++)
+    // {
+    //     total_sub_bucket_count = total_sub_bucket_count + sub_bucket_per_bucket_count[i];
+    //     if (bucket_map[i] == 1)
+    //     {
+    //         for (u32 j = 0; j < sub_bucket_per_bucket_count[i]; j++)
+    //         {
+    //             if (full_sub_bucket_element_count[i][j] != 0)
+    //             {
+    //                 if ((int)full_sub_bucket_element_count[i][j] > max_sub_bucket_size[i])
+    //                     max_sub_bucket_size[i] = full_sub_bucket_element_count[i][j];
+
+    //                 total_sub_bucket_size = total_sub_bucket_size + full_sub_bucket_element_count[i][j];
+    //             }
+    //         }
+    //     }
+    // }
 
     int *global_max = new int[buckets];
     memset(global_max, 0, buckets * sizeof(int));
@@ -129,18 +139,6 @@ bool relation::load_balance_merge_full_and_delta(float rf)
                 x++;
             }
             distinct_sub_bucket_rank_count[b] = x;
-
-            delete[] full_sub_bucket_element_count[b];
-            full_sub_bucket_element_count[b] = new u32[global_new_sub_bucket[b]];
-            memset(full_sub_bucket_element_count[b], 0, sizeof(u32) * global_new_sub_bucket[b]);
-
-            delete[] delta_sub_bucket_element_count[b];
-            delta_sub_bucket_element_count[b] = new u32[global_new_sub_bucket[b]];
-            memset(delta_sub_bucket_element_count[b], 0, sizeof(u32) * global_new_sub_bucket[b]);
-
-            delete[] newt_sub_bucket_element_count[b];
-            newt_sub_bucket_element_count[b] = new u32[global_new_sub_bucket[b]];
-            memset(newt_sub_bucket_element_count[b], 0, sizeof(u32) * global_new_sub_bucket[b]);
 
             vector_buffer temp_buffer;
             std::vector<u64> prefix = {};
@@ -240,26 +238,39 @@ bool relation::load_balance_split_full_and_delta(float rf)
     u32 global_total_sub_bucket_size = 0;
     u32 total_sub_bucket_size = 0;
     u32 total_sub_bucket_count = 0;
-    for (int i = 0; i < buckets; i++)
-    {
+
+    for (int i = 0; i < buckets; i++) {
         total_sub_bucket_count = total_sub_bucket_count + sub_bucket_per_bucket_count[i];
-        if (bucket_map[i] == 1)
-        {
-            for (u32 j = 0; j < sub_bucket_per_bucket_count[i]; j++)
-            {
-                if (full_sub_bucket_element_count[i][j] != 0)
-                {
-                    if ((int)full_sub_bucket_element_count[i][j] > max_sub_bucket_size[i])
-                        max_sub_bucket_size[i] = full_sub_bucket_element_count[i][j];
-
-                    if ((int)full_sub_bucket_element_count[i][j] < min_sub_bucket_size)
-                        min_sub_bucket_size = full_sub_bucket_element_count[i][j];
-
-                    total_sub_bucket_size = total_sub_bucket_size + full_sub_bucket_element_count[i][j];
-                }
-            }
-        }
+        if (bucket_map[i] == 1) {
+            u32 cur_bucket_elements = full[i].count();
+            // find the bucket and sub bucket 
+            max_sub_bucket_size[i] = cur_bucket_elements;
+            if (cur_bucket_elements < min_sub_bucket_size)
+                min_sub_bucket_size = cur_bucket_elements;
+        } 
     }
+    total_sub_bucket_size = get_full_element_count();
+
+    // for (int i = 0; i < buckets; i++)
+    // {
+    //     total_sub_bucket_count = total_sub_bucket_count + sub_bucket_per_bucket_count[i];
+    //     if (bucket_map[i] == 1)
+    //     {
+    //         for (u32 j = 0; j < sub_bucket_per_bucket_count[i]; j++)
+    //         {
+    //             if (full_sub_bucket_element_count[i][j] != 0)
+    //             {
+    //                 if ((int)full_sub_bucket_element_count[i][j] > max_sub_bucket_size[i])
+    //                     max_sub_bucket_size[i] = full_sub_bucket_element_count[i][j];
+
+    //                 if ((int)full_sub_bucket_element_count[i][j] < min_sub_bucket_size)
+    //                     min_sub_bucket_size = full_sub_bucket_element_count[i][j];
+
+    //                 total_sub_bucket_size = total_sub_bucket_size + full_sub_bucket_element_count[i][j];
+    //             }
+    //         }
+    //     }
+    // }
 
     int *global_max = new int[buckets];
     memset(global_max, 0, buckets * sizeof(int));
@@ -376,9 +387,6 @@ bool relation::load_balance_split_full_and_delta(float rf)
             }
             distinct_sub_bucket_rank_count[b] = x;
 
-            delete[] full_sub_bucket_element_count[b];
-            full_sub_bucket_element_count[b] = new u32[global_new_sub_bucket[b]];
-            memset(full_sub_bucket_element_count[b], 0, sizeof(u32) * global_new_sub_bucket[b]);
 
             vector_buffer temp_buffer;
             temp_buffer.vector_buffer_create_empty();
