@@ -22,8 +22,6 @@
 #include "buffer/vector_buffer.h"
 #include "IO/parallel_io.h"
 #include "comm/all_to_allv_comm.h"
-#include "comm/all_to_all_comm.h"
-#include "relation/google_btree_relation.h"
 #include "relation/shmap_relation.h"
 
 

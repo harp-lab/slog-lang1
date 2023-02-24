@@ -10,6 +10,7 @@
 #include "../ds.h"
 #include <algorithm>
 #include <string>
+#include <vector>
 
 enum {LEFT=0, RIGHT};
 enum {DELTA=0, FULL, FULL_AND_DELTA};
@@ -39,27 +40,18 @@ private:
 #else
     shmap_relation *newt;                     /// Newt
 #endif
-    u32 newt_element_count;
-    u32 **newt_sub_bucket_element_count;
-    u32 *newt_bucket_element_count;
 
 #ifdef GOOGLE_MAP
     google_relation *full;                     /// Full
 #else
     shmap_relation *full;                     /// Full
 #endif
-    u32 full_element_count;
-    u32 **full_sub_bucket_element_count;
-    u32 *full_bucket_element_count;
 
 #ifdef GOOGLE_MAP
     google_relation *delta;                    /// Delta
 #else
     shmap_relation *delta;                     /// Delta
 #endif
-    u32 delta_element_count;
-    u32 **delta_sub_bucket_element_count;
-    u32 *delta_bucket_element_count;
 
     u32 default_sub_bucket_per_bucket_count;    /// 1
     u32 *sub_bucket_per_bucket_count;           /// sub_bucket_per_bucket_count[i] holds the total number of sub-buckets at bucket index i
@@ -75,7 +67,6 @@ private:
 
     bool offset_io;
     bool share_io;
-    bool separate_io;
     bool restart_flag;
     //bool fact_load=false;
     //std::vector<u64> init_val;
@@ -95,24 +86,18 @@ public:
         :join_column_count(jcc), is_canonical(is_c), arity(ar), intern_tag(tg), initailization_type(version), filename(fname)
     {
         //fact_load = false;
-        full_element_count=0;
-        delta_bucket_element_count=0;
     }
 
     relation (u32 jcc, bool is_c, u32 ar, u32 tg, std::string did, std::string fname, int version)
         :join_column_count(jcc), is_canonical(is_c), arity(ar), intern_tag(tg), debug_id(did), initailization_type(version), filename(fname)
     {
         //fact_load = false;
-        full_element_count=0;
-        delta_bucket_element_count=0;
     }
 
     relation (u32 jcc, bool is_c, u32 ar, u32 tg, int version)
         :join_column_count(jcc), is_canonical(is_c), arity(ar), intern_tag(tg), initailization_type(version), filename("")
     {
         //fact_load = false;
-        full_element_count=0;
-        delta_bucket_element_count=0;
     }
 
     void set_restart_flag(bool restart)    {restart_flag = restart;}
@@ -120,8 +105,6 @@ public:
     void set_offset_io(bool offset)   {offset_io = offset;}
 
     void set_share_io(bool share)   {share_io = share;}
-
-    void set_separate_io(bool separate)   {separate_io = separate;}
 
     std::string get_filename()       {return filename;}
 
@@ -159,14 +142,11 @@ public:
     int** get_distinct_sub_bucket_rank()    {return distinct_sub_bucket_rank;}
 
 
-    void set_full_element_count(int val)   {full_element_count = val;}
-    int get_full_element_count()    {return full_element_count;}
-    u32** get_full_sub_bucket_element_count()   {return full_sub_bucket_element_count;}
+    u64 get_full_element_count();
     u32 get_global_full_element_count();
 
 
-    int get_new_element_count() {return newt_element_count;}
-    u32** get_new_sub_bucket_element_count()    {return newt_sub_bucket_element_count;}
+    u32 get_new_element_count();
 
 
     u32* get_sub_bucket_per_bucket_count() {return sub_bucket_per_bucket_count;}
@@ -185,9 +165,7 @@ public:
     shmap_relation* get_delta()    {return delta;}
 #endif
 
-    void set_delta_element_count(int val)   {delta_element_count = val;}
-    int get_delta_element_count()   {return delta_element_count;}
-    u32** get_delta_sub_bucket_element_count()  {return delta_sub_bucket_element_count;}
+    u32 get_delta_element_count();
     u32 get_global_delta_element_count();
 
 
@@ -219,7 +197,6 @@ public:
     /// load data from file into full or delta buffer
     void load_data_from_file();
     void load_data_from_file_with_offset();
-    void load_data_from_separate_files();
 
 
     /// for task parallelism, copying relation from exiting comm to output_comm
