@@ -509,11 +509,11 @@ void relation::load_data_from_file()
     if (std::filesystem::file_size(this->get_filename()) == 0) {
         return;
     }
-    std::cout << "relation with tag :" << this->get_intern_tag() << " "
-              << " filename :" << this->get_filename() << " "
-              << " file size: " << std::filesystem::file_size(this->get_filename())
-            //   << "c++ object " << this
-              << " start normal IO" << std::endl;
+    // std::cout << "relation with tag :" << this->get_intern_tag() << " "
+    //           << " filename :" << this->get_filename() << " "
+    //           << " file size: " << std::filesystem::file_size(this->get_filename())
+    //         //   << "c++ object " << this
+    //           << " start normal IO" << std::endl;
     /// reading from file
     if (initailization_type != -1)
     {

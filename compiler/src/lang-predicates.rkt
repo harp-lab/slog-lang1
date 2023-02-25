@@ -763,3 +763,21 @@
   (match x
     [`(prov ,item ,pos) (pred item)]
     [else #f]))
+
+
+(define (backend-input-ir-relation-decl? e)
+  (match e
+    [`(relation-decl ,name ,arity ,canonical) #t]
+    [else #f]))
+
+(define (backend-input-ir-scc-order? e)
+  (match e
+    [`((,from ,to) ...) #t]
+    [else #f]))
+
+(define (backend-input-ir? e)
+  (match e
+    [`(slog-prog ,(? backend-input-ir-relation-decl? rel-decl)
+
+       ,(? backend-input-ir-scc-order?)) #t]
+    [else #f]))
