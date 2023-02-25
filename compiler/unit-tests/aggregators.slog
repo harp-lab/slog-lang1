@@ -11,7 +11,7 @@
 (a-edge 5 3)
 
 [(a-edge x y) --> (a-node x)]
-[(a-node x) (count-by a-edge x count) --> (a-node-degree x count)]
+[(a-node x) (count a-edge x _ count) --> (a-node-degree x count)]
 
 ;; B ------------------------------------------------------
 
@@ -152,4 +152,42 @@
  [(~ h-bars x1 x3) --> (h-has-1-3 x1 x3)]
  [(~ h-bars x4 x2) --> (h-has-4-2 x4 x2)]
  [(~ h-bars x5 x5) --> (h-has-5-5 x5 x5)]
- ]
+]
+
+;; I ------------------------------------------------------
+
+;; matrix-vector multiplication
+(i-m 1 1 10)
+(i-m 1 2 10)
+(i-m 1 3 10)
+
+(i-v 1 100)
+(i-v 2 100)
+(i-v 3 100)
+
+(ind 1) (ind 2) (ind 3)
+
+[(i-m i j x)
+ (i-v j y)
+ -->
+ (i-t i j {* x y})]
+
+[(ind i) (sum i-t i _ s) --> (i-mv i s)]
+
+;; J ------------------------------------------------------
+
+[(j-foo x y)
+ (sum j-bar y _ x _ S)
+ -->
+ (j-res x y S)]
+
+(j-foo 1 2)
+(j-bar 2 500 1 600 1)
+(j-bar 2 500 1 600 2)
+(j-bar 2 500 1 600 5)
+
+(j-foo 10 20)
+(j-bar 20 500 10  600 10)
+(j-bar 20 500 10  600 50)
+
+(j-bar 20 500 110 600 50)

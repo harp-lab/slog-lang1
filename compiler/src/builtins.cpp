@@ -1,5 +1,6 @@
 // builtins.cpp
 #include <cstddef>
+#include <limits>
 #include <vector>
 #include <string>
 #include <cassert>
@@ -8,6 +9,7 @@
 #include <functional>
 #include <tuple>
 #include <functional>
+#include <utility>
 
 using namespace std;
 #define u64  uint64_t
@@ -208,120 +210,85 @@ template<typename TState> inline TState builtin_nop(const u64* data, TState init
   return callback(init_state);
 }
 
+// //////////////////// AGGREGATORS Alternative design ////////////////////
 
-//////////////////// AGGREGATORS  ////////////////////
-using local_agg_res_t = u64;
 
-local_agg_res_t agg_not_reduce(local_agg_res_t x, local_agg_res_t y) {
-  return x | y;
+// TODO: add number type check
+//////////////////////////////  count /////////////////////////////////////
+
+local_agg_res_t agg_count_local(std::pair<shmap_relation::iterator, shmap_relation::iterator> joined_range)
+{
+  local_agg_res_t cnt = 0;
+  for(auto it = joined_range.first; it != joined_range.second ; ++it) {
+    cnt ++;
+  }
+  return cnt;
 }
 
-template<typename TState> TState agg_not_global(u64* data, local_agg_res_t agg_data, u64 agg_data_count, TState init_state, TState (*callback) (TState state)){
-  cout << "agg_not_global called with count: " << agg_data_count << ", and res: " << agg_data << "\n";
-  if (agg_data_count > 0 && agg_data)  {
-    return init_state;
-  } else {
-    cout << "agg_not_global: calling callback!" << "\n";
-    return callback(init_state);
+local_agg_res_t agg_count_reduce (local_agg_res_t x, local_agg_res_t y) {
+  return x + y;
+}
+
+//////////////////////////////  sum /////////////////////////////////////
+
+local_agg_res_t agg_sum_local(std::pair<shmap_relation::iterator, shmap_relation::iterator> joined_range)
+{
+  local_agg_res_t sum_res = 0;
+  for(auto it = joined_range.first; it != joined_range.second ; ++it) {
+    auto tuple = (*it);
+    sum_res += tuple[tuple.size()-1];
   }
+  return sum_res;
 }
 
 local_agg_res_t agg_sum_reduce(local_agg_res_t x, local_agg_res_t y) {
   return x + y;
 }
 
-template<typename TState> TState agg_sum_global(u64* data, local_agg_res_t agg_data, u64 agg_data_count, TState init_state, TState (*callback) (u64 res, TState state)){
-  return callback(n2d(agg_data), init_state);
+//////////////////////////////  maximum  /////////////////////////////////////
+
+local_agg_res_t agg_maximum_local(std::pair<shmap_relation::iterator, shmap_relation::iterator> joined_range)
+{
+  local_agg_res_t max_res = 0;
+  for(auto it = joined_range.first; it != joined_range.second ; ++it) {
+    auto tuple = (*it);
+    auto current_v = tuple[tuple.size()-1];
+    if (current_v > max_res) {
+      max_res = current_v;
+    }
+  }
+  return max_res;
 }
 
-///////////////// OLD DESIGN ////////////////////////
+local_agg_res_t agg_maximum_reduce(local_agg_res_t x, local_agg_res_t y) {
+  if (x > y){
+    return x;
+  } else{
+    return y;
+  }
+}
 
-// struct _BTree_Iterator {
-//   virtual u64* operator*() = 0;
-//   virtual bool operator!=(const _BTree_Iterator& rhs) = 0;
-//   virtual _BTree_Iterator& operator++() = 0;
-// };
-// struct _BTree {
-//   virtual bool has_key(const u64* key) = 0;
-//   virtual _BTree_Iterator& begin() = 0;
-//   virtual _BTree_Iterator& end() = 0;
-// };
+//////////////////////////////  minimum  /////////////////////////////////////
 
-// typedef local_agg_res_t *local_agg_func_t (_BTree* agg_rel, const u64* data);
+local_agg_res_t agg_minimum_local(std::pair<shmap_relation::iterator, shmap_relation::iterator> joined_range)
+{
+  local_agg_res_t min_res = std::numeric_limits<u32>::max();
+  for(auto it = joined_range.first; it != joined_range.second ; ++it) {
+    auto tuple = (*it);
+    auto current_v = tuple[tuple.size()-1];
+    if (current_v < min_res) {
+      min_res = current_v;
+    }
+  }
+  return min_res;
+}
 
-// typedef local_agg_res_t *reduce_agg_func_t (local_agg_res_t x, local_agg_res_t y);
+local_agg_res_t agg_minimum_reduce(local_agg_res_t x, local_agg_res_t y) {
+  if (x < y){
+    return x;
+  } else{
+    return y;
+  }
+}
 
-// typedef int *global_agg_func_t (u64* data, local_agg_res_t agg_data, int agg_data_count, u64* output); 
-
-// parallel_copy_aggregate(relation rel, relation agg_rel, relation target_rel, 
-//                              local_agg_func_t local_agg_func, reduce_agg_func_t reduce_agg_func, global_agg_func_t global_agg_fun);
-
-
-// local_agg_res_t agg_not_1_local_OLD(_BTree* rel, const u64* data){
-//   return rel->has_key(data)? (u64) true : (u64) false;
-// }
-
-// local_agg_res_t agg_not_2_local_OLD(_BTree* rel, const u64* data){
-//   return rel->has_key(data)? (u64) true : (u64) false;
-// }
-
-
-// local_agg_res_t agg_sum_local_OLD(_BTree* rel, const u64* data) {
-//   u64 sum = 0;
-//   for (auto iter = rel->begin(); iter != rel->end(); iter++){
-//     auto current = *iter;
-//     if (is_number(*current)) {
-//       sum += d2n(*current);
-//     }
-//   }
-//   return sum;
-// }
-
-// //////////////////// AGGREGATORS Alternative design ////////////////////
-
-// struct RelDataIterator {
-//   virtual u64* operator*() = 0;
-//   virtual bool operator!=(const RelDataIterator& rhs) = 0;
-//   virtual RelDataIterator& operator++() = 0;
-// };
-
-// struct ReLData {
-//   virtual RelDataIterator& begin() = 0;
-//   virtual RelDataIterator& end() = 0;
-// };
-
-// enum class SpecialAggregator {
-//   none,
-//   sum,
-// };
-// // typedef local_agg_res_t *local_agg_func_t (ReLData& agg_rel, const u64* data);
-
-// // typedef local_agg_res_t *reduce_agg_func_t (local_agg_res_t x, local_agg_res_t y);
-
-// // typedef int *global_agg_func_t (u64* data, local_agg_res_t agg_data, int agg_data_count, u64* output); 
-
-// // void parallel_copy_aggregate(relation rel, relation agg_rel, relation target_rel, 
-// //                              local_agg_func_t local_agg_func, 
-// //                              SpecialAggregator special_agg, reduce_agg_func_t reduce_agg_func, 
-// //                              global_agg_func_t global_agg_fun);
-
-// local_agg_res_t agg_not_1_local(ReLData& rel, const u64* data){
-//   auto has_any = rel.begin() != rel.end();
-//   return has_any;
-// }
-
-// local_agg_res_t agg_not_2_local(ReLData& rel, const u64* data){
-//   return agg_not_1_local(rel, data);
-// }
-
-// local_agg_res_t agg_sum_local(ReLData& rel, const u64* data) {
-//   u64 sum = 0;
-//   for (auto iter = rel.begin(); iter != rel.end(); iter++){
-//     auto current = *iter;
-//     if (is_number(*current)) {
-//       sum += d2n(*current);
-//     }
-//   }
-//   return sum;
-// }
 // // end of builtins.cpp

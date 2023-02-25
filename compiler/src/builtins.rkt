@@ -19,6 +19,8 @@
  get-func-for-aggregator-with-extended-indices
  arity-of-aggregated-rel
  all-aggregators)
+ arity-of-aggregated-rel
+ all-aggregators)
 
 (define builtins-start-time (current-inexact-milliseconds))
 
@@ -482,12 +484,48 @@
         (if (set-empty? tuples)
           (set `())
           (set)))))
+(define (num-agg-input-tuple-value tuple)
+  (match tuple 
+    [`((integer ,n)) n]
+    [`(,(? integer? n)) n]
+    [else #f]))
+
+(define new-sum-aggregator
+  `(1 1
+    ,(λ (tuples)
+      ; (printf "sum input tuples: ~a\n" tuples)
+      (define res (foldl + 0 (filter-map num-agg-input-tuple-value (set->list tuples))))
+      (set `((integer ,res))))))
+
+(define new-negation-aggregator
+  `(0 0
+      ,(λ (tuples)
+        ; (printf "negation input tuples: ~a\n" tuples)
+        (if (set-empty? tuples)
+          (set `())
+          (set)))))
 
 (define new-count-aggregator
   `(0 1
     ,(λ (tuples)
       (define res (set-count tuples))
       (set `((integer ,res))))))
+
+(define new-count-aggregator
+  `(0 1
+    ,(λ (tuples)
+      (define res (set-count tuples))
+      (set `((integer ,res))))))
+(define (new-extremum-aggregator join)
+  `(1 1
+    ,(λ (tuples)
+      (define numbers (filter-map num-agg-input-tuple-value tuples))
+      (cond 
+        [(empty? numbers) (set)]
+        [else
+          (match-define (cons head tail) numbers)
+          (define res (foldl join head tail))
+          (set `((integer ,res)))]))))
 
 (define (new-extremum-aggregator join)
   `(1 1
@@ -509,43 +547,15 @@
     'minimum (new-extremum-aggregator min)
     'maximum (new-extremum-aggregator max)))
 
-(define (extend-agg-func-to-new+reordered-indices func indices extended-indices)
-  (define new-indices-list (set->list (set-subtract (list->set extended-indices) (list->set indices))))
-  (define indices+new-indices-list (append indices new-indices-list))
-  (λ (rel) 
-    (define itermediate-func (builtin-func-extended-to-new-args (func rel) indices indices+new-indices-list))
-    (λ (materializer . l) (apply itermediate-func materializer (reorder-list l extended-indices indices+new-indices-list)))))
-
-(define (get-func-for-aggregator-with-extended-indices requested-agg-spec)
-  (match-define `(aggregator-spec ,req-agg-name ,req-agg-arity ,req-agg-indices ,req-rel-arity ,req-rel-indices) requested-agg-spec)
-  (define matching-aggregators
-    (filter-map (λ (spec-func)
-              (match-define `(aggregator-spec ,agg-name ,agg-arity ,agg-indices ,rel-arity ,rel-indices) (car spec-func))
-              (cond
-                ;; Hack to allow negation to make negation work with rel-selects with unordered indices
-                ;; The design of aggregators likely needs to be rethought.
-                [(and (equal? agg-name '~)
-                      (equal? (list agg-name agg-arity rel-arity (list->set rel-indices)) (list req-agg-name req-agg-arity req-rel-arity (list->set req-rel-indices)))
-                      (subset? (list->set agg-indices) (list->set req-agg-indices)))
-                 spec-func]
-                [(and (equal? (list agg-name agg-arity rel-arity rel-indices) (list req-agg-name req-agg-arity req-rel-arity req-rel-indices))
-                      (subset? (list->set agg-indices) (list->set req-agg-indices)))
-                 spec-func]
-                [else #f]))
-            (hash->list all-aggregators)))
-  (assert (not (empty? matching-aggregators)) (format "no func for aggregator-sepc: ~a\n" requested-agg-spec))
-  (match-define (cons matching-spec matching-func) (car matching-aggregators))
-  (match-define `(aggregator-spec ,_ ,_ ,matching-indices ,_ ,_) matching-spec)
-  (define new-func (extend-agg-func-to-new+reordered-indices matching-func matching-indices req-agg-indices))
-  new-func)
-
-; (printf "all-aggregators: \n~a\n" (pretty-format (hash-keys all-aggregators)))
 (define all-aggregator-names
-  (list->set (map second (hash-keys all-aggregators))))
+  (list->set (hash-keys all-aggregators)))
 
 (define (aggregator? name)
   (set-member? all-aggregator-names name))
-;(printf "builtins: ~a\n" (intercalate ", " (set->list all-builtin-names)))
+
+(define (arity-of-aggregated-rel aggregator args-count)
+  (match-define (list input-cols output-cols _) (hash-ref all-aggregators aggregator))
+  (+ args-count input-cols (- output-cols))) 
 
 (define builtins-took (- (current-inexact-milliseconds) builtins-start-time))
 (when (> builtins-took 100)

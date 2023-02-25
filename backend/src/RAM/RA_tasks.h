@@ -17,7 +17,7 @@ class RAM
 private:
 
     int ram_id;
-    bool init_status=false;
+    // bool init_status=false;
 
     int iteration_count = -1;                               /// Number of iterations in a fixed point
 
@@ -132,7 +132,7 @@ public:
 
 
     /// Join/compy/acopy
-    u32 local_compute(int* offset);
+    bool local_compute(int* offset);
 
     void local_comm();
 

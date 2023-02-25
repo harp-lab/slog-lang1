@@ -165,6 +165,7 @@ void LIE::stat_intermediate()
         } else {
             actual_tuple_bytes += tuple_count * arity * 8;
         }
+    
     }
     if (mcomm.get_local_rank() == 0) {
         std::cout << "Total actual facts: " <<  actual_tuple_bytes / (1024*1024) << " MB." << std::endl;

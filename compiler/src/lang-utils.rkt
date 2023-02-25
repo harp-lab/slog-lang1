@@ -16,7 +16,8 @@
   ir-fixed-clause-rel-args-w/prov
   ir-flat-rules-h->head-rels
   ir-fixed-rules-h->head-rels
-  validate-source-tree-fact)
+  validate-source-tree-fact
+  ir-wildcard?)
 
 (define (give-clause-id cl)
   (match cl
@@ -108,3 +109,6 @@
         (pretty-error program (prov->pos arg) (format "unbound variable: ~a" (strip-prov arg)) #:exit #t)]
       [(lit? (strip-prov arg)) #t]
       [(source-tree-hclause? arg) (validate-source-tree-fact program arg)])))
+
+(define (ir-wildcard? sym)
+  (string-prefix? (symbol->string sym) "$_"))

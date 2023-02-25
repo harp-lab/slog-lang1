@@ -212,21 +212,21 @@
 
   (display-to-file cpp-file-contents-filled-in (get-path "./output/builtins-tests2-generated.cpp") #:exists 'replace))
 
-(match-let* 
- ([rule1 '(srule
-          ((rel-select bar 2 (1 2) db) x y)
-          ((rel-version foo 2 (1 2) total) x y $_id)
-          ((rel-version ~ 2 (1 2) (agg (rel-version aggregated 2 (1 2) total))) x 100 $_1))]
-  [(list local-lam1 _ _ global-lam1) (generate-cpp-lambdas-for-rule-with-aggregator rule1)]
+; (match-let* 
+;  ([rule1 '(srule
+;           ((rel-select bar 2 (1 2) db) x y)
+;           ((rel-version foo 2 (1 2) total) x y $_id)
+;           ((rel-version ~ 2 (1 2) (agg (rel-version aggregated 2 (1 2) total))) x 100 $_1))]
+;   [(list local-lam1 _ _ global-lam1) (generate-cpp-lambdas-for-rule-with-aggregator rule1)]
 
-  [rule2 '(srule
-          ((rel-select bar 2 (1 2) db) 1000 y x 10000 y)
-          ((rel-version foo 2 (1 2) total) x y $_id)
-          ((rel-version ~ 2 (1 2) (agg (rel-version aggregated 2 (1 2) total))) x 100 $_1))]
-  [(list local-lam2 _ _ global-lam2) (generate-cpp-lambdas-for-rule-with-aggregator rule2)]
+;   [rule2 '(srule
+;           ((rel-select bar 2 (1 2) db) 1000 y x 10000 y)
+;           ((rel-version foo 2 (1 2) total) x y $_id)
+;           ((rel-version ~ 2 (1 2) (agg (rel-version aggregated 2 (1 2) total))) x 100 $_1))]
+;   [(list local-lam2 _ _ global-lam2) (generate-cpp-lambdas-for-rule-with-aggregator rule2)]
 
-  [aggregators-test-template-file (file->string (get-path "./aggregators-tests-template.cpp"))]
-  [output-file (format aggregators-test-template-file 
-                       local-lam1 global-lam1
-                       local-lam2 global-lam2)])
-  (display-to-file output-file (get-path "./output/aggregators-tests-generated.cpp") 	#:exists 'replace))
+;   [aggregators-test-template-file (file->string (get-path "./aggregators-tests-template.cpp"))]
+;   [output-file (format aggregators-test-template-file 
+;                        local-lam1 global-lam1
+;                        local-lam2 global-lam2)])
+;   (display-to-file output-file (get-path "./output/aggregators-tests-generated.cpp") 	#:exists 'replace))

@@ -9,6 +9,7 @@
 
 #include "../parallel_RA_inc.h"
 #include "../btree/btree_set.h"
+#include <cstdint>
 #include <utility>
 
 struct shmap_relation {
@@ -17,18 +18,21 @@ struct shmap_relation {
 
     int data_structure_type;
 
+    int id_flag;    // does this btree contain id column?
+
     using t_tuple = std::vector<u64>;
     struct t_comparator {
         // 0-arity compare will fail
-        t_comparator() : n(-2) {}
+        t_comparator() : _id_flag(true) {}
 
-        t_comparator(int length) : n(length) {} 
+        t_comparator(bool id_flag) : _id_flag(id_flag) {} 
         
         bool operator()(const t_tuple &a, const t_tuple &b) const {
             // make it an unroll loop when change to array
             int size = a.size();
-            if (n != -2)
-                size = n;
+            // if (_id_flag) {
+            //     size--;
+            // }
             for (int i=0; i < size; i++)
             {
                 if (a[i] < b[i])
@@ -38,43 +42,42 @@ struct shmap_relation {
             }
             return false;
         }
-
-        int n;
+        bool _id_flag;
     };
 
     // souffle use multi set for some relation
     using t_ind = btree::btree_set<t_tuple, t_comparator>;
-    t_ind* ind;
-    using iterator = t_ind::iterator;
+    t_ind ind;
+    using iterator = t_ind::const_iterator;
 
     bool insert(const t_tuple &t) {
-        return ind->insert(t).second;
+        return ind.insert(t).second;
     }
 
-    std::size_t size() const { return ind->size(); }
+    std::size_t size() const { return ind.size(); }
 
     bool contains(const t_tuple &t) const {
-        auto res = ind->find(t);
-        return res != ind->end();
+        auto res = ind.find(t);
+        return res != ind.end();
     }
 
-    iterator find(const t_tuple &t) const {
-        return ind->find(t);
+    iterator find(const t_tuple &t) {
+        return ind.find(t);
     }
 
-    bool empty() const { return ind->empty(); }
+    bool empty() const { return ind.empty(); }
 
     // I keep this weird  name from souffle, actually join helper fucntion
     // in souffle its index selection function, in slog we don't need select
     // so only one version of this function
-    std::pair<iterator, iterator> lowerUpperRange(const t_tuple &lower, const t_tuple &upper)
+    std::pair<iterator, iterator> lowerUpperRange(const t_tuple &lower, const t_tuple &upper) const
     {
-        auto lower_it = ind->lower_bound(lower);
-        auto upper_it = ind->upper_bound(upper);
-        if (lower_it == ind->end()) {
-            return std::make_pair(ind->end(), ind->end());
+        auto lower_it = ind.lower_bound(lower);
+        auto upper_it = ind.upper_bound(upper);
+        if (lower_it == ind.end()) {
+            return std::make_pair(ind.end(), ind.end());
         }
-        if (upper_it == ind->end()) {
+        if (upper_it == ind.end()) {
             return std::make_pair(lower_it, upper_it);
         }
         auto lower_v = *lower_it;
@@ -94,23 +97,26 @@ struct shmap_relation {
             return std::make_pair(lower_it, upper_it);
         }
         if (valid == 0) {
-            if (ind->find(lower) != ind->end()) {
+            if (ind.find(lower) != ind.end()) {
                 return std::make_pair(lower_it, lower_it);
             }
         }
-        return std::make_pair(ind->end(), ind->end());
+        return std::make_pair(ind.end(), ind.end());
     }
 
+    std::pair<iterator, iterator> prefix_range(std::vector<u64> &prefix);
 
-    void purge() { ind->clear(); }
 
-    iterator begin() const { return ind->begin(); }
+    void purge() { ind.clear(); }
 
-    iterator end() const { return ind->end(); }
+    iterator begin() { return ind.begin(); }
 
-    shmap_relation(int arity);
+    iterator end() { return ind.end(); }
+
+    shmap_relation(int arity, bool id_flag);
     shmap_relation() {
-        ind = new t_ind();
+        id_flag = true;
+        // ind = new t_ind(t_comparator(id_flag));
         // int rank;
         // MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         // std::cout << "default constructor " << rank <<std::endl;
@@ -150,7 +156,7 @@ struct shmap_relation {
         bool canonical);
     
     void as_all_to_allv_right_outer_join_buffer(
-        // shmap_relation* neg_target,
+        shmap_relation* target_relation,
         u64 *input0_buffer, int input0_buffer_size, int input0_buffer_width,
         int* offset,
         all_to_allv_buffer& join_buffer,
@@ -164,7 +170,10 @@ struct shmap_relation {
  
     ~shmap_relation()
     {
-        ind->clear();
-        delete ind;
+        ind.clear();
     }
+
+private:
+    shmap_relation(const shmap_relation& other);
+    shmap_relation& operator=(const shmap_relation& other);
 };

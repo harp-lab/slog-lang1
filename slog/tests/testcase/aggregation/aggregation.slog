@@ -1,0 +1,55 @@
+
+;;;;;;;;;;;;;;;;;;; count ;;;;;;;;;;;;;;;;;;;
+
+[(a-edge x y w) --> (a-node x) (a-edge-help x w y)]
+[(a-node x) --> (a-node-degree x {count a-edge-help x _ _})]
+
+(b-edge "a" 1 2)
+(b-edge "b" 1 4)
+
+(b-edge "a" 2 3)
+(b-edge "a" 2 4)
+(b-edge "a" 2 5)
+(b-edge "b" 2 6)
+
+(b-edge "a" 3 3)
+(b-edge "a" 3 4)
+
+(b-edge "b" 5 3)
+
+[(b-edge _ x y) --> (b-node x)]
+
+[(b-node x)
+ -->
+ (b-node-degree {count b-edge "a" x _} x)]
+
+[(b-result-count-check1 "pass") <-- (b-node-degree 1 1)]
+[(b-result-count-check2 "pass") <-- (b-node-degree 3 2)]
+
+
+;;;;;;;;;;;;;;;;;;; sum ;;;;;;;;;;;;;;;;;;;;;;;;
+
+[(a-outcoming-length a {sum a-edge a _}) <-- (a-node a)]
+
+[(a-result-sum-check-1 "pass") <-- (a-outcoming-length 1 75)]
+[(a-result-sum-check-2 "pass") <-- (a-outcoming-length 41 45)]
+[(a-result-sum-check-3 "pass") <-- (a-outcoming-length 100 46)]
+
+[(a-all-edge-path {sum a-edge _ _}) <-- ]
+[(a-result-sum-check-4 "pass") <-- (a-all-edge-path 16615)]
+
+; ;;;;;;;;;;;;;;;;;; max/min ;;;;;;;;;;;;;;;;;;;;
+
+[(a-max-weight {maximum a-edge _ _}) <-- ]
+[(a-result-max-check-1 "success") <-- (a-max-weight 9)]
+
+[(a-min-weight {minimum a-edge _ _}) <-- ]
+[(a-result-min-check-1 "success") <-- (a-min-weight 0)]
+
+[(a-node-max-weight a {maximum a-edge a _}) <-- (a-node a)]
+[(a-node-min-weight a {minimum a-edge a _}) <-- (a-node a)]
+
+[(a-result-min-check-2 "success") <-- (a-node-min-weight 152 2)]
+[(a-result-min-check-3 "success") <-- (a-node-min-weight 579 3)]
+[(a-result-max-check-2 "success") <-- (a-node-max-weight 729 4)]
+[(a-result-max-check-3 "success") <-- (a-node-max-weight 16 9)]

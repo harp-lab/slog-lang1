@@ -252,6 +252,7 @@
     (cons replacement-clause (list new-rule))]
   [else (cons cl (list))]))
 
+
 ; Normalizes head-clauses to [head <-- ]
 (define/contract-cond (normalize-rule rule)
   (source-tree-rule? . -> . source-tree-rule?)

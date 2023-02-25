@@ -91,6 +91,7 @@ int main(int argc, char **argv)
   
   // Enable IO
   lie->enable_data_IO();
+  // lie->enable_share_io();
   lie->enable_IO();
   // lie->enable_share_io();
   lie->set_output_dir(slog_output_dir); // Write to this directory
@@ -109,9 +110,12 @@ int main(int argc, char **argv)
     }
     std::cout << std::endl;
   }
+
   // lie->print_all_relation_size(); // Continuously print relation sizes
 
   delete lie;
+
   mcomm.destroy();
+
   return 0;
 }
