@@ -16,9 +16,6 @@
  all-aggregators
  all-aggregator-names
  get-func-for-builtin-with-extended-indices
- get-func-for-aggregator-with-extended-indices
- arity-of-aggregated-rel
- all-aggregators)
  arity-of-aggregated-rel
  all-aggregators)
 
@@ -484,26 +481,6 @@
         (if (set-empty? tuples)
           (set `())
           (set)))))
-(define (num-agg-input-tuple-value tuple)
-  (match tuple 
-    [`((integer ,n)) n]
-    [`(,(? integer? n)) n]
-    [else #f]))
-
-(define new-sum-aggregator
-  `(1 1
-    ,(λ (tuples)
-      ; (printf "sum input tuples: ~a\n" tuples)
-      (define res (foldl + 0 (filter-map num-agg-input-tuple-value (set->list tuples))))
-      (set `((integer ,res))))))
-
-(define new-negation-aggregator
-  `(0 0
-      ,(λ (tuples)
-        ; (printf "negation input tuples: ~a\n" tuples)
-        (if (set-empty? tuples)
-          (set `())
-          (set)))))
 
 (define new-count-aggregator
   `(0 1
@@ -511,11 +488,6 @@
       (define res (set-count tuples))
       (set `((integer ,res))))))
 
-(define new-count-aggregator
-  `(0 1
-    ,(λ (tuples)
-      (define res (set-count tuples))
-      (set `((integer ,res))))))
 (define (new-extremum-aggregator join)
   `(1 1
     ,(λ (tuples)
@@ -527,16 +499,6 @@
           (define res (foldl join head tail))
           (set `((integer ,res)))]))))
 
-(define (new-extremum-aggregator join)
-  `(1 1
-    ,(λ (tuples)
-      (define numbers (filter-map num-agg-input-tuple-value tuples))
-      (cond 
-        [(empty? numbers) (set)]
-        [else
-          (match-define (cons head tail) numbers)
-          (define res (foldl join head tail))
-          (set `((integer ,res)))]))))
 
 (define all-aggregators
   (hash

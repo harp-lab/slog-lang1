@@ -2,7 +2,7 @@
 #include <iostream>
 
 
-u32 RAM::local_compute(int* offset)
+bool RAM::local_compute(int* offset)
 {
     bool join_completed = true;
     u32 join_tuples = 0;

@@ -5,6 +5,7 @@
 
 (provide slog-compile
          slog-compile-cpp
+         slog-compile-backend-input
          generate-cpp-lambda-for-rule-with-builtin
          generate-cpp-lambdas-for-rule-with-aggregator
          generate-cpp-lambda-for-rule-with-builtin-impl
@@ -233,15 +234,15 @@
              (hash-set txt-h scc (slog-compile-scc-backend-input scc (hash-ref scc-map scc) comp-rels-func-names)))
            (hash)
            (hash-keys scc-map)))
-  (define scc-txt-list (map (λ (scc) (cons scc (hash-ref scc-txt-h scc))) (sort (hash-keys scc-txt-h) <)))
+  (define scc-txt-list (map (λ (scc) (hash-ref scc-txt-h scc)) (sort (hash-keys scc-txt-h) <)))
   ;(display scc-graph)
   (define prog-txt
     `(slog-prog ,rel-txt ,scc-txt-list
                ,(foldl (lambda (scc lst)
                          (foldl (lambda (scc2 txt)
                                   (cons
-                                   `(,(car (hash-ref scc-txt-h scc))
-                                     ,(car (hash-ref scc-txt-h scc2)))
+                                   `(,(second (hash-ref scc-txt-h scc))
+                                     ,(second (hash-ref scc-txt-h scc2)))
                                    txt))
                                 lst
                                 (set->list (hash-ref scc-graph scc (thunk (error "missing scc?"))))))
@@ -347,7 +348,7 @@
   (match scc
     [`(scc ,looping ,rel-h ,rules-h)
      (define name (format "scc~a" scc-id))
-     `(scc ,name
+     `(scc-decl ,name
        ,scc-id
        ,(equal? looping 'looping)
        ,(foldl (lambda (rel-sel txt)
@@ -355,7 +356,7 @@
                  (define rel-a `(rel-arity ,rel-name ,rel-arity ,rel-kind))
                  (match-define (list use-status deletable-status canonical-index indices) (hash-ref rel-h rel-a))
                  (cons
-                  `(scc-rel ,name ,(rel->name rel-sel)
+                  `(scc-rel ,(rel->name rel-sel)
                             ,(equal? use-status 'dynamic)
                             ,(equal? deletable-status 'deletable))
                   txt))
@@ -486,7 +487,7 @@
             (cond [(builtin? op) (generate-backend-input-for-rule-with-builtin rule)]
                   [else (hash-ref comp-rels-func-names bi-rel-select)]))
           ; lambda signature: (const u64* data, u64* output) -> int
-          `(copy-generate ,(rel->name rel-sel)
+          `(RA copy-generate ,(rel->name rel-sel)
                           ,(rel->name `(rel-select ,@(take (drop rel-ver0 1) 3) db))
                           ,(match (last rel-ver0) ['total "FULL"] ['delta "DELTA"] ['new "NEW"])
                           ,comp-rel-func)]
@@ -500,7 +501,7 @@
                                     '())))
           (match-define `(rel-select ,neg-rel-name ,neg-rel-arity ,neg-rel-sel db) negated-rel)
           (assert (equal? neg-rel-arity neg-arity))
-          `(negatation ,(rel->name rel-sel)
+          `(RA negatation ,(rel->name rel-sel)
                        ,(rel->name `(rel-select ,@(take (drop rel-ver0 1) 3) db))
                        ,(match (last rel-ver0) ['total "FULL"] ['delta "DELTA"] ['new "NEW"])
                        ,(rel->name `(rel-select ,neg-rel-name ,neg-rel-arity ,neg-rel-sel db))
@@ -515,19 +516,25 @@
            #:when (agg-rel-kind? ver)
           (match-define `(agg ,aggregated-rel) ver)
           ; (define bi-rel-select `(rel-select ,op ,op-arity ,op-indices comp))
-          (match-define (list local-cpp-func special-agg reduce-cpp-func global-cpp-func)
-            (generate-cpp-lambdas-for-rule-with-aggregator rule))
+          (match-define (list local-cpp-func special-agg reduce-cpp-func global-cpp-func columns-to-drop)
+            (generate-backend-input-for-rule-with-aggregator rule))
           ;parallel_copy_aggregate(relation rel, relation agg_rel, relation target_rel, char* ver,
           ;                    local_agg_func_t local_agg_func, reduce_agg_func_t reduce_agg_func, global_agg_func_t global_agg_fun);
-          (format "new parallel_copy_aggregate(~a, ~a, ~a, ~a, ~a, ~a, ~a, ~a)"
-                      (rel->name rel-sel)
-                      (rel->name (strip-prov aggregated-rel))
-                      (rel->name `(rel-select ,@(take (drop rel-ver0 1) 3) db))
-                      (match (last rel-ver0) ['total "FULL"] ['delta "DELTA"] ['new "NEW"])
-                      local-cpp-func special-agg reduce-cpp-func global-cpp-func)
-          `(aggregation
+          (define prefix-vars (let loop ([bvars0 (map second bvars0)] [bvars1 (map second bvars1)])
+                                (if (and (cons? bvars0) (cons? bvars1) (equal? (first bvars0) (first bvars1)))
+                                    (cons (first bvars0) (loop (cdr bvars0) (cdr bvars1)))
+                                    '())))
+          `(RA aggregation
             ,(rel->name rel-sel)
-            ,(rel->name (strip-prov aggregated-rel)))]
+            ,(rel->name (strip-prov aggregated-rel))
+            ,(rel->name `(rel-select ,@(take (drop rel-ver0 1) 3) db))
+            ,(match (last rel-ver0) ['total "FULL"] ['delta "DELTA"] ['new "NEW"])
+            ,local-cpp-func ,special-agg ,reduce-cpp-func ,global-cpp-func
+            ,(compute-reordering-backend-ir
+              (map second hvars)
+              (append prefix-vars
+                      (map second (drop bvars0 (length prefix-vars)))
+                      (map second (drop bvars1 columns-to-drop)))) )]
 
          [`(srule ,(? ir-incremental-hclause? `(prov ((prov ,(? rel-select? rel-sel) ,_) ,hvars ...) ,_))
                   ,(? ir-incremental-bclause? `(prov ((prov ,(? rel-version? rel-ver0) ,_) ,bvars0 ...) ,_))
@@ -536,40 +543,45 @@
                                 (if (and (cons? bvars0) (cons? bvars1) (equal? (first bvars0) (first bvars1)))
                                     (cons (first bvars0) (loop (cdr bvars0) (cdr bvars1)))
                                     '())))
-          (format "new parallel_join(~a, ~a, ~a, ~a, ~a, ~a)"
-                  (rel->name rel-sel)
-                  (rel->name `(rel-select ,@(take (drop rel-ver0 1) 3) db))
-                  (match (last rel-ver0) ['total "FULL"] ['delta "DELTA"] ['new "NEW"])
-                  (rel->name `(rel-select ,@(take (drop rel-ver1 1) 3) db))
-                  (match (last rel-ver1) ['total "FULL"] ['delta "DELTA"] ['new "NEW"])
-                  (compute-reordering-cpp (map second hvars)
-                                          (append prefix-vars
-                                                  (map second (drop bvars0 (length prefix-vars)))
-                                                  (map second (drop bvars1 (length prefix-vars))))))]
+          `(RA join
+            ,(rel->name rel-sel)
+            ,(rel->name `(rel-select ,@(take (drop rel-ver0 1) 3) db))
+            ,(match (last rel-ver0) ['total "FULL"] ['delta "DELTA"] ['new "NEW"])
+            ,(rel->name `(rel-select ,@(take (drop rel-ver1 1) 3) db))
+            ,(match (last rel-ver1) ['total "FULL"] ['delta "DELTA"] ['new "NEW"])
+            ,(compute-reordering-backend-ir (map second hvars)
+                                            (append prefix-vars
+                                                    (map second (drop bvars0 (length prefix-vars)))
+                                                    (map second (drop bvars1 (length prefix-vars))))))]
          [`(srule ,(? ir-incremental-hclause? `(prov ((prov ,(? rel-select? rel-sel) ,_) ,hvars ...) ,_))
                   ,(? ir-incremental-bclause? `(prov ((prov ,(? rel-version? rel-ver) ,_) ,bvars ...) ,_)))
-          (format "new parallel_copy(~a, ~a, ~a, ~a)"
-                  (rel->name rel-sel)
-                  (rel->name `(rel-select ,@(take (drop rel-ver 1) 3) db))
-                  (match (last rel-ver) ['total "FULL"] ['delta "DELTA"] ['new "NEW"])
-                  (compute-reordering-cpp (map second hvars) (map second bvars)))]
+          `(RA copy
+            ,(rel->name rel-sel)
+            ,(rel->name `(rel-select ,@(take (drop rel-ver 1) 3) db))
+            ,(match (last rel-ver) ['total "FULL"] ['delta "DELTA"] ['new "NEW"])
+            ,(compute-reordering-backend-ir (map second hvars) (map second bvars)))]
          [`(srule ,(? ir-incremental-hclause? `(prov ((prov ,(? rel-select? rel-sel) ,_) ,hvars ...) ,_)))
-          (format "new fact(~a, ~a)"
-                  (rel->name rel-sel)
-                  (format "{~a}" (intercalate ", " (map (compose literal->cpp-val strip-prov) hvars))))]
+          `(RA fact ,(rel->name rel-sel)
+                 ,(map (compose literal->backend-input-val strip-prov) hvars))]
          [`(arule ,(? ir-incremental-hclause? `(prov ((prov ,(? rel-select? rel-sel) ,_) ,hvars ...) ,_))
                   ,(? ir-incremental-bclause? `(prov ((prov ,(? rel-version? rel-ver) ,_) ,bvars ...) ,_)))
-          (format "new parallel_acopy(~a, ~a, ~a, ~a)"
-                  (rel->name rel-sel)
-                  (rel->name `(rel-select ,@(take (drop rel-ver 1) 3) db))
-                  (match (last rel-ver) ['total "FULL"] ['delta "DELTA"] ['new "NEW"])
-                  (compute-reordering-cpp (map second hvars) (map second bvars)))]))
+          `(RA acopy
+            ,(rel->name rel-sel)
+            ,(rel->name `(rel-select ,@(take (drop rel-ver 1) 3) db))
+            ,(match (last rel-ver) ['total "FULL"] ['delta "DELTA"] ['new "NEW"])
+            ,(compute-reordering-backend-ir (map second hvars) (map second bvars)))
+          ]))
 
 
 (define (literal->cpp-val lit)
   (match lit
     [(? string?) (format "s2d(\"~a\")" lit)]
     [else (format "n2d(~a)" lit)]))
+
+(define (literal->backend-input-val lit)
+  (match lit
+    [(? string?) `(str ,lit)]
+    [else `(num ,lit)]))
 
 (define (compute-reordering-cpp to-xs from-xs)
   (define (index-of x [xs from-xs] [i 0])
@@ -597,7 +609,7 @@
   (foldl (lambda (to-x txt)
            (append txt (list (index-of to-x))))
          '()
-         to-xs)
+         to-xs))
 
 (define (int-list->cpp-array lst)
   (format "std::array<int, ~a> { ~a }" (length lst) (intercalate ", " lst)))
@@ -629,6 +641,16 @@
   (match-define `(,local-cpp-func ,special-agg ,reduce-cpp-func ,global-cpp-func) match)
   (list local-cpp-func special-agg reduce-cpp-func global-cpp-func columns-to-drop))
 
+(define (generate-backend-input-for-rule-with-aggregator r)
+  (match-define `(srule (,rel-sel ,hvars ...)
+                        (,rel-ver0 ,bvars0 ...)
+                        ((rel-version ,agg-name ,op-arity ,op-indices ,kind) ,bvars1 ...)) (strip-prov r))
+  (define match (hash-ref aggregators agg-name))
+  (match-define `(agg (rel-select ,rel-name ,rel-arity ,rel-indices db)) (strip-prov kind))
+  (match-define (list input-cols output-cols _) (hash-ref all-aggregators agg-name))
+  (define columns-to-drop (- (add1 rel-arity) input-cols))
+  (match-define `(,local-cpp-func ,special-agg ,reduce-cpp-func ,global-cpp-func) match)
+  (list local-cpp-func special-agg reduce-cpp-func global-cpp-func columns-to-drop))
 
 (define (generate-cpp-lambda-for-rule-with-builtin-impl r available-indices cpp-func-name)
   ; (printf "(generate-cpp-lambda-for-rule-with-builtin-impl r indices cpp-func-name) args: ~a\n ~a ~a\n" (strip-prov r) available-indices cpp-func-name)
@@ -727,7 +749,8 @@
   (define output-indices (filter (λ (i) (not (member i available-indices))) (range 0 arity)))
   (define diff-indices (filter (λ (i) (not (member i available-indices))) requested-indices))
   `(external-function
-    ,hvars
+    ,cpp-func-name
+    ,(length hvars)
     ,(map (λ (i) 
             (define arg-pos-in-bvars1 (index-of requested-indices (list-ref available-indices i)))
             (define arg (list-ref bvars1 arg-pos-in-bvars1))
@@ -738,7 +761,19 @@
                (define arg-pos-in-bvars0 (index-of bvars0 arg))
                `(data ,arg-pos-in-bvars0)])) 
           (range 0 (length available-indices)))
-    ,output-indices
+    ,(length output-indices)
+    ,(filter-map (λ (i) 
+                   (define output-index (list-ref output-indices i))
+                   (cond 
+                     [(member output-index diff-indices)
+                      (define arg (list-ref bvars1 (index-of requested-indices output-index)))
+                      (match arg
+                        [(? var?)
+                         (define index-in-input-tuple (index-of bvars0 arg))
+                         `(,i (data ,index-in-input-tuple))]
+                        [(? lit?) `(,i ,(lit->backend-input-datum arg))])]
+                     [else #f])) 
+                 (range 0 (length output-indices)))
     ,(if (equal? (length hvars) 0)
          '(0 (num 1))
          (map 
@@ -756,119 +791,6 @@
                           [bad-arg (error (format "bad rule: ~a\nbad arg: ~a" (strip-prov r) bad-arg))]))
             `(,i ,rhs))
           (range 0 (length hvars))))))
-
-(define (generate-cpp-lambdas-for-rule-with-aggregator-impl r available-indices local-cpp-func-name global-cpp-func-name)
-  ; (printf "(generate-cpp-lambda-for-rule-with-builtin-impl r indices cpp-func-name) args: ~a\n ~a ~a\n" (strip-prov r) indices cpp-func-name)
-  (match-define `(srule (,rel-sel ,hvars ...)
-                        (,rel-ver0 ,bvars0 ...)
-                        ((rel-version ,(? aggregator?) ,arity ,requested-indices ,agg-kind) ,bvars1 ...)) (strip-prov r))
-  
-  (define new-tuple-index-to-old-tuple-index-mapping (map-new-tuple-index-to-old-tuple-index arity requested-indices available-indices))
-  (set! available-indices (map sub1 available-indices))
-  (set! requested-indices (map sub1 requested-indices))
-  (define output-indices (filter (λ (i) (not (member i available-indices))) (range 0 arity)))
-  (define diff-indices (filter (λ (i) (not (member i available-indices))) requested-indices))
-
-  ;; TODO remove if the new design is approved
-  #;(define local-lambda
-    (string-replace-all 
-    "[](_BTree* rel, const u64* const data) -> local_agg_res_t{
-      auto args_for_old_bi = std::array<u64, [old-indices-size]> {[populate-args-for-old-bi-code]};
-      return [local-cpp-func-name](rel, args_for_old_bi.data());
-    }"
-    "[head-tuple-size]" (~a (length hvars))
-    "[old-indices-size]" (~a (length available-indices))
-    "[local-cpp-func-name]" local-cpp-func-name
-    "[populate-args-for-old-bi-code]"
-    (intercalate ", " (map (λ (i) 
-                            (define arg-pos-in-bvars1 (index-of requested-indices (list-ref available-indices i)))
-                            (define arg (list-ref bvars1 arg-pos-in-bvars1))
-                            (match arg
-                              [(? string?) (format "s2d(\"~a\")" arg)]
-                              [(? number?)  (format "n2d(~a)" arg)]
-                              [else 
-                                (define arg-pos-in-bvars0 (index-of bvars0 arg))
-                                (format "data[~a]" arg-pos-in-bvars0)])) 
-                        (range 0 (length available-indices))))
-  ))
-  (define local-lambda local-cpp-func-name)
-  ; TODO maybe unify this with generate-cpp-lambda-for-rule-with-builtin-impl?
-  (define global-lambda
-  (string-replace-all 
-    "[](u64* data, local_agg_res_t agg_data, u64 agg_data_count, u64* const output) -> int{
-      auto args_for_old_bi = std::array<u64, [old-indices-size]> {[populate-args-for-old-bi-code]};
-      using TState = std::tuple<const u64*,u64*>;
-      TState state = std::make_tuple(data, output);
-      auto callback = []([callback-params] TState state) -> TState{
-        auto [data, output] = state;
-        auto head_tuple = output;
-        [zero-arity-extra-result]
-        bool compatible = [check-compatibility-code];
-        if (! compatible) return state;
-
-        [head-tuple-populating-code]
-        return std::make_tuple(data, output + [head-tuple-size]);
-      };
-      auto [_,new_ptr] = [global-cpp-func-name]<TState>(args_for_old_bi.data(), agg_data, agg_data_count, state, callback);
-      auto tuples_count = [new-tuple-count];
-      return tuples_count;
-    }"
-    "[head-tuple-size]" (~a (length hvars))
-    "[zero-arity-extra-result]" (if (equal? (length hvars) 0) "head_tuple[0] = 0;" " ")
-    "[new-tuple-count]"
-    (if (equal? (length hvars) 0) 
-      "new_ptr[0]"
-      (format "(new_ptr - output) / ~a"  (length hvars)))
-    "[old-indices-size]" (~a (length available-indices))
-    "[global-cpp-func-name]" global-cpp-func-name
-    "[populate-args-for-old-bi-code]"
-    (intercalate ", " (map (λ (i) 
-                            (define arg-pos-in-bvars1 (index-of requested-indices (list-ref available-indices i)))
-                            (define arg (list-ref bvars1 arg-pos-in-bvars1))
-                            (match arg
-                              ; [(? lit?) (format "n2d(~a)" arg)]
-                              [(? string?) (format "s2d(\"~a\")" arg)]
-                              [(? number?)  (format "n2d(~a)" arg)]
-                              [else 
-                                (define arg-pos-in-bvars0 (index-of bvars0 arg))
-                                (format "data[~a]" arg-pos-in-bvars0)])) 
-                        (range 0 (length available-indices))))
-    "[callback-params]"
-    (intercalate "" (map (λ (i) (format "u64 res_~a, " i)) (range 0 (length output-indices))))
-    "[check-compatibility-code]"
-    (intercalate " && " 
-      (cons "true" (filter-map (λ (i) 
-                    (define output-index (list-ref output-indices i))
-                    (cond 
-                      [(member output-index diff-indices)
-                        (define arg (list-ref bvars1 (index-of requested-indices output-index)))
-                        (match arg
-                          [(? var?)
-                            (define index-in-input-tuple (index-of bvars0 arg))
-                            (format "res_~a == data[~a]" i index-in-input-tuple)]
-                          [(? lit?) (format "res_~a == ~a" i (lit->cpp-datum arg))])]
-                      [else #f])) 
-                  (range 0 (length output-indices)))))
-    "[head-tuple-populating-code]"
-    (if (equal? (length hvars) 0)
-      "head_tuple[0] = 1;"
-      (intercalate "\n" (map 
-        (λ (i)
-          (define rhs (match (list-ref hvars i)
-            [(? number? x) (format "number_to_datum(~a)" x)]
-            [(? string? str) (error (format "string literals in cpp compiler not supported yet!")) ] ;TODO
-            [(? symbol? var) #:when (member var bvars0)
-              (format "data[~a]" (index-of bvars0 var))]
-            [(? symbol? var) #:when (member var bvars1)
-              (define bi-arg-pos (index-of bvars1 var))
-              (define bi-arg-index (list-ref (extend-indices (map add1 requested-indices) arity) bi-arg-pos))
-              (define index-in-res (index-of output-indices (sub1 bi-arg-index)))
-              (format "res_~a" index-in-res)]
-            [bad-arg (error (format "bad rule: ~a\nbad arg: ~a" (strip-prov r) bad-arg))]))
-          (format "head_tuple[~a] = ~a;" i rhs)) 
-      (range 0 (length hvars)))))
-  ))
-  (cons local-lambda global-lambda))
 
 (define (extend-indices indices arity) (append indices (filter (λ (i) (not (member i indices))) (range 0 (add1 arity)))))
 
@@ -1168,3 +1090,8 @@
   (match lit
     [(? number?) (format "n2d(~a)" lit)]
     [(? string?) (format "s2d(\"~a\")" lit)]))
+
+(define (lit->backend-input-datum lit)
+  (match lit
+    [(? number?) `(num ,lit)]
+    [(? string?) `(str ,lit)]))
