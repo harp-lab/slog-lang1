@@ -209,49 +209,6 @@ void shmap_relation::as_all_to_allv_copy_filter_buffer(
     }
 }
 
-void shmap_relation::as_all_to_allv_copy_generate_buffer(
-    all_to_allv_buffer &buffer,
-    std::vector<u64> prefix,
-    int ra_id, u32 buckets,
-    u32 *output_sub_bucket_count,
-    u32 **output_sub_bucket_rank,
-    u32 arity, u32 join_column_count,
-    int (*lambda)(const u64 *const, u64 *const),
-    int head_rel_hash_col_count, bool canonical)
-{
-    if (size() == 0)
-        return;
-    for (const t_tuple &cur_path : ind)
-    {
-        int output_length = buffer.width[ra_id];
-        if (buffer.width[ra_id] == 0) {
-            output_length = 1;
-        }
-        u64 reordered_cur_path[output_length];
-        u64 cur_path_array[cur_path.size()];
-        for (u32 i=0; i < cur_path.size(); i++)
-            cur_path_array[i] = cur_path[i];
-
-        if (lambda(cur_path_array, reordered_cur_path) !=0)
-        {
-            uint64_t bucket_id = tuple_hash(reordered_cur_path, head_rel_hash_col_count) % buckets;
-            uint64_t sub_bucket_id=0;
-            if (canonical == false && arity != 0 && arity >= head_rel_hash_col_count)
-                sub_bucket_id = tuple_hash(reordered_cur_path + head_rel_hash_col_count, arity-head_rel_hash_col_count) % output_sub_bucket_count[bucket_id];
-
-            int index = output_sub_bucket_rank[bucket_id][sub_bucket_id];
-            buffer.local_compute_output_size_rel[ra_id] = buffer.local_compute_output_size_rel[ra_id] + buffer.width[ra_id];
-            buffer.local_compute_output_size_total = buffer.local_compute_output_size_total + buffer.width[ra_id];
-            buffer.local_compute_output_size_flat[index * buffer.ra_count + ra_id] = buffer.local_compute_output_size_flat[index * buffer.ra_count + ra_id] + buffer.width[ra_id];
-            buffer.local_compute_output_count_flat[index * buffer.ra_count + ra_id] ++;
-
-            buffer.local_compute_output_size[ra_id][index] = buffer.local_compute_output_size[ra_id][index] + buffer.width[ra_id];
-            buffer.cumulative_tuple_process_map[index] = buffer.cumulative_tuple_process_map[index] + buffer.width[ra_id];
-            buffer.local_compute_output[ra_id][index].vector_buffer_append((const unsigned char*)reordered_cur_path, sizeof(u64)*buffer.width[ra_id]);
-        }
-    }
-}
-
 void shmap_relation::as_all_to_allv_right_join_buffer(
     std::vector<u64> prefix,
     all_to_allv_buffer &join_buffer,

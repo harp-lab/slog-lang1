@@ -165,8 +165,6 @@ struct shmap_relation {
         u32** output_sub_bucket_rank, std::vector<int>& reorder_map,
         int join_column_count, int out_airty,
         int head_rel_hash_col_count, bool canonical);
-
-    void as_all_to_allv_copy_generate_buffer(all_to_allv_buffer& buffer, std::vector<u64> prefix, int ra_id, u32 buckets, u32* output_sub_bucket_count, u32** output_sub_bucket_rank, u32 arity, u32 join_column_count, int(*lambda)(const u64* const, u64* const), int head_rel_hash_col_count, bool canonical);
  
     ~shmap_relation()
     {

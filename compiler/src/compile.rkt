@@ -225,7 +225,7 @@
              ;; find the appropriate rel-select by name
              (define is-canonical (canonical-index? (rel->sel rel-sel) (rel->arity rel-sel)))
              (cons
-              `(relation-decl ,(rel->name rel-sel) ,(length (rel->sel rel-sel)) ,is-canonical)
+              `(relation-decl ,(rel->name rel-sel) ,rel-name ,(length (rel->sel rel-sel)) ,is-canonical ,(rel->arity rel-sel))
               rel-txt))
            '()
            (set->list all-rel-selects)))
@@ -239,11 +239,7 @@
   (define prog-txt
     `(slog-prog ,rel-txt ,scc-txt-list
                ,(foldl (lambda (scc lst)
-                         (foldl (lambda (scc2 txt)
-                                  (cons
-                                   `(,(second (hash-ref scc-txt-h scc))
-                                     ,(second (hash-ref scc-txt-h scc2)))
-                                   txt))
+                         (foldl (lambda (scc2 txt) (cons `(,scc ,scc2) txt))
                                 lst
                                 (set->list (hash-ref scc-graph scc (thunk (error "missing scc?"))))))
                        '()
@@ -487,7 +483,7 @@
             (cond [(builtin? op) (generate-backend-input-for-rule-with-builtin rule)]
                   [else (hash-ref comp-rels-func-names bi-rel-select)]))
           ; lambda signature: (const u64* data, u64* output) -> int
-          `(RA copy-generate ,(rel->name rel-sel)
+          `(copy-generate ,(rel->name rel-sel)
                           ,(rel->name `(rel-select ,@(take (drop rel-ver0 1) 3) db))
                           ,(match (last rel-ver0) ['total "FULL"] ['delta "DELTA"] ['new "NEW"])
                           ,comp-rel-func)]
@@ -501,7 +497,7 @@
                                     '())))
           (match-define `(rel-select ,neg-rel-name ,neg-rel-arity ,neg-rel-sel db) negated-rel)
           (assert (equal? neg-rel-arity neg-arity))
-          `(RA negatation ,(rel->name rel-sel)
+          `(negatation ,(rel->name rel-sel)
                        ,(rel->name `(rel-select ,@(take (drop rel-ver0 1) 3) db))
                        ,(match (last rel-ver0) ['total "FULL"] ['delta "DELTA"] ['new "NEW"])
                        ,(rel->name `(rel-select ,neg-rel-name ,neg-rel-arity ,neg-rel-sel db))
@@ -524,7 +520,7 @@
                                 (if (and (cons? bvars0) (cons? bvars1) (equal? (first bvars0) (first bvars1)))
                                     (cons (first bvars0) (loop (cdr bvars0) (cdr bvars1)))
                                     '())))
-          `(RA aggregation
+          `(aggregation
             ,(rel->name rel-sel)
             ,(rel->name (strip-prov aggregated-rel))
             ,(rel->name `(rel-select ,@(take (drop rel-ver0 1) 3) db))
@@ -543,7 +539,7 @@
                                 (if (and (cons? bvars0) (cons? bvars1) (equal? (first bvars0) (first bvars1)))
                                     (cons (first bvars0) (loop (cdr bvars0) (cdr bvars1)))
                                     '())))
-          `(RA join
+          `(join
             ,(rel->name rel-sel)
             ,(rel->name `(rel-select ,@(take (drop rel-ver0 1) 3) db))
             ,(match (last rel-ver0) ['total "FULL"] ['delta "DELTA"] ['new "NEW"])
@@ -555,17 +551,17 @@
                                                     (map second (drop bvars1 (length prefix-vars))))))]
          [`(srule ,(? ir-incremental-hclause? `(prov ((prov ,(? rel-select? rel-sel) ,_) ,hvars ...) ,_))
                   ,(? ir-incremental-bclause? `(prov ((prov ,(? rel-version? rel-ver) ,_) ,bvars ...) ,_)))
-          `(RA copy
+          `(copy
             ,(rel->name rel-sel)
             ,(rel->name `(rel-select ,@(take (drop rel-ver 1) 3) db))
             ,(match (last rel-ver) ['total "FULL"] ['delta "DELTA"] ['new "NEW"])
             ,(compute-reordering-backend-ir (map second hvars) (map second bvars)))]
          [`(srule ,(? ir-incremental-hclause? `(prov ((prov ,(? rel-select? rel-sel) ,_) ,hvars ...) ,_)))
-          `(RA fact ,(rel->name rel-sel)
+          `(fact ,(rel->name rel-sel)
                  ,(map (compose literal->backend-input-val strip-prov) hvars))]
          [`(arule ,(? ir-incremental-hclause? `(prov ((prov ,(? rel-select? rel-sel) ,_) ,hvars ...) ,_))
                   ,(? ir-incremental-bclause? `(prov ((prov ,(? rel-version? rel-ver) ,_) ,bvars ...) ,_)))
-          `(RA acopy
+          `(acopy
             ,(rel->name rel-sel)
             ,(rel->name `(rel-select ,@(take (drop rel-ver 1) 3) db))
             ,(match (last rel-ver) ['total "FULL"] ['delta "DELTA"] ['new "NEW"])

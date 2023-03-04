@@ -767,7 +767,7 @@
 
 (define (backend-input-ir-relation-decl? e)
   (match e
-    [`(relation-decl ,name ,arity ,canonical) #t]
+    [`(relation-decl ,name ,jcc ,canonical ,arity) #t]
     [else #f]))
 
 (define (backend-input-ir-scc-order? e)
@@ -833,7 +833,7 @@
 (define (backend-input-ir? e)
   (match e
     [`(slog-prog
-       ,(? backend-input-ir-relation-decl? rel-decl)
+       (,(? backend-input-ir-relation-decl? rel-decl) ...)
        (,(? backend-input-ir-scc-decl?) ...)
-       ,(? backend-input-ir-scc-order?)) #t]
+       (,(? backend-input-ir-scc-order?) ...)) #t]
     [else #f]))
