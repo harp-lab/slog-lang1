@@ -88,6 +88,8 @@ public:
     /// add rule to the SCC
     void add_rule(parallel_RA* pj) {RA_list.push_back(pj);}
 
+    std::vector<parallel_RA*> get_ra_list() { return RA_list; }
+
 
     /// Load balancing related
     void set_refinement_factor(double rf)   {refinement_factor = rf;}

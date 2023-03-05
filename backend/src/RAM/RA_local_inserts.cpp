@@ -1,5 +1,4 @@
 #include "../parallel_RA_inc.h"
-#include <iostream>
 
 void RAM::local_insert_in_full()
 {
@@ -47,6 +46,8 @@ void RAM::local_insert_in_newt_comm_compaction(std::map<u64, u64>& intern_map)
             output = RA_list[ra_id]->get_copy_filter_output();
         else if (RA_list[ra_id]->get_RA_type() == NEGATION)
             output = RA_list[ra_id]->get_negation_output();
+        else if (RA_list[ra_id]->get_RA_type() == AGGREGATION)
+            output = ((parallel_join_aggregate*)RA_list[ra_id])->join_aggregate_output_table;
         else if (RA_list[ra_id]->get_RA_type() == JOIN)
             output = RA_list[ra_id]->get_join_output();
         else if (RA_list[ra_id]->get_RA_type() == COPY_GENERATE)
@@ -56,7 +57,10 @@ void RAM::local_insert_in_newt_comm_compaction(std::map<u64, u64>& intern_map)
         else
             output = RA_list[ra_id]->get_acopy_output();
 
-        if (RA_list[ra_id]->get_RA_type() == COPY || RA_list[ra_id]->get_RA_type() == JOIN || RA_list[ra_id]->get_RA_type() == NEGATION || RA_list[ra_id]->get_RA_type() == COPY_FILTER || RA_list[ra_id]->get_RA_type() == COPY_GENERATE || RA_list[ra_id]->get_RA_type() == FACT)
+        if (RA_list[ra_id]->get_RA_type() == COPY || RA_list[ra_id]->get_RA_type() == JOIN || 
+            RA_list[ra_id]->get_RA_type() == NEGATION || RA_list[ra_id]->get_RA_type() == AGGREGATION ||
+            RA_list[ra_id]->get_RA_type() == COPY_FILTER || RA_list[ra_id]->get_RA_type() == COPY_GENERATE ||
+            RA_list[ra_id]->get_RA_type() == FACT)
         {
             u32 width = output->get_arity();
             u64 tuple[width + 1];

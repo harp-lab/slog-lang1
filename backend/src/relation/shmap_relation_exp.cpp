@@ -358,7 +358,7 @@ void shmap_relation::as_all_to_allv_right_outer_join_buffer(
     u32 **output_sub_bucket_rank,
     std::vector<int> &reorder_map,
     int join_column_count,
-    int out_airty,
+    int out_arity,
     int head_rel_hash_col_count,
     bool canonical)
 {
@@ -382,8 +382,8 @@ void shmap_relation::as_all_to_allv_right_outer_join_buffer(
 
             uint64_t bucket_id = tuple_hash(reordered_cur_path, head_rel_hash_col_count) % buckets;
             uint64_t sub_bucket_id=0;
-            if (canonical == false && out_airty != 0 && out_airty >= head_rel_hash_col_count)
-                sub_bucket_id = tuple_hash(reordered_cur_path + head_rel_hash_col_count, out_airty-head_rel_hash_col_count) % output_sub_bucket_count[bucket_id];
+            if (canonical == false && out_arity != 0 && out_arity >= head_rel_hash_col_count)
+                sub_bucket_id = tuple_hash(reordered_cur_path + head_rel_hash_col_count, out_arity-head_rel_hash_col_count) % output_sub_bucket_count[bucket_id];
 
             int index = output_sub_bucket_rank[bucket_id][sub_bucket_id];
             join_buffer.local_compute_output_size_rel[ra_id] = join_buffer.local_compute_output_size_rel[ra_id] + join_buffer.width[ra_id];

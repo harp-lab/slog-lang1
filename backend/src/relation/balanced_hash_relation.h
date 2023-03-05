@@ -65,9 +65,9 @@ private:
     mpi_comm mcomm;                             /// comm related
     parallel_io file_io;                        /// to handle parallel IO
 
-    bool offset_io;
+    // bool offset_io;
     bool share_io;
-    bool restart_flag;
+    // bool restart_flag;
     //bool fact_load=false;
     //std::vector<u64> init_val;
 
@@ -100,9 +100,9 @@ public:
         //fact_load = false;
     }
 
-    void set_restart_flag(bool restart)    {restart_flag = restart;}
+    // void set_restart_flag(bool restart)    {restart_flag = restart;}
 
-    void set_offset_io(bool offset)   {offset_io = offset;}
+    // void set_offset_io(bool offset)   {offset_io = offset;}
 
     void set_share_io(bool share)   {share_io = share;}
 

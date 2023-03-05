@@ -34,7 +34,28 @@ u64 RAM::intra_bucket_comm_execute()
             counter++;
             continue;
         }
-
+        else if ((*it)->get_RA_type() == AGGREGATION)
+        {
+            parallel_join_aggregate* current_ra = (parallel_join_aggregate*) *it;
+            relation* input_rel = current_ra->join_aggregate_input_table;
+            relation* target_rel = current_ra->join_aggregate_target_table;
+            if (*(target_rel->get_sub_bucket_per_bucket_count()) == 1) {
+                counter++;
+                continue;
+            } else {
+                intra_bucket_comm(get_bucket_count(),
+                                target_rel->get_full(),
+                                target_rel->get_distinct_sub_bucket_rank_count(),
+                                target_rel->get_distinct_sub_bucket_rank(),
+                                target_rel->get_bucket_map(),
+                                input_rel->get_distinct_sub_bucket_rank_count(),
+                                input_rel->get_distinct_sub_bucket_rank(),
+                                input_rel->get_bucket_map(),
+                                &intra_bucket_buf_output_size[counter],
+                                &intra_bucket_buf_output[counter],
+                                mcomm.get_local_comm());
+            }
+        }
         /// No intra-bucket comm required for acopy
         else if ((*it)->get_RA_type() == ACOPY)
         {

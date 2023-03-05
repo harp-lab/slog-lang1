@@ -1,11 +1,8 @@
 
 #include "../parallel_RA_inc.h"
-#include "parallel_agg.h"
 #include <array>
 #include <cassert>
 #include <iostream>
-#include <ostream>
-#include <vector>
 
 bool parallel_join_negate::local_negation(
     int threshold, int* offset, int join_order, u32 buckets,

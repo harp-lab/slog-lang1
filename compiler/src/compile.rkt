@@ -225,7 +225,7 @@
              ;; find the appropriate rel-select by name
              (define is-canonical (canonical-index? (rel->sel rel-sel) (rel->arity rel-sel)))
              (cons
-              `(relation-decl ,(rel->name rel-sel) ,rel-name ,(length (rel->sel rel-sel)) ,is-canonical ,(rel->arity rel-sel))
+              `(relation-decl ,(rel->name rel-sel) ,rel-name ,(length (rel->sel rel-sel)) ,is-canonical ,(rel->arity rel-sel) ,sel)
               rel-txt))
            '()
            (set->list all-rel-selects)))
@@ -239,7 +239,7 @@
   (define prog-txt
     `(slog-prog ,rel-txt ,scc-txt-list
                ,(foldl (lambda (scc lst)
-                         (foldl (lambda (scc2 txt) (cons `(,scc ,scc2) txt))
+                         (foldl (lambda (scc2 txt) (append txt `((,scc ,scc2)) ))
                                 lst
                                 (set->list (hash-ref scc-graph scc (thunk (error "missing scc?"))))))
                        '()
@@ -497,7 +497,7 @@
                                     '())))
           (match-define `(rel-select ,neg-rel-name ,neg-rel-arity ,neg-rel-sel db) negated-rel)
           (assert (equal? neg-rel-arity neg-arity))
-          `(negatation ,(rel->name rel-sel)
+          `(negation ,(rel->name rel-sel)
                        ,(rel->name `(rel-select ,@(take (drop rel-ver0 1) 3) db))
                        ,(match (last rel-ver0) ['total "FULL"] ['delta "DELTA"] ['new "NEW"])
                        ,(rel->name `(rel-select ,neg-rel-name ,neg-rel-arity ,neg-rel-sel db))
@@ -771,7 +771,7 @@
                      [else #f])) 
                  (range 0 (length output-indices)))
     ,(if (equal? (length hvars) 0)
-         '(0 (num 1))
+         '((0 (num 1)))
          (map 
           (λ (i)
             (define rhs (match (list-ref hvars i)

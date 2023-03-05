@@ -104,6 +104,21 @@ bool RAM::local_compute(int* offset)
             }
         }
 
+        else if ((*it)->get_RA_type() == AGGREGATION)
+        {
+            // parallel_copy_aggregate* current_ra = (parallel_copy_aggregate*) *it;
+            parallel_join_aggregate* current_ra = (parallel_join_aggregate*) *it;
+            current_ra->local_aggregate(
+                get_bucket_count(),
+                &(offset[counter]),
+                intra_bucket_buf_output_size[counter],
+                intra_bucket_buf_output[counter],
+                compute_buffer,
+                counter);
+        }
+
+
+
         else if ((*it)->get_RA_type() == NEGATION)
         {
             // compute negation
@@ -306,9 +321,21 @@ bool RAM::local_compute(int* offset)
         for (std::vector<parallel_RA*>::iterator it = RA_list.begin() ; it != RA_list.end(); ++it)
         {
             parallel_RA* current_ra = *it;
-            if (current_ra->get_RA_type() == JOIN || current_ra->get_RA_type() == NEGATION)
+            if (current_ra->get_RA_type() == JOIN)
             {
                 delete[] intra_bucket_buf_output[counter];
+            }
+
+            if (current_ra->get_RA_type() == NEGATION)
+            {
+                // parallel_join_negate* _ra = (parallel_join_negate*)current_ra;
+                delete[] intra_bucket_buf_output[counter];
+            }
+            if (current_ra->get_RA_type() == AGGREGATION) {
+                parallel_join_aggregate* _ra = (parallel_join_aggregate*)current_ra;
+                if (*(_ra->join_aggregate_target_table->get_sub_bucket_per_bucket_count()) != 1) {
+                    delete[] intra_bucket_buf_output[counter];
+                }
             }
 
             offset[counter] = 0;

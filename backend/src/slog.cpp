@@ -12,6 +12,9 @@
 #include "ast.h"
 #include "parallel_RA_inc.h"
 #include <iostream>
+#include <memory>
+#include <mpi.h>
+#include <string>
 
 void print_token(const slogc_token &token) {
     if (token.type == slogc_token_type::symbol) {
@@ -31,6 +34,8 @@ void print_token(const slogc_token &token) {
                    [](auto v) { std::cout << v << std::endl; }},
                token.data);
 }
+
+// std::string slogc_val_to_string
 
 slogc_char_type get_char_type(char ch) {
     switch (ch) {
@@ -167,7 +172,7 @@ int parse_bool(slogc_tokenizer &tokenizer) {
 }
 
 std::vector<int>
-parse_reorder_list(slogc_tokenizer &tokenizer) {
+parse_int_list(slogc_tokenizer &tokenizer) {
     parse_lparen(tokenizer);
     std::vector<int> reorders;
     bool unfinished_flag = true;
@@ -210,9 +215,12 @@ parse_relation_decl(slogc_tokenizer &tokenizer, std::weak_ptr<slogc_prog> parent
     int jcc = parse_int(tokenizer);
     bool canonical_flag = parse_bool(tokenizer);
     int arity = parse_int(tokenizer);
+    std::vector<int> selection(parse_int_list(tokenizer));
 
     parse_rparen(tokenizer);
-    return std::make_shared<slogc_relation_decl>(name, rel_name, jcc, canonical_flag, arity, parent);
+    return std::make_shared<slogc_relation_decl>(
+        name, rel_name, jcc, canonical_flag, arity,
+        selection, parent);
 }
 
 std::vector<std::shared_ptr<slogc_relation_decl>>
@@ -379,7 +387,7 @@ parse_ra_operation(slogc_tokenizer &tokenizer, std::weak_ptr<slogc_scc_decl> par
         std::string output_rel_name(parse_sym(tokenizer));
         std::string input_rel_name(parse_sym(tokenizer));
         slogc_relation_version rel_version = parse_rel_version(tokenizer);
-        std::vector<int> reorders(parse_reorder_list(tokenizer));
+        std::vector<int> reorders(parse_int_list(tokenizer));
         if (ra_type == "acopy") {
             ptr = std::make_shared<slogc_ra_operation_acopy>(
                 output_rel_name, input_rel_name, rel_version, reorders,
@@ -395,7 +403,7 @@ parse_ra_operation(slogc_tokenizer &tokenizer, std::weak_ptr<slogc_scc_decl> par
         slogc_relation_version rel1_version = parse_rel_version(tokenizer);
         std::string input2_rel_name(parse_sym(tokenizer));
         slogc_relation_version rel2_version = parse_rel_version(tokenizer);
-        std::vector<int> reorders(parse_reorder_list(tokenizer));
+        std::vector<int> reorders(parse_int_list(tokenizer));
         ptr = std::make_shared<slogc_ra_operation_join>(
             output_rel_name, input1_rel_name, rel1_version,
             input2_rel_name, rel2_version, reorders,
@@ -417,12 +425,22 @@ parse_ra_operation(slogc_tokenizer &tokenizer, std::weak_ptr<slogc_scc_decl> par
         std::string agg_type(parse_sym(tokenizer));
         std::string reduce_func_name(parse_sym(tokenizer));
         std::string global_func_name(parse_sym(tokenizer));
-        std::vector<int> reorders(parse_reorder_list(tokenizer));
+        std::vector<int> reorders(parse_int_list(tokenizer));
         ptr = std::make_shared<slogc_ra_operation_aggregation>(
             output_rel_name, input1_rel_name, input2_rel_name,
             rel_version, local_func_name, agg_type,
             reduce_func_name, global_func_name, reorders,
             parent);
+    } else if (ra_type == "negation") {
+        std::string output_rel_name(parse_sym(tokenizer));
+        std::string src_rel_name(parse_sym(tokenizer));
+        slogc_relation_version src_ver = parse_rel_version(tokenizer);
+        std::string target_rel_name(parse_sym(tokenizer));
+        std::vector<int> reorders(parse_int_list(tokenizer));
+        ptr = std::make_shared<slogc_ra_operation_negation>(
+            output_rel_name, src_rel_name, src_ver,
+            target_rel_name, reorders
+        );
     } else {
         throw std::runtime_error("syntax error: Unknown RA type");
     }
@@ -444,7 +462,6 @@ parse_scc_ra_operation_list(slogc_tokenizer &tokenizer, std::weak_ptr<slogc_scc_
             tokenizer.putback();
         }
         ra_ops.push_back(parse_ra_operation(tokenizer, parent));
-        
     }
     if (unfinished_flag)
         throw std::runtime_error("syntax error: missing right par in ra operation list");
@@ -462,7 +479,6 @@ parse_scc_decl(slogc_tokenizer &tokenizer, std::weak_ptr<slogc_prog> parent) {
     if (scc_decl_sym != "scc-decl") {
         throw std::runtime_error("syntax error: missing `scc-decl` tag");
     }
-        
 
     new_scc_decl->name = parse_sym(tokenizer);
     new_scc_decl->id = parse_int(tokenizer);
@@ -547,12 +563,19 @@ public:
     lie_visitor(LIE *lie, char *input_dir) : lie(lie), input_dir(input_dir) {
         max_rel_tag_counter = 256;
         max_scc_id_counter = 0;
+        // init tag map with file in input dir
+        load_exist_relation_tag();
     }
 
     void visit(std::shared_ptr<slogc_prog> node) override {
         for (auto rel_decl : node->relation_decls) {
             visit(rel_decl);
         }
+
+        // for (auto p: rel_name_tag_map) {
+        //     std::cout << p.first << "   " << p.second << std::endl;
+        // }
+
         for (auto scc_decl : node->scc_decls) {
             visit(scc_decl);
         }
@@ -568,15 +591,22 @@ public:
 
     void visit(std::shared_ptr<slogc_relation_decl> node) override {
         int rel_tag;
-        if (rel_name_tag_map.find(node->name) == rel_name_tag_map.end()) {
+        std::stringstream name_arity_buf;
+        name_arity_buf << node->rel_name << "__" << node->arity;
+        for (auto c: node->selection) {
+            name_arity_buf << "__" << c;
+        }
+        std::string name_arity = name_arity_buf.str();
+        if (rel_name_tag_map.find(name_arity) == rel_name_tag_map.end()) {
             rel_tag = max_rel_tag_counter++;
+            rel_name_tag_map[name_arity] = rel_tag;
         } else {
-            rel_tag = rel_name_tag_map[node->name];
+            rel_tag = rel_name_tag_map[name_arity];
         }
 
         std::string fname = std::to_string(rel_tag) + "." + node->rel_name + "." + std::to_string(node->arity) + ".table";
         relation *new_rel;
-        if (node->canonical_flag) {
+        if (!node->canonical_flag) {
             new_rel = new relation(node->jcc, node->canonical_flag,
                                    node->arity, rel_tag,
                                    fname,
@@ -595,11 +625,11 @@ public:
         std::vector<u64> tuple;
         for (auto c : node->v) {
             u64 d;
-            std::visit(
-                dynamic_dispatch{
-                    [d](std::string s) mutable { d = s2d(s); },
-                    [d](float n) mutable { d = n2d((int)n); }},
-                c.val);
+            if (c.type == "num") {
+                d = n2d((int)std::get<float>(c.val));
+            } else {
+                d = s2d(std::get<std::string>(c.val));
+            }
             tuple.push_back(d);
         }
         _current_scc->add_rule(new fact(
@@ -645,16 +675,35 @@ public:
     // void visit(std::shared_ptr<slogc_ra_external_function> node) override {}
 
     void visit(std::shared_ptr<slogc_ra_operation_aggregation> node) override {
+        std::cout << node->output_rel_name << " , "
+                  << node->input1_rel_name << " , "
+                  << node->input2_rel_name << " , "
+                  << node->local_func_name << " , "
+                  << node->reduce_func_name << " , ";
+        for (auto c: node->reorder_mapping) {
+            std::cout << c << " ";
+        }
+        std::cout << std::endl;
         _current_scc->add_rule(new parallel_join_aggregate(
             rel_map[node->output_rel_name],
             rel_map[node->input1_rel_name],
             rel_map[node->input2_rel_name],
             node->rel_version == slogc_relation_version::DELTA ? DELTA : FULL,
             agg_local_map(node->local_func_name),
-            SpecialAggregator::none,
+            SpecialAggregator::count,
             agg_reduce_map(node->reduce_func_name),
             nullptr,
             node->reorder_mapping));
+    }
+
+    void visit(std::shared_ptr<slogc_ra_operation_negation> node) override {
+        _current_scc->add_rule(new parallel_join_negate(
+            rel_map[node->output_rel_name],
+            rel_map[node->src_rel_name],
+            node->src_type == slogc_relation_version::DELTA ? DELTA : FULL,
+            rel_map[node->target_rel_name],
+            node->reorder_mapping
+        ));
     }
 
     void visit(std::shared_ptr<slogc_scc_decl> node) override {
@@ -690,7 +739,35 @@ private:
     std::map<int, RAM *> id_scc_map;
 
     RAM *_current_scc;
-    // parallel_copy_generate* _current_copy_gen;
+
+    void load_exist_relation_tag() {
+        for (const auto &entry : std::filesystem::directory_iterator(input_dir)) {
+            // check if ends with table
+            std::string filename_ss = entry.path().filename().string();
+            std::string suffix = ".table";
+            size_t ft = filename_ss.size() - suffix.size();
+            if (ft < 0)
+                ft = 0;
+            if (filename_ss.rfind(suffix) != ft) {
+                continue;
+            }
+            std::string filename_s = entry.path().stem().string();
+            int tag = std::stoi(filename_s.substr(0, filename_s.find(".")));
+            std::string name_arity = filename_s.substr(filename_s.find(".") + 1, filename_s.size() - filename_s.find(".") - 1);
+            std::string name = name_arity.substr(0, name_arity.rfind("."));
+            std::string arity_s = name_arity.substr(name_arity.rfind(".") + 1, name_arity.size());
+            int arity = std::stoi(arity_s);
+            std::stringstream index_stream;
+            index_stream << name << "__" << arity;
+            for (int i = 1; i <= arity; i++) {
+                index_stream << "__" << i;
+            }
+            if (tag > max_rel_tag_counter)
+                max_rel_tag_counter = tag;
+            // std::cout << "load " << tag << "   " << index_stream.str() << "  has arity " << arity << std::endl;
+            rel_name_tag_map[index_stream.str()] = tag;
+        }
+    }
 };
 
 int main(int argc, char *argv[]) {
@@ -715,21 +792,33 @@ int main(int argc, char *argv[]) {
     slogc_tokenizer tokenizer(ir_f);
     auto ast_root = parse_prog(tokenizer);
 
+    mpi_comm mcomm;
+    mcomm.create(argc, argv);
+
     LIE *lie = new LIE();
     lie_visitor visitor(lie, input_dir);
     visitor.visit(ast_root);
-
-    mpi_comm mcomm;
-    mcomm.create(argc, argv);
 
     lie->enable_data_IO();
     lie->enable_IO();
     lie->set_output_dir(output_dir); // Write to this directory
     lie->set_comm(mcomm);
     lie->set_batch_size(1);
+
+    auto before_time = MPI_Wtime();
     lie->execute();
+    auto after_time = MPI_Wtime();
     lie->print_all_relation_size(); // Continuously print relation sizes
     lie->stat_intermediate();
+    if (mcomm.get_rank() == 0) {
+        std::cout << "Running time : " << after_time - before_time << std::endl;
+    }
+
+    // for (auto rel: lie->get_relation()) {
+    //     if (rel->get_is_canonical()) {
+    //         rel->print();
+    //     }
+    // }
 
     delete lie;
 

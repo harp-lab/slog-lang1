@@ -51,6 +51,7 @@ class slogc_ra_operation_join;
 class slogc_ra_operation_copy_generate;
 class slogc_ra_external_function;
 class slogc_ra_operation_aggregation;
+class slogc_ra_operation_negation;
 
 using slogc_ra_operation_ptr = std::variant<
     std::shared_ptr<slogc_ra_operation_fact>,
@@ -58,7 +59,8 @@ using slogc_ra_operation_ptr = std::variant<
     std::shared_ptr<slogc_ra_operation_copy>,
     std::shared_ptr<slogc_ra_operation_join>,
     std::shared_ptr<slogc_ra_operation_copy_generate>,
-    std::shared_ptr<slogc_ra_operation_aggregation>>;
+    std::shared_ptr<slogc_ra_operation_aggregation>,
+    std::shared_ptr<slogc_ra_operation_negation>>;
 
 template <class... Variants>
 struct dynamic_dispatch : Variants... {
@@ -91,6 +93,7 @@ public:
     virtual void visit(std::shared_ptr<slogc_ra_operation_copy_generate> node) = 0;
     // virtual void visit(std::shared_ptr<slogc_ra_external_function> node);
     virtual void visit(std::shared_ptr<slogc_ra_operation_aggregation> node) = 0;
+    virtual void visit(std::shared_ptr<slogc_ra_operation_negation> node) = 0;
 };
 
 class slogc_object {
@@ -118,11 +121,14 @@ public:
     int jcc;
     bool canonical_flag;
     int arity;
+    std::vector<int> selection;
 
     std::weak_ptr<slogc_prog> parent;
 
-    slogc_relation_decl(std::string &name, std::string& rel_name, int jcc, bool canonical_flag, int arity, std::weak_ptr<slogc_prog> parent) :
-        name(name), rel_name(rel_name), jcc(jcc), canonical_flag(canonical_flag), arity(arity), parent(parent){};
+    slogc_relation_decl(std::string &name, std::string& rel_name, int jcc, bool canonical_flag,
+                        int arity, std::vector<int> selection, std::weak_ptr<slogc_prog> parent) :
+        name(name), rel_name(rel_name), jcc(jcc), canonical_flag(canonical_flag), arity(arity),
+        selection(selection), parent(parent){};
 
     void accept(slogc_visitor &visitor) override { visitor.visit(shared_from_this()); }
 };
@@ -291,6 +297,25 @@ public:
                                                                                    agg_type(agg_type), reduce_func_name(reduce_func_name),
                                                                                    global_func_name(global_func_name), reorder_mapping(reorder_mapping),
                                                                                    parent(parent) {}
+
+    void accept(slogc_visitor &visitor) override { visitor.visit(shared_from_this()); }
+};
+
+class slogc_ra_operation_negation : public slogc_object, std::enable_shared_from_this<slogc_ra_operation_negation> {
+public:
+    std::string output_rel_name;
+    std::string src_rel_name;
+    slogc_relation_version src_type;
+    std::string target_rel_name;
+    std::vector<int> reorder_mapping;
+
+    slogc_ra_operation_negation(
+        std::string output_rel_name,
+        std::string src_rel_name, slogc_relation_version src_ver,
+        std::string target_rel_name,
+        std::vector<int> reorder_mapping):
+        output_rel_name(output_rel_name), src_rel_name(src_rel_name), src_type(src_ver),
+        target_rel_name(target_rel_name), reorder_mapping(reorder_mapping) {}
 
     void accept(slogc_visitor &visitor) override { visitor.visit(shared_from_this()); }
 };

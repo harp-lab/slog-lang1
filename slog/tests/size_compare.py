@@ -42,7 +42,7 @@ class SizeCompareTest(Test):
         # for manual inspection:
         # print("copying to " + f'{tempdir}/slog-tests/{test_name}')
         # shutil.copytree(out_dir, f'{tempdir}/slog-tests/{test_name}')
-        checkpoint_path = f"{out_dir}/checkpoints/checkpoint-final"
+        checkpoint_path = f"{out_dir}/checkpoint-final"
         for (rel_name, arity, expected_count) in expected_counts:
             out_found = False
             count = 0 

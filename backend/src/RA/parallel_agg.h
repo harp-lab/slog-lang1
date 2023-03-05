@@ -6,7 +6,6 @@
 #pragma once
 #include "../ds.h"
 #include "../parallel_RA_inc.h"
-#include "parallel_RA.h"
 #include <vector>
 
 

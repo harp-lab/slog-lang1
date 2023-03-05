@@ -96,6 +96,7 @@ def get_relation_info(datapath):
     """ get the basic infomation of a relation form it's path """
     fname = os.path.basename(datapath)
     if not fname.endswith('.table') and not fname.endswith('.table_full'):
+        print(f"Invalid relname {fname}")
         return False
     else:
         fname = fname[:fname.rfind('.')]

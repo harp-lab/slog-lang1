@@ -166,7 +166,6 @@
                      (begin (create-initial-database program input-database) input-database))]
           [builtins-cpp-file (file->string (path->string (build-path base-dir "src/builtins.cpp")))])
      (define b-ir (slog-compile-backend-input program i-dir o-dir))
-     (pretty-display b-ir)
      (with-output-to-file ir-path (lambda () (pretty-display b-ir)))
      (match-define (cons global-definitions cpp) (slog-compile-cpp program i-dir o-dir))
      (when (not (directory-exists? o-dir)) (make-directory o-dir))

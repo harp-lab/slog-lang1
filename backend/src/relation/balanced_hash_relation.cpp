@@ -193,13 +193,13 @@ void relation::parallel_IO(std::string  filename_template)
     {
         double write_metadata_start = MPI_Wtime();
         FILE *fp;
-        if (offset_io == true)  /// write offset metadata out
-        {
-            fp = fopen(full_file_offset.c_str(), "w");
-            for (int i = 0; i < mcomm.get_nprocs(); i++)
-                fprintf (fp, "%d %lld %lld\n", i, (long long int)offsets[i], (long long int)sizes[i]);
-            fclose(fp);
-        }
+        // if (offset_io == true)  /// write offset metadata out
+        // {
+        //     fp = fopen(full_file_offset.c_str(), "w");
+        //     for (int i = 0; i < mcomm.get_nprocs(); i++)
+        //         fprintf (fp, "%d %lld %lld\n", i, (long long int)offsets[i], (long long int)sizes[i]);
+        //     fclose(fp);
+        // }
         double write_metadata_end = MPI_Wtime();
         write_metadata_time_full = (write_metadata_end - write_metadata_start);
     }
@@ -292,13 +292,13 @@ void relation::parallel_IO(std::string  filename_template)
     {
         double write_metadata_start = MPI_Wtime();
         FILE *fp;
-        if (offset_io == true) /// write offset metadata out
-        {
-            fp = fopen(delta_file_offset.c_str(), "w");
-            for (int i = 0; i < mcomm.get_nprocs(); i++)
-                fprintf (fp, "%d %lld %lld\n", i, (long long int)offsets[i], (long long int)sizes[i]);
-            fclose(fp);
-        }
+        // if (offset_io == true) /// write offset metadata out
+        // {
+        //     fp = fopen(delta_file_offset.c_str(), "w");
+        //     for (int i = 0; i < mcomm.get_nprocs(); i++)
+        //         fprintf (fp, "%d %lld %lld\n", i, (long long int)offsets[i], (long long int)sizes[i]);
+        //     fclose(fp);
+        // }
         double write_metadata_end = MPI_Wtime();
         write_metadata_time_delta = (write_metadata_end - write_metadata_start);
     }
@@ -384,7 +384,11 @@ void relation::print()
                 {
                     u64 temp;
                     memcpy(&temp, (vb_full[i].buffer) + (j + k)*sizeof(u64), sizeof(u64));
-                    std::cout << temp << " ";
+                    if(is_number(temp)) {
+                        std::cout << datum_to_number(temp) << " ";
+                    } else {
+                        std::cout << temp << " ";                
+                    }
                 }
                 std::cout << std::endl;
             }
@@ -494,15 +498,16 @@ void relation::load_data_from_file_with_offset()
     std::string read_io = (share_io == true)? "MPI IO": "POSIX IO";
     std::string type = (initailization_type == DELTA)? "DELTA": "FULL";
 
-    if (mcomm.get_rank() == 0 && restart_flag == true)
-    	std::cout << "Read " << get_debug_id() << " (" << read_io << ") :\n  " << type << " [RD], " <<
-		max_read_data_time << std::endl;
+    // if (mcomm.get_rank() == 0 && restart_flag == true)
+    // 	std::cout << "Read " << get_debug_id() << " (" << read_io << ") :\n  " << type << " [RD], " <<
+	// 	max_read_data_time << std::endl;
 }
 
 void relation::load_data_from_file()
 {
     if (!std::filesystem::exists(this->get_filename()))
     {
+        std::cout << "Input file " << this->get_filename() << " not exists" << std::endl;
         // if file not exists don't IO
         return;
     }
@@ -548,10 +553,10 @@ void relation::load_data_from_file()
         std::string read_io = (share_io == true)? "MPI IO": "POSIX IO";
         std::string type = (initailization_type == DELTA)? "DELTA": "FULL";
 
-        if (mcomm.get_rank() == 0 && restart_flag == true)
-        	std::cout << "Read " << get_debug_id() << " (" << read_io << ") :\n " << type << " [RD] [AC], " <<
-			max_read_data_time << ", " << max_all_to_all_time << std::endl;
-
+        // if (mcomm.get_rank() == 0 && restart_flag == true) {
+        // 	std::cout << "Read " << get_debug_id() << " (" << read_io << ") :\n " << type << " [RD] [AC], " <<
+		// 	max_read_data_time << ", " << max_all_to_all_time  << "    " << std::filesystem::file_size(this->get_filename()) << std::endl;
+        // }
         //u32 g_f_size = 0;
         //MPI_Allreduce(&f_size, &g_f_size, 1, MPI_INT, MPI_SUM, mcomm.get_local_comm());
         //if (rank == 0)
@@ -643,17 +648,17 @@ void relation::initialize_relation(mpi_comm& mcomm, std::map<u64, u64>& intern_m
     */
 
     /// read data from file
-    if (restart_flag)
-    {
-        if (offset_io == true)
-	    	load_data_from_file_with_offset();
-		else
-	    	load_data_from_file();
-    }
-    else
-    {
+    // if (restart_flag)
+    // {
+    //     if (offset_io == true)
+	//     	load_data_from_file_with_offset();
+	// 	else
+	//     	load_data_from_file();
+    // }
+    // else
+    // {
     	load_data_from_file();
-    }
+    // }
 
     //std::cout << filename << " " << fact_load << std::endl;
     //if (fact_load == true)

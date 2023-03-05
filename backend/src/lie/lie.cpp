@@ -288,7 +288,6 @@ bool LIE::execute ()
         if (mcomm.get_rank() == 0)
             std::cout << "<<<<<<<<<<< SCC " << executable_task->get_id() << " finish, " << loop_counter << " iteration in total." << std::endl;
 
-
         executable_task->insert_delta_in_full();
 
         /// marks executable_task as finished

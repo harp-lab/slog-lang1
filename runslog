@@ -128,7 +128,7 @@ def ensure_backend_built(compile_backend, tsv_bin_path, backend_build_dir, backe
 
 def run_local(file, out_path, factloc, cores, verbose, slog_root=None, compile_backend=False,
               debug_flag=False, profile_flag=False, repl_flag=False, compile_only=False,
-              overwrite_out=False, cpp_only=False):
+              overwrite_out=False):
     """
     Calls local utilities to compile and run a slog file locally.
     slog_root is the location of the slog repository.
@@ -148,6 +148,7 @@ def run_local(file, out_path, factloc, cores, verbose, slog_root=None, compile_b
 
     backend_dir = os.path.join(slog_root, "backend")
     backend_build_dir = os.path.join(backend_dir, "build")
+    backend_slog_bin = os.path.join(backend_build_dir, "slog")
     tsv_bin_path = os.path.join(backend_build_dir, "tsv_to_bin")
     # make inputs absolute paths, so we can chdir more carelessly
     file = os.path.realpath(file)
@@ -155,11 +156,9 @@ def run_local(file, out_path, factloc, cores, verbose, slog_root=None, compile_b
     factloc = os.path.realpath(factloc) if factloc else None
     inputloc = os.path.join(outloc, "input-data")
     checkpointloc = os.path.join(outloc, "checkpoints")
-    slogfile_build_dir = os.path.join(outloc, "build")
 
     # Ensure outdir doesnt exist before we start filling it up.
     shutil.rmtree(outloc, ignore_errors=True)
-
 
     #1: shell out to slog compiler to compile file to C++
     # Get the name of the binary (just strip the `.slog` out)
@@ -167,15 +166,13 @@ def run_local(file, out_path, factloc, cores, verbose, slog_root=None, compile_b
         print(f"Not given a slog file! given: {file}")
         return
 
-    bin_name = os.path.basename(file[:file.rfind('.')])
-    slog_bin_path = os.path.join(slogfile_build_dir, bin_name)
     # ensure these exist so we can use them.
     os.makedirs(outloc, exist_ok=True)
     os.makedirs(inputloc, exist_ok=True)
     os.makedirs(checkpointloc, exist_ok=True)
 
     if verbose:
-        print("Compiling .slog to .cpp")
+        print("JIT Compiling .slog to .slogc")
 
     try:
         start = time.time()
@@ -194,9 +191,9 @@ def run_local(file, out_path, factloc, cores, verbose, slog_root=None, compile_b
     except subprocess.CalledProcessError as e:
         print(f"Slog->C++ compilation failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
         return
-
-    if cpp_only:
-        return
+    
+    slogc_name = os.path.basename(file[:file.rfind('.')]) + ".slogc"
+    slogc_path = os.path.join(outloc, slogc_name)
 
     #2: Shell out to cmake to compile backend + utilities (tsv_to_bin)
     ensure_backend_built(compile_backend, tsv_bin_path, backend_build_dir, backend_dir, cores, cmake_prof_opt, cmake_build_mode, verbose)
@@ -214,43 +211,23 @@ def run_local(file, out_path, factloc, cores, verbose, slog_root=None, compile_b
         if verbose:
             print(f"Time taken: {end - start}")
 
-    #4: Shell out to cmake to compile C++
-    if verbose:
-        print("Compiling .cpp file to a binary")
-    try:
-        start = time.time()
-        cmake_config_cmd = ["cmake", "--no-warn-unused-cli",
-                            "-DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE",
-                            f"-DCMAKE_BUILD_TYPE:STRING={cmake_build_mode}",
-                            "-DCMAKE_C_COMPILER:FILEPATH=mpicc",
-                            "-B"+slogfile_build_dir,"-H"+outloc] + cmake_prof_opt
-        subprocess.check_output(cmake_config_cmd,
-                                stderr=subprocess.STDOUT)
-        subprocess.check_output(["cmake", "--build", slogfile_build_dir,
-                                 "--config", cmake_build_mode,
-                                 "--target", "all", "-j", f"{cores}"],
-                                stderr=subprocess.STDOUT)
-        end = time.time()
-        if verbose:
-            print(f"Time taken: {end - start}")
-    except subprocess.CalledProcessError as e:
-        print(f"C++->bin failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
-        return
-
     if compile_only:
         return
 
-    #5: Shell out to mpirun to run compiled slog binary with in and out args.
+    #4: Shell out to mpirun to run compiled slog binary with in and out args.
     if verbose:
         print("Running slog executable.")
     try:
         start = time.time()
         if not debug_flag:
-            out = subprocess.check_output(["mpirun", "-n", f"{cores}", slog_bin_path],
-                                           stderr=subprocess.STDOUT)
+            cmd = ["mpirun", "-n", f"{cores}", backend_slog_bin,
+                   slogc_path, inputloc, outloc]
+            print(cmd)
+            out = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
         else:
             out = subprocess.check_output(
-                ["mpirun", "-n", f"{cores}", "valgrind", "--leak-check=yes", "--show-reachable=yes", slog_bin_path],
+                ["mpirun", "-n", f"{cores}", "valgrind", "--leak-check=yes", "--show-reachable=yes",
+                 backend_slog_bin, slogc_path, outloc, inputloc],
                  stderr=subprocess.STDOUT)
         end = time.time()
         if verbose:
@@ -281,9 +258,9 @@ def run_local(file, out_path, factloc, cores, verbose, slog_root=None, compile_b
                     break
     #7: Open the repl if needed
     shutil.copy(os.path.join(inputloc, '$strings.csv'),
-                f'{checkpointloc}/checkpoint-final/$strings.csv')
+                f'{outloc}/checkpoint-final/$strings.csv')
     if repl_flag:
-        repl = Repl(local_db_path=f'{checkpointloc}/checkpoint-final')
+        repl = Repl(local_db_path=f'{outloc}/checkpoint-final')
         repl.loop()
 
 def run_server(file, outloc, factloc, server, cores, verbose):
@@ -344,11 +321,9 @@ if __name__ == '__main__':
     parser.add_argument('-R', "--repl", action='store_true',
                         help="query the result database interactively")
     parser.add_argument('-co', '--compile_only', action='store_true',
-                        help="compile only without running it")
+                        help="JIT compile only without running it")
     parser.add_argument('-ov', "--overwrite_out", action="store_true",
                         help="overwrite, if output dir already exists.")
-    parser.add_argument('-cpp', '--cpp_only',  action="store_true",
-                        help="generate c++ file only, do not compile it.")
     args = parser.parse_args()
 
     slogfile = os.path.realpath(args.slogfile)
@@ -360,5 +335,5 @@ if __name__ == '__main__':
         run_local(slogfile, args.out_dir, args.facts, args.cores, args.verbose, args.root,
                   compile_backend=args.compile_backend, debug_flag=args.debug,
                   profile_flag=args.profile, repl_flag=args.repl,
-                  compile_only=args.compile_only, cpp_only=args.cpp_only,
+                  compile_only=args.compile_only,
                   overwrite_out=args.overwrite_out)

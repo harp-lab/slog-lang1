@@ -1,5 +1,6 @@
 
 #include "parallel_RA_inc.h"
+#include <iostream>
 
 std::map<std::string, builtin_impl_t> BUILTIN_IMP_MAP;
 
@@ -223,6 +224,8 @@ builtin_impl_t builtin_map(std::string &func_name) {
         return builtin_multiply;
     else if (func_name == "builtin_divide")
         return builtin_divide;
+    else if (func_name == "builtin_arg2_minus_arg1")
+        return builtin_arg2_minus_arg1;
     else if (func_name == "builtin_add1")
         return builtin_add1;
     else if (func_name == "builtin_add1_2")
