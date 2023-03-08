@@ -7,11 +7,6 @@
 
 #include "../parallel_RA_inc.h"
 #include "balanced_hash_relation.h"
-#include <cassert>
-#include <cstddef>
-#include <filesystem>
-#include <iostream>
-#include <vector>
 
 u32 relation::get_global_delta_element_count()
 {
@@ -505,13 +500,14 @@ void relation::load_data_from_file_with_offset()
 
 void relation::load_data_from_file()
 {
-    if (!std::filesystem::exists(this->get_filename()))
+    if (!filesystem::exists(this->get_filename()))
     {
-        std::cout << "Input file " << this->get_filename() << " not exists" << std::endl;
+        if (mcomm.get_rank() == 0)
+            std::cout << "Input file " << this->get_filename() << " not exists" << std::endl;
         // if file not exists don't IO
         return;
     }
-    if (std::filesystem::file_size(this->get_filename()) == 0) {
+    if (filesystem::file_size(this->get_filename()) == 0) {
         return;
     }
     // std::cout << "relation with tag :" << this->get_intern_tag() << " "

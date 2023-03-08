@@ -128,9 +128,9 @@ void parallel_io::parallel_read_input_relation_from_file_to_local_buffer(u32 ari
     //std::cout << "222222 Filename " << file_name << std::endl;
     uintmax_t size_data_file = 0;
     // if input file not exists, we assume input relation is empty size
-    if(std::filesystem::exists(file_name))
+    if(filesystem::exists(file_name))
     {
-        size_data_file = std::filesystem::file_size(file_name);
+        size_data_file = filesystem::file_size(file_name);
         if (size_data_file % (8 * (arity + 1)) != 0)
         {
             std::cout << "Input file :" << file_name << " "

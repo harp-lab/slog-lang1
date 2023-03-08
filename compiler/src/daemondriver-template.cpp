@@ -19,7 +19,7 @@ std::map<std::string, std::unordered_set<std::string>> rel_index_map;
 // load all relation inside input database
 void load_input_relation(std::string db_dir)
 {
-  for (const auto & entry : std::filesystem::directory_iterator(db_dir))
+  for (const auto & entry : filesystem::directory_iterator(db_dir))
   {
     // check if ends with table
     std::string filename_ss = entry.path().filename().string();

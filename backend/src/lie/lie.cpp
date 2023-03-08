@@ -8,7 +8,6 @@
 #include "../parallel_RA_inc.h"
 #include <algorithm>
 #include <cstddef>
-#include <filesystem>
 #include <iostream>
 #include <ostream>
 #include <tuple>
@@ -86,7 +85,9 @@ void LIE::update_task_graph(RAM* executable_task)
                 }
                 // before finalize, print rel size and dump to disk first
                 write_final_checkpoint_dump(gc_rels[j]);
-                std::cout << "relation : " << gc_rels[j]->get_intern_tag() << " GCed" << std::endl;
+                if (mcomm.get_rank() == 0) {
+                    std::cout << "relation : " << gc_rels[j]->get_intern_tag() << " GCed" << std::endl;
+                }
                 gc_rels[j]->finalize_relation();
                 delete gc_rels[j];
                 gc_rels[j] = NULL;
@@ -202,7 +203,7 @@ void LIE::write_final_checkpoint_dump()
     std::string dir_name;
     dir_name = output_dir + "/checkpoint-final";
     if (mcomm.get_local_rank() == 0)
-        std::filesystem::create_directories(dir_name.c_str());
+        filesystem::create_directories(dir_name.c_str());
     MPI_Barrier(mcomm.get_local_comm());
     for (u32 i = 0 ; i < lie_relations.size(); i++)
     {
@@ -214,9 +215,9 @@ void LIE::write_final_checkpoint_dump()
 void LIE::write_final_checkpoint_dump(relation* rel) {
     std::string dir_name;
     dir_name = output_dir + "/checkpoint-final";
-    std::filesystem::path dir_path(dir_name);
-    if (mcomm.get_local_rank() == 0 && (!std::filesystem::exists(dir_path))) {
-        std::filesystem::create_directories(dir_path);
+    filesystem::path dir_path(dir_name);
+    if (mcomm.get_local_rank() == 0 && (!filesystem::exists(dir_path))) {
+        filesystem::create_directories(dir_path);
     }
     MPI_Barrier(mcomm.get_local_comm());
     if (rel->get_is_canonical())
@@ -281,6 +282,7 @@ bool LIE::execute ()
             {
                 executable_task->fixed_point_loop(app_name, batch_size, history, intern_map);
                 delta_in_scc = history[history.size()-2];
+                loop_counter++;
             }
             while (delta_in_scc != 0);
         }
