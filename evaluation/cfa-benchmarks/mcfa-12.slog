@@ -1,0 +1,103 @@
+;; Reading AST
+[(ast id (app ef ea))
+ <--
+ (syn_app id ef_id ea_id)
+ (ast ef_id ef)
+ (ast ea_id ea)]
+[(ast id (ref x))
+ <--
+ (syn_ref id x)]
+[(ast id (lam x eb))
+ <--
+ (syn_lam id x eb_id)
+ (ast eb_id eb)]
+
+[(program_ast ep)
+ <--
+ (program _ ep_id)
+ (ast ep_id ep)]
+
+;; Free vars
+[(free x ?(ref x)) <-- (ref x)]
+[(free x ?(app e0 e1)) <--  (or (free x e0) (free x e1))]
+[(free x ?(lam y e0)) <-- (free x e0) (=/= x y)]
+
+;; Injection
+[(eval ast (halt) (ctx ast ast ast ast ast ast ast ast ast ast ast ast))
+ <--
+ (program_ast ast)]
+
+;; Eval states
+[(ret (addr x c) k)
+ <--
+ (eval (ref x) k c)]
+
+[(ret a k)
+ (store a (clo (lam x body) c))
+ (= a (lam_addr (lam x body) c))
+ <--
+ (eval (lam x body) k c)]
+
+[(eval ef (ark ea (app ef ea) c k) c)
+ <--
+ (eval (app ef ea) k c)]
+
+;; Ret states
+[(eval ea (fnk af syn_a c k) c)
+ (apply call clo_f syn_a k c)
+ (= syn_a (syn-call-addr call c k))
+ <--
+ (store af clo_f)
+ (ret af (ark ea call c k))]
+
+[;(apply call clo_f syn_a k c)
+ (store-flow av syn_a)
+ <--
+ ;(= syn_a (syn-call-addr call _ k))
+ ;(store af clo_f)
+ (ret av (fnk af syn_a c k))]
+
+[(ret av k)
+ <--
+ (ret av (kaddr e c))
+ (kont_map (kaddr e c) k)]
+
+[(program_ret v)
+ <--
+ (store av v)
+ (ret av (halt))]
+
+;; Apply states
+[(eval body ka c)
+ (kont_map ka k)
+ (store-flow syn_a a)
+ (= ka (kaddr body c))
+ (= a (addr x c))
+ (= c (ctx call hist0 hist1 hist2 hist3 hist4 hist5 hist6 hist7 hist8 hist9 hist10))
+ <--
+ (apply call (clo (lam x body) clam) syn_a k (ctx hist0 hist1 hist2 hist3 hist4 hist5 hist6 hist7 hist8 hist9 hist10 _))]
+
+; Propagate free vars
+[(store-flow (addr free-var-x clam) (addr free-var-x c))
+ (= c (ctx call hist0 hist1 hist2 hist3 hist4 hist5 hist6 hist7 hist8 hist9 hist10))
+ <--
+ (free free-var-x lam0)
+ (apply call (clo lam0 clam) syn_a k (ctx hist0 hist1 hist2 hist3 hist4 hist5 hist6 hist7 hist8 hist9 hist10 _))
+ (= lam0 (lam x body))]
+
+;; Store flows
+[(store a1 v)
+ <--
+ (store-source-flows a0 a1)
+ (store a0 v)]
+
+[(store-source-flows a a1)
+ <--
+ (store-flow a0 a1)
+ (store-source-flows a a0)]
+
+[(store-source-flows a a)
+ <--
+ (source-addr a)]
+
+(source-addr ?(lam_addr _ _))

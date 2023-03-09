@@ -741,7 +741,7 @@ private:
     RAM *_current_scc;
 
     void load_exist_relation_tag() {
-        for (const auto &entry : filesystem::directory_iterator(input_dir)) {
+        for (const auto &entry : fs::directory_iterator(input_dir)) {
             // check if ends with table
             std::string filename_ss = entry.path().filename().string();
             std::string suffix = ".table";

@@ -378,9 +378,9 @@ int main(int argc, char **argv)
 	rel_tag = (unsigned)i;
 
 	// if output file exists check file size
-	if (filesystem::exists(output_file))
+	if (fs::exists(output_file))
 	{
-		current_tuple_id = filesystem::file_size(output_file) / ((arity + 1) * 8);
+		current_tuple_id = fs::file_size(output_file) / ((arity + 1) * 8);
 	}
 	else
 	{

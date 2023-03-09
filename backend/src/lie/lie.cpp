@@ -203,7 +203,7 @@ void LIE::write_final_checkpoint_dump()
     std::string dir_name;
     dir_name = output_dir + "/checkpoint-final";
     if (mcomm.get_local_rank() == 0)
-        filesystem::create_directories(dir_name.c_str());
+        fs::create_directories(dir_name.c_str());
     MPI_Barrier(mcomm.get_local_comm());
     for (u32 i = 0 ; i < lie_relations.size(); i++)
     {
@@ -215,9 +215,9 @@ void LIE::write_final_checkpoint_dump()
 void LIE::write_final_checkpoint_dump(relation* rel) {
     std::string dir_name;
     dir_name = output_dir + "/checkpoint-final";
-    filesystem::path dir_path(dir_name);
-    if (mcomm.get_local_rank() == 0 && (!filesystem::exists(dir_path))) {
-        filesystem::create_directories(dir_path);
+    fs::path dir_path(dir_name);
+    if (mcomm.get_local_rank() == 0 && (!fs::exists(dir_path))) {
+        fs::create_directories(dir_path);
     }
     MPI_Barrier(mcomm.get_local_comm());
     if (rel->get_is_canonical())
@@ -271,7 +271,15 @@ bool LIE::execute ()
         /// For SCCs that runs for only one iteration
         if (executable_task->get_iteration_count() == 1)
         {
+            if (mcomm.get_rank() == 0) {
+                std::cout << "Iteration " << loop_counter;
+            }
+            auto before_exec_time = MPI_Wtime();
             executable_task->fixed_point_loop(app_name, batch_size, history, intern_map);
+            auto after_exec_time = MPI_Wtime();
+            if (mcomm.get_rank() == 0) {
+                std::cout << " total: " << after_exec_time - before_exec_time << std::endl;
+            }
             loop_counter++;
         }
         /// For SCCs that runs till fixed point is reached
@@ -280,7 +288,15 @@ bool LIE::execute ()
             u64 delta_in_scc = 0;
             do
             {
+                if (mcomm.get_rank() == 0) {
+                    std::cout << "Iteration " << loop_counter;
+                }
+                auto before_exec_time = MPI_Wtime();
                 executable_task->fixed_point_loop(app_name, batch_size, history, intern_map);
+                auto after_exec_time = MPI_Wtime();
+                if (mcomm.get_rank() == 0) {
+                    std::cout << " total: " << after_exec_time - before_exec_time << std::endl;
+                }
                 delta_in_scc = history[history.size()-2];
                 loop_counter++;
             }

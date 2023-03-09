@@ -49,7 +49,7 @@ int get_tag_for_rel_arity(const string &rel_name, int arity, string& dir) {
         cout << "working ...\n";
         auto map = new std::unordered_map<RelArity, int, RelArity::HashFunction>();
 
-        for (const auto & entry : filesystem::directory_iterator(dir)){
+        for (const auto & entry : fs::directory_iterator(dir)){
             auto file_name = entry.path().filename().generic_string();
 
             // format: {tag}.{rel_name}.{arity}.table

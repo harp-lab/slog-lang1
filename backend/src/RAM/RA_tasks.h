@@ -122,7 +122,7 @@ public:
 
 
     /// Intra bucket comm for sub-buckets
-    u64 intra_bucket_comm_execute();
+    u64 intra_bucket_comm_execute(std::vector<double>& time_vector);
 
 
     /// Buffer to hold new tuples

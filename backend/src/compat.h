@@ -25,7 +25,7 @@
 #include "btree/btree_set.h"
 #include <experimental/filesystem>
 
-namespace filesystem = std::experimental::filesystem;
+namespace fs = std::experimental::filesystem;
 
 
 typedef int8_t s8;

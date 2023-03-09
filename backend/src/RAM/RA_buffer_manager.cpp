@@ -63,4 +63,5 @@ void RAM::free_local_join_buffers()
     delete[] compute_buffer.local_compute_output;
     delete[] compute_buffer.local_compute_output_size;
     delete[] compute_buffer.cumulative_tuple_process_map;
+
 }

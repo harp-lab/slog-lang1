@@ -173,8 +173,9 @@ void intra_bucket_comm(u32 buckets,
                        int* input_distinct_sub_bucket_rank_count, int** input_distinct_sub_bucket_rank, u32* input_bucket_map,
                        int* output_distinct_sub_bucket_rank_count, int** output_distinct_sub_bucket_rank, u32* output_bucket_map,
                        u64 *total_buffer_size, u64 **recvbuf,
-                       MPI_Comm mcomm)
+                       MPI_Comm mcomm, bool sub_bucket_flag, std::vector<double>& time_vector)
 {
+
     // buffer to hold relation data to be sent out
     vector_buffer *input_buffer = new vector_buffer[buckets];
     int *input_buffer_size = new int[buckets];
@@ -187,8 +188,8 @@ void intra_bucket_comm(u32 buckets,
     *total_buffer_size = 0;
     u32* bucket_offset = new u32[buckets];
 
-    int rank;
-    MPI_Comm_rank(mcomm, &rank);
+
+    double before_size_exchange = MPI_Wtime();
 
     u64 total_send_buffer_size = 0;
     for (u32 i = 0; i < buckets; i++)
@@ -211,6 +212,7 @@ void intra_bucket_comm(u32 buckets,
         MPI_Request *req1 = new MPI_Request[output_distinct_sub_bucket_rank_count[i] + input_distinct_sub_bucket_rank_count[i]];
         MPI_Status *stat1 = new MPI_Status[output_distinct_sub_bucket_rank_count[i] + input_distinct_sub_bucket_rank_count[i]];
 
+        double before_mpi_op = MPI_Wtime();
         if (input_bucket_map[i] == 1)
         {
             for (int r = 0; r < output_distinct_sub_bucket_rank_count[i]; r++)
@@ -229,8 +231,9 @@ void intra_bucket_comm(u32 buckets,
                 req_counter1++;
             }
         }
-
-        MPI_Waitall(req_counter1, req1, stat1);
+        double after_mpi_op = MPI_Wtime();
+        time_vector[2] += after_mpi_op - before_mpi_op;
+        // MPI_Waitall(req_counter1, req1, stat1);
 
 
         bucket_offset[i] = *total_buffer_size;
@@ -241,6 +244,9 @@ void intra_bucket_comm(u32 buckets,
         delete[] stat1;
     }
 
+    double after_size_exchange = MPI_Wtime();
+
+    time_vector[0] += after_size_exchange - before_size_exchange;
 
 #if 0
 
@@ -261,6 +267,7 @@ void intra_bucket_comm(u32 buckets,
     /// Actual data Exchange
 
     // Allocate buffer
+    double before_data_exchange = MPI_Wtime();
     *recvbuf = new u64[*total_buffer_size];
 
     // Non-blocking point-to-point data exchange
@@ -297,17 +304,23 @@ void intra_bucket_comm(u32 buckets,
             }
         }
 
-        MPI_Waitall(req_counter2, req2, stat2);
+        // MPI_Waitall(req_counter2, req2, stat2);
         input_buffer[i].vector_buffer_free();
 
         delete[] req2;
         delete[] stat2;
         delete[] meta_buffer_size[i];
     }
+
+    // clean recv buf
+    // delete [] *recvbuf;
     delete[] meta_buffer_size;
     delete[] input_buffer;
     delete[] input_buffer_size;
     delete[] bucket_offset;
+    
+    double after_data_exchange = MPI_Wtime();
+    time_vector[1] += after_data_exchange - before_data_exchange;
 
     return;
 }

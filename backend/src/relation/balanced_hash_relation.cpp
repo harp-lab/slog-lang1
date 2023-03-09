@@ -500,19 +500,19 @@ void relation::load_data_from_file_with_offset()
 
 void relation::load_data_from_file()
 {
-    if (!filesystem::exists(this->get_filename()))
+    if (!fs::exists(this->get_filename()))
     {
         if (mcomm.get_rank() == 0)
             std::cout << "Input file " << this->get_filename() << " not exists" << std::endl;
         // if file not exists don't IO
         return;
     }
-    if (filesystem::file_size(this->get_filename()) == 0) {
+    if (fs::file_size(this->get_filename()) == 0) {
         return;
     }
     // std::cout << "relation with tag :" << this->get_intern_tag() << " "
     //           << " filename :" << this->get_filename() << " "
-    //           << " file size: " << std::filesystem::file_size(this->get_filename())
+    //           << " file size: " << std::fs::file_size(this->get_filename())
     //         //   << "c++ object " << this
     //           << " start normal IO" << std::endl;
     /// reading from file
@@ -551,7 +551,7 @@ void relation::load_data_from_file()
 
         // if (mcomm.get_rank() == 0 && restart_flag == true) {
         // 	std::cout << "Read " << get_debug_id() << " (" << read_io << ") :\n " << type << " [RD] [AC], " <<
-		// 	max_read_data_time << ", " << max_all_to_all_time  << "    " << std::filesystem::file_size(this->get_filename()) << std::endl;
+		// 	max_read_data_time << ", " << max_all_to_all_time  << "    " << std::fs::file_size(this->get_filename()) << std::endl;
         // }
         //u32 g_f_size = 0;
         //MPI_Allreduce(&f_size, &g_f_size, 1, MPI_INT, MPI_SUM, mcomm.get_local_comm());
@@ -636,7 +636,7 @@ void relation::initialize_relation(mpi_comm& mcomm, std::map<u64, u64>& intern_m
 
     /*
     // if no input file stop reading, just return
-    if ((!this->is_canonical) || (!std::filesystem::exists(this->filename)))
+    if ((!this->is_canonical) || (!std::fs::exists(this->filename)))
     {
         // std::cout << "relation :" << this->get_filename()  << "not exists!";
         return;
