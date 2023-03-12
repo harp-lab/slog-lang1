@@ -1,0 +1,6 @@
+[(relA a b) <-- (relB a b)]
+[(relA a c) <-- (relB a b) (relA b c)]
+
+(relB 1 2)
+(relB 2 3)
+(relB 2 4)

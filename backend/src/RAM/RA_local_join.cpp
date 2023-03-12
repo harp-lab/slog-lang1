@@ -241,14 +241,23 @@ bool RAM::local_compute(int* offset)
                 input1_size = input1->get_delta_element_count();
             }
             int join_direction = LEFT;
-            int local_join_direction_count = input0_size < input1_size ? 0 : 1;   // true if size of input0 > input1
-            int global_join_direction_count = local_join_direction_count;
+            // int local_join_direction_count = input0_size < input1_size ? 0 : 1;   // true if size of input0 > input1
+            // int global_join_direction_count = local_join_direction_count;
 
-            MPI_Allreduce(&local_join_direction_count, &global_join_direction_count, 1, MPI_INT, MPI_SUM, mcomm.get_comm());
-            if (global_join_direction_count > mcomm.get_nprocs() / 2) {
+            // MPI_Allreduce(&local_join_direction_count, &global_join_direction_count, 1, MPI_INT, MPI_SUM, mcomm.get_comm());
+            // if (global_join_direction_count > mcomm.get_nprocs() / 2) {
+            //     join_direction = RIGHT;
+            // }
+            if (current_ra->get_join_input0_graph_type() == DELTA && current_ra->get_join_input1_graph_type() == DELTA) {
+                join_direction = LEFT;
+            } else if (current_ra->get_join_input0_graph_type() == DELTA && current_ra->get_join_input1_graph_type() == FULL) {
+                join_direction = LEFT;
+            } else if (current_ra->get_join_input0_graph_type() == FULL && current_ra->get_join_input1_graph_type() == FULL) {
+                join_direction = RIGHT;
+            } else if (current_ra->get_join_input0_graph_type() == FULL && current_ra->get_join_input1_graph_type() == DELTA) {
                 join_direction = RIGHT;
             }
-            std::vector<double> real_j_time_stat;
+
             if (join_direction == LEFT) {
                 join_completed = join_completed & current_ra->local_join(threshold, &(offset[counter]),
                                                                          LEFT,
