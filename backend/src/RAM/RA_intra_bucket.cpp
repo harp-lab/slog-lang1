@@ -39,6 +39,9 @@ u64 RAM::intra_bucket_comm_execute(std::vector<double>& time_vector)
             parallel_join_aggregate* current_ra = (parallel_join_aggregate*) *it;
             relation* input_rel = current_ra->join_aggregate_input_table;
             relation* target_rel = current_ra->join_aggregate_target_table;
+            bool sub_b_flag = !((*target_rel->get_sub_bucket_per_bucket_count() == 1) &&
+                                (*input_rel->get_sub_bucket_per_bucket_count() == 1));
+
             if (*(target_rel->get_sub_bucket_per_bucket_count()) == 1) {
                 counter++;
                 continue;
@@ -54,6 +57,7 @@ u64 RAM::intra_bucket_comm_execute(std::vector<double>& time_vector)
                                 &intra_bucket_buf_output_size[counter],
                                 &intra_bucket_buf_output[counter],
                                 mcomm.get_local_comm(),
+                                sub_b_flag,
                                 time_vector);
             }
         }
@@ -76,7 +80,8 @@ u64 RAM::intra_bucket_comm_execute(std::vector<double>& time_vector)
             parallel_join_negate* current_ra = (parallel_join_negate*) *it;
             relation* input_rel = current_ra->get_negation_input();
             relation* target_rel = current_ra->get_negation_target();
-
+            bool sub_b_flag = !((*target_rel->get_sub_bucket_per_bucket_count() == 1) &&
+                                (*input_rel->get_sub_bucket_per_bucket_count() == 1));
             // negation can only be a right like join, all process need to know negated rule
             intra_bucket_comm(get_bucket_count(),
                               target_rel->get_full(),
@@ -89,6 +94,7 @@ u64 RAM::intra_bucket_comm_execute(std::vector<double>& time_vector)
                               &intra_bucket_buf_output_size[counter],
                               &intra_bucket_buf_output[counter],
                               mcomm.get_local_comm(),
+                              sub_b_flag,
                               time_vector);
             total_data_moved = total_data_moved + intra_bucket_buf_output_size[counter];
         }
@@ -100,22 +106,33 @@ u64 RAM::intra_bucket_comm_execute(std::vector<double>& time_vector)
             relation* input0 = current_ra->get_join_input0();
             relation* input1 = current_ra->get_join_input1();
             shmap_relation* input0_trees = input0->get_full();
-            u64 input0_size = input0->get_full_element_count();
+            // u64 input0_size = input0->get_full_element_count();
             shmap_relation* input1_trees = input1->get_full();
-            u64 input1_size = input1->get_full_element_count();
+            // u64 input1_size = input1->get_full_element_count();
+            bool sub_b_flag = !((*input0->get_sub_bucket_per_bucket_count() == 1) &&
+                                (*input1->get_sub_bucket_per_bucket_count() == 1));
             if (current_ra->get_join_input0_graph_type() == DELTA) {
                 input0_trees = input0->get_delta();
-                input0_size = input0->get_delta_element_count();
+                // input0_size = input0->get_delta_element_count();
             }
             if (current_ra->get_join_input1_graph_type() == DELTA) {
                 input1_trees = input1->get_delta();
-                input1_size = input1->get_delta_element_count();
+                // input1_size = input1->get_delta_element_count();
             }
             int join_direction = LEFT;
-            int local_join_direction_count = input0_size < input1_size ? 0 : 1;   // true if size of input0 > input1
-            int global_join_direction_count = local_join_direction_count;
-            MPI_Allreduce(&local_join_direction_count, &global_join_direction_count, 1, MPI_INT, MPI_SUM, mcomm.get_comm());
-            if (global_join_direction_count > mcomm.get_nprocs() / 2) {
+            // int local_join_direction_count = input0_size < input1_size ? 0 : 1;   // true if size of input0 > input1
+            // int global_join_direction_count = local_join_direction_count;
+            // MPI_Allreduce(&local_join_direction_count, &global_join_direction_count, 1, MPI_INT, MPI_SUM, mcomm.get_comm());
+            // if (global_join_direction_count > mcomm.get_nprocs() / 2) {
+            //     join_direction = RIGHT;
+            // }
+            if (current_ra->get_join_input0_graph_type() == DELTA && current_ra->get_join_input1_graph_type() == DELTA) {
+                join_direction = LEFT;
+            } else if (current_ra->get_join_input0_graph_type() == DELTA && current_ra->get_join_input1_graph_type() == FULL) {
+                join_direction = LEFT;
+            } else if (current_ra->get_join_input0_graph_type() == FULL && current_ra->get_join_input1_graph_type() == FULL) {
+                join_direction = RIGHT;
+            } else if (current_ra->get_join_input0_graph_type() == FULL && current_ra->get_join_input1_graph_type() == DELTA) {
                 join_direction = RIGHT;
             }
 
@@ -125,14 +142,14 @@ u64 RAM::intra_bucket_comm_execute(std::vector<double>& time_vector)
                                   input0->get_distinct_sub_bucket_rank_count(), input0->get_distinct_sub_bucket_rank(), input0->get_bucket_map(),
                                   input1->get_distinct_sub_bucket_rank_count(), input1->get_distinct_sub_bucket_rank(), input1->get_bucket_map(),
                                   &intra_bucket_buf_output_size[counter], &intra_bucket_buf_output[counter],
-                                  mcomm.get_local_comm(), time_vector);
+                                  mcomm.get_local_comm(), sub_b_flag, time_vector);
             } else {
                 intra_bucket_comm(get_bucket_count(),
                                   input1_trees,
                                   input1->get_distinct_sub_bucket_rank_count(), input1->get_distinct_sub_bucket_rank(), input1->get_bucket_map(),
                                   input0->get_distinct_sub_bucket_rank_count(), input0->get_distinct_sub_bucket_rank(), input0->get_bucket_map(),
                                   &intra_bucket_buf_output_size[counter], &intra_bucket_buf_output[counter],
-                                  mcomm.get_local_comm(), time_vector);
+                                  mcomm.get_local_comm(), sub_b_flag, time_vector);
             }
             total_data_moved = total_data_moved + intra_bucket_buf_output_size[counter];
         }

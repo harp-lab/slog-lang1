@@ -1,0 +1,104 @@
+;; Reading AST
+[(ast id (app ef ea))
+ <--
+ (syn_app id ef_id ea_id)
+ (ast ef_id ef)
+ (ast ea_id ea)]
+[(ast id (ref x))
+ <--
+ (syn_ref id x)]
+[(ast id (lam x eb))
+ <--
+ (syn_lam id x eb_id)
+ (ast eb_id eb)]
+
+[(program_ast ep)
+ <--
+ (program _ ep_id)
+ (ast ep_id ep)]
+
+;; Injection
+[(eval ast (emptyenv) (halt) [ast ast ast ast ast ast ast ast ast ast])
+ <--
+ (program_ast ast)]
+
+;; Eval states
+[(ret a k)
+ <--
+ (eval (ref x) env k _)
+ (env_map x env a)]
+
+[(ret a k)
+ (store a (clo (lam x body) env))
+ (= a (lam_addr (lam x body) env))
+ <--
+ (eval (lam x body) env k _)]
+
+[(eval ef env (ark ea env (app ef ea) c k) c)
+ <--
+ (eval (app ef ea) env k c)]
+
+;; Ret states
+[(eval ea env (fnk af syn_a c k) c)
+ (apply call clo_f syn_a k c)
+ (= syn_a (syn-call-addr call env k))
+ <--
+ (store af clo_f)
+ (ret af (ark ea env call c k))]
+
+[;(apply call clo_f syn_a k c)
+ (store-flow av syn_a)
+ <--
+ ;(= syn_a (syn-call-addr call _ k))
+ ;(store af clo_f)
+ (ret av (fnk af syn_a c k))]
+
+[(ret av k)
+ <--
+ (ret av (kaddr e env))
+ (kont_map (kaddr e env) k)]
+
+[(program_ret v)
+ <--
+ (store av v)
+ (ret av (halt))]
+
+;; Apply states
+[(eval body env1 ka c)
+ (kont_map ka k)
+ (store-flow syn_a a)
+ (env_update env env1)
+ (= ka (kaddr body env1))
+ (= env1 (updateenv x a env))
+ (= a (address x c))
+ (= c [call hist0 hist1 hist2 hist3 hist4 hist5 hist6 hist7 hist8])
+ <--
+ (apply call (clo (lam x body) env) syn_a k [hist0 hist1 hist2 hist3 hist4 hist5 hist6 hist7 hist8 _])]
+
+;; Env update
+[(env_map x env1 a)
+ <--
+ (env_update env env1)
+ (= env1 (updateenv x a env))]
+
+[(env_map x env1 a)
+ <--
+ (env_update env env1)
+ (env_map x env a)]
+
+;; Store flows
+[(store a1 v)
+ <--
+ (store-source-flows a0 a1)
+ (store a0 v)]
+
+[(store-source-flows a a1)
+ <--
+ (store-flow a0 a1)
+ (store-source-flows a a0)]
+
+[(store-source-flows a a)
+ <--
+ (source-addr a)]
+
+(source-addr ?(lam_addr _ _))

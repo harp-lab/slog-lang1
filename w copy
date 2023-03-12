@@ -1,0 +1,106 @@
+#1754
+(bb_instrs ex_simple:bar:[basicblock]%11
+    ($lst (load ex_simple:bar:%12 ex_simple:bar:%2)
+    ($lst (ret ex_simple:bar:%12)
+    ($nil 0))))
+#1755
+(bb_instrs ex_simple:main:[basicblock]%11
+    ($lst (load ex_simple:main:%12 ex_simple:main:%5)
+    ($lst (getelementptr ex_simple:main:%13
+            ex_simple:main:%12
+            ($lst ex_simple:main:14:0:1 ($nil 0)))
+    ($lst (load ex_simple:main:%14 ex_simple:main:%13)
+    ($lst (call ex_simple:main:%15
+            ex_simple:main:16:0:@atoi
+            ($lst #1123))
+    ($lst (store ex_simple:main:%15 ex_simple:main:%6)
+    ($lst (load ex_simple:main:%16 ex_simple:main:%6)
+    ($lst (call ex_simple:main:%17 ex_simple:main:19:0:@foo ($lst ex_simple:main:%16 ($nil 0)))
+    ($lst (ret ex_simple:main:%17)
+    ($nil 0))))))))))
+#1756
+(bb_instrs ex_simple:foo:[basicblock]%19
+    ($lst (load ex_simple:foo:%20 ex_simple:foo:%2)
+    ($lst (ret ex_simple:foo:%20)
+    ($nil 0))))
+#1757
+(bb_instrs ex_simple:foo:[basicblock]%13
+    ($lst (call ex_simple:foo:%14 ex_simple:foo:15:0:@printf
+            ($lst ex_simple:foo:15:1:@.str.3 ($nil 0)))
+    ($lst (load ex_simple:foo:%15 ex_simple:foo:%3)
+    ($lst (unsupported-instr ex_simple:foo:17)
+    ($lst (call ex_simple:foo:%17 ex_simple:foo:18:0:@bar ($lst #1121))
+    ($lst (store ex_simple:foo:%17 ex_simple:foo:%4)
+    ($lst (load ex_simple:foo:%18 ex_simple:foo:%4)
+    ($lst (store ex_simple:foo:%18 ex_simple:foo:%2)
+    ($lst (br-uncond ex_simple:foo:[basicblock]%19)
+    ($nil 0))))))))))
+#1758
+(bb_instrs ex_simple:foo:[basicblock]%11
+    ($lst (call ex_simple:foo:%12 ex_simple:foo:12:0:@printf ($lst ex_simple:foo:12:1:@.str.2 ($nil 0)))
+    ($lst (store ex_simple:foo:13:0:-2 ex_simple:foo:%2)
+    ($lst (br-uncond ex_simple:foo:[basicblock]%19)
+    ($nil 0)))))
+#1759
+(bb_instrs ex_simple:foo:[basicblock]%8
+    ($lst (load ex_simple:bar:%3 ex_simple:bar:%10)
+    ($lst (icmp slt ex_simple:foo:%9 ex_simple:foo:10:0:5)
+    ($lst (br-uncond ex_simple:foo:%10 ex_simple:foo:[basicblock]%13 ex_simple:foo:[basicblock]%11)
+    ($nil 0)))))
+#1760
+(bb_instrs ex_simple:foo:[basicblock]%1
+    ($lst (alloca ex_simple:foo:%2 i32)
+    ($lst (alloca ex_simple:foo:%3 i32)
+    ($lst (alloca ex_simple:foo:%4 i32)
+    ($lst (store ex_simple:foo:%0 ex_simple:foo:%3)
+    ($lst (load ex_simple:bar:%3 ex_simple:bar:%4)
+    ($lst (icmp slt ex_simple:foo:%5 ex_simple:foo:5:0:0)
+    ($lst (br-uncond ex_simple:foo:%6 ex_simple:foo:[basicblock]%8 ex_simple:foo:[basicblock]%7)
+    ($nil 0)))))))))
+#1761
+(bb_instrs ex_simple:foo:[basicblock]%7
+    ($lst (store ex_simple:foo:7:0:-1 ex_simple:foo:%2)
+    ($lst (br-uncond ex_simple:foo:[basicblock]%19)
+    ($nil 0))))
+#1762
+(bb_instrs ex_simple:bar:[basicblock]%8
+    ($lst (call ex_simple:bar:%9 ex_simple:bar:9:0:@printf ($lst ex_simple:bar:9:1:@.str.1 ($nil 0)))
+    ($lst (load ex_simple:bar:%10 ex_simple:bar:%3)
+    ($lst (store ex_simple:bar:%10 ex_simple:bar:%2)
+    ($lst (br-uncond ex_simple:bar:[basicblock]%11)
+    ($nil 0))))))
+#1763
+(bb_instrs ex_simple:bar:[basicblock]%1
+    ($lst (alloca ex_simple:bar:%2 i32)
+    ($lst (alloca ex_simple:bar:%3 i32)
+    ($lst (store ex_simple:bar:%0 ex_simple:bar:%3)
+    ($lst (load ex_simple:bar:%4 ex_simple:bar:%3)
+    ($lst (icmp sgt ex_simple:bar:%4 ex_simple:bar:4:0:50)
+    ($lst (br-uncond ex_simple:bar:%5 ex_simple:bar:[basicblock]%8 ex_simple:bar:[basicblock]%6)
+    ($nil 0))
+))))))
+#1764
+(bb_instrs ex_simple:bar:[basicblock]%6
+    ($lst (call ex_simple:bar:%7 ex_simple:bar:6:0:@printf ($lst ex_simple:bar:6:1:@.str ($nil 0)))
+    ($lst (store ex_simple:bar:7:0:-3 ex_simple:bar:%2)
+    ($lst (br-uncond ex_simple:bar:[basicblock]%11)
+    ($nil 0)))))
+#1765
+(bb_instrs ex_simple:main:[basicblock]%9
+    ($lst (call ex_simple:main:%10 ex_simple:main:10:0:@printf ($lst ex_simple:main:10:1:@.str.4 ($nil 0)))
+    ($lst (call void ex_simple:main:11:0:@exit ($lst ex_simple:main:11:1:1 ($nil 0)))
+    ($lst (unsupported-instr ex_simple:main:12)
+    ($nil 0)))))
+#1766
+(bb_instrs ex_simple:main:[basicblock]%2
+    ($lst (alloca ex_simple:main:%3 i32)
+    ($lst (alloca ex_simple:main:%4 i32)
+    ($lst (alloca ex_simple:main:%5 ptr)
+    ($lst (alloca ex_simple:main:%6 i32)
+    ($lst (store ex_simple:main:4:0:0 ex_simple:main:%3)
+    ($lst (store ex_simple:main:%0 ex_simple:main:%4)
+    ($lst (store ex_simple:main:%1 ex_simple:main:%5)
+    ($lst (load ex_simple:main:%6 ex_simple:main:%16)
+    ($lst (icmp ne ex_simple:main:%7 ex_simple:main:8:0:2)
+    ($lst (br-uncond ex_simple:main:%8 ex_simple:main:[basicblock]%11 ex_simple:main:[basicblock]%9)
+    ($nil 0))))))))))))

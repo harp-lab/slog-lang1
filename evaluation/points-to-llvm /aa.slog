@@ -1,0 +1,754 @@
+;;
+;;
+;;
+
+; (state (contour ...) )
+;;
+
+[(support-instr i) <-- (add-instr i)]
+[(support-instr i) <-- (fadd-instr i)]
+[(support-instr i) <-- (sub-instr i)]
+[(support-instr i) <-- (fsub-instr i)]
+[(support-instr i) <-- (mul-instr i)]
+[(support-instr i) <-- (fmul-instr i)]
+[(support-instr i) <-- (udiv-instr i)]
+[(support-instr i) <-- (sdiv-instr i)]
+[(support-instr i) <-- (urem-instr i)]
+[(support-instr i) <-- (srem-instr i)]
+[(support-instr i) <-- (frem-instr i)]
+[(support-instr i) <-- (shl-instr i)]
+[(support-instr i) <-- (ashr-instr i)]
+[(support-instr i) <-- (and-instr i)]
+[(support-instr i) <-- (or-instr i)]
+[(support-instr i) <-- (xor-instr i)]
+[(support-instr i) <-- (ret_instr i)]
+[(support-instr i) <-- (br_instr i)]
+[(support-instr i) <-- (switch_instr i)]
+[(support-instr i) <-- (alloca_instr i)]
+[(support-instr i) <-- (load_instr i)]
+[(support-instr i) <-- (store_instr i)]
+[(support-instr i) <-- (getelementptr_instr i)]
+[(support-instr i) <-- (trunc_instr i)]
+[(support-instr i) <-- (zext_instr i)]
+[(support-instr i) <-- (sext_instr i)]
+[(support-instr i) <-- (fptrunc_instr i)]
+[(support-instr i) <-- (fpext_instr i)]
+[(support-instr i) <-- (fptoui_instr i)]
+[(support-instr i) <-- (fptosi_instr i)]
+[(support-instr i) <-- (uitofp_instr i)]
+[(support-instr i) <-- (sitofp_instr i)]
+[(support-instr i) <-- (ptrtoint_instr i)]
+[(support-instr i) <-- (inttoptr_instr i)]
+[(support-instr i) <-- (bitcast_instr i)]
+[(support-instr i) <-- (icmp_instr i)]
+[(support-instr i) <-- (phi_instr i)]
+[(support-instr i) <-- (select_instr i)]
+[(support-instr i) <-- (call_instr i)]
+[(support-instr i) <-- (unreachable_instr i)]
+[(instr_successor a b) --> (instr a)]
+[(instr_successor a b) --> (instr b)]
+[(block_first_instr bb_id a) --> (instr a)]
+[(block_last_instr bb_id a) --> (instr a)]
+[(unsupported-instr i) <-- (instr i) (~ support-instr i)]
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; lift operand
+(lift-operand op ?(constant op))
+(lift-operand op ?(variable op))
+
+;; lift flat facts to slog facts
+
+; bypass unsupported
+(lift i ?(unsupported-instr i))
+
+;; ret
+; ret <type> <value>       ; Return a value from a non-void function
+; ret void                 ; Return from void function
+; .decl ret_instr_operand(instr:RetInstruction, val:Operand)
+; .decl ret_instr_void_(instr:RetInstruction)
+[(lift i (ret {lift-operand v})) <-- (ret_instr_operand i v)]
+[(lift i (ret-void)) <-- (ret_instr_void_ i)]
+[(lift-failed-ret a) <-- (ret_instr a) (~ lift a _)]
+
+;; br
+; br i1 <cond>, label <iftrue>, label <iffalse>
+; br label <dest>          ; Unconditional branch
+; .decl br_instr_uncond_label(instr:Instruction, label:Variable)
+[(lift i (br-uncond l)) <-- (br_instr_uncond_label i l)]
+; .decl br_instr_condition(instr:Instruction, cond:Operand)
+; .decl br_instr_true_label(instr:Instruction, label:Variable)
+; .decl br_instr_false_label(instr:Instruction, label:Variable)
+[(lift i (br-cond {lift-operand v} lt lf))
+    <--
+    (br_instr_condition i v)
+    (br_instr_true_label i lt)
+    (br_instr_false_label i lf)]
+[(lift-failed-br a) <-- (br_instr a) (~ lift a _)]
+
+;; switch
+; switch <intty> <value>, label <defaultdest> [ <intty> <val>, label <dest> ... ]
+; .decl switch_instr_operand(instr:SwitchInstruction, value:Operand)
+; .decl switch_instr_ncases(instr:SwitchInstruction, total:number)
+; .decl switch_instr_case_value(instr:SwitchInstruction, index:number, constant:Constant)
+; .decl switch_instr_case_label(instr:SwitchInstruction, index:number, label:Label)
+; .decl switch_instr_default_label(instr:SwitchInstruction, label:Variable)
+[(lift-switch-helper i 0 []) <-- (switch_instr_operand i _)]
+[(lift-switch-helper i n rst)
+ (switch_instr_case_value i n const)
+ (switch_instr_case_label i n l)
+    -->
+    (lift-switch-helper i {+ n 1} [(case const l) rst ...])]
+[(lift i (switch {lift-operand v} cases default-l))
+    <--
+    (switch_instr_operand i v)
+    (switch_instr_ncases i n)
+    (lift-switch-helper i n cases)
+    (switch_instr_default_label i default-l)]
+[(lift-failed-switch i) <-- (switch_instr i) (~ lift i _)]
+
+
+; Binary Operation
+; all binary op are similar
+; <result> = add <ty> <op1>, <op2>          ; yields ty:result
+; <result> = add nuw <ty> <op1>, <op2>      ; yields ty:result
+; <result> = add nsw <ty> <op1>, <op2>      ; yields ty:result
+; <result> = add nuw nsw <ty> <op1>, <op2>  ; yields ty:result
+; .decl add_instr_first_operand(instr:AddInstruction, op:Operand)
+; .decl add_instr_second_operand(instr:AddInstruction, op:Operand)
+[(lift i (binary-op "add" lhs {lift-operand op1} {lift-operand op2}))
+    <--
+    (add_instr_first_operand i op1)
+    (add_instr_second_operand i op2)
+    (instr_assigns_to i lhs)]
+[(lift-failed-add i) <-- (add_instr i) (~ lift i _)]
+[(lift i (binary-op "fadd" lhs {lift-operand op1} {lift-operand op2}))
+    <--
+    (fadd_instr_first_operand i op1)
+    (fadd_instr_second_operand i op2)
+    (instr_assigns_to i lhs)]
+[(lift-failed-fadd i) <-- (fadd_instr i) (~ lift i _)]
+[(lift i (binary-op "sub" lhs {lift-operand op1} {lift-operand op2}))
+    <--
+    (sub_instr_first_operand i op1)
+    (sub_instr_second_operand i op2)
+    (instr_assigns_to i lhs)]
+[(lift-failed-sub i) <-- (sub_instr i) (~ lift i _)]
+[(lift i (binary-op "fsub" lhs {lift-operand op1} {lift-operand op2}))
+    <--
+    (fsub_instr_first_operand i op1)
+    (fsub_instr_second_operand i op2)
+    (instr_assigns_to i lhs)]
+[(lift-failed-fsub i) <-- (fsub_instr i) (~ lift i _)]
+[(lift i (binary-op "mul" lhs {lift-operand op1} {lift-operand op2}))
+    <--
+    (mul_instr_first_operand i op1)
+    (mul_instr_second_operand i op2)
+    (instr_assigns_to i lhs)]
+[(lift-failed-mul i) <-- (mul_instr i) (~ lift i _)]
+[(lift i (binary-op "fmul" lhs {lift-operand op1} {lift-operand op2}))
+    <--
+    (fmul_instr_first_operand i op1)
+    (fmul_instr_second_operand i op2)
+    (instr_assigns_to i lhs)]
+[(lift-failed-fmul i) <-- (fmul_instr i) (~ lift i _)]
+[(lift i (binary-op "udiv" lhs {lift-operand op1} {lift-operand op2}))
+    <--
+    (udiv_instr_first_operand i op1)
+    (udiv_instr_second_operand i op2)
+    (instr_assigns_to i lhs)]
+[(lift-failed-udiv i) <-- (udiv_instr i) (~ lift i _)]
+[(lift i (binary-op "sdiv" lhs {lift-operand op1} {lift-operand op2}))
+    <--
+    (sdiv_instr_first_operand i op1)
+    (sdiv_instr_second_operand i op2)
+    (instr_assigns_to i lhs)]
+[(lift-failed-sdiv i) <-- (sdiv_instr i) (~ lift i _)]
+[(lift i (binary-op "fdiv" lhs {lift-operand op1} {lift-operand op2}))
+    <--
+    (fdiv_instr_first_operand i op1)
+    (fdiv_instr_second_operand i op2)
+    (instr_assigns_to i lhs)]
+[(lift-failed-fdiv i) <-- (fdiv_instr i) (~ lift i _)]
+[(lift i (binary-op "urem" lhs {lift-operand op1} {lift-operand op2}))
+    <--
+    (urem_instr_first_operand i op1)
+    (urem_instr_second_operand i op2)
+    (instr_assigns_to i lhs)]
+[(lift-failed-urem i) <-- (urem_instr i) (~ lift i _)]
+[(lift i (binary-op "srem" lhs {lift-operand op1} {lift-operand op2}))
+    <--
+    (srem_instr_first_operand i op1)
+    (srem_instr_second_operand i op2)
+    (instr_assigns_to i lhs)]
+[(lift-failed-srem i) <-- (srem_instr i) (~ lift i _)]
+[(lift i (binary-op "frem" lhs {lift-operand op1} {lift-operand op2}))
+    <--
+    (frem_instr_first_operand i op1)
+    (frem_instr_second_operand i op2)
+    (instr_assigns_to i lhs)]
+[(lift-failed-frem i) <-- (frem_instr i) (~ lift i _)]
+; bitwise
+[(lift i (binary-op "shl" lhs {lift-operand op1} {lift-operand op2}))
+    <--
+    (shl_instr_first_operand i op1)
+    (shl_instr_second_operand i op2)
+    (instr_assigns_to i lhs)]
+[(lift-failed-shl i) <-- (shl_instr i) (~ lift i _)]
+[(lift i (binary-op "ashr" lhs {lift-operand op1} {lift-operand op2}))
+    <--
+    (ashr_instr_first_operand i op1)
+    (ashr_instr_second_operand i op2)
+    (instr_assigns_to i lhs)]
+[(lift-failed-ashr i) <-- (ashr_instr i) (~ lift i _)]
+[(lift i (binary-op "and" lhs {lift-operand op1} {lift-operand op2}))
+    <--
+    (and_instr_first_operand i op1)
+    (and_instr_second_operand i op2)
+    (instr_assigns_to i lhs)]
+[(lift-failed-and i) <-- (and_instr i) (~ lift i _)]
+[(lift i (binary-op "or" lhs {lift-operand op1} {lift-operand op2}))
+    <--
+    (or_instr_first_operand i op1)
+    (or_instr_second_operand i op2)
+    (instr_assigns_to i lhs)]
+[(lift-failed-and i) <-- (or_instr i) (~ lift i _)]
+[(lift i (binary-op "xor" lhs {lift-operand op1} {lift-operand op2}))
+    <--
+    (xor_instr_first_operand i op1)
+    (xor_instr_second_operand i op2)
+    (instr_assigns_to i lhs)]
+[(lift-failed-xor i) <-- (or_instr i) (~ lift i _)]
+
+
+; Memory related instruction
+
+;; alloca
+; <result> = alloca [inalloca] <type> [, <ty> <NumElements>] [, align <alignment>] [, addrspace(<num>)]     ; yields type addrspace(num)*:result
+; .decl alloca_instr_size(instr:AllocaInstruction, size:Operand)
+[(lift i (alloca lhs n)) <-- (alloca_instr_type i n) (instr_assigns_to i lhs)]
+[(lift-failed-alloca i) <-- (alloca_instr i) (~ lift i _)]
+
+;; load
+; <result> = load [volatile] <ty>, ptr <pointer>[, align <alignment>][, !nontemporal !<nontemp_node>][, !invariant.load !<empty_node>][, !invariant.group !<empty_node>][, !nonnull !<empty_node>][, !dereferenceable !<deref_bytes_node>][, !dereferenceable_or_null !<deref_bytes_node>][, !align !<align_node>][, !noundef !<empty_node>]
+; <result> = load atomic [volatile] <ty>, ptr <pointer> [syncscope("<target-scope>")] <ordering>, align <alignment> [, !invariant.group !<empty_node>]
+; !<nontemp_node> = !{ i32 1 }
+; !<empty_node> = !{}
+; !<deref_bytes_node> = !{ i64 <dereferenceable_bytes> }
+; !<align_node> = !{ i64 <value_alignment> }
+; .decl load_instr_address(instr:LoadInstruction, pointer:Operand)
+[(lift i (load lhs {lift-operand ptr})) <-- (load_instr_address i ptr) (instr_assigns_to i lhs)]
+[(lift-failed-load i) <-- (load_instr i) (~ lift i _)]
+
+;; store
+; store [volatile] <ty> <value>, ptr <pointer>[, align <alignment>][, !nontemporal !<nontemp_node>][, !invariant.group !<empty_node>]        ; yields void
+; store atomic [volatile] <ty> <value>, ptr <pointer> [syncscope("<target-scope>")] <ordering>, align <alignment> [, !invariant.group !<empty_node>] ; yields void
+; !<nontemp_node> = !{ i32 1 }
+; !<empty_node> = !{}
+; .decl store_instr_value(instr:symbol, value:symbol)
+; .decl store_instr_address(instr:symbol, pointer:symbol)
+[(lift i (store {lift-operand v} {lift-operand addr})) <-- (store_instr_value i v) (store_instr_address i addr)]
+[(lift-failed-store i) <-- (store_instr i) (~ lift i _)]
+
+;; getelementptr
+; <result> = getelementptr <ty>, ptr <ptrval>{, [inrange] <ty> <idx>}*
+; <result> = getelementptr inbounds <ty>, ptr <ptrval>{, [inrange] <ty> <idx>}*
+; <result> = getelementptr <ty>, <N x ptr> <ptrval>, [inrange] <vector index type> <idx>
+; .decl getelementptr_instr_base(instr:GetElementPtrInstruction, ptr:Operand)
+; .decl getelementptr_instr_nindices(instr:GetElementPtrInstruction, total:number)
+; .decl getelementptr_instr_index(instr:GetElementPtrInstruction, i:GepIndex, idx:Operand)
+[(lift-gep-indices-helper i n []) <-- (getelementptr_instr_nindices i n)]
+[(lift-gep-indices-helper i n indices)
+ (> n 0)
+ (- n 1 cur-n)
+ (getelementptr_instr_index i cur-n arg)
+    -->
+    (lift-gep-indices-helper i cur-n [{lift-operand arg} indices ...])]
+[(lift i (getelementptr lhs {lift-operand base} {lift-gep-indices-helper i 0}))
+    <--
+    (getelementptr_instr_base i base)
+    (instr_assigns_to i lhs)]
+[(lift-failed-gep i) <-- (getelementptr_instr i) (~ lift i _)]
+
+;; Type Conversion
+
+; <result> = trunc <ty> <value> to <ty2>             ; yields ty2
+; .decl trunc_instr_from_operand(instr: symbol, val: symbol)
+[(lift i (convert "trunc" lhs {lift-operand v})) <-- (trunc_instr_from_operand i v) (instr_assigns_to i lhs)]
+; <result> = zext <ty> <value> to <ty2>             ; yields ty2
+; .decl zext_instr_from_operand(instr:symbol, val:symbol)
+[(lift i (convert "zext" lhs {lift-operand v})) <-- (zext_instr_from_operand i v) (instr_assigns_to i lhs)]
+; <result> = sext <ty> <value> to <ty2>             ; yields ty2
+; .decl sext_instr_from_operand(instr:symbol, val:symbol)
+[(lift i (convert "sext" lhs {lift-operand v})) <-- (sext_instr_from_operand i v) (instr_assigns_to i lhs)]
+; <result> = fptrunc <ty> <value> to <ty2>             ; yields ty2
+; .decl fptrunc_instr_from_operand(instr:symbol, val:symbol)
+[(lift i (convert "fptrunc" lhs {lift-operand v})) <-- (fptrunc_instr_from_operand i v) (instr_assigns_to i lhs)]
+; <result> = fpext <ty> <value> to <ty2>             ; yields ty2
+; .decl fpext_instr_from_operand(instr:symbol, val:symbol)
+[(lift i (convert "fpext" lhs {lift-operand v})) <-- (fpext_instr_from_operand i v) (instr_assigns_to i lhs)]
+; <result> = fptoui <ty> <value> to <ty2>             ; yields ty2
+; .decl fptoui_instr_from_operand(instr:symbol, val:symbol)
+[(lift i (convert "fptoui" lhs {lift-operand v})) <-- (fptoui_instr_from_operand i v) (instr_assigns_to i lhs)]
+; <result> = fptosi <ty> <value> to <ty2>             ; yields ty2
+; .decl fptosi_instr_from_operand(instr:symbol, val:symbol)
+[(lift i (convert "fptosi" lhs {lift-operand v})) <-- (fptosi_instr_from_operand i v) (instr_assigns_to i lhs)]
+; <result> = uitofp <ty> <value> to <ty2>             ; yields ty2
+; .decl uitofp_instr_from_operand(instr:symbol, val:symbol)
+[(lift i (convert "uitofp" lhs {lift-operand v})) <-- (uitofp_instr_from_operand i v) (instr_assigns_to i lhs)]
+; <result> = sitofp <ty> <value> to <ty2>             ; yields ty2
+; .decl sitofp_instr_from_operand(instr:symbol, val:symbol)
+[(lift i (convert "sitofp" lhs {lift-operand v})) <-- (sitofp_instr_from_operand i v) (instr_assigns_to i lhs)]
+; <result> = ptrtoint <ty> <value> to <ty2>             ; yields ty2
+; .decl ptrtoint_instr_from_operand(instr:symbol, val:symbol)
+[(lift i (convert "ptrtoint" lhs {lift-operand v})) <-- (ptrtoint_instr_from_operand i v) (instr_assigns_to i lhs)]
+; <result> = inttoptr <ty> <value> to <ty2>[, !dereferenceable !<deref_bytes_node>][, !dereferenceable_or_null !<deref_bytes_node>]    
+; .decl inttoptr_instr_from_operand(instr:symbol, val:symbol)
+[(lift i (convert "inttoptr" lhs {lift-operand v})) <-- (inttoptr_instr_from_operand i v) (instr_assigns_to i lhs)]
+; <result> = bitcast <ty> <value> to <ty2>             ; yields ty2
+; .decl bitcast_instr_from_operand(instr:symbol, val:symbol)
+[(lift i (convert "bitcast" lhs v{lift-operand v})) <-- (bitcast_instr_from_operand i v) (instr_assigns_to i lhs)]
+;;
+
+;; icmp/fcmp
+; <result> = icmp <cond> <ty> <op1>, <op2>   ; yields i1 or <N x i1>:result
+; .decl icmp_instr_condition(instr:ICmpInstruction, cond:ICmpCondition)
+; .decl icmp_instr_first_operand(instr:ICmpInstruction, op:Operand)
+; .decl icmp_instr_second_operand(instr:ICmpInstruction, op:Operand)
+[(lift i (icmp lhs cond {lift-operand op1} {lift-operand op2})) <--
+    (icmp_instr_condition i cond)
+    (icmp_instr_first_operand i op1)
+    (icmp_instr_second_operand i op2)
+    (instr_assigns_to i lhs)]
+[(lift-failed-icmp i) <-- (icmp_instr i) (~ lift i _)]
+
+;; phi
+;; <result> = phi [fast-math-flags] <ty> [ <val0>, <label0>], ...
+; .decl phi_instr_pair_label
+; .decl phi_instr_pair_value
+; .decl phi_instr
+; .decl phi_instr_npairs
+[(lift-phi-helper instr 0 [])
+    <--
+    (phi_instr_pair_label instr 0 label)
+    (phi_instr_pair_value instr 0 v)]
+[(lift-phi-helper instr {+ 1 n} [(phi-value-pair label {lift-operand v}) rst ...])
+    <--
+    (lift-phi-helper instr n rst)
+    (phi_instr_pair_label instr n label)
+    (phi_instr_pair_value instr n v)]
+
+[(lift instr-id (phi lhs pairs))
+    <--
+    (phi_instr_npairs instr-id p-len)
+    (lift-phi-helper instr-id p-len pairs)
+    (instr_assigns_to instr-id lhs)]
+[(lift-failed-phi i) <-- (phi_instr i) (~ lift i _)]
+
+;; select
+; <result> = select [fast-math flags] selty <cond>, <ty> <val1>, <ty> <val2>             ; yields ty
+; .decl select_instr_condition(instr:SelectInstruction, condition:Operand)
+; .decl select_instr_first_operand(instr:SelectInstruction, op:Operand)
+; .decl select_instr_second_operand(instr:SelectInstruction, op:Operand)
+[(lift i (select lhs {lift-operand cond} {lift-operand v1} {lift-operand v2}))
+    <--
+    (select_instr_condition i cond)
+    (select_instr_first_operand i v1)
+    (select_instr_second_operand i v2)
+    (instr_assigns_to i lhs)]
+[(lift-failed-select i) <-- (select_instr i) (~ lift i _)]
+
+;; call
+; <result> = [tail | musttail | notail ] call [fast-math flags] [cconv] [ret attrs] [addrspace(<num>)]
+;            <ty>|<fnty> <fnptrval>(<function args>) [fn attrs] [ operand bundles ]
+; .decl call_instr_func_operand(instr:CallInstruction, op:Operand)
+; .decl call_instr_arg(instr:CallInstruction, i:ArgumentIndex, arg:Operand)
+[(call-nargs i {count call_instr_arg i _ _}) <-- (call_instr i)]
+[(lift-call-args-helper i n []) <-- (call-nargs i n)]
+[(lift-call-args-helper i n rst)
+ (> n 0)
+ (- n 1 current-idx)
+ (call_instr_arg i current-idx arg)
+    -->
+    (lift-call-args-helper i current-idx [{lift-operand arg} rst ...])]
+
+[(lift i (call "void" {lift-operand fptr} {lift-call-args-helper i 0}))
+    <--
+    (call_instr_func_operand i fptr)
+    (~ instr_assigns_to i _)]
+[(lift i (call lhs {lift-operand fptr} {lift-call-args-helper i 0}))
+    <--
+    (call_instr_func_operand i fptr)
+    (instr_assigns_to i lhs)]
+[(lift-failed-call i) <-- (call_instr i) (~ lift i _)]
+
+[(lift i (unreachable i)) <-- (unreachable_instr i)]
+
+;;;;;;;;;;;;;;;;;
+
+;; Intrinstic
+; memcpy
+; declare void @llvm.memcpy.p0.p0.i32(ptr <dest>, ptr <src>,
+;                                     i32 <len>, i1 <isvolatile>)
+; declare void @llvm.memcpy.p0.p0.i64(ptr <dest>, ptr <src>,
+;                                     i64 <len>, i1 <isvolatile>)
+
+
+;;;;;;;;;;;;;;;;;
+
+;; Possible targets (not impl now)
+
+;; indirectbr (c++ ?, we maybe don't need this)
+;; indirectbr ptr <address>, [ label <dest1>, label <dest2>, ... ]
+
+;; invoke
+; <result> = invoke [cconv] [ret attrs] [addrspace(<num>)] <ty>|<fnty> <fnptrval>(<function args>) [fn attrs]
+;               [operand bundles] to label <normal label> unwind label <exception label>
+
+;; callbr
+; <result> = callbr [cconv] [ret attrs] [addrspace(<num>)] <ty>|<fnty> <fnptrval>(<function args>) [fn attrs]
+;               [operand bundles] to label <fallthrough label> [indirect labels]
+
+;; arith
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; flatten block to struct block
+; .decl block_last_instr
+; .decl block_first_instr
+; .decl instr_bb_entry
+; .decl instr_successor
+
+[(bb-instrs_help bb_id a [])
+    <--
+    (block_last_instr bb_id a)]
+
+[(bb-instrs_help bb_id b rst)
+ (instr_bb_entry b bb_id)
+ (instr_bb_entry a bb_id)
+ (instr_successor a b)
+ (~ lift b _)
+ -->
+    (instr-failed b)]
+[(bb-instrs_help bb_id b rst)
+ (instr_bb_entry b bb_id)
+ (instr_bb_entry a bb_id)
+ (instr_successor a b)
+ -->
+    (bb-instrs_help bb_id a [{lift b} rst ...])]
+
+[(bb-instrs bb_id [{lift a} rst ...])
+    <--
+    (bb-instrs_help bb_id a rst)
+    (block_first_instr bb_id a)]
+
+[(bb-instrs bb_id [{lift a}])
+    <--
+    (block_first_instr bb_id a)
+    (block_last_instr bb_id a)]
+
+[(bb l) <-- (block_last_instr l _)]
+[(bb_failed l) <-- (bb l) (~ bb-instrs l _)]
+
+; function entry bb
+[(block_first_instr i2 bb-id)
+ (instr_successor i1 i2)
+ (instr_func i1 f1)
+ (instr_func i2 f2)
+ (=/= f1 f2)
+ -->
+    (func-entry-bb f2 bb-id)]
+ 
+(func-entry-bb
+    "</home/stargazermiao/workspace/PL/cclyzerpp/test/c/ex_simple.bc>:main"
+    "</home/stargazermiao/workspace/PL/cclyzerpp/test/c/ex_simple.bc>:main:[basicblock]%2")
+
+[(fconst-params fconst n param)
+    <--
+    (func_param {fconst-funcdecl fconst} n param)]
+
+[(fconst-funcdecl fconst fdecl)
+  <--
+    (func_constant_fn_name fconst fname)
+    (func_name fdecl fname)]
+
+; this include intrinstic
+[(external-funcdecl fdecl)
+ <--
+    (func_signature fdecl fsig)
+    (~ func  fdecl)]
+
+[(fconst-ret-void fconst)
+    <--
+    (fconst-funcdecl fconst fdecl)
+    (func_type_return {func_ty fdecl} "void")]
+[(fconst-ret-ptr fconst)
+    <--
+    (fconst-funcdecl fconst fdecl)
+    (func_type_return {func_ty fdecl} "ptr")]
+[(fconst-ret-val fconst)
+    <--
+    (fconst-funcdecl fconst _)
+    (~ fconst-ret-ptr fconst)
+    (~ fconst-ret-void fconst)]
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; LLVM ir is already SSA, so we only need 1 global store (heap) no environment needed
+;; eval<C, K, CTX> + heap
+;; CTX is <func_contour...> + current func
+;; a heap is a {(<addr>/<register>) ↦ value} mapping (should be a lattice ?)
+; heap is propagated by dataflow
+; dataflow can be
+; value     to  address
+; address   to  register
+; value     to  register
+; nil
+; unknown
+
+; TODO: add dataflow for constant pointer init
+; atomic evaluation
+[(do-aeval (constant const) k c)
+ -->
+    (aeval (constant const) k c (constant const))]
+
+[(do-aeval (variable var) k c)
+ (dataflow val (register var c))
+ -->
+    (aeval (variable var) k c val)]
+
+; pointer dereference
+[(do-dereference (constant const) k c)
+ (dataflow val (constant const))
+ -->
+    (deref (constant const) k c val)]
+[(do-deref (variable var) k c)
+ (dataflow paddr (register var c))
+ (dataflow val paddr)
+ -->
+    (deref (variable var) k c val)]
+
+; Injection 
+; start at main
+(entry-point "</home/stargazermiao/workspace/PL/cclyzerpp/test/c/ex_simple.bc>:main:[basicblock]%2")
+
+[(entry-point bb-id)
+ (func-entry-bb entry-func bb-id)
+ (bb-instrs bb-id instrs)
+ -->
+    (step-to
+        (init)
+        (eval instrs (local-k instrs (halt)) (ctx (nil) (nil) (nil) entry-func)))]
+; init dataflow to main's arg
+[(entry-point bb-id)
+ (func-entry-bb entry-func bb-id)
+ (func_param entry-func _ param)
+ -->
+    (dataflow (unknown) (register param (ctx (nil) (nil) (nil) entry-func)))]
+
+; skip unsupported instruction
+[(eval [(unsupported-instr i) rst ...] k c)
+ -->
+    (eval [rst ...] k c)]
+
+; unreachable
+; [(eval [(unreachable i) rst ...] _ _)
+;  -->
+    (step-to
+        ?(eval [(unreachable i) rst ...] _ _)
+        (unexpected-error i))
+        ; ]
+
+; ret
+[(eval [(ret x) rst ...] k c) --> (do-eval x k c)]
+; [(eval [(ret x) rst ...] (local-k cur-k prev-ctx prev-k) (ctx ctx0 ctx1 prev-func cur-func))
+;  -->
+    (step-to
+        ?(eval [(ret x) rst ...] (local-k cur-k prev-ctx prev-k) (ctx ctx0 ctx1 prev-func cur-func))
+        (eval-ret-to-call
+            {aeval x (local-k cur-k prev-ctx prev-k) (ctx ctx0 ctx1 prev-func cur-func)}
+            cur-k prev-k
+            (ctx prev-ctx ctx0 ctx1 prev-func)))
+            ; ]
+
+[(eval [(ret-void) rst ...]
+    (local-k [callee rst ...] prev-ctx prev-k)
+    (ctx ctx0 ctx1 prev-func cur-func))
+ -->
+    (eval [rst ...] prev-k (ctx prev-ctx ctx0 ctx1 prev-func))]
+
+; br
+[(eval [(br-uncond next-bb) rst ...] k c)
+ -->
+    (eval {bb-instrs next-bb} k c)]
+; branch to both, maybe we can check cond value here
+[(eval [(br-cond v-cond lt lf) rst ...] k c)
+ -->
+    (eval {bb-instrs lt} k c)
+    (eval {bb-instrs lf} k c)]
+
+; switch
+; step to a helper
+[(eval [(switch cond-v cases default-l) rst ...] k c)
+ -->
+    (eval-switch-cases cond-v cases default-l k c)]
+[(eval-switch-cases cond-v [(case const next-l) c-rsts ...] default-l k c)
+ -->
+    ;; maybe add value check here
+    (eval next-l {bb-instrs next-l} k c)
+    (eval-switch-cases cond-v [c-rsts ...] default-l k c)]
+[(eval-switch-cases cond-v [] default-l k c)
+ -->
+    (eval default-l {bb-instrs default-l} k c)]
+
+; binary operation
+[(eval [(binary-op bop lhs op1 op2) rst ...] k c)
+  -->
+    (do-aeval op1 k c) (do-aeval op2 k c)]
+[(eval [(binary-op bop lhs op1 op2) rst ...] k c)
+ -->
+    (dataflow {aeval op1 k c} (register lhs c))
+    (dataflow {aeval op2 k c} (register lhs c))
+    ; (heap (register lhs k) (binary-op-val bop v1 v2))
+    (eval [rst ...] k c)]
+
+; alloca
+[(eval [(alloca lhs n) rst ...] k c)
+ -->
+    (eval [rst ...] k c)
+    (dataflow (addr lhs c) (register lhs c))
+    (dataflow (nil) (addr lhs c))]
+
+; load
+[(eval [(load lhs ptr) rst ...] k c) --> (do-deref ptr k c)]
+[(eval [(load lhs ptr) rst ...] k c)
+ -->
+    (dataflow {deref ptr k c} (register lhs c))
+    (eval [rst ...] k c)]
+
+; store
+[(eval [(store v ptr) rst ...] k c)
+ -->
+    (do-aeval ptr k c)
+    (do-aeval v k c)]
+[(eval [(store v ptr) rst ...] k c)
+ -->
+    (dataflow {aeval v k c} {aeval ptr k c})
+    (eval [rst ...] k c)]
+
+; GEP
+; can base be a int?
+[(eval [(getelementptr lhs base indices) rst ...] k c) --> (do-deref base k c)]
+[(eval [(getelementptr lhs base indices) rst ...] k c)
+ -->
+    (dataflow {deref base k c} (register lhs c))
+    (eval [rst ...] k c)]
+
+; type conversion
+[(eval [(convert _ lhs op) rst ...] k c) --> (do-aeval op k c)]
+[(eval [(convert _ lhs op) rst ...] k c)
+ -->
+    (dataflow {aeval op k c} lhs)
+    (eval [rst ...] k c)]
+
+; icmp/fcmp
+[(eval [(icmp lhs cond-v op1 op2) rst ...] k c)
+ -->
+    (do-aeval op1 k c) (do-aeval op2 k c)]
+[(eval [(icmp lhs cond-v op1 op2) rst ...] k c)
+ -->
+    (dataflow {aeval op1 k c} (register lhs c))
+    (dataflow {aeval op2 k c} (register lhs c))
+    (eval [rst ...] k c)]
+
+; phi
+[(eval [(phi lhs pairs) rst ...] k c)
+ -->
+    (eval-phi-pairs lhs pairs [rst ...] k c)]
+[(eval-phi-pairs lhs [] rst k c)
+ -->
+    (eval [rst ...] k c)]
+[(eval-phi-pairs lhs [(phi-value-pair l op) prst ...] rst k c) --> (do-aeval op k c)]
+[(eval-phi-pairs lhs [(phi-value-pair l op) prst ...] rst k c)
+ -->
+    (dataflow {aeval op k c} (register lhs c))
+    (eval-phi-pairs lhs [prst ...] rst k c)]
+
+; select
+[(eval [(select lhs cond-v op1 op2) rst ...] k c)
+ -->
+    (do-aeval op1 k c) (do-aeval op2 k c)]
+[(eval [(select lhs cond-v op1 op2) rst ...] k c)
+ -->
+    (dataflow {aeval op1 k c} (register lhs c))
+    (dataflow {aeval op2 k c} (register lhs c))
+    (eval [rst ...] k c)]
+
+; call
+; only directed call
+; internal call
+[(eval [(call lhs (constant fconst) args) rst ...] k (ctx ctx0 ctx1 ctx2 cur-func))
+ (func {fconst-funcdecl fconst})
+ -->
+    (eval-func-args 0 fconst args [(call lhs (constant fconst) args) rst ...]
+        k (local-k [(call lhs (constant fconst) args) rst ...] ctx0 k)
+        (ctx ctx0 ctx1 ctx2 cur-func) (ctx ctx1 ctx2 cur-func fconst))]
+[(eval-func-args i func [] k new-k c new-c)
+ -->
+    (eval {bb-instrs {func-entry-bb func}} new-k new-c)]
+[(eval-func-args i func [arg arst ...] k new-k c new-c) --> (do-aeval arg k c)]
+[(eval-func-args i func [arg arst ...] k new-k c new-c)
+ (fconst-params func i param)
+ -->
+    (dataflow {aeval arg k c} (register param new-c))
+    (eval-func-args {+ 1 i} func [arst ...] k new-k c new-c)]
+; external call
+[(eval [(call lhs (constant fconst) args) rst ...] k c)
+ (fconst-ret-void fconst)
+ (fconst-funcdecl fconst fdecl)
+ (external-funcdecl fdecl)
+ -->
+    (eval [rst ...] k c)]
+[(eval [(call lhs (constant fconst) args) rst ...] k c)
+ (fconst-ret-val fconst)
+ (fconst-funcdecl fconst fdecl)
+ (external-funcdecl fdecl)
+ -->
+    (dataflow (unknown) (register lhs k))
+    (eval [rst ...] k c)]
+[(eval [(call lhs (constant fconst) args) rst ...] k c)
+ (fconst-ret-ptr fconst)
+ (fconst-funcdecl fconst fdecl)
+ (external-funcdecl fdecl)
+ -->
+    (dataflow (unknown) (addr lhs c))
+    (dataflow (addr lhs c) (register lhs c))
+    (eval [rst ...] k c)]
+
+; returned
+[(eval-ret-to-call ret-v [(call lhs (constant func) args) rst ...] k c)
+ -->
+    (dataflow ret-v (register lhs c))
+    (eval [rst ...] k c)]
+
+
+;; (eval [instr ...] [contour ...] prev-bb (kaddr [instr ...] prev-kaddr))
+
+; [(call_arguments src dest)
+;  <--
+;  (call_instr_func_operand i fconst)
+;  (func_constant_fn_name fconst fname)
+;  (func_name fdecl fname)
+;  (func_param fdecl n dest)
+;  (call_instr_arg i n src)]
+
+
+; [(ret_to src src)
+;  <--
+;  (ret_instr_operand ri src)
+;  (instr_func ri fdecl)
+;  (func_name fdecl fname)
+;  (func_constant_fn_name fconst fname)
+;  (call_instr_func_operand ci fconst)
+;  (instr_assigns_to ci dest)]
+
