@@ -575,10 +575,10 @@
 
 (step-to
     ?(eval [(ret-void) rst ...]
-        (local-k [callee rst ...] prev-ctx prev-k)
+        (local-k [callee rst-callee ...] prev-ctx prev-k)
         (ctx cur-func))
     ; -->
-    (eval [rst ...] prev-k (ctx prev-ctx)))
+    (eval [rst-callee ...] prev-k (ctx prev-ctx)))
 
 ; br
 (step-to
@@ -698,12 +698,14 @@
     (eval [rst ...] k c))
 
 ; phi
-[(eval [(phi lhs pairs) rst ...] k c)
- -->
-    (eval-phi-pairs lhs pairs [rst ...] k c)]
-[(eval-phi-pairs lhs [] rst k c)
- -->
-    (eval [rst ...] k c)]
+(step-to
+    ?(eval [(phi lhs pairs) rst ...] k c)
+    ; -->
+    (eval-phi-pairs lhs pairs [rst ...] k c))
+(step-to
+    ?(eval-phi-pairs lhs [] rst k c)
+    ; -->
+    (eval rst k c))
 [(eval-phi-pairs lhs [(phi-value-pair l op) prst ...] rst k c) --> (do-aeval op k c)]
 [(eval-phi-pairs lhs [(phi-value-pair l op) prst ...] rst k c)
  -->
