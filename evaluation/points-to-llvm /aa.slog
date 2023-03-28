@@ -463,12 +463,6 @@
  (instr_func i f)
  -->
     (func-entry-bb f bb-id)]
- 
-
-
-(func-entry-bb
-    "</home/stargazermiao/workspace/PL/cclyzerpp/test/c/ex_simple.bc>:main"
-    "</home/stargazermiao/workspace/PL/cclyzerpp/test/c/ex_simple.bc>:main:[basicblock]%2")
 
 [(fconst-params fconst n param)
     <--
@@ -541,21 +535,23 @@
 
 ; Injection 
 ; start at main
-(entry-point "</home/stargazermiao/workspace/PL/cclyzerpp/test/c/ex_simple.bc>:main:[basicblock]%2")
+[(entry-function main-fdecl)
+    <--
+    (func_name main-fdecl "@main")]
 
-[(entry-point bb-id)
+[(entry-function entry-func)
  (func-entry-bb entry-func bb-id)
  (bb-instrs bb-id instrs)
  -->
     (step-to
         (init)
-        (eval instrs (local-k instrs (halt)) (ctx (nil) (nil) (nil) entry-func)))]
+        (eval instrs (local-k instrs (halt)) (ctx entry-func)))]
 ; init dataflow to main's arg
 [(entry-point bb-id)
  (func-entry-bb entry-func bb-id)
  (func_param entry-func _ param)
  -->
-    (dataflow (unknown) (register param (ctx (nil) (nil) (nil) entry-func)))]
+    (dataflow (unknown) (register param (ctx entry-func)))]
 
 ; skip unsupported instruction
 [(eval [(unsupported-instr i) rst ...] k c)
@@ -563,29 +559,26 @@
     (eval [rst ...] k c)]
 
 ; unreachable
-; [(eval [(unreachable i) rst ...] _ _)
-;  -->
-    (step-to
-        ?(eval [(unreachable i) rst ...] _ _)
-        (unexpected-error i))
-        ; ]
+(step-to
+    ?(eval [(unreachable i) rst ...] _ _)
+    (unexpected-error i))
 
 ; ret
 [(eval [(ret x) rst ...] k c) --> (do-aeval x k c)]
 (step-to
-    ?(eval [(ret x) rst ...] (local-k cur-k prev-ctx prev-k) (ctx ctx0 ctx1 prev-func cur-func))
+    ?(eval [(ret x) rst ...] (local-k cur-k prev-ctx prev-k) (ctx cur-func))
     ; -->
     (eval-ret-to-call
-        {aeval x (local-k cur-k prev-ctx prev-k) (ctx ctx0 ctx1 prev-func cur-func)}
+        {aeval x (local-k cur-k prev-ctx prev-k) (ctx cur-func)}
         cur-k prev-k
-        (ctx prev-ctx ctx0 ctx1 prev-func)))
+        (ctx prev-ctx)))
 
 (step-to
     ?(eval [(ret-void) rst ...]
         (local-k [callee rst ...] prev-ctx prev-k)
-        (ctx ctx0 ctx1 prev-func cur-func))
+        (ctx cur-func))
     ; -->
-    (eval [rst ...] prev-k (ctx prev-ctx ctx0 ctx1 prev-func)))
+    (eval [rst ...] prev-k (ctx prev-ctx)))
 
 ; br
 (step-to
@@ -612,7 +605,7 @@
     ?(eval-switch-cases cond-v [(case const next-l) c-rsts ...] default-l k c)
     ; -->
     ;; maybe add value check here
-    (eval next-l {bb-instrs next-l} k c))
+    (eval {bb-instrs next-l} k c))
 (step-to
     ?(eval-switch-cases cond-v [(case const next-l) c-rsts ...] default-l k c)
     ; -->
@@ -622,7 +615,7 @@
 (step-to
     ?(eval-switch-cases cond-v [] default-l k c)
     ; -->
-    (eval default-l {bb-instrs default-l} k c))
+    (eval {bb-instrs default-l} k c))
 
 ; binary operation
 (step-to
@@ -736,15 +729,15 @@
 ; call
 ; only directed call
 ; internal call
-[(eval [(call lhs (constant fconst) args) rst ...] k (ctx ctx0 ctx1 ctx2 cur-func))
+[(eval [(call lhs (constant fconst) args) rst ...] k (ctx cur-func))
  (func {fconst-funcdecl fconst})
  -->
     (step-to
-        (eval [(call lhs (constant fconst) args) rst ...] k (ctx ctx0 ctx1 ctx2 cur-func))
+        (eval [(call lhs (constant fconst) args) rst ...] k (ctx cur-func))
         ; -->
         (eval-func-args 0 fconst args
-            k (local-k [(call lhs (constant fconst) args) rst ...] ctx0 k)
-            (ctx ctx0 ctx1 ctx2 cur-func) (ctx ctx1 ctx2 cur-func fconst)))]
+            k (local-k [(call lhs (constant fconst) args) rst ...] cur-func k)
+            (ctx cur-func) (ctx fconst)))]
 (step-to 
     ?(eval-func-args i fconst [] k new-k c new-c)
     ; -->
