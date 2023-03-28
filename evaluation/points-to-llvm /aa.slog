@@ -451,14 +451,21 @@
 [(bb_failed l) <-- (bb l) (~ bb-instrs l _)]
 
 ; function entry bb
-[(block_first_instr i2 bb-id)
- (instr_successor i1 i2)
- (instr_func i1 f1)
- (instr_func i2 f2)
- (=/= f1 f2)
+; [(block_first_instr i2 bb-id)
+;  (instr_successor i1 i2)
+;  (instr_func i1 f1)
+;  (instr_func i2 f2)
+;  (=/= f1 f2)
+;  -->
+;     (func-entry-bb f2 bb-id)]
+[(block_first_instr bb-id i)
+ (~ block_predecessor bb-id _)
+ (instr_func i f)
  -->
-    (func-entry-bb f2 bb-id)]
+    (func-entry-bb f bb-id)]
  
+
+
 (func-entry-bb
     "</home/stargazermiao/workspace/PL/cclyzerpp/test/c/ex_simple.bc>:main"
     "</home/stargazermiao/workspace/PL/cclyzerpp/test/c/ex_simple.bc>:main:[basicblock]%2")
@@ -564,7 +571,7 @@
         ; ]
 
 ; ret
-[(eval [(ret x) rst ...] k c) --> (do-eval x k c)]
+[(eval [(ret x) rst ...] k c) --> (do-aeval x k c)]
 (step-to
     ?(eval [(ret x) rst ...] (local-k cur-k prev-ctx prev-k) (ctx ctx0 ctx1 prev-func cur-func))
     ; -->
@@ -735,13 +742,13 @@
     (step-to
         (eval [(call lhs (constant fconst) args) rst ...] k (ctx ctx0 ctx1 ctx2 cur-func))
         ; -->
-        (eval-func-args 0 fconst args [(call lhs (constant fconst) args) rst ...]
+        (eval-func-args 0 fconst args
             k (local-k [(call lhs (constant fconst) args) rst ...] ctx0 k)
             (ctx ctx0 ctx1 ctx2 cur-func) (ctx ctx1 ctx2 cur-func fconst)))]
 (step-to 
-    ?(eval-func-args i func [] k new-k c new-c)
+    ?(eval-func-args i fconst [] k new-k c new-c)
     ; -->
-    (eval {bb-instrs {func-entry-bb func}} new-k new-c))
+    (eval {bb-instrs {func-entry-bb {fconst-funcdecl fconst}}} new-k new-c))
 [(eval-func-args i func [arg arst ...] k new-k c new-c) --> (do-aeval arg k c)]
 [(eval-func-args i func [arg arst ...] k new-k c new-c)
  (fconst-params func i param)
@@ -751,6 +758,7 @@
         (eval-func-args i func [arg arst ...] k new-k c new-c)
         ; -->
         (eval-func-args {+ 1 i} func [arst ...] k new-k c new-c))]
+
 ; external call
 [(eval [(call lhs (constant fconst) args) rst ...] k c)
  (fconst-ret-void fconst)
@@ -790,25 +798,4 @@
 (step-to
     ?(eval-ret-to-call ret-v [(call lhs (constant func) args) rst ...] k c)
     (eval [rst ...] k c))
-
-
-;; (eval [instr ...] [contour ...] prev-bb (kaddr [instr ...] prev-kaddr))
-
-; [(call_arguments src dest)
-;  <--
-;  (call_instr_func_operand i fconst)
-;  (func_constant_fn_name fconst fname)
-;  (func_name fdecl fname)
-;  (func_param fdecl n dest)
-;  (call_instr_arg i n src)]
-
-
-; [(ret_to src src)
-;  <--
-;  (ret_instr_operand ri src)
-;  (instr_func ri fdecl)
-;  (func_name fdecl fname)
-;  (func_constant_fn_name fconst fname)
-;  (call_instr_func_operand ci fconst)
-;  (instr_assigns_to ci dest)]
 
