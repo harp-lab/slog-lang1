@@ -1,106 +1,429 @@
-#1754
-(bb_instrs ex_simple:bar:[basicblock]%11
-    ($lst (load ex_simple:bar:%12 ex_simple:bar:%2)
-    ($lst (ret ex_simple:bar:%12)
-    ($nil 0))))
-#1755
-(bb_instrs ex_simple:main:[basicblock]%11
-    ($lst (load ex_simple:main:%12 ex_simple:main:%5)
-    ($lst (getelementptr ex_simple:main:%13
-            ex_simple:main:%12
-            ($lst ex_simple:main:14:0:1 ($nil 0)))
-    ($lst (load ex_simple:main:%14 ex_simple:main:%13)
-    ($lst (call ex_simple:main:%15
-            ex_simple:main:16:0:@atoi
-            ($lst #1123))
-    ($lst (store ex_simple:main:%15 ex_simple:main:%6)
-    ($lst (load ex_simple:main:%16 ex_simple:main:%6)
-    ($lst (call ex_simple:main:%17 ex_simple:main:19:0:@foo ($lst ex_simple:main:%16 ($nil 0)))
-    ($lst (ret ex_simple:main:%17)
-    ($nil 0))))))))))
-#1756
-(bb_instrs ex_simple:foo:[basicblock]%19
-    ($lst (load ex_simple:foo:%20 ex_simple:foo:%2)
-    ($lst (ret ex_simple:foo:%20)
-    ($nil 0))))
-#1757
-(bb_instrs ex_simple:foo:[basicblock]%13
-    ($lst (call ex_simple:foo:%14 ex_simple:foo:15:0:@printf
-            ($lst ex_simple:foo:15:1:@.str.3 ($nil 0)))
-    ($lst (load ex_simple:foo:%15 ex_simple:foo:%3)
-    ($lst (unsupported-instr ex_simple:foo:17)
-    ($lst (call ex_simple:foo:%17 ex_simple:foo:18:0:@bar ($lst #1121))
-    ($lst (store ex_simple:foo:%17 ex_simple:foo:%4)
-    ($lst (load ex_simple:foo:%18 ex_simple:foo:%4)
-    ($lst (store ex_simple:foo:%18 ex_simple:foo:%2)
-    ($lst (br-uncond ex_simple:foo:[basicblock]%19)
-    ($nil 0))))))))))
-#1758
-(bb_instrs ex_simple:foo:[basicblock]%11
-    ($lst (call ex_simple:foo:%12 ex_simple:foo:12:0:@printf ($lst ex_simple:foo:12:1:@.str.2 ($nil 0)))
-    ($lst (store ex_simple:foo:13:0:-2 ex_simple:foo:%2)
-    ($lst (br-uncond ex_simple:foo:[basicblock]%19)
-    ($nil 0)))))
-#1759
-(bb_instrs ex_simple:foo:[basicblock]%8
-    ($lst (load ex_simple:bar:%3 ex_simple:bar:%10)
-    ($lst (icmp slt ex_simple:foo:%9 ex_simple:foo:10:0:5)
-    ($lst (br-uncond ex_simple:foo:%10 ex_simple:foo:[basicblock]%13 ex_simple:foo:[basicblock]%11)
-    ($nil 0)))))
-#1760
-(bb_instrs ex_simple:foo:[basicblock]%1
-    ($lst (alloca ex_simple:foo:%2 i32)
-    ($lst (alloca ex_simple:foo:%3 i32)
-    ($lst (alloca ex_simple:foo:%4 i32)
-    ($lst (store ex_simple:foo:%0 ex_simple:foo:%3)
-    ($lst (load ex_simple:bar:%3 ex_simple:bar:%4)
-    ($lst (icmp slt ex_simple:foo:%5 ex_simple:foo:5:0:0)
-    ($lst (br-uncond ex_simple:foo:%6 ex_simple:foo:[basicblock]%8 ex_simple:foo:[basicblock]%7)
-    ($nil 0)))))))))
-#1761
-(bb_instrs ex_simple:foo:[basicblock]%7
-    ($lst (store ex_simple:foo:7:0:-1 ex_simple:foo:%2)
-    ($lst (br-uncond ex_simple:foo:[basicblock]%19)
-    ($nil 0))))
-#1762
-(bb_instrs ex_simple:bar:[basicblock]%8
-    ($lst (call ex_simple:bar:%9 ex_simple:bar:9:0:@printf ($lst ex_simple:bar:9:1:@.str.1 ($nil 0)))
-    ($lst (load ex_simple:bar:%10 ex_simple:bar:%3)
-    ($lst (store ex_simple:bar:%10 ex_simple:bar:%2)
-    ($lst (br-uncond ex_simple:bar:[basicblock]%11)
-    ($nil 0))))))
-#1763
-(bb_instrs ex_simple:bar:[basicblock]%1
-    ($lst (alloca ex_simple:bar:%2 i32)
-    ($lst (alloca ex_simple:bar:%3 i32)
-    ($lst (store ex_simple:bar:%0 ex_simple:bar:%3)
-    ($lst (load ex_simple:bar:%4 ex_simple:bar:%3)
-    ($lst (icmp sgt ex_simple:bar:%4 ex_simple:bar:4:0:50)
-    ($lst (br-uncond ex_simple:bar:%5 ex_simple:bar:[basicblock]%8 ex_simple:bar:[basicblock]%6)
-    ($nil 0))
-))))))
-#1764
-(bb_instrs ex_simple:bar:[basicblock]%6
-    ($lst (call ex_simple:bar:%7 ex_simple:bar:6:0:@printf ($lst ex_simple:bar:6:1:@.str ($nil 0)))
-    ($lst (store ex_simple:bar:7:0:-3 ex_simple:bar:%2)
-    ($lst (br-uncond ex_simple:bar:[basicblock]%11)
-    ($nil 0)))))
-#1765
-(bb_instrs ex_simple:main:[basicblock]%9
-    ($lst (call ex_simple:main:%10 ex_simple:main:10:0:@printf ($lst ex_simple:main:10:1:@.str.4 ($nil 0)))
-    ($lst (call void ex_simple:main:11:0:@exit ($lst ex_simple:main:11:1:1 ($nil 0)))
-    ($lst (unsupported-instr ex_simple:main:12)
-    ($nil 0)))))
-#1766
-(bb_instrs ex_simple:main:[basicblock]%2
-    ($lst (alloca ex_simple:main:%3 i32)
-    ($lst (alloca ex_simple:main:%4 i32)
-    ($lst (alloca ex_simple:main:%5 ptr)
-    ($lst (alloca ex_simple:main:%6 i32)
-    ($lst (store ex_simple:main:4:0:0 ex_simple:main:%3)
-    ($lst (store ex_simple:main:%0 ex_simple:main:%4)
-    ($lst (store ex_simple:main:%1 ex_simple:main:%5)
-    ($lst (load ex_simple:main:%6 ex_simple:main:%16)
-    ($lst (icmp ne ex_simple:main:%7 ex_simple:main:8:0:2)
-    ($lst (br-uncond ex_simple:main:%8 ex_simple:main:[basicblock]%11 ex_simple:main:[basicblock]%9)
-    ($nil 0))))))))))))
+Relation name                 Arity  # Tuples                      Tag    Size (KiB)
+
+nil                           0      1                             676    	0.0
+unknown                       0      1                             581    	0.0
+ret-void                      0      1                             556    	0.0
+init                          0      1                             722    	0.0
+halt                          0      1                             840    	0.0
+srem_instr                    1      1                             560    	0.01
+fptosi_instr                  1      1                             623    	0.01
+fdiv_instr                    1      1                             680    	0.01
+uitofp_instr                  1      1                             707    	0.01
+$rule163-inter-body           1      1                             337    	0.01
+$nil                          1      1                             766    	0.01
+fpext_instr                   1      1                             374    	0.01
+$rule185-inter-body           1      1                             570    	0.01
+entry-function                1      1                             260    	0.01
+trunc_instr                   1      1                             717    	0.01
+sitofp_instr                  1      1                             900    	0.01
+$rule156-inter-body2          1      1                             332    	0.01
+$rule193-inter-body1          1      1                             687    	0.01
+$rule150-inter-body1          2      1                             302    	0.02
+$rule103-inter-body           2      1                             662    	0.02
+trunc_instr_from_operand      2      1                             594    	0.02
+$rule110-inter-body           2      1                             870    	0.02
+phi_instr                     1      2                             310    	0.02
+$rule75-inter-body1           2      1                             550    	0.02
+fpext_instr_from_operand      2      1                             278    	0.02
+$rule150-inter-body           2      1                             876    	0.02
+fdiv_instr_first_operand      2      1                             821    	0.02
+fdiv_instr_second_operand     2      1                             584    	0.02
+srem_instr_first_operand      2      1                             408    	0.02
+zext_instr                    1      2                             530    	0.02
+$rule109-inter-body           2      1                             723    	0.02
+$inter-head21                 2      1                             611    	0.02
+local-k                       2      1                             269    	0.02
+$rule75-inter-body            2      1                             844    	0.02
+$rule111-inter-body           2      1                             547    	0.02
+srem_instr_second_operand     2      1                             670    	0.02
+uitofp_instr_from_operand     2      1                             291    	0.02
+sitofp_instr_from_operand     2      1                             569    	0.02
+$rule79-inter-body1           2      1                             400    	0.02
+$rule79-inter-body            2      1                             356    	0.02
+fptosi_instr_from_operand     2      1                             324    	0.02
+$rule109-inter-body1          3      1                             700    	0.02
+$rule107-inter-body           3      1                             339    	0.02
+$rule110-inter-body1          3      1                             633    	0.02
+$rule103-inter-body1          3      1                             851    	0.02
+$rule111-inter-body1          3      1                             701    	0.02
+$rule107-inter-body1          3      1                             282    	0.02
+$rule79-inter-body2           3      1                             582    	0.02
+$rule75-inter-body2           3      1                             590    	0.02
+phi_instr_npairs              2      2                             686    	0.03
+$inter-head70                 4      1                             554    	0.03
+$inter-head15                 4      1                             678    	0.03
+phi                           2      2                             743    	0.03
+zext_instr_from_operand       2      2                             640    	0.03
+$inter-head60                 4      1                             277    	0.03
+$inter-head97                 4      1                             825    	0.03
+$head-stratified12            4      1                             268    	0.03
+$inter-head46                 4      1                             382    	0.03
+$rule79-inter-body3           4      1                             460    	0.03
+$inter-head73                 2      2                             586    	0.03
+$rule119-inter-body           2      2                             562    	0.03
+$rule75-inter-body3           4      1                             500    	0.03
+$head-stratified11            4      1                             390    	0.03
+$inter-head42                 4      1                             366    	0.03
+$inter-head52                 5      1                             889    	0.04
+$inter-head8                  5      1                             419    	0.04
+$inter-head32                 6      1                             804    	0.05
+$inter-head71                 3      2                             702    	0.05
+$rule104-inter-body           3      2                             507    	0.05
+$rule104-inter-body1          3      2                             536    	0.05
+external-funcdecl             1      7                             522    	0.05
+$inter-head68                 4      2                             793    	0.06
+mul_instr                     1      8                             497    	0.06
+ret                           1      8                             612    	0.06
+$inter-head62                 3      3                             328    	0.07
+$rule186-inter-body           2      6                             789    	0.09
+phi-value-pair                2      6                             774    	0.09
+$rule117-inter-body           2      6                             605    	0.09
+$rule188-inter-body           2      6                             571    	0.09
+urem_instr                    1      12                            523    	0.09
+ret_instr_void_               1      14                            621    	0.11
+getelementptr_instr           1      14                            798    	0.11
+$inter-head66                 2      8                             352    	0.12
+$rule154-inter-body           2      8                             549    	0.12
+mul_instr_first_operand       2      8                             538    	0.12
+$rule187-inter-body           4      4                             659    	0.12
+mul_instr_second_operand      2      8                             720    	0.12
+$bir-sub13                    4      4                             378    	0.12
+$rule155-inter-body           2      8                             330    	0.12
+ret_instr_operand             2      8                             290    	0.12
+$rule67-inter-body            2      8                             786    	0.12
+$rule67-inter-body1           2      8                             503    	0.12
+phi_instr_pair_label          3      6                             311    	0.14
+fconst-ret-void               1      18                            622    	0.14
+phi_instr_pair_value          3      6                             635    	0.14
+ret_instr                     1      22                            613    	0.17
+func                          1      22                            467    	0.17
+lift-phi-helper               3      8                             524    	0.19
+$inter-head39                 6      4                             312    	0.19
+urem_instr_second_operand     2      12                            708    	0.19
+$rule118-inter-body           4      6                             866    	0.19
+$rule67-inter-body2           3      8                             488    	0.19
+urem_instr_first_operand      2      12                            790    	0.19
+$head-stratified17            4      6                             869    	0.19
+$rule77-inter-body            2      12                            829    	0.19
+$rule77-inter-body1           2      12                            452    	0.19
+eval-phi-pairs                5      5                             893    	0.2
+sub_instr                     1      25                            643    	0.2
+add_instr                     1      26                            383    	0.2
+getelementptr_instr_base      2      14                            365    	0.22
+$rule101-inter-body           2      14                            539    	0.22
+$rule101-inter-body1          2      14                            771    	0.22
+getelementptr_instr_nindices  2      14                            747    	0.22
+$rule118-inter-body2          5      6                             387    	0.23
+$rule118-inter-body1          5      6                             807    	0.23
+$inter-head44                 5      6                             698    	0.23
+func_type_return              2      16                            535    	0.25
+$rule67-inter-body3           4      8                             527    	0.25
+sext_instr                    1      33                            658    	0.26
+$rule175-inter-body           2      17                            610    	0.27
+$rule177-inter-body           2      17                            481    	0.27
+$rule156-inter-body3          2      17                            424    	0.27
+unsupported-instr             1      35                            593    	0.27
+$rule77-inter-body2           3      12                            868    	0.28
+$rule133-inter-body1          2      20                            644    	0.31
+$rule133-inter-body           2      20                            636    	0.31
+$inter-head91                 5      8                             347    	0.31
+ctx                           1      41                            601    	0.32
+getelementptr                 3      14                            848    	0.33
+$inter-head38                 3      14                            333    	0.33
+$rule101-inter-body2          3      14                            368    	0.33
+func-entry-bb                 2      22                            485    	0.34
+$rule100-inter-body           3      16                            304    	0.38
+getelementptr_instr_index     3      16                            401    	0.38
+$rule77-inter-body3           4      12                            426    	0.38
+sub_instr_first_operand       2      25                            661    	0.39
+$rule63-inter-body            2      25                            726    	0.39
+$rule63-inter-body1           2      25                            674    	0.39
+sub_instr_second_operand      2      25                            465    	0.39
+$rule59-inter-body1           2      26                            385    	0.41
+$rule59-inter-body            2      26                            386    	0.41
+add_instr_second_operand      2      26                            444    	0.41
+add_instr_first_operand       2      26                            360    	0.41
+$rule126-inter-body3          3      18                            679    	0.42
+$inter-head57                 4      14                            422    	0.44
+$bir-sub1                     4      14                            294    	0.44
+func_signature                2      29                            512    	0.45
+func_name                     2      29                            342    	0.45
+func_ty                       2      29                            427    	0.45
+$inter-head9                  5      12                            802    	0.47
+$inter-head1                  3      20                            276    	0.47
+$head-stratified              3      20                            573    	0.47
+br-uncond                     1      61                            833    	0.48
+$inter-head59                 4      16                            615    	0.5
+icmp_instr                    1      64                            710    	0.5
+sext_instr_from_operand       2      33                            279    	0.52
+$head-stratified1             4      17                            412    	0.53
+$inter-head2                  4      17                            684    	0.53
+$inter-head49                 4      17                            797    	0.53
+$inter-head94                 4      18                            767    	0.56
+$rule196-inter-body2          1      75                            301    	0.59
+$rule198-inter-body3          1      75                            752    	0.59
+$rule197-inter-body4          1      75                            407    	0.59
+$rule63-inter-body2           3      25                            831    	0.59
+$rule59-inter-body2           3      26                            454    	0.61
+$rule100-inter-body2          5      16                            754    	0.62
+$rule150-inter-body2          2      42                            423    	0.66
+lift-gep-indices-helper       3      30                            853    	0.7
+fconst-ret-val                1      97                            267    	0.76
+$rule142-inter-body           1      97                            775    	0.76
+$rule105-inter-body1          3      33                            416    	0.77
+$rule105-inter-body           3      33                            363    	0.77
+$rule63-inter-body3           4      25                            393    	0.78
+$rule152-inter-body           2      50                            343    	0.78
+$rule59-inter-body3           4      26                            873    	0.81
+alloca_instr                  1      110                           280    	0.86
+call_instr                    1      115                           493    	0.9
+convert                       3      40                            755    	0.94
+$rule192-inter-body5          3      40                            281    	0.94
+$rule157-inter-body           2      61                            349    	0.95
+$inter-head36                 5      25                            477    	0.98
+icmp_instr_second_operand     2      64                            626    	1.0
+$rule115-inter-body           2      64                            894    	1.0
+$rule115-inter-body1          2      64                            355    	1.0
+icmp_instr_condition          2      64                            541    	1.0
+icmp_instr_first_operand      2      64                            805    	1.0
+$rule53-inter-body            2      65                            257    	1.02
+$inter-head82                 5      26                            885    	1.02
+br_instr_condition            2      65                            765    	1.02
+br_instr_true_label           2      65                            476    	1.02
+$rule159-inter-body           2      65                            341    	1.02
+br_instr_false_label          2      65                            693    	1.02
+$inter-head4                  4      33                            340    	1.03
+stuck-state                   1      135                           559    	1.05
+$rule158-inter-body           2      70                            845    	1.09
+$rule159-inter-body1          2      76                            901    	1.19
+func_param                    3      51                            376    	1.2
+store_instr                   1      159                           742    	1.24
+$block_predecessor'           1      169                           744    	1.32
+br_instr                      1      169                           596    	1.32
+$rule100-inter-body1          5      36                            673    	1.41
+$bb-instrs'                   1      191                           857    	1.49
+bb                            1      191                           517    	1.49
+$rule181-inter-body           3      64                            436    	1.5
+$rule115-inter-body2          3      64                            411    	1.5
+br-cond                       3      65                            361    	1.52
+$rule53-inter-body1           3      65                            651    	1.52
+br_instr_uncond_label         2      104                           389    	1.62
+alloca                        2      110                           880    	1.72
+alloca_instr_type             2      110                           598    	1.72
+$bir-sub5                     4      57                            580    	1.78
+$rule140-inter-body1          2      115                           437    	1.8
+func_constant_fn_name         2      115                           620    	1.8
+$rule140-inter-body           2      115                           418    	1.8
+$rule126-inter-body           2      115                           614    	1.8
+$rule126-inter-body1          2      115                           828    	1.8
+$rule127-inter-body           2      115                           443    	1.8
+call_instr_func_operand       2      115                           764    	1.8
+$rule141-inter-body1          2      115                           865    	1.8
+$rule199-inter-body1          2      115                           603    	1.8
+call-nargs                    2      115                           455    	1.8
+$rule196-inter-body1          2      115                           812    	1.8
+fconst-funcdecl               2      115                           318    	1.8
+$rule127-inter-body1          2      115                           372    	1.8
+$rule166-inter-body           2      122                           381    	1.91
+$rule115-inter-body3          4      64                            489    	2.0
+icmp                          4      64                            733    	2.0
+$inter-head47                 4      65                            394    	2.03
+fconst-params                 3      96                            682    	2.25
+binary-op                     4      73                            841    	2.28
+load_instr                    1      308                           348    	2.41
+local-k                       3      105                           809    	2.46
+store                         2      159                           691    	2.48
+$rule97-inter-body            2      159                           331    	2.48
+$rule97-inter-body1           2      159                           641    	2.48
+store_instr_address           2      159                           871    	2.48
+store_instr_value             2      159                           888    	2.48
+$inter-head50                 5      64                            819    	2.5
+$inter-head65                 3      110                           325    	2.58
+addr                          2      172                           714    	2.69
+$rule167-inter-body1          2      172                           308    	2.69
+$inter-head20                 2      172                           663    	2.69
+$rule198-inter-body5          3      115                           725    	2.7
+call                          3      115                           305    	2.7
+$inter-head79                 3      115                           552    	2.7
+$rule126-inter-body2          3      115                           272    	2.7
+$rule197-inter-body2          3      115                           259    	2.7
+$rule192-inter-body3          3      115                           783    	2.7
+$rule127-inter-body2          3      115                           896    	2.7
+$rule157-inter-body1          4      88                            392    	2.75
+$inter-head77                 4      88                            482    	2.75
+$bir-sub11                    4      89                            364    	2.78
+$rule164-inter-body1          3      122                           466    	2.86
+$rule136-inter-body           2      191                           713    	2.98
+block_first_instr             2      191                           420    	2.98
+block_last_instr              2      191                           314    	2.98
+$inter-head6                  4      97                            597    	3.03
+constant                      1      405                           758    	3.16
+$inter-head90                 4      104                           737    	3.25
+$rule193-inter-body3          4      105                           760    	3.28
+$rule193-inter-body2          4      105                           887    	3.28
+$rule156-inter-body1          4      105                           703    	3.28
+$inter-head31                 3      146                           813    	3.42
+$rule192-inter-body4          4      115                           473    	3.59
+block_predecessor             2      234                           262    	3.66
+$inter-head72                 3      159                           441    	3.73
+bb-instrs                     2      241                           801    	3.77
+$rule165-inter-body           4      122                           860    	3.81
+$rule167-inter-body           3      172                           846    	4.03
+$head-stratified9             3      172                           890    	4.03
+$rule197-inter-body3          4      135                           784    	4.22
+$rule174-inter-body           2      274                           861    	4.28
+$inter-head27                 3      191                           874    	4.48
+$rule167-inter-body2          2      291                           395    	4.55
+$rule168-inter-body           2      291                           293    	4.55
+call_instr_arg                3      200                           384    	4.69
+load_instr_address            2      308                           463    	4.81
+load                          2      308                           468    	4.81
+$rule95-inter-body            2      308                           577    	4.81
+$rule198-inter-body1          4      172                           265    	5.38
+$instr_assigns_to'            1      708                           719    	5.53
+$rule132-inter-body           3      241                           652    	5.65
+$inter-head88                 3      241                           738    	5.65
+$rule192-inter-body6          7      105                           724    	5.74
+$rule192-inter-body           7      105                           704    	5.74
+$rule197-inter-body1          3      250                           513    	5.86
+$rule199-inter-body           3      255                           625    	5.98
+$inter-head34                 3      255                           891    	5.98
+$inter-head                   4      195                           462    	6.09
+$inter-head96                 4      200                           696    	6.25
+$rule125-inter-body           4      200                           631    	6.25
+$rule172-inter-body           3      274                           788    	6.42
+$inter-head10                 8      105                           859    	6.56
+$head-stratified4             8      105                           862    	6.56
+$inter-head85                 4      224                           359    	7.0
+$inter-head55                 4      224                           624    	7.0
+$inter-head29                 3      308                           492    	7.22
+$inter-head43                 4      233                           432    	7.28
+lift-call-args-helper         3      315                           451    	7.38
+variable                      1      950                           425    	7.42
+$rule155-inter-body1          3      322                           578    	7.55
+$rule197-inter-body           4      250                           677    	7.81
+$rule125-inter-body2          5      200                           306    	7.81
+$head-stratified7             4      250                           749    	7.81
+$rule125-inter-body1          5      200                           521    	7.81
+$inter-head86                 4      251                           520    	7.84
+support-instr                 1      1,041                         794    	8.13
+$lift'3                       1      1,076                         820    	8.41
+$lift'20                      1      1,076                         531    	8.41
+$lift'7                       1      1,076                         757    	8.41
+$lift'27                      1      1,076                         768    	8.41
+$lift'8                       1      1,076                         380    	8.41
+$lift'19                      1      1,076                         402    	8.41
+$lift'9                       1      1,076                         506    	8.41
+$lift'11                      1      1,076                         555    	8.41
+$lift'21                      1      1,076                         595    	8.41
+$lift'1                       1      1,076                         518    	8.41
+$lift'25                      1      1,076                         838    	8.41
+$lift'                        1      1,076                         706    	8.41
+$lift'13                      1      1,076                         657    	8.41
+$lift'12                      1      1,076                         660    	8.41
+$lift'15                      1      1,076                         574    	8.41
+$lift'22                      1      1,076                         756    	8.41
+$lift'14                      1      1,076                         514    	8.41
+$lift'6                       1      1,076                         548    	8.41
+instr                         1      1,076                         627    	8.41
+$lift'2                       1      1,076                         286    	8.41
+$lift'18                      1      1,076                         494    	8.41
+$lift'23                      1      1,076                         321    	8.41
+$lift'10                      1      1,076                         818    	8.41
+$lift'5                       1      1,076                         746    	8.41
+$lift'4                       1      1,076                         275    	8.41
+$lift'26                      1      1,076                         579    	8.41
+$lift'17                      1      1,076                         649    	8.41
+$lift'24                      1      1,076                         568    	8.41
+$lift'16                      1      1,076                         728    	8.41
+$bir-sub9                     5      224                           540    	8.75
+do-deref                      3      414                           782    	9.7
+$rule196-inter-body4          5      250                           806    	9.77
+$inter-head17                 5      250                           803    	9.77
+eval-ret-to-call              4      320                           852    	10.0
+$inter-head48                 4      320                           895    	10.0
+$bir-sub12                    4      322                           826    	10.06
+instr_assigns_to              2      708                           753    	11.06
+$rule200-inter-body1          5      320                           675    	12.5
+$head-stratified18            5      320                           458    	12.5
+$inter-head61                 5      320                           509    	12.5
+$rule200-inter-body           5      320                           736    	12.5
+$rule193-inter-body           5      331                           665    	12.93
+$rule146-inter-body           4      414                           511    	12.94
+$bir-sub3                     4      414                           588    	12.94
+$rule196-inter-body3          5      355                           388    	13.87
+$head-stratified19            3      594                           681    	13.92
+step-to                       3      594                           351    	13.92
+$bir-sub8                     5      402                           902    	15.7
+$rule197-inter-body6          6      338                           780    	15.84
+$bir-sub6                     9      226                           338    	15.89
+$rule146-inter-body1          4      511                           800    	15.97
+instr_successor               2      1,054                         718    	16.47
+$rule197-inter-body5          6      355                           849    	16.64
+$rule198-inter-body6          6      355                           270    	16.64
+instr_bb_entry                2      1,076                         716    	16.81
+instr_func                    2      1,076                         727    	16.81
+lift                          2      1,111                         532    	17.36
+eval-func-args                7      331                           438    	18.1
+$inter-head37                 4      594                           619    	18.56
+$bir-sub14                    4      608                           741    	19.0
+$inter-head41                 4      608                           258    	19.0
+lift-operand                  2      1,355                         647    	21.17
+register                      2      1,366                         357    	21.34
+$rule173-inter-body           4      684                           629    	21.38
+$rule164-inter-body           5      594                           543    	23.2
+$inter-head63                 5      594                           884    	23.2
+$head-stratified2             4      768                           638    	24.0
+$inter-head89                 4      776                           369    	24.25
+$rule131-inter-body           3      1,054                         672    	24.7
+$bir-sub10                    4      864                           810    	27.0
+$inter-head35                 4      896                           410    	28.0
+$lst                          2      1,847                         406    	28.86
+$rule165-inter-body1          5      768                           646    	30.0
+$rule195-inter-body           5      768                           526    	30.0
+$rule131-inter-body1          3      1,634                         732    	38.3
+bb-instrs_help                3      1,634                         546    	38.3
+$inter-head23                 3      1,733                         379    	40.62
+$inter-head95                 4      1,328                         886    	41.5
+$step-to'                     1      5,357                         669    	41.85
+state                         1      5,491                         261    	42.9
+$bir-sub4                     4      1,393                         769    	43.53
+$inter-head51                 4      1,443                         761    	45.09
+$rule144-inter-body           4      1,678                         591    	52.44
+$bir-sub7                     9      768                           490    	54.0
+$inter-head22                 4      1,733                         273    	54.16
+deref                         4      1,876                         431    	58.62
+do-aeval                      3      2,520                         292    	59.06
+$inter-head3                  10     768                           690    	60.0
+$rule195-inter-body1          10     768                           313    	60.0
+$bir-sub                      4      1,931                         319    	60.34
+$rule182-inter-body           5      1,757                         558    	68.63
+$inter-head25                 3      3,053                         750    	71.55
+$rule153-inter-body           2      4,835                         430    	75.55
+$rule182-inter-body1          3      3,325                         787    	77.93
+$rule170-inter-body           3      3,325                         835    	77.93
+$rule176-inter-body           3      3,325                         391    	77.93
+$rule169-inter-body           3      3,325                         637    	77.93
+$rule178-inter-body           3      3,325                         759    	77.93
+$rule189-inter-body           3      3,325                         474    	77.93
+$rule179-inter-body           3      3,325                         721    	77.93
+$rule173-inter-body1          3      3,325                         334    	77.93
+$inter-head78                 3      3,438                         428    	80.58
+step-to                       2      5,951                         397    	92.98
+$inter-head24                 4      3,053                         729    	95.41
+$rule156-inter-body           3      4,835                         668    	113.32
+eval                          3      4,835                         814    	113.32
+$rule158-inter-body1          4      4,835                         403    	151.09
+$rule160-inter-body           4      4,835                         585    	151.09
+dataflow                      2      9,845                         326    	153.83
+$rule183-inter-body           5      4,835                         533    	188.87
+$rule180-inter-body           5      4,835                         694    	188.87
+$rule192-inter-body1          5      4,835                         289    	188.87
+$rule171-inter-body           5      4,835                         537    	188.87
+$rule184-inter-body           5      4,835                         475    	188.87
+$rule198-inter-body4          5      4,835                         832    	188.87
+$rule196-inter-body           5      4,835                         587    	188.87
+$rule192-inter-body2          6      4,835                         827    	226.64
+aeval                         4      7,694                         396    	240.44
+
+Total tuples: 238,901
