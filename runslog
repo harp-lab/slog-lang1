@@ -212,19 +212,19 @@ def run_local(file, out_path, factloc, cores, verbose, slog_root=None, compile_b
             print(f"Time taken: {end - start}")
 
     if not compile_only:
-        #4: Shell out to mpirun to run compiled slog binary with in and out args.
+        #4: Shell out to /opt/mpich/bin/mpirun to run compiled slog binary with in and out args.
         if verbose:
             print("Running slog executable.")
         try:
             start = time.time()
             if not debug_flag:
-                cmd = ["mpirun", "-n", f"{cores}", backend_slog_bin,
+                cmd = ["/opt/mpich/bin/mpirun", "-n", f"{cores}", backend_slog_bin,
                     slogc_path, inputloc, outloc]
                 print(cmd)
                 out = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
             else:
                 out = subprocess.check_output(
-                    ["mpirun", "-n", f"{cores}", "valgrind", "--leak-check=yes", "--show-reachable=yes",
+                    ["/opt/mpich/bin/mpirun", "-n", f"{cores}", "valgrind", "--leak-check=yes", "--show-reachable=yes",
                     backend_slog_bin, slogc_path, outloc, inputloc],
                     stderr=subprocess.STDOUT)
             end = time.time()

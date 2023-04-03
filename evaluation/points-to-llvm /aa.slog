@@ -593,7 +593,8 @@
 
 ; Injection 
 ; conservative, all function not called will be selected as entry point
-[(entry-function f) <-- (func f)]
+; [(entry-function f) <-- (func f)]
+[(entry-function f) <-- (call-graph-source f)]
 ; [(entry-function main-decl) <-- (func_name main-decl "@handle_echo")]
 ; [(entry-function main-decl) <-- (func_name main-decl "@handle_ln")]
 ; [(entry-function main-decl) <-- (func_name main-decl "@handle_ls")]
@@ -699,12 +700,24 @@
  --
  (= i (binary-op _ lhs op1 op2))
  --
+ (aeval op1 c _)
+ (aeval op2 c _)
+ -->
+    (step-to s (eval [rst ...] k c))]
+[(= s (eval [i rst ...] k c))
+ --
+ (= i (binary-op _ lhs op1 _))
+ --
  (aeval op1 c op1v)
+ -->
+    (dataflow op1v (register lhs c))]
+[(= s (eval [i rst ...] k c))
+ --
+ (= i (binary-op _ lhs _ op2))
+ --
  (aeval op2 c op2v)
  -->
-    (dataflow op2v (register lhs c))
-    (dataflow op1v (register lhs c))
-    (step-to s (eval [rst ...] k c))]
+    (dataflow op2v (register lhs c))]
 
 ; alloca
 [(= s (eval [i rst ...] k c))
@@ -723,7 +736,13 @@
  --
  (deref ptr c ptrv)
  -->
-    (dataflow ptrv (register lhs c))
+    (dataflow ptrv (register lhs c))]
+[(= s (eval [i rst ...] k c))
+ --
+ (= i (load lhs ptr))
+ --
+ (deref ptr c _)
+ -->
     (step-to s (eval [rst ...] k c))]
 
 ; store
@@ -733,12 +752,18 @@
  -->
     (do-aeval ptr c) (do-aeval v c)]
 [(= s (eval [i rst ...] k c))
+ --
  (= i (store v ptr))
  --
- (aeval v c vv)
- (aeval ptr c ptrv)
+ (aeval v c vv) (aeval ptr c ptrv)
  -->
-    (dataflow vv ptrv)
+    (dataflow vv ptrv)]
+[(= s (eval [i rst ...] k c))
+ --
+ (= i (store v ptr))
+ --
+ (aeval v c _) (aeval ptr c _)
+ -->
     (step-to s (eval [rst ...] k c))]
 
 ; GEP
@@ -773,11 +798,21 @@
 [(= s (eval [i rst ...] k c))
  (= i (icmp lhs cond-v op1 op2))
  --
- (aeval op1 c op1v) (aeval op2 c op2v)
+ (aeval op1 c _) (aeval op2 c _)
  -->
-    (dataflow op1v (register lhs c))
-    (dataflow op2v (register lhs c))
     (step-to s (eval [rst ...] k c))]
+[(= s (eval [i rst ...] k c))
+ (= i (icmp lhs cond-v op1 _))
+ --
+ (aeval op1 c op1v)
+ -->
+    (dataflow op1v (register lhs c))]
+[(= s (eval [i rst ...] k c))
+ (= i (icmp lhs cond-v _ op2))
+ --
+ (aeval op2 c op2v)
+ -->
+    (dataflow op2v (register lhs c))]
 
 ; phi
 (step-to
@@ -806,15 +841,26 @@
     (do-aeval op1 c) (do-aeval op2 c)]
 [(= s (eval [i rst ...] k c))
  --
- (select lhs cond-v op1 op2)
+ (= i (select lhs cond-v op1 op2))
+ --
+ (aeval op1 c _)
+ (aeval op2 c _)
+ -->
+    (step-to s (eval [rst ...] k c))]
+[(= s (eval [i rst ...] k c))
+ --
+ (= i (select lhs cond-v op1 _))
  --
  (aeval op1 c op1v)
+ -->
+    (dataflow op1v (register lhs c))]
+[(= s (eval [i rst ...] k c))
+ --
+ (= i (select lhs cond-v _ op2))
+ --
  (aeval op2 c op2v)
  -->
-    (dataflow op1v (register lhs c))
-    (dataflow op2v (register lhs c))
-    (step-to s (eval [rst ...] k c))]
-
+    (dataflow op2v (register lhs c))]
 
 ; call
 ; only directed call
@@ -913,7 +959,12 @@
  (deref src c srcv)
  (aeval dest c dest-addr)
  -->
-    (dataflow srcv  dest-addr)
+    (dataflow srcv  dest-addr)]
+[(= s (eval [(intrinstic-memcpy dest src _) rst ...] k c))
+ --
+ (deref src c _)
+ (aeval dest c _)
+ -->
     (step-to s (eval [rst ...] k c))]
 
 ; returned
@@ -982,4 +1033,5 @@
 
 
 ; debug
-; [(debug )]
+; [(var-aeval-count (variable x) {count aeval (variable x) _ _}) <-- (variable x)]
+; [(heavy-var {maximum var-aeval-count (variable x) }) <-- (variable x)]
