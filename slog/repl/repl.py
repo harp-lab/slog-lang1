@@ -103,7 +103,7 @@ def exec_command(client: SlogClient, raw_input: str):
     # check if it a query
     if (raw_input.startswith('(') and raw_input.endswith(')')) or \
        (raw_input.startswith('[') and raw_input.endswith(']')):
-        client.slog_add_rule(raw_input[1:], client.cur_db, ConsoleWriter())
+        client.slog_add_rule(raw_input, client.cur_db, ConsoleWriter())
         return
     if raw_input.startswith('?(') and raw_input.endswith(')'):
         client.pretty_print_slog_query(raw_input, ConsoleWriter())
