@@ -531,19 +531,6 @@
 ; [(ret-from-normal i) <-- (ret_instr_operand i _) (~ ret-from-source i)]
 ; [(ret-from-normal i) <-- (ret_instr_void_ i) (~ ret-from-source i)]
 
-; declare all instruction will fallthrough to next instruction (no control flow change)
-; (fallthrough-instr ?(binary-op _ _ _ _))
-(fallthrough-instr ?(alloca _ _))
-; (fallthrough-instr ?(load _ _))
-; (fallthrough-instr ?(store _ _))
-; (fallthrough-instr ?(getelementptr _ _ _))
-; (fallthrough-instr ?(convert _ _ _))
-; (fallthrough-instr ?(icmp _ _ _ _))
-; (fallthrough-instr ?(select _ _ _ _))
-; (fallthrough-instr ?(intrinstic-memcpy _ _ _))
-(fallthrough-instr ?(unsupported-instr i))
-; (fallthrough-instr ?(call-indirect _ _ _))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; LLVM ir is already SSA, so we only need 1 global store (heap) no environment needed
@@ -606,8 +593,10 @@
 
 ; Injection 
 ; conservative, all function not called will be selected as entry point
-[(entry-function f) <-- (call-graph-source f)]
-; [(entry-function main-decl) <-- (func_name main-decl "@main")]
+[(entry-function f) <-- (func f)]
+; [(entry-function main-decl) <-- (func_name main-decl "@handle_echo")]
+; [(entry-function main-decl) <-- (func_name main-decl "@handle_ln")]
+; [(entry-function main-decl) <-- (func_name main-decl "@handle_ls")]
 
 [(entry-function entry-func)
  (func-entry-bb entry-func bb-id)
@@ -636,19 +625,9 @@
     (dataflow (unknown) (addr param mt))]
 
 ; skip unsupported instruction
-; [(eval [(unsupported-instr i) rst ...] k c)
-;  -->
-;     (eval [rst ...] k c)]
-
-; all fallthrough control flow edges
-; ; eval join with $lst -> $bir ....
-[(eval [i rst ...] k c)
- --
- (fallthrough-instr i)
+[(= s (eval [(unsupported-instr i) rst ...] k c))
  -->
-    (step-to
-        (eval [i rst ...] k c)
-        (eval [rst ...] k c))]
+    (step-to s (eval [rst ...] k c))]
 
 ; unreachable
 (step-to
@@ -676,10 +655,12 @@
     (step-to s (eval [rst-caller ...] {kont-store prev-k} prev-ctx))]
 
 ; br
-(step-to
-    ?(eval [(br-uncond next-bb) rst ...] k c)
-    ; -->
-    (eval {bb-instrs next-bb} k c))
+[(= s (eval [(br-uncond next-bb) rst ...] k c))
+ --
+ (bb-instrs next-bb ins)
+    -->
+    (step s (eval ins k c))]
+
 ; branch to both, maybe we can check cond value here
 (step-to
     ?(eval [(br-cond v-cond lt lf) rst ...] k c)
@@ -726,12 +707,13 @@
     (step-to s (eval [rst ...] k c))]
 
 ; alloca
-[(eval [i rst ...] k c)
+[(= s (eval [i rst ...] k c))
  --
  (= i (alloca lhs n))
  -->
     (dataflow (addr lhs c) (register lhs c))
-    (dataflow (nil) (addr lhs c))]
+    (dataflow (nil) (addr lhs c))
+    (step-to s (eval [rst ...] k c))]
 
 ; load
 [(eval [i rst ...] k c) -- (= i (load lhs ptr)) --> (do-deref ptr c)]
@@ -977,13 +959,16 @@
 [(lift-failed-select i) <-- (select_instr i) (~ lift i _)]
 [(lift-failed-call i) <-- (call_instr i) (~ lift i _)]
 
-; [(bb-instrs_help bb_id b rst)
-;  (instr_bb_entry b bb_id)
-;  (instr_bb_entry a bb_id)
-;  (instr_successor a b)
-;  (~ lift b _)
-;  -->
-;     (instr-failed b)]
+[(bb-instrs_help bb_id b rst)
+ (instr_bb_entry b bb_id)
+ (instr_bb_entry a bb_id)
+ (instr_successor a b)
+ (~ lift b _)
+ -->
+    (instr-failed b)]
+
+(step-to-nil ?(step-to s (eval [] k c)))
+(block-nil ?(bb-instrs id []))
 
 ; state check
 [(stuck-state s) <-- (state s) (~ step-to s _)]
