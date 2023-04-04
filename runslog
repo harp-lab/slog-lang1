@@ -322,16 +322,23 @@ if __name__ == '__main__':
                         help="JIT compile only without running it")
     parser.add_argument('-ov', "--overwrite_out", action="store_true",
                         help="overwrite, if output dir already exists.")
+    parser.add_argument('-lb', "--local_db", action="store_true",
+                        help="overwrite, if output dir already exists.")
     args = parser.parse_args()
 
     slogfile = os.path.realpath(args.slogfile)
-    os.makedirs(args.out_dir, exist_ok=True)
-    if args.server:
-        run_server(slogfile, args.out_dir, args.facts, args.server + ":5108", args.verbose,
-                   args.cores)
+    
+    if args.local_db:
+        repl = Repl(local_db_path=f'{args.out_dir}/checkpoint-final')
+        repl.loop()
     else:
-        run_local(slogfile, args.out_dir, args.facts, args.cores, args.verbose, args.root,
-                  compile_backend=args.compile_backend, debug_flag=args.debug,
-                  profile_flag=args.profile, repl_flag=args.repl,
-                  compile_only=args.compile_only,
-                  overwrite_out=args.overwrite_out)
+        os.makedirs(args.out_dir, exist_ok=True)
+        if args.server:
+            run_server(slogfile, args.out_dir, args.facts, args.server + ":5108", args.verbose,
+                    args.cores)
+        else:
+            run_local(slogfile, args.out_dir, args.facts, args.cores, args.verbose, args.root,
+                    compile_backend=args.compile_backend, debug_flag=args.debug,
+                    profile_flag=args.profile, repl_flag=args.repl,
+                    compile_only=args.compile_only,
+                    overwrite_out=args.overwrite_out)
