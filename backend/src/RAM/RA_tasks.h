@@ -52,6 +52,8 @@ private:
 
     u32 loop_count_tracker;
 
+    bool profile_flag = false;
+
 public:
 
     ~RAM();

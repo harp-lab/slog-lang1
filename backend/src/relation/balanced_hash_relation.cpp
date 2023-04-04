@@ -357,6 +357,13 @@ void relation::parallel_IO(std::string  filename_template)
 }
 
 
+u64 relation::get_full_btree_size() {
+    // u64 tree_size = 0;
+    // for (int i=0; i < mcomm.get_nprocs(); i++) {
+    //     tree_size += full[i].size()
+    // }
+}
+
 void relation::print()
 {
     u32 buckets = get_bucket_count();

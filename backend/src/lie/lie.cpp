@@ -291,6 +291,10 @@ bool LIE::execute ()
                 if (mcomm.get_rank() == 0) {
                     std::cout << "Iteration " << loop_counter;
                 }
+                // if (loop_counter > 3000) {
+                //     std::cout << "Early stop!" << std::endl;
+                //     break;
+                // }
                 auto before_exec_time = MPI_Wtime();
                 executable_task->fixed_point_loop(app_name, batch_size, history, intern_map);
                 auto after_exec_time = MPI_Wtime();
@@ -299,6 +303,7 @@ bool LIE::execute ()
                 }
                 delta_in_scc = history[history.size()-2];
                 loop_counter++;
+
             }
             while (delta_in_scc != 0);
         }

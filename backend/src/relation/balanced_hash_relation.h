@@ -145,6 +145,7 @@ public:
     u64 get_full_element_count();
     u32 get_global_full_element_count();
 
+    u64 get_full_btree_size();
 
     u32 get_new_element_count();
 
