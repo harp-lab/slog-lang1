@@ -1065,12 +1065,20 @@
 ; [(stuck-state-abnormal ) <-- (stuck-state (eval [i rst ...] _ _)) (~ )]
 
 ; check if all lifted instruction reached
-[(state-current-instr h) <-- (eval [h rst ...] _ _) ]
+[(state-current-instr h) <-- (eval h rst _ _) ]
 [(uncovered-lifted-instr i il) <-- (lift i il) (~ state-current-instr il)] 
 
 
 ; debug
-[(var-deref-count x {count deref x _ _}) <-- (deref x _ _)]
-[(heavy-var {maximum var-deref-count _ }) <-- ]
-(printf-var (variable "</home/stargazermiao/workspace/datalog/dataset/irving/irving.bc>:handle_cmp:%30"))
-[(printf-out v) <-- (deref {printf-var} _ v)]
+; [(var-deref-count x {count deref x _ _}) <-- (deref x _ _)]
+; [(heavy-var {maximum var-deref-count _ }) <-- ]
+; (printf-var (variable "</home/stargazermiao/workspace/datalog/dataset/irving/irving.bc>:handle_cmp:%30"))
+; [(printf-out v) <-- (deref {printf-var} _ v)]
+
+; (foo)
+(print-dataflow ?(dataflow _ (addr "</home/stargazermiao/workspace/datalog/dataset/irving/irving.bc>:print_long_ls:%6" [])))
+(print-bb-instrs ?(bb-instrs "</home/stargazermiao/workspace/datalog/dataset/irving/irving.bc>:print_long_ls:[basicblock]%128" _))
+; (print-step-to-head ?(step-to-head (eval (br-cond (variable "</home/stargazermiao/workspace/datalog/dataset/irving/irving.bc>:print_long_ls:%126") "</home/stargazermiao/workspace/datalog/dataset/irving/irving.bc>:print_long_ls:[basicblock]%128" "</home/stargazermiao/workspace/datalog/dataset/irving/irving.bc>:print_long_ls:[basicblock]%127")
+;                           []
+;                           _
+;                           []) _ _ _))
