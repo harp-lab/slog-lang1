@@ -487,11 +487,10 @@ class SlogClient:
         # tuples_map = self._dump_tuples(name, self.cur_db)
         tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
         tuple_parser = SlogTupleParaser(tuples_map, self.group_cardinality, self.unroll_depth,
-                                        tag_map, self.intern_string_dict)
+                                        tag_map, self.intern_string_dict, name, rels[0][2])
         slog_tuples = tuple_parser.parse_query_result()
         self.slog_tuple_parser = tuple_parser
-        pp_strs = tuple_parser.pretty_str_tuples(rels)
-        for pp_str in pp_strs:
+        for pp_str in tuple_parser.pretty_str_tuples(rels):
             writer.write(pp_str)
         for rel in rels:
             r_tuple_size = len(tuples_map[rel[2]]) / (rel[1] + 1)
