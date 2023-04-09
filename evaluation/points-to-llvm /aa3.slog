@@ -623,14 +623,17 @@
 ; [(entry-function main-decl) <-- (func_name main-decl "@handle_ln")]
 ; [(entry-function main-decl) <-- (func_name main-decl "@handle_ls")]
 ; 
+
+
 [(entry-function entry-func)
  (func-entry-bb entry-func bb-id)
  --
  (bb-instrs bb-id hd)
  -->
+    (kont-store (halt-addr entry-func) (halt entry-func))
     (step-to
         (init)
-        (eval hd (local-k "void" hd {tick-empty} (halt)) {tick-empty}))]
+        (eval hd (local-k "void" hd {tick-empty} (halt-addr entry-func)) {tick-empty}))]
 
 [(ptr_variable param) <-- (variable_has_type param "ptr")]
 ; init dataflow to injected function's arg
@@ -680,7 +683,6 @@
  -->
     (dataflow ret-v (register lhs prev-ctx))]
 
-; eval join with $lst -> $rule-body....
 [(= s (eval (ret-void rst) k c))
  --
  (= k (local-k lhs rst-caller prev-ctx prev-kaddr))
@@ -688,6 +690,24 @@
  (kont-store prev-kaddr prev-k)
  -->
     (step-to s (eval rst-caller prev-k prev-ctx))]
+
+; return from source
+[(= s (eval (ret x rst) k c))
+ --
+ (aeval x c _)
+ --
+ (= k (halt entry-func))
+ (entry-function entry-func)
+ -->
+    (step-to s (source-exit entry-func 0))]
+[(= s (eval (ret-void rst) k c))
+ --
+ (aeval x c _)
+ --
+ (= k (halt entry-func))
+ (entry-function entry-func)
+ -->
+    (step-to s (source-exit entry-func 0))]
 
 ; br
 [(= s (eval (br-uncond next-bb rst) k c))
@@ -768,12 +788,9 @@
  (deref ptr c ptrv)
  -->
     (dataflow ptrv lhs-addr)]
-[(= s (eval (load lhs ptr rst) k c))
- --
- (deref ptr c _)
- -->
-    (step-to s (eval rst k c))
-    (register lhs c)]
+[(= s (eval (load lhs ptr rst) k c)) -- (deref ptr c _) --> (step-to s (eval rst k c)) (register lhs c)]
+; [(= s (eval (load lhs ptr rst) k c)) -- (deref ptr c _) --> (step-to s (eval rst k c))]
+; [(= s (eval (load lhs ptr rst) k c)) -- (deref ptr c _) --> (register lhs c)]
 
 ; store
 [(eval (store v ptr rst) k c)
@@ -891,7 +908,6 @@
 ; only directed call
 ; internal call
 [(= s (eval ccall k c))
- --
  (= ccall (call lhs (constant fconst) args rst))
  (fconst-funcdecl fconst fdecl)
  -->
@@ -1059,7 +1075,9 @@
 ; (block-nil ?(bb-instrs id []))
 
 ; state check
-[(stuck-state s) <-- (state s) (~ step-to s _)]
+(normal-exit ?(source-exit _ _))
+(normal-exit ?(unreach _))
+[(stuck-state s) <-- (state s) (~ normal-exit s) (~ step-to s _)]
 ; [(stuck-state-normal (unreach i)) <-- (state (eval [(unreach i)] _ _))]
 ; [(stuck-state-normal (ret-unknown i)) <-- (state (eval [(ret-unknown i)] _ _))]
 ; [(stuck-state-abnormal ) <-- (stuck-state (eval [i rst ...] _ _)) (~ )]
@@ -1070,7 +1088,3 @@
 
 
 ; debug
-[(var-deref-count x {count deref x _ _}) <-- (deref x _ _)]
-[(heavy-var {maximum var-deref-count _ }) <-- ]
-(printf-var (variable "</home/stargazermiao/workspace/datalog/dataset/irving/irving.bc>:handle_cmp:%30"))
-[(printf-out v) <-- (deref {printf-var} _ v)]
