@@ -158,7 +158,7 @@ void parallel_io::parallel_read_input_relation_from_file_to_local_buffer(u32 ari
 
     /* Read all data in parallel */
     uint64_t read_offset;
-    read_offset = (int)ceil((float)global_row_count / nprocs) * rank;
+    read_offset = (uint64_t)ceil((float)global_row_count / nprocs) * rank;
 
     if (read_offset > (uint64_t)global_row_count)
     {
@@ -167,16 +167,16 @@ void parallel_io::parallel_read_input_relation_from_file_to_local_buffer(u32 ari
     }
     else
     {
-		if (read_offset + (u64)ceil((float)global_row_count / nprocs) > global_row_count)
+		if (read_offset + (uint64_t)ceil((float)global_row_count / nprocs) > global_row_count)
         {
 			entry_count = global_row_count - read_offset;
         }
 		else {
-			entry_count = (int) ceil((float)global_row_count / nprocs);
+			entry_count = (uint64_t) ceil((float)global_row_count / nprocs);
         }
     }
 
-    assert((int)arity+1 == col_count);
+    assert((uint64_t)arity+1 == col_count);
 
     std::string data_filename;
     data_filename = file_name;
