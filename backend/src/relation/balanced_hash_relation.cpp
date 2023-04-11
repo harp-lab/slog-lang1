@@ -120,7 +120,7 @@ void relation::parallel_IO(std::string  filename_template)
     std::string full_file_offset;
     std::string delta_file_offset;
 
-    full_rel_name = filename_template + "/" + get_debug_id() + "_full";
+    full_rel_name = filename_template + "/" + get_debug_id();
     delta_rel_name = filename_template + "/" + get_debug_id() + "_delta";
 
     full_file_offset = full_rel_name + ".offset";

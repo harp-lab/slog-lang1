@@ -145,11 +145,11 @@ def exec_command(client: SlogClient, raw_input: str):
         if len(args) == 1:
             client.dump_relation_by_name(args[0], ConsoleWriter())
         elif len(args) == 2:
-            if client.local_db_path:
-                print("runlsog can only print data in current database!")
-                return
+            # if client.local_db_path:
+            #     print("runlsog can only print data in current database!")
+            #     return
             if args[1].startswith('"') and args[1].endswith('"'):
-                with open(args[1][1:-1], 'w') as out_f:
+                with open(args[1][1:-1], 'w+') as out_f:
                     client.dump_relation_by_name(args[0], FileWriter(out_f))
             else:
                 invalid_alert(f'{cmd} expect a string at postion 2 as arg')

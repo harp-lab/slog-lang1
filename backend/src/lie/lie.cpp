@@ -291,7 +291,7 @@ bool LIE::execute ()
                 if (mcomm.get_rank() == 0) {
                     std::cout << "Iteration " << loop_counter;
                 }
-                // if (loop_counter > 3000) {
+                // if (loop_counter > 3500) {
                 //     std::cout << "Early stop!" << std::endl;
                 //     break;
                 // }

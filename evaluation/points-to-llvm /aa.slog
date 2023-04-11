@@ -548,10 +548,8 @@
 ; tick 
 ; (tick-empty [(nil) (nil) (nil)])
 ; (tick ?(do-tick [call0 call1 call2] call-site) [call-site call0 call1])
-; (tick-empty [(nil)])
-; (tick ?(do-tick [call0] call-site) [call-site])
-(tick-empty [])
-(tick ?(do-tick c call-site) [])
+(tick-empty []) 
+(tick ?(do-tick [] call-site) [])
 
 ; atomic evaluation
 [(do-aeval (constant const) c)
@@ -1094,8 +1092,18 @@
 [(uncovered-lifted-instr i il) <-- (lift i il) (~ state-current-instr il)] 
 
 
-; debug
-[(var-deref-count x {count deref x _ _}) <-- (deref x _ _)]
-[(heavy-var {maximum var-deref-count _ }) <-- ]
-(printf-var (variable "</home/stargazermiao/workspace/datalog/dataset/irving/irving.bc>:handle_cmp:%30"))
-[(printf-out v) <-- (deref {printf-var} _ v)]
+; debug 
+[(= s (eval [(ret x) rst ...] k c))
+ --
+ (~ aeval x c _)
+ -->
+    (no-ret-val-stuck s x)]
+[(= s (eval [(ret x) rst ...] k c))
+ --
+ (aeval x c _)
+ --
+ (= k (local-k lhs rst-caller prev-ctx prev-kaddr))
+ --
+ (~ kont-store prev-kaddr prev-k)
+ -->
+    (no-kont-stuck s prev-kaddr)]

@@ -323,6 +323,9 @@ class SlogClient:
                     if s_line.strip() == '':
                         continue
                     sv = s_line.split('\t')[1]
+                    if string_hash(sv.strip()) in self.intern_string_dict.keys():
+                        if sv.strip() != self.intern_string_dict[string_hash(sv.strip())]:
+                            print(f"Hash collision {sv.strip()} {self.intern_string_dict[string_hash(sv.strip())]}")
                     self.intern_string_dict[string_hash(sv.strip())] = sv.strip()
             return
         req = slog_pb2.StringRequest()
@@ -386,8 +389,8 @@ class SlogClient:
         header = f"{name_hdr: <{name_col_length}}{arity_hdr}{tupcnt_hdr: <{tupcnt_col_len}}Tag    Size (KiB)\n"
         writer.write(header)
         screen_out = ""
-        for rel in sorted(self.relations, key=lambda rel: rel[3]*rel[1]):
-        # for rel in sorted(self.relations, key=lambda rel: rel[0]):
+        # for rel in sorted(self.relations, key=lambda rel: rel[3]*rel[1]):
+        for rel in sorted(self.relations, key=lambda rel: rel[0]):
             tup_cnt = "{:,}".format(rel[3])
             screen_out = screen_out + f"{rel[0] : <{name_col_length}}{rel[1] : <{arity_hdr_len}}{tup_cnt : <{tupcnt_col_len}}{rel[2] : <7}"
             screen_out = screen_out + f"\t{round(rel[3]*rel[1]*8/1024,2)}\n"

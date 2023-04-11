@@ -1,0 +1,590 @@
+;;
+;;
+;;
+
+; some facts to make print works well
+(import ?(end))
+(import ?(unsupported _ _))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; LLVM ir is already SSA, so we only need 1 global store (heap) no environment needed
+;; eval<C, K, CTX> + heap
+;; CTX is <func_contour...> + current func
+;; a heap is a {(<addr>/<register>) ↦ value} mapping (should be a lattice ?)
+; heap is propagated by dataflow
+; dataflow can be
+; value     to  address
+; address   to  register
+; value     to  register
+; nil
+; unknown
+
+; tick 
+; (tick-empty [(nil) (nil) (nil)])
+; (tick ?(do-tick [call0 call1 call2] call-site) [call-site call0 call1])
+; (tick-empty [(nil)])
+; (tick ?(do-tick [call0] call-site) [call-site])
+(tick-empty [])
+(tick ?(do-tick c call-site) [])
+
+; atomic evaluation
+[(do-aeval (constant const) c)
+ -->
+    (aeval (constant const) c (constant const))]
+
+[(do-aeval (variable var) c)
+ --
+ (dataflow val (register var c))
+ -->
+    (aeval (variable var) c val)]
+[(do-aeval (external-may-change f x) c) --> (eval (external-may-change f x) c (external-may-change f x))]
+[(do-aeval (unknown) c) --> (eval (unknown) c (unknown))]
+
+[(do-deref (constant const) c)
+ (constant_has_type const "ptr")
+ -->
+    (do-deref-ptr (constant const) c)]
+[(do-deref (variable var) c)
+ (variable_has_type var "ptr")
+ -->
+    (do-deref-ptr (variable var) c)]
+
+; pointer dereference
+[(do-deref-ptr (constant const) c)
+ --
+ (dataflow val (constant const))
+ -->
+    (deref (constant const) c val)]
+[(do-deref-ptr (constant const) c)
+ -->
+    (deref (constant const) c (constant const))]
+[(do-deref-ptr (variable var) c)
+ --
+ (dataflow paddr (register var c))
+ --
+ (dataflow val paddr)
+ -->
+    (deref (variable var) c val)]
+[(do-deref (unknown) c) --> (deref (unknown) c (unknown))]
+[(do-deref (external-may-change f x) c) --> (deref (external-may-change f x) c (external-may-change f x))]
+
+(dataflow (unknown) (unknown))
+; [(dataflow e e) <-- (= e (external-may-change f c))]
+
+[(constant const)
+ (constant_has_type const "ptr")
+ (~ func_constant const)
+ -->
+    (dataflow (constant const) (constant const))]
+
+; state
+[(state to) <-- (step-to from to)]
+[(state from) <-- (step-to from to)]
+
+
+;;;;;;;;;;;;;;;
+
+
+; Injection 
+; conservative, all function not called will be selected as entry point
+; [(entry-function f) <-- (func f)]
+[(entry-function f) <-- (call-graph-source f)]
+; [(entry-function main-decl) <-- (func_name main-decl "@main")]
+; [(entry-function main-decl) <-- (func_name main-decl "@handle_echo")]
+; [(entry-function main-decl) <-- (func_name main-decl "@handle_ln")]
+; [(entry-function main-decl) <-- (func_name main-decl "@handle_ls")]
+; 
+
+
+[(entry-function entry-func)
+ (func-entry-bb entry-func bb-id)
+ --
+ (bb-instrs bb-id hd)
+ -->
+    (kont-store (halt-addr entry-func) (halt entry-func))
+    (step-to
+        (init)
+        (eval hd (local-k "void" hd {tick-empty} (halt-addr entry-func)) {tick-empty}))]
+
+[(ptr_variable param) <-- (variable_has_type param "ptr")]
+; init dataflow to injected function's arg
+[(entry-function entry-func)
+ (func-entry-bb entry-func bb-id)
+ (func_param entry-func _ param)
+ (~ ptr_variable param)
+ -->
+    (dataflow (unknown) (register param {tick-empty}))]
+[(entry-function entry-func)
+ (func-entry-bb entry-func bb-id)
+ (func_param entry-func _ param)
+ (ptr_variable param)
+ (tick-empty mt)
+ -->
+    (dataflow (addr param mt) (register param mt))
+    (dataflow (unknown) (addr param mt))]
+
+; skip unsupported instruction
+[(= s (eval (unsupported i rst) k c))
+ -->
+    (step-to s (eval rst k c))]
+
+; unreachable
+(step-to
+    ?(eval (unreachable i _) _ _)
+    (unreach i))
+
+; ret
+[(eval (ret x rst) k c) --> (do-aeval x c)]
+
+[(= s (eval (ret x rst) k c))
+ --
+ (aeval x c _)
+ --
+ (= k (local-k lhs rst-caller prev-ctx prev-kaddr))
+ --
+ (kont-store prev-kaddr prev-k)
+ -->
+    (step-to s (eval rst-caller prev-k prev-ctx))]
+
+[(eval (ret x rst) k c)
+ --
+ (= k (local-k lhs rst-caller prev-ctx prev-kaddr))
+ --
+ (aeval x c ret-v)
+ -->
+    (dataflow ret-v (register lhs prev-ctx))]
+
+[(= s (eval (ret-void rst) k c))
+ --
+ (= k (local-k lhs rst-caller prev-ctx prev-kaddr))
+ --
+ (kont-store prev-kaddr prev-k)
+ -->
+    (step-to s (eval rst-caller prev-k prev-ctx))]
+
+; return from source
+[(= s (eval (ret x rst) k c))
+ --
+ (aeval x c _)
+ --
+ (= k (halt entry-func))
+ (entry-function entry-func)
+ -->
+    (step-to s (source-exit entry-func 0))]
+[(= s (eval (ret-void rst) k c))
+ --
+ (= k (halt entry-func))
+ (entry-function entry-func)
+ -->
+    (step-to s (source-exit entry-func 0))]
+
+; br
+[(= s (eval (br-uncond next-bb rst) k c))
+ --
+ (bb-instrs next-bb ins)
+    -->
+    (step-to s (eval ins k c))]
+
+; branch to both, maybe we can check cond value here
+[(= s (eval (br-cond v-cond lt lf rst) k c))
+    -->
+    (step-to s (eval {bb-instrs lt} k c))]
+[(= s (eval (br-cond v-cond lt lf rst) k c))
+    -->
+    (step-to s (eval {bb-instrs lf} k c))]
+
+; switch
+; step to a helper
+(step-to
+    ?(eval (switch cond-v cases default-l rst) k c)
+    ; -->
+    (eval-switch-cases cond-v cases default-l k c))
+(step-to
+    ?(eval-switch-cases cond-v [(case const next-l) c-rsts ...] default-l k c)
+    ; -->
+    ;; maybe add value check here
+    (eval {bb-instrs next-l} k c))
+(step-to
+    ?(eval-switch-cases cond-v [(case const next-l) c-rsts ...] default-l k c)
+    ; -->
+    ;; maybe add value check here
+    (eval-switch-cases cond-v [c-rsts ...] default-l k c))
+
+(step-to
+    ?(eval-switch-cases cond-v [] default-l k c)
+    ; -->
+    (eval {bb-instrs default-l} k c))
+
+; binary operation
+[(eval (binary-op _ lhs op1 op2 rst) k c) --> (do-aeval op1 c) (do-aeval op2 c)]
+[(= s (eval (binary-op _ lhs op1 op2 rst) k c))
+ --
+ (aeval op1 c _)
+ (aeval op2 c _)
+ -->
+    (step-to s (eval rst k c))
+    (register lhs c)]
+[(eval (binary-op _ lhs op1 _ rst) k c)
+ --
+ (= lhs-addr (register lhs c))
+ --
+ (aeval op1 c op1v)
+ -->
+    ; (dataflow op1v (register lhs c))]
+    (dataflow (unknown) lhs-addr)]
+; [(= s (eval [i rst ...] k c))
+;  --
+;  (= i (binary-op _ lhs _ op2))
+;  --
+;  (aeval op2 c op2v)
+;  -->
+;     (dataflow op2v (register lhs c))]
+    ; (dataflow (unknown) (register lhs c))]
+
+; fneg
+[(= s (eval (fneg lhs op rst) k c)) --> (do-aeval op c)]
+[(= s (eval (fneg lhs op rst) k c)) -- (aeval op c _) --> (step-to s (eval rst k c))]
+[(= s (eval (fneg lhs op rst) k c)) -- (aeval op c _) --> (dataflow (unknown) (register lhs c))]
+
+
+; alloca
+[(= s (eval (alloca lhs n rst) k c))
+ -->
+    (dataflow (addr lhs c) (register lhs c))
+    ; (dataflow (nil) (addr lhs c))
+    (step-to s (eval rst k c))]
+
+; load
+[(eval (load lhs ptr rst) k c) --> (do-deref ptr c)]
+[(eval (load lhs ptr rst) k c)
+ --
+ (= lhs-addr (register lhs c))
+ --
+ (deref ptr c ptrv)
+ -->
+    (dataflow ptrv lhs-addr)]
+[(= s (eval (load lhs ptr rst) k c)) -- (deref ptr c _) --> (step-to s (eval rst k c)) (register lhs c)]
+; [(= s (eval (load lhs ptr rst) k c)) -- (deref ptr c _) --> (step-to s (eval rst k c))]
+; [(= s (eval (load lhs ptr rst) k c)) -- (deref ptr c _) --> (register lhs c)]
+
+; store
+[(eval (store v ptr rst) k c)
+ -->
+    (do-aeval ptr c) (do-aeval v c)]
+[(eval (store v ptr rst) k c)
+ --
+ (aeval v c vv) (aeval ptr c ptrv)
+ -->
+    (dataflow vv ptrv)]
+[(= s (eval (store v ptr rst) k c))
+ --
+ (aeval v c _) (aeval ptr c _)
+ -->
+    (step-to s (eval rst k c))]
+
+; GEP
+; can base be a int?
+[(eval (getelementptr lhs base indices rst) k c) --> (do-aeval base c)]
+[(eval (getelementptr lhs base indices rst) k c)
+ --
+ (= lhs-addr (register lhs c))
+ --
+ (aeval base c basev)
+ -->
+    (dataflow basev lhs-addr)]
+[(= s (eval (getelementptr lhs base indices rst) k c))
+ --
+ (aeval base c _)
+ -->
+    (step-to s (eval rst k c))
+    (register lhs c)]
+
+; type conversion
+[(eval (convert _ lhs op rst) k c) --> (do-aeval op c)]
+[(eval (convert _ lhs op rst) k c)
+ --
+ (aeval op c opv)
+ -->
+    (dataflow opv (register lhs c))]
+[(= s (eval (convert _ lhs op rst) k c))
+ --
+ (aeval op c _)
+ -->
+    (step-to s (eval rst k c))
+    (register lhs c)]
+
+; icmp/fcmp
+[(eval (icmp lhs cond-v op1 op2 rst) k c)
+ -->
+    (do-aeval op1 c) (do-aeval op2 c)]
+[(= s (eval (icmp lhs cond-v op1 op2 rst) k c))
+ --
+ (aeval op1 c _) (aeval op2 c _)
+ -->
+    (step-to s (eval rst k c))]
+[(eval (icmp lhs cond-v op1 _ rst) k c)
+ --
+ (aeval op1 c op1v)
+ -->
+    (dataflow op1v (register lhs c))]
+[(eval (icmp lhs cond-v _ op2 rst) k c)
+ --
+ (aeval op2 c op2v)
+ -->
+    (dataflow op2v (register lhs c))]
+[(eval (fcmp lhs cond-v op1 op2 rst) k c)
+ -->
+    (do-aeval op1 c) (do-aeval op2 c)]
+[(= s (eval (fcmp lhs cond-v op1 op2 rst) k c))
+ --
+ (aeval op1 c _) (aeval op2 c _)
+ -->
+    (step-to s (eval rst k c))]
+[(eval (fcmp lhs cond-v op1 _ rst) k c)
+ --
+ (aeval op1 c op1v)
+ -->
+    (dataflow op1v (register lhs c))]
+[(eval (fcmp lhs cond-v _ op2 rst) k c)
+ --
+ (aeval op2 c op2v)
+ -->
+    (dataflow op2v (register lhs c))]
+
+; phi
+(step-to
+    ?(eval (phi lhs pairs rst) k c)
+    ; -->
+    (eval-phi-pairs lhs pairs rst k c))
+(step-to
+    ?(eval-phi-pairs lhs [] rst k c)
+    ; -->
+    (eval rst k c))
+[(eval-phi-pairs lhs [p prst ...] rst k c) -- (= p (phi-value-pair l op)) --> (do-aeval op c)]
+[(eval-phi-pairs lhs [p prst ...] rst k c)
+ --
+ (= p (phi-value-pair l op))
+ --
+ (aeval op c opv)
+ -->
+    (dataflow opv (register lhs c))]
+[(= s (eval-phi-pairs lhs [p prst ...] rst k c))
+ --
+ (= p (phi-value-pair l op))
+ --
+ (aeval op c _)
+ -->
+    (step-to s (eval-phi-pairs lhs [prst ...] rst k c))]
+
+; select
+[(eval (select lhs cond-v op1 op2 rst) k c)
+ -->
+    (do-aeval op1 c) (do-aeval op2 c)]
+[(= s (eval (select lhs cond-v op1 op2 rst) k c))
+ --
+ (aeval op1 c _)
+ (aeval op2 c _)
+ -->
+    (step-to s (eval rst k c))]
+[(eval (select lhs cond-v op1 _ rst) k c)
+ --
+ (aeval op1 c op1v)
+ -->
+    (dataflow op1v (register lhs c))]
+[(eval (select lhs cond-v _ op2 rst) k c)
+ --
+ (aeval op2 c op2v)
+ -->
+    (dataflow op2v (register lhs c))]
+
+; call
+; only directed call
+; internal call
+[(= s (eval ccall k c))
+ (= ccall (call lhs (constant fconst) args rst))
+ (fconst-funcdecl fconst fdecl)
+ -->
+    (= c-prime {tick !(do-tick c ccall)})
+    (= new-kaddr (kaddr fdecl c-prime))
+    (kont-store new-kaddr k)
+    (step-to s
+        (eval-func-args 0 fconst args
+            k (local-k lhs [rst ...] c new-kaddr)
+            c c-prime))]
+(step-to
+    ?(eval-func-args i fconst [] k new-k c new-c)
+    ; -->
+    (eval {bb-instrs {func-entry-bb {fconst-funcdecl fconst}}} new-k new-c))
+
+[(fconst-params-max func  {count fconst-params func _ _}) <-- (fconst-funcdecl func fdecl)]
+[(eval-func-args i func [arg arst ...] k new-k c new-c) --> (do-aeval arg c)]
+[(eval-func-args i func [arg arst ...] k new-k c new-c)
+ --
+;  (fconst-params-max func fm)
+;  --
+;  (< i fm)
+;  --
+ (aeval arg c argv)
+ --
+ (fconst-params func i param)
+ -->
+    (dataflow argv (register param new-c))]
+[(eval-func-args i func [arg arst ...] k new-k c new-c)
+;  --
+;  (fconst-params-max func fm)
+;  --
+;  (>= i fm)
+;  --
+ --
+ (~ fconst-params func i _)
+ --
+ (fconst-funcdecl func fdecl)
+ --
+ (aeval arg c argv)
+ -->
+    (dataflow argv (va-arg fdecl new-c))]
+[(= s (eval-func-args i func [arg arst ...] k new-k c new-c))
+ --
+ (aeval arg c _)
+ -->
+    (step-to s (eval-func-args {+ 1 i} func [arst ...] k new-k c new-c))]
+
+; external call
+[(= s (eval (call-external lhs (constant fconst) args rst) k c))
+ -->
+    (step-to s (eval-external-args lhs fconst args [rst ...] k c))]
+
+[(variable_ptr x) <-- (variable x) (variable_has_type x "ptr")]
+[(variable_not_ptr x) <-- (variable x) (~ variable_ptr x) ]
+[(eval-external-args lhs fconst [(variable x) argrst ...] rst k c)
+ --
+ (variable_ptr x)
+ -->
+    (do-aeval (variable x) c)]
+[(eval-external-args lhs fconst [(variable x) argrst ...] rst k c)
+ --
+ (variable_ptr x)
+ --
+ (aeval (variable x) c xv)
+    -->
+    ; (dataflow (external-may-change fconst x) xv)]
+    (dataflow (unknown) xv)]
+[(= s (eval-external-args lhs fconst [(variable x) argrst ...] rst k c))
+ --
+ (variable_ptr x)
+ --
+ (aeval (variable x) c _)
+    -->
+    (step-to s (eval-external-args lhs fconst [argrst ...] rst k c))]
+[(= s (eval-external-args lhs fconst [(variable x) argrst ...] rst k c))
+ --
+ (variable_not_ptr x)
+    -->
+    (step-to s (eval-external-args lhs fconst [argrst ...] rst k c))]
+[(= s (eval-external-args lhs fconst [(constant x) argrst ...] rst k c))
+    -->
+    (step-to s (eval-external-args lhs fconst [argrst ...] rst k c))]
+
+[(= s (eval-external-args lhs fconst [] rst k c))
+ --
+ (fconst-ret-val fconst)
+ -->
+    (dataflow (unknown) (register lhs c))
+    (step-to s (eval rst k c))]
+[(= s (eval-external-args "void" fconst [] rst k c))
+ -->
+    (step-to s (eval rst k c))]
+[(= s (eval-external-args lhs fconst [] rst k c))
+ --
+ (fconst-ret-ptr fconst)
+ -->
+    (= new-addr (addr lhs c))
+    (dataflow (unknown) new-addr)
+    (dataflow new-addr (register lhs c))
+    (step-to s (eval rst k c))]
+
+; indirect call
+; (step-to
+;     ?(eval [(call-indirect lhs fop args) rst ...] k c)
+;     (eval [rst ...] k c))
+[(= s (eval (call-indirect lhs fop args rst) k c))
+ (variable lhs)
+ -->
+    (dataflow (unknown) (register lhs c))
+    (step-to s (eval rst k c))]
+[(= s (eval (call-indirect "void" fop args rst) k c))
+ -->
+    (step-to s (eval rst k c))]
+
+; supported intrinstic function
+[(eval (intrinstic-memcpy dest src _ rst) k c) --> (do-deref src c) (do-aeval dest c)]
+[(eval (intrinstic-memcpy dest src _ rst) k c)
+ --
+ (deref src c srcv)
+ (aeval dest c dest-addr)
+ -->
+    (dataflow srcv  dest-addr)]
+[(= s (eval (intrinstic-memcpy dest src _ rst) k c))
+ --
+ (deref src c _)
+ (aeval dest c _)
+ -->
+    (step-to s (eval rst k c))]
+
+; TODO: handle inject unknown va arg? deref may fail?
+[(= s (eval (intrinstic-va_start dest rst) k c))
+ -->
+    (step-to s (eval rst k c))]
+[(= s (eval (intrinstic-va_start dest rst) k c))
+ --
+ (lifted-instr_func (intrinstic-va_start dest rst) fdecl)
+ -->
+    (dataflow (va-arg fdecl c) (register dest c))]
+
+[(= s (eval (intrinstic-va_copy dest src rst) k c)) --> (do-aeval src c)]
+[(= s (eval (intrinstic-va_copy dest src rst) k c))
+ --
+ (aeval src c _)
+ -->
+    (step-to s (eval rst k c))]
+[(= s (eval (intrinstic-va_copy dest src rst) k c))
+ --
+ (aeval src c srcv)
+ -->
+    (dataflow srcv (register dest c))]
+
+
+; returned
+; [(= s (eval-ret-to-call ret-v [(call lhs _ args) rst ...] k c))
+;  -->
+;     (dataflow ret-v (register lhs c))
+;     (step-to s (eval [rst ...] k c))]
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; sanity debug check
+; (step-to-nil ?(step-to s (eval [] k c)))
+; (block-nil ?(bb-instrs id []))
+
+; state check
+(normal-exit ?(source-exit _ _))
+(normal-exit ?(unreach _))
+[(stuck-state s) <-- (state s) (~ normal-exit s) (~ step-to s _)]
+; [(stuck-state-normal (unreach i)) <-- (state (eval [(unreach i)] _ _))]
+; [(stuck-state-normal (ret-unknown i)) <-- (state (eval [(ret-unknown i)] _ _))]
+; [(stuck-state-abnormal ) <-- (stuck-state (eval [i rst ...] _ _)) (~ )]
+
+; check if all lifted instruction reached
+[(state-current-instr h) <-- (eval h _ _) ]
+[(uncovered-lifted-instr i il) <-- (lift i il) (~ state-current-instr il)] 
+
+
+; debug
+[(= s (eval (binary-op _ lhs op1 op2 rst) k c))
+ --
+ (~ aeval op1 c _)
+;  (aeval op2 c _)
+ -->
+    (stuck-binary-op1 s)]

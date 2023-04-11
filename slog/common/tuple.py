@@ -82,7 +82,7 @@ class SlogTupleParaser:
                     attr_val = SIGN_FILP_CONST - attr_val
             elif val_tag == STRING_TAG:
                 # attr_val = intern_string_dict[u64 & U32_MASK]
-                attr_val = SlogStr(u64 & U32_MASK)
+                attr_val = SlogStr(u64 & VAL_MASK)
             else:
                 # relation
                 bucket_id = (u64 & BUCKET_MASK) >> 28
@@ -207,6 +207,8 @@ class SlogTupleParaser:
                     rel_to_parse += [r for r in required_rels
                                      if (r not in rel_to_parse) and (r not in rel_parsed)]
                     parsed_tuples.append(slog_tuple)
+            # if rel_to_parse != []:
+            #     print(f"{next_rel_tag} >>>>>>>> {rel_to_parse}")
             rel_parsed.append(next_rel_tag)
             rel_to_parse = rel_to_parse[1:]
 
