@@ -87,6 +87,7 @@ class SlogClient:
     Client to a slog server.
     """
     def __init__(self, server="localhost", rpc_port=5108, ftp_port=2121, local_db_path=None):
+        self.dump_limit = 100
         self._channel = None
         self._stub = None
         self.server_addr = server
@@ -389,8 +390,8 @@ class SlogClient:
         header = f"{name_hdr: <{name_col_length}}{arity_hdr}{tupcnt_hdr: <{tupcnt_col_len}}Tag    Size (KiB)\n"
         writer.write(header)
         screen_out = ""
-        # for rel in sorted(self.relations, key=lambda rel: rel[3]*rel[1]):
-        for rel in sorted(self.relations, key=lambda rel: rel[0]):
+        for rel in sorted(self.relations, key=lambda rel: rel[3]*rel[1]):
+        # for rel in sorted(self.relations, key=lambda rel: rel[0]):
             tup_cnt = "{:,}".format(rel[3])
             screen_out = screen_out + f"{rel[0] : <{name_col_length}}{rel[1] : <{arity_hdr_len}}{tup_cnt : <{tupcnt_col_len}}{rel[2] : <7}"
             screen_out = screen_out + f"\t{round(rel[3]*rel[1]*8/1024,2)}\n"
@@ -491,7 +492,7 @@ class SlogClient:
         tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
         tuple_parser = SlogTupleParaser(tuples_map, self.group_cardinality, self.unroll_depth,
                                         tag_map, self.intern_string_dict, name, rels[0][2])
-        slog_tuples = tuple_parser.parse_query_result()
+        slog_tuples = tuple_parser.parse_query_result(self.dump_limit)
         self.slog_tuple_parser = tuple_parser
         for pp_str in tuple_parser.pretty_str_tuples(rels):
             writer.write(pp_str)

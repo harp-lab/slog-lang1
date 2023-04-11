@@ -48,7 +48,7 @@ class SlogTupleParaser:
     A parser will parse a slog query result u64 tuple set into well-formated string.
     """
 
-    def __init__(self, query_res, cardinality, max_depth, tag_map, intern_string_dict, rel_name, rel_tag):
+    def __init__(self, query_res, cardinality, max_depth, tag_map, intern_string_dict, rel_name, rel_tag, limit=100):
         self.rel_name = rel_name
         self.rel_tag = rel_tag
         self.printed_id_map = {}
@@ -59,6 +59,7 @@ class SlogTupleParaser:
         self.max_depth = max_depth
         self.tag_map = tag_map
         self.intern_string_dict = intern_string_dict
+        self.limit = limit
 
     def parse_tuple_row(self, u64_list, rel_name) -> SlogTuple:
         """ parse a row of u64 tuple into a python object """
@@ -163,7 +164,7 @@ class SlogTupleParaser:
         pp_str = self.tuple_to_str(self.printed_id_map[printed_id], self.max_depth)
         return f"#{printed_id}\t{pp_str}"
 
-    def parse_query_result(self):
+    def parse_query_result(self, limit=100):
         """
         parse a query result (u64) into python slog tuples object
         query_res is a mapping of relation tag to list of u64 tuples.
@@ -180,6 +181,7 @@ class SlogTupleParaser:
         in printed map only index > 0 index will be printed
         This function will update printed_id_map
         """
+        self.limit = limit
         parsed_tuples = []
         rel_to_parse = [self.rel_tag]
         rel_parsed = []
@@ -194,13 +196,16 @@ class SlogTupleParaser:
         #         if len(buf) == rel_arity + 1:
         #             slog_tuple = self.parse_tuple_row(buf, rel_name)
         #             parsed_tuples.append(slog_tuple)
-
         while len(rel_to_parse) != 0:
+            # if rel_to_parse == self.rel_tag:
+
             next_rel_tag = rel_to_parse[0]
             tuples = self.query_res[next_rel_tag]
             rel_name = self.tag_map[next_rel_tag][0]
             rel_arity = self.tag_map[next_rel_tag][1]
             for i in range(0, len(tuples), rel_arity+1):
+                if (next_rel_tag == self.rel_tag) and (i > self.limit):
+                    break
                 buf = tuples[i:i+rel_arity+1]
                 if len(buf) == rel_arity + 1:
                     slog_tuple, required_rels = self.parse_tuple_row(buf, rel_name)
