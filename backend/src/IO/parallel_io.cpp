@@ -256,13 +256,9 @@ void parallel_io::buffer_data_to_hash_buffer_col(u32 arity, u32 join_column_coun
         process_data_vector_size = process_data_vector_size + (col_count);
     }
 
-    // if (rank == 0) {
-        std::cout << "wwwwww " << rank << " " << process_data_vector_size << " " << process_size[0] << " " << process_size[1] << std::endl;
-    // }
     /* Transmit the packaged data process_data_vector to all processes */
     all_to_all_comm(process_data_vector, process_data_vector_size, process_size, &hash_buffer_size, &hash_buffer, comm);
 
-    std::cout << "here>>>>>>> " << rank << std::endl;
     //u32 g_hash_buffer_size = 0;
     //MPI_Allreduce(&hash_buffer_size, &g_hash_buffer_size, 1, MPI_INT, MPI_SUM, comm);
     //if (rank == 0)

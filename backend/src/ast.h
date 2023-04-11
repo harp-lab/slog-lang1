@@ -18,6 +18,10 @@
 #include <variant>
 #include <vector>
 
+enum class relation_type {
+    NORMAL, INTER_BODY, INTER_HEAD, BIR_SUB
+};
+
 enum class slogc_token_type { none,
                               left_paren,
                               right_paren,
@@ -122,13 +126,22 @@ public:
     bool canonical_flag;
     int arity;
     std::vector<int> selection;
+    relation_type type = relation_type::NORMAL;
 
     std::weak_ptr<slogc_prog> parent;
 
     slogc_relation_decl(std::string &name, std::string& rel_name, int jcc, bool canonical_flag,
                         int arity, std::vector<int> selection, std::weak_ptr<slogc_prog> parent) :
         name(name), rel_name(rel_name), jcc(jcc), canonical_flag(canonical_flag), arity(arity),
-        selection(selection), parent(parent){};
+        selection(selection), parent(parent){
+        if (rel_name.rfind("rel___dollorrule")) {
+            type = relation_type::INTER_BODY;
+        } else if (rel_name.rfind("rel___dollorinter__head")) {
+            type = relation_type::INTER_HEAD;
+        } else if (rel_name.rfind("rel___dollorbir__")) {
+            type = relation_type::BIR_SUB;
+        }
+    };
 
     void accept(slogc_visitor &visitor) override { visitor.visit(shared_from_this()); }
 };

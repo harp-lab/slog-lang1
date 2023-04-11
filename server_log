@@ -1,8 +1,1 @@
-[I 2023-03-05 00:59:06] concurrency model: async
-[I 2023-03-05 00:59:07] masquerade (NAT) address: None
-[I 2023-03-05 00:59:07] passive ports: None
-[I 2023-03-05 00:59:07] >>> starting FTP server on 0.0.0.0:2121, pid=268644 <<<
-user break
-  context...:
-   /home/stargazermiao/workspace/PL/slog/compiler/slog-process.rkt:45:0: loop
-   body of "/home/stargazermiao/workspace/PL/slog/compiler/slog-process.rkt"
+./run_test.sh: line 13: ./slog-server: No such file or directory

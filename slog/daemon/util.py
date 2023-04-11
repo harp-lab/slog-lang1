@@ -11,9 +11,11 @@ import hashlib
 
 import numpy as np
 
-STRING_FNV_PRIME = np.uint32(16777619)
-STRING_FNV_BASE_OFFSET = np.uint32(2166136261)
-
+# STRING_FNV_PRIME = np.uint32(16777619)
+# STRING_FNV_BASE_OFFSET = np.uint32(2166136261)
+STRING_FNV_PRIME = np.uint64(1099511628211)
+STRING_FNV_BASE_OFFSET = np.uint64(14695981039346656037)
+U46MAX = np.uint64(35184372088832)
 
 def join_hashes(hashes):
     """ join 2 hash values? """
@@ -24,9 +26,9 @@ def string_hash(target_str: str):
     """ compute the FNV hash value of string (same as backend string) """
     hsh = STRING_FNV_BASE_OFFSET
     for _c in target_str:
-        hsh ^= np.uint32(ord(_c))
+        hsh ^= np.uint64(ord(_c))
         hsh = hsh * STRING_FNV_PRIME
-    return hsh
+    return hsh % U46MAX
 
 
 def generate_db_hash(hashes, using_db=None):

@@ -5,7 +5,6 @@ Kris Micinski
 Yihao Sun
 '''
 
-import cProfile
 import argparse
 import re
 import sys
@@ -45,7 +44,8 @@ HELP = '''
                                         with file name, and then compile and run it, if db is not provide
                                         will run with current db, core is how many core mpirun use.
     dump <hash>/"<tag>" ("<file>")      Dump all data in a relation into stdout, if optional file argument
-                                        is provided, result will be printed to file 
+                                        is provided, result will be printed to file
+    limit <size>                        limit the size of tuple dumped, default 100
     connect "<server>"                  Connect to a slog server
     load "<csv_file/folder>"            Upload a csv file/folder into input database, file must ends with
                                         `.fact`, name of target relation will be same as file name
@@ -70,7 +70,7 @@ HELP_RUNSLOG = '''
 
 CMD = ['help', 'run', 'connect', 'dump', 'showdb', 'relations',
        'load', 'compile', 'tag', 'switch', 'fact-depth',
-       'fact-cardi', 'clear', 'fresh']
+       'fact-cardi', 'clear', 'fresh', 'limit']
 
 # in run slog CLI, you can only do fact dumping, we need better pagenation
 CMD_RUNSLOG = ['help',  'dump', 'relations']
@@ -145,16 +145,21 @@ def exec_command(client: SlogClient, raw_input: str):
         if len(args) == 1:
             client.dump_relation_by_name(args[0], ConsoleWriter())
         elif len(args) == 2:
-            if client.local_db_path:
-                print("runlsog can only print data in current database!")
-                return
+            # if client.local_db_path:
+            #     print("runlsog can only print data in current database!")
+            #     return
             if args[1].startswith('"') and args[1].endswith('"'):
-                with open(args[1][1:-1], 'w') as out_f:
+                with open(args[1][1:-1], 'w+') as out_f:
                     client.dump_relation_by_name(args[0], FileWriter(out_f))
             else:
                 invalid_alert(f'{cmd} expect a string at postion 2 as arg')
         else:
             invalid_alert(f'{cmd} expect 1/2 arg, but get {len(args)}')
+    elif cmd == 'limit':
+        if len(args) == 1:
+            client.dump_limit = int(args[0])
+        else:
+            invalid_alert(f'{cmd} expect 1 arg, but get {len(args)}')
     elif cmd == 'fact-depth':
         if len(args) == 1 and args[0].isnumeric():
             client.unroll_depth = int(args[0])

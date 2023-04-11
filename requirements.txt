@@ -2,7 +2,7 @@ wheel
 grpcio == 1.41.1
 grpcio-tools == 1.41.1
 grpc_interceptor == 0.13.0
-prompt_toolkit == 3.0.21
+prompt_toolkit == 3.0.30
 pyftpdlib == 1.5.6
 psutil == 5.8.0
 yaspin

@@ -2,6 +2,7 @@
 ;;
 ;;
 
+
 ; (state (contour ...) )
 ;;
 
@@ -393,6 +394,12 @@
 
 [(lift ?(do-lift i rst) (unreachable i rst)) <-- (unreachable_instr i)]
 
+; fneg
+[(lift ?(do-lift i rst) (fneg lhs {lift-operand op} rst))
+    <--
+    (fneg_instr_operand i op)
+    (instr_assigns_to i lhs)]
+
 ;;;;;;;;;;;;;;;;;
 
 ;; Intrinstic
@@ -408,6 +415,25 @@
     (call_instr_arg i 2 len-arg)
     --
     (memcpy_fconst fptr)
+    (call_instr_func_operand i fptr)]
+
+;; va_start
+; declare void @llvm.va_start(ptr <arglist>)
+[(lift ?(do-lift i rst) (intrinstic-va_start {lift-operand dest-arg} rst))
+    <--
+    (call_instr_arg i 0 dest-arg)
+    --
+    (func_constant_fn_name fptr "@llvm.va_start")
+    (call_instr_func_operand i fptr)]
+
+; ; va_copy
+; ; declare void @llvm.va_copy(ptr <destarglist>, ptr <srcarglist>)
+[(lift ?(do-lift i rst) (intrinstic-va_copy {lift-operand dest-arg} {lift-operand src-arg} rst))
+    <--
+    (call_instr_arg i 0 dest-arg)
+    (call_instr_arg i 1 src-arg)
+    --
+    (func_constant_fn_name fptr "@llvm.va_copy")
     (call_instr_func_operand i fptr)]
 
 ;;;;;;;;;;;;;;;;;
@@ -489,6 +515,8 @@
     (func_name fdecl fname)]
 
 [(supported-intrinstic-decl fdecl) <-- (memcpy_fdecl fdecl)]
+[(supported-intrinstic-decl fdecl) <-- (func_name fdecl "@llvm.va_start")]
+[(supported-intrinstic-decl fdecl) <-- (func_name fdecl "@llvm.va_copy")]
 
 ; this include intrinstic
 [(external-funcdecl fdecl)
@@ -531,8 +559,54 @@
     (instr_func i f)
     --
     (call-graph-source f)]
-; [(ret-from-normal i) <-- (ret_instr_operand i _) (~ ret-from-source i)]
-; [(ret-from-normal i) <-- (ret_instr_void_ i) (~ ret-from-source i)]
+
+[(lifted-instr_func lifted-i fdecl) <-- (instr_func i fdecl) (lift (do-lift i _) lifted-i)]
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; sanity debug check
+
+; check if all type of instr correctly lifted
+[(lift-failed-ret a) <-- (ret_instr a) (~ lift (do-lift a _) _)]
+[(lift-failed-br a) <-- (br_instr a) (~ lift (do-lift a _) _)]
+[(lift-failed-switch i) <-- (switch_instr i) (~ lift (do-lift i _) _)]
+
+[(lift-failed-add i) <-- (add_instr i) (~ lift (do-lift i _) _)]
+[(lift-failed-fadd i) <-- (fadd_instr i) (~ lift (do-lift i _) _)]
+[(lift-failed-sub i) <-- (sub_instr i) (~ lift (do-lift i _) _)]
+[(lift-failed-fsub i) <-- (fsub_instr i) (~ lift (do-lift i _) _)]
+[(lift-failed-mul i) <-- (mul_instr i) (~ lift (do-lift i _) _)]
+[(lift-failed-fmul i) <-- (fmul_instr i) (~ lift (do-lift i _) _)]
+[(lift-failed-udiv i) <-- (udiv_instr i) (~ lift (do-lift i _) _)]
+[(lift-failed-sdiv i) <-- (sdiv_instr i) (~ lift (do-lift i _) _)]
+[(lift-failed-fdiv i) <-- (fdiv_instr i) (~ lift (do-lift i _) _)]
+[(lift-failed-urem i) <-- (urem_instr i) (~ lift (do-lift i _) _)]
+[(lift-failed-srem i) <-- (srem_instr i) (~ lift (do-lift i _) _)]
+[(lift-failed-frem i) <-- (frem_instr i) (~ lift (do-lift i _) _)]
+[(lift-failed-shl i) <-- (shl_instr i) (~ lift (do-lift i _) _)]
+[(lift-failed-ashr i) <-- (ashr_instr i) (~ lift (do-lift i _) _)]
+[(lift-failed-and i) <-- (and_instr i) (~ lift (do-lift i _) _)]
+[(lift-failed-or i) <-- (or_instr i) (~ lift (do-lift i _) _)]
+[(lift-failed-xor i) <-- (xor_instr i) (~ lift (do-lift i _) _)]
+
+[(lift-failed-alloca i) <-- (alloca_instr i) (~ lift (do-lift i _) _)]
+[(lift-failed-load i) <-- (load_instr i) (~ lift (do-lift i _) _)]
+[(lift-failed-store i) <-- (store_instr i) (~ lift (do-lift i _) _)]
+[(lift-failed-gep i) <-- (getelementptr_instr i) (~ lift (do-lift i _) _)]
+[(lift-failed-icmp i) <-- (icmp_instr i) (~ lift (do-lift i _) _)]
+[(lift-failed-phi i) <-- (phi_instr i) (~ lift (do-lift i _) _)]
+[(lift-failed-select i) <-- (select_instr i) (~ lift (do-lift i _) _)]
+[(lift-failed-call i) <-- (call_instr i) (~ lift (do-lift i _) _)]
+
+[(bb-instrs_help bb_id b rst)
+ (instr_bb_entry b bb_id)
+ (instr_bb_entry a bb_id)
+ (instr_successor a b)
+ (~ lift (do-lift b _) _)
+ -->
+    (instr-failed b)]
+
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -617,8 +691,8 @@
 ; Injection 
 ; conservative, all function not called will be selected as entry point
 ; [(entry-function f) <-- (func f)]
-[(entry-function f) <-- (call-graph-source f)]
-; [(entry-function main-decl) <-- (func_name main-decl "@main")]
+; [(entry-function f) <-- (call-graph-source f)]
+[(entry-function main-decl) <-- (func_name main-decl "@main")]
 ; [(entry-function main-decl) <-- (func_name main-decl "@handle_echo")]
 ; [(entry-function main-decl) <-- (func_name main-decl "@handle_ln")]
 ; [(entry-function main-decl) <-- (func_name main-decl "@handle_ls")]
@@ -653,7 +727,7 @@
     (dataflow (unknown) (addr param mt))]
 
 ; skip unsupported instruction
-[(= s (eval (unsupported-instr i rst) k c))
+[(= s (eval (unsupported i rst) k c))
  -->
     (step-to s (eval rst k c))]
 
@@ -701,8 +775,6 @@
  -->
     (step-to s (source-exit entry-func 0))]
 [(= s (eval (ret-void rst) k c))
- --
- (aeval x c _)
  --
  (= k (halt entry-func))
  (entry-function entry-func)
@@ -922,6 +994,8 @@
     ?(eval-func-args i fconst [] k new-k c new-c)
     ; -->
     (eval {bb-instrs {func-entry-bb {fconst-funcdecl fconst}}} new-k new-c))
+
+[(fconst-params-max func  {count fconst-params func _ _}) <-- (fconst-funcdecl func fdecl)]
 [(eval-func-args i func [arg arst ...] k new-k c new-c) --> (do-aeval arg c)]
 [(eval-func-args i func [arg arst ...] k new-k c new-c)
  --
@@ -930,6 +1004,17 @@
  (fconst-params func i param)
  -->
     (dataflow argv (register param new-c))]
+[(eval-func-args i func [arg arst ...] k new-k c new-c)
+ --
+ (fconst-params-max func fm)
+ --
+ (>= i fm)
+ --
+ (fconst-funcdecl func fdecl)
+ --
+ (aeval arg c argv)
+ -->
+    (dataflow argv (va-arg fdecl new-c))]
 [(= s (eval-func-args i func [arg arst ...] k new-k c new-c))
  --
  (aeval arg c _)
@@ -1020,57 +1105,32 @@
  -->
     (step-to s (eval rst k c))]
 
-; returned
-; [(= s (eval-ret-to-call ret-v [(call lhs _ args) rst ...] k c))
-;  -->
-;     (dataflow ret-v (register lhs c))
-;     (step-to s (eval [rst ...] k c))]
+; TODO: handle inject unknown va arg? deref may fail?
+[(= s (eval (intrinstic-va_start dest rst) k c))
+ -->
+    (step-to s (eval rst k c))]
+[(= s (eval (intrinstic-va_start dest rst) k c))
+ --
+ (lifted-instr_func (intrinstic-va_start dest rst) fdecl)
+ -->
+    (dataflow (va-arg fdecl c) (register dest c))]
+
+[(= s (eval (intrinstic-va_copy dest src rst) k c)) --> (do-aeval src c)]
+[(= s (eval (intrinstic-va_copy dest src rst) k c))
+ --
+ (aeval src c _)
+ -->
+    (step-to s (eval rst k c))]
+[(= s (eval (intrinstic-va_copy dest src rst) k c))
+ --
+ (aeval src c srcv)
+ -->
+    (dataflow srcv (register dest c))]
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; sanity debug check
-
-; check if all type of instr correctly lifted
-[(lift-failed-ret a) <-- (ret_instr a) (~ lift (do-lift a _) _)]
-[(lift-failed-br a) <-- (br_instr a) (~ lift (do-lift a _) _)]
-[(lift-failed-switch i) <-- (switch_instr i) (~ lift (do-lift i _) _)]
-
-[(lift-failed-add i) <-- (add_instr i) (~ lift (do-lift i _) _)]
-[(lift-failed-fadd i) <-- (fadd_instr i) (~ lift (do-lift i _) _)]
-[(lift-failed-sub i) <-- (sub_instr i) (~ lift (do-lift i _) _)]
-[(lift-failed-fsub i) <-- (fsub_instr i) (~ lift (do-lift i _) _)]
-[(lift-failed-mul i) <-- (mul_instr i) (~ lift (do-lift i _) _)]
-[(lift-failed-fmul i) <-- (fmul_instr i) (~ lift (do-lift i _) _)]
-[(lift-failed-udiv i) <-- (udiv_instr i) (~ lift (do-lift i _) _)]
-[(lift-failed-sdiv i) <-- (sdiv_instr i) (~ lift (do-lift i _) _)]
-[(lift-failed-fdiv i) <-- (fdiv_instr i) (~ lift (do-lift i _) _)]
-[(lift-failed-urem i) <-- (urem_instr i) (~ lift (do-lift i _) _)]
-[(lift-failed-srem i) <-- (srem_instr i) (~ lift (do-lift i _) _)]
-[(lift-failed-frem i) <-- (frem_instr i) (~ lift (do-lift i _) _)]
-[(lift-failed-shl i) <-- (shl_instr i) (~ lift (do-lift i _) _)]
-[(lift-failed-ashr i) <-- (ashr_instr i) (~ lift (do-lift i _) _)]
-[(lift-failed-and i) <-- (and_instr i) (~ lift (do-lift i _) _)]
-[(lift-failed-or i) <-- (or_instr i) (~ lift (do-lift i _) _)]
-[(lift-failed-xor i) <-- (xor_instr i) (~ lift (do-lift i _) _)]
-
-[(lift-failed-alloca i) <-- (alloca_instr i) (~ lift (do-lift i _) _)]
-[(lift-failed-load i) <-- (load_instr i) (~ lift (do-lift i _) _)]
-[(lift-failed-store i) <-- (store_instr i) (~ lift (do-lift i _) _)]
-[(lift-failed-gep i) <-- (getelementptr_instr i) (~ lift (do-lift i _) _)]
-[(lift-failed-icmp i) <-- (icmp_instr i) (~ lift (do-lift i _) _)]
-[(lift-failed-phi i) <-- (phi_instr i) (~ lift (do-lift i _) _)]
-[(lift-failed-select i) <-- (select_instr i) (~ lift (do-lift i _) _)]
-[(lift-failed-call i) <-- (call_instr i) (~ lift (do-lift i _) _)]
-
-[(bb-instrs_help bb_id b rst)
- (instr_bb_entry b bb_id)
- (instr_bb_entry a bb_id)
- (instr_successor a b)
- (~ lift (do-lift b _) _)
- -->
-    (instr-failed b)]
-
 ; (step-to-nil ?(step-to s (eval [] k c)))
 ; (block-nil ?(bb-instrs id []))
 

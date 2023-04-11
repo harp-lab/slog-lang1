@@ -22,6 +22,9 @@ from yaspin import yaspin
 from slog.common.client import SlogClient
 from slog.repl.repl import Repl
 
+def is_temp_rel_name(rel_name):
+    return ('$bir' in rel_name) or ('$inter' in rel_name) or ('$rule' in rel_name) or ('$head' in rel_name)
+
 def ingest_facts(factloc, inputloc, tsv_bin_path, cores):
     # -- go through every .table file in the input data
     # -- extract tag, relation name and arity.
@@ -46,54 +49,51 @@ def ingest_facts(factloc, inputloc, tsv_bin_path, cores):
     if os.path.isdir(factloc):
         for factfile in os.listdir(factloc):
             extn = factfile[factfile.rfind('.'):]
-            if extn not in {'.csv', '.tsv', '.facts'}:
+            if extn not in {'.csv', '.tsv', '.facts'} or 'string.csv' in factfile:
                 continue
             infacts.add(os.path.join(factloc, factfile))
     else:
         # just add the file, dont check extension
         infacts.add(factloc)
     # -- now copy all input table facts inside factloc but rearrange rel tag
+    wdb_flag = False
     for table_file in os.listdir(factloc):
-        extn = table_file[table_file.rfind('.'):]
-        if extn == '.table':
-            # check original tag allocated during compilation
-            new_tag = -1
-            for generated_facts in os.listdir(inputloc):
-                if table_file[table_file.find('.'):] in generated_facts:
-                    new_tag = int(generated_facts[:generated_facts.find('.')])
-            if new_tag == -1:
-                new_tag = current_max_tag + 1
+        if '$strings.csv' in table_file:
+            wdb_flag = True
+    if wdb_flag:
+        os.system(f"rm -r {inputloc}")
+        os.system(f"cp -r {factloc} {inputloc}")
+        for f in os.listdir(inputloc):
+            if is_temp_rel_name(f):
+                os.remove(os.path.join(inputloc, f))
+    else:
+        for factfile in infacts:
+            with open(factfile, 'r') as ff:
+                first = ff.readline()
+                # immediate "" means empty file, so no facts to add.
+                if first == "":
+                    continue
+            # get relname from file to compare against
+            base = os.path.basename(factfile)
+            relname = base[:base.rfind('.')]
+            arity = len(first.split('\t'))
+            table = tables.get((relname, arity))
+            if not table:
+                print(f"`{relname}` with arity `{arity}` not found in slogfile, but used as input.")
+                tabletag = str(current_max_tag + 1)
                 current_max_tag = current_max_tag + 1
-            tb_name = table_file[table_file.find('.'):]
-            shutil.copy(os.path.join(factloc, table_file),
-                        os.path.join(inputloc, str(new_tag)+tb_name))
-    for factfile in infacts:
-        with open(factfile, 'r') as ff:
-            first = ff.readline()
-            # immediate "" means empty file, so no facts to add.
-            if first == "":
-                continue
-        # get relname from file to compare against
-        base = os.path.basename(factfile)
-        relname = base[:base.rfind('.')]
-        arity = len(first.split('\t'))
-        table = tables.get((relname, arity))
-        if not table:
-            print(f"`{relname}` with arity `{arity}` not found in slogfile, but used as input.")
-            tabletag = str(current_max_tag + 1)
-            current_max_tag = current_max_tag + 1
-            print(f"assign a new tag `{tabletag}` to `{relname}` with arity `{arity}`")
-            tableloc = os.path.join(inputloc, f"{tabletag}.{relname}.{arity}.table")
-        else:
-            tabletag = table[0]
-            tableloc = os.path.join(inputloc, table[1])
-        try:
-            # idk why 16 is buckets, got from rpc.py
-            subprocess.check_output([tsv_bin_path, factfile, str(arity),
-                                     tableloc, str(cores), str(tabletag), inputloc])
-        except subprocess.CalledProcessError as e:
-            print(f"tsv_to_bin failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
-            return None
+                print(f"assign a new tag `{tabletag}` to `{relname}` with arity `{arity}`")
+                tableloc = os.path.join(inputloc, f"{tabletag}.{relname}.{arity}.table")
+            else:
+                tabletag = table[0]
+                tableloc = os.path.join(inputloc, table[1])
+            try:
+                # idk why 16 is buckets, got from rpc.py
+                subprocess.check_output([tsv_bin_path, factfile, str(arity),
+                                        tableloc, str(cores), str(tabletag), inputloc])
+            except subprocess.CalledProcessError as e:
+                print(f"tsv_to_bin failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
+                return None
     return True
 
 def ensure_backend_built(compile_backend, tsv_bin_path, backend_build_dir, backend_dir, cores, cmake_prof_opt, cmake_build_mode, verbose):
@@ -212,19 +212,20 @@ def run_local(file, out_path, factloc, cores, verbose, slog_root=None, compile_b
             print(f"Time taken: {end - start}")
 
     if not compile_only:
-        #4: Shell out to /opt/mpich/bin/mpirun to run compiled slog binary with in and out args.
+        #4: Shell out to mpirun to run compiled slog binary with in and out args.
         if verbose:
             print("Running slog executable.")
         try:
+            mpirun_bin_path = f"{os.getenv('MPI_BIN_HOME', '/opt/mpich/bin')}/mpirun"
             start = time.time()
             if not debug_flag:
-                cmd = ["/opt/mpich/bin/mpirun", "-n", f"{cores}", backend_slog_bin,
+                cmd = [mpirun_bin_path, "-n", f"{cores}", backend_slog_bin,
                     slogc_path, inputloc, outloc]
                 print(cmd)
                 out = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
             else:
                 out = subprocess.check_output(
-                    ["/opt/mpich/bin/mpirun", "-n", f"{cores}", "valgrind", "--leak-check=yes", "--show-reachable=yes",
+                    [mpirun_bin_path, "-n", f"{cores}", "valgrind", "--leak-check=yes", "--show-reachable=yes",
                     backend_slog_bin, slogc_path, outloc, inputloc],
                     stderr=subprocess.STDOUT)
             end = time.time()
@@ -257,6 +258,35 @@ def run_local(file, out_path, factloc, cores, verbose, slog_root=None, compile_b
     #7: Open the repl if needed
     shutil.copy(os.path.join(inputloc, '$strings.csv'),
                 f'{outloc}/checkpoint-final/$strings.csv')
+    # copy unused input file into checkpoint
+    checkpointloc = f'{outloc}/checkpoint-final'
+    checkpointe_tables = {}
+    for tablefile in os.listdir(checkpointloc):
+        if not tablefile.endswith('.table'):
+            continue
+        without_ext = tablefile[:tablefile.rfind('.')]
+        tagendloc = without_ext.find('.')
+        aritystartloc = without_ext.rfind('.')
+        tag = without_ext[:tagendloc]
+        arity = int(without_ext[aritystartloc+1:])
+        relname = without_ext[tagendloc+1:aritystartloc]
+        checkpointe_tables[(relname, arity)] = (tag, tablefile)
+    current_max_tag = max([int(t[0]) for t in checkpointe_tables.values()])
+    input_table = {}
+    for tablefile in os.listdir(inputloc):
+        if not tablefile.endswith('.table'):
+            continue
+        without_ext = tablefile[:tablefile.rfind('.')]
+        tagendloc = without_ext.find('.')
+        aritystartloc = without_ext.rfind('.')
+        tag = without_ext[:tagendloc]
+        arity = int(without_ext[aritystartloc+1:])
+        relname = without_ext[tagendloc+1:aritystartloc]
+        if (relname, arity) not in checkpointe_tables and (not is_temp_rel_name(relname)):
+            # tag = current_max_tag
+            # current_max_tag = current_max_tag + 1
+            shutil.copyfile(f"{inputloc}/{tablefile}", f"{checkpointloc}/{tag}.{relname}.{arity}.table")
+        input_table[(relname, arity)] = (tag, tablefile)
     if repl_flag:
         repl = Repl(local_db_path=f'{outloc}/checkpoint-final')
         repl.loop()
