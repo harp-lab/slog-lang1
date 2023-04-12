@@ -23,15 +23,21 @@
 ; tick 
 ; (tick-empty [(nil) (nil) (nil)])
 ; (tick ?(do-tick [call0 call1 call2] call-site) [call-site call0 call1])
-; (tick-empty [(nil)])
-; (tick ?(do-tick [call0] call-site) [call-site])
-(tick-empty [])
-(tick ?(do-tick c call-site) [])
+(tick-empty [(nil)])
+(tick ?(do-tick [call0] call-site) [call-site])
+; (tick-empty [])
+; (tick ?(do-tick c call-site) [])
 
 ; atomic evaluation
 [(do-aeval (constant const) c)
  -->
     (aeval (constant const) c (constant const))]
+
+[(do-aeval (variable var) c)
+ --
+ (bypassed_variable var)
+ -->
+    (aeval (variable var) c (unknown))]
 
 [(do-aeval (variable var) c)
  --
@@ -572,6 +578,7 @@
 (normal-exit ?(source-exit _ _))
 (normal-exit ?(unreach _))
 [(stuck-state s) <-- (state s) (~ normal-exit s) (~ step-to s _)]
+[(stuck-instr s) <-- (stuck-state (eval s k c))]
 ; [(stuck-state-normal (unreach i)) <-- (state (eval [(unreach i)] _ _))]
 ; [(stuck-state-normal (ret-unknown i)) <-- (state (eval [(ret-unknown i)] _ _))]
 ; [(stuck-state-abnormal ) <-- (stuck-state (eval [i rst ...] _ _)) (~ )]
@@ -579,12 +586,3 @@
 ; check if all lifted instruction reached
 [(state-current-instr h) <-- (eval h _ _) ]
 [(uncovered-lifted-instr i il) <-- (lift i il) (~ state-current-instr il)] 
-
-
-; debug
-[(= s (eval (binary-op _ lhs op1 op2 rst) k c))
- --
- (~ aeval op1 c _)
-;  (aeval op2 c _)
- -->
-    (stuck-binary-op1 s)]

@@ -565,6 +565,7 @@ public:
         max_scc_id_counter = 0;
         // init tag map with file in input dir
         load_exist_relation_tag();
+        max_rel_tag_counter++;
     }
 
     void visit(std::shared_ptr<slogc_prog> node) override {

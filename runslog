@@ -282,8 +282,8 @@ def run_local(file, out_path, factloc, cores, verbose, slog_root=None, compile_b
         arity = int(without_ext[aritystartloc+1:])
         relname = without_ext[tagendloc+1:aritystartloc]
         if (relname, arity) not in checkpointe_tables and (not is_temp_rel_name(relname)):
-            tag = current_max_tag
-            current_max_tag = current_max_tag + 1
+            # tag = current_max_tag
+            # current_max_tag = current_max_tag + 1
             shutil.copyfile(f"{inputloc}/{tablefile}", f"{checkpointloc}/{tag}.{relname}.{arity}.table")
         input_table[(relname, arity)] = (tag, tablefile)
     if repl_flag:

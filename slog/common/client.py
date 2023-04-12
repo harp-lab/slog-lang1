@@ -433,28 +433,6 @@ class SlogClient:
         if tag in tuples_map.keys():
             return tuples_map
         tuples_map[tag] = []
-        if self.local_db_path:
-            # local mode
-            target_file = None
-            for table_file in os.listdir(self.local_db_path):
-                if not (table_file.endswith('.table') or table_file.endswith('.table_full')):
-                    continue 
-                if int(table_file.split('.')[0]) == tag:
-                    target_file = table_file
-                    break
-            arity = int(target_file.split('.')[-2])
-            with open(os.path.join(self.local_db_path, target_file), 'rb') as bin_file:
-                bin_bytes = bin_file.read()
-                u64_buf = []
-                for i in range(0, len(bin_bytes), 8):
-                    raw_u64 = int.from_bytes(bin_bytes[i:i+8], 'little', signed=False)
-                    u64_buf.append(raw_u64)
-                    if len(u64_buf) == arity + 1:
-                        tuples_map[tag].append(u64_buf[-1])
-                        for u64 in u64_buf[:-1]:
-                            tuples_map[tag].append(u64)
-                        u64_buf = []
-            return
         req = slog_pb2.RelationRequest()
         req.database_id = db_id
         req.tag = tag
@@ -486,12 +464,15 @@ class SlogClient:
         # there is no way to get what is possible nested relation, 
         # so have to parse whole database first
         tuples_map = {}
-        for rel in self.relations:
-            self._recusive_fetch_tuples(rel[2], tuples_map, self.cur_db)
+        if not self.local_db_path:
+            for rel in self.relations:
+                self._recusive_fetch_tuples(rel[2], tuples_map, self.cur_db)
         # tuples_map = self._dump_tuples(name, self.cur_db)
-        tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
+        tag_map = {r[2] : (r[0], r[1]) for r in self.relations}        
         tuple_parser = SlogTupleParaser(tuples_map, self.group_cardinality, self.unroll_depth,
                                         tag_map, self.intern_string_dict, name, rels[0][2])
+        if self.local_db_path:
+            tuple_parser.local_db_path = self.local_db_path
         slog_tuples = tuple_parser.parse_query_result(self.dump_limit)
         self.slog_tuple_parser = tuple_parser
         for pp_str in tuple_parser.pretty_str_tuples(rels):
