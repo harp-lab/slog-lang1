@@ -5,7 +5,6 @@ Kris Micinski
 Yihao Sun
 '''
 
-import cProfile
 import argparse
 import re
 import sys

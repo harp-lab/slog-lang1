@@ -559,6 +559,9 @@ parse_prog(slogc_tokenizer &tokenizer) {
 
 class lie_visitor : public slogc_visitor {
 
+private:
+    int rank;
+
 public:
     lie_visitor(LIE *lie, char *input_dir) : lie(lie), input_dir(input_dir) {
         max_rel_tag_counter = 256;
@@ -566,6 +569,7 @@ public:
         // init tag map with file in input dir
         load_exist_relation_tag();
         max_rel_tag_counter++;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     }
 
     void visit(std::shared_ptr<slogc_prog> node) override {
@@ -633,11 +637,21 @@ public:
             }
             tuple.push_back(d);
         }
+        #ifdef PROFILE
+        if (rank == 0) {
+            std::cout << " FACT " << node->rel_name;
+        }
+        #endif
         _current_scc->add_rule(new fact(
             rel_map[node->rel_name], tuple));
     }
 
     void visit(std::shared_ptr<slogc_ra_operation_acopy> node) override {
+        #ifdef PROFILE
+        if (rank == 0) {
+            std::cout << " acopy " << node->output_rel_name << " " << node->input_rel_name;
+        }
+        #endif
         _current_scc->add_rule(new parallel_acopy(
             rel_map[node->output_rel_name],
             rel_map[node->input_rel_name],
@@ -646,6 +660,11 @@ public:
     }
 
     void visit(std::shared_ptr<slogc_ra_operation_copy> node) override {
+        #ifdef PROFILE
+        if (rank == 0) {
+            std::cout << " copy " << node->output_rel_name << " " << node->input_rel_name;
+        }
+        #endif
         _current_scc->add_rule(new parallel_copy(
             rel_map[node->output_rel_name],
             rel_map[node->input_rel_name],
@@ -654,6 +673,13 @@ public:
     }
 
     void visit(std::shared_ptr<slogc_ra_operation_join> node) override {
+        #ifdef PROFILE
+        if (rank == 0) {
+            std::cout << " join " << node->output_rel_name << " "
+                    << node->input1_rel_name << " "
+                    << node->input2_rel_name;
+        }
+        #endif
         _current_scc->add_rule(new parallel_join(
             rel_map[node->output_rel_name],
             rel_map[node->input1_rel_name],
@@ -665,7 +691,12 @@ public:
 
     void visit(std::shared_ptr<slogc_ra_operation_copy_generate> node) override {
         auto func = node->extern_func;
-
+        #ifdef PROFILE
+        if (rank == 0) {
+            std::cout << " copy_generate " << node->output_rel_name << " "
+                    << node->input_rel_name;
+        }
+        #endif
         _current_scc->add_rule(new parallel_copy_generate(
             rel_map[node->output_rel_name],
             rel_map[node->input_rel_name],
@@ -676,14 +707,13 @@ public:
     // void visit(std::shared_ptr<slogc_ra_external_function> node) override {}
 
     void visit(std::shared_ptr<slogc_ra_operation_aggregation> node) override {
-        std::cout << node->output_rel_name << " , "
-                  << node->input1_rel_name << " , "
-                  << node->input2_rel_name << " , "
-                  << node->local_func_name << " , "
-                  << node->reduce_func_name << " , ";
-        for (auto c: node->reorder_mapping) {
-            std::cout << c << " ";
+        #ifdef PROFILE
+        if (rank == 0) {
+        std::cout << " aggregate " << node->output_rel_name << " "
+                  << node->input1_rel_name << " "
+                  << node->input2_rel_name << " ";
         }
+        #endif
         std::cout << std::endl;
         _current_scc->add_rule(new parallel_join_aggregate(
             rel_map[node->output_rel_name],
@@ -698,6 +728,13 @@ public:
     }
 
     void visit(std::shared_ptr<slogc_ra_operation_negation> node) override {
+        #ifdef PROFILE
+        if (rank == 0) {
+            std::cout << " negate " << node->output_rel_name << " "
+                    << node->src_rel_name << " "
+                    << node->target_rel_name << " ";
+        }
+        #endif
         _current_scc->add_rule(new parallel_join_negate(
             rel_map[node->output_rel_name],
             rel_map[node->src_rel_name],
@@ -715,9 +752,20 @@ public:
         }
 
         auto _this_visitor = this;
-
+        int ra_count = 0;
         for (auto ra : node->ra_operations) {
+            #ifdef PROFILE
+            if (rank == 0) {
+                std::cout << ra_count << " >>>>>>>>>> ";
+            }
+            #endif
             std::visit(dynamic_dispatch{[_this_visitor](auto ra_v) { _this_visitor->visit(ra_v); }}, ra);
+            #ifdef PROFILE
+            if (rank == 0) {
+                std::cout << std::endl;
+            }
+            #endif
+            ra_count ++;
         }
 
         lie->add_scc(new_scc);
@@ -804,7 +852,7 @@ int main(int argc, char *argv[]) {
     lie->enable_IO();
     lie->set_output_dir(output_dir); // Write to this directory
     lie->set_comm(mcomm);
-    lie->set_batch_size(1);
+    lie->set_batch_size(10);
 
     auto before_time = MPI_Wtime();
     lie->execute();

@@ -218,7 +218,7 @@ def run_local(file, out_path, factloc, cores, verbose, slog_root=None, compile_b
         try:
             start = time.time()
             if not debug_flag:
-                cmd = ["mpirun", "-n", f"{cores}", backend_slog_bin,
+                cmd = ["/opt/mpich/bin/mpirun", "-n", f"{cores}", backend_slog_bin,
                     slogc_path, inputloc, outloc]
                 print(cmd)
                 out = subprocess.check_output(cmd, stderr=subprocess.STDOUT)

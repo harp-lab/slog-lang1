@@ -6,6 +6,13 @@ add_compile_options(--std=c++17 -lstdc++fs -Wno-strict-aliasing -Werror=class-me
 
 find_package(MPI REQUIRED)
 
+
+option(PROFILE "Adding Profiling to each RA operation on rank 0" ON)
+
+if(PROFILE)
+  add_definitions(-DPROFILE)
+endif()
+
 # find_package(OpenMP)
 # if (OPENMP_FOUND)
 # set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")

@@ -308,9 +308,12 @@ bool LIE::execute ()
             while (delta_in_scc != 0);
         }
 
-        if (mcomm.get_rank() == 0)
+        if (mcomm.get_rank() == 0) {
             std::cout << "<<<<<<<<<<< SCC " << executable_task->get_id() << " finish, " << loop_counter << " iteration in total." << std::endl;
-
+            #ifdef PROFILE
+            executable_task->print_ra_runtime_detail();            
+            #endif
+        }
         executable_task->insert_delta_in_full();
 
         /// marks executable_task as finished

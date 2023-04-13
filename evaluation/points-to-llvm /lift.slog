@@ -97,7 +97,7 @@
  (switch_instr_case_label i n l)
     -->
     (lift-switch-helper i {+ n 1} [(case const l) rst ...])]
-[(lift ?(do-lift i rst) (switch {lift-operand v} cases default-l rst))
+[(lift ?(do-lift i rst) (switch {lift-operand v} cases default-l i rst))
     <--
     (switch_instr_operand i v)
     (switch_instr_ncases i n)
@@ -364,40 +364,41 @@
  (call_instr_arg i current-idx arg)
     -->
     (lift-call-args-helper i current-idx [{lift-operand arg} rst ...])]
+[(call-args-op i current-idx {lift-operand arg}) <-- (call_instr_arg i current-idx arg)]
 
-[(lift ?(do-lift i rst) (call "void" {lift-operand fptr} {lift-call-args-helper i 0} rst))
+[(lift ?(do-lift i rst) (call "void" {lift-operand fptr} {lift-call-args-helper i 0} i rst))
     <--
     (internal-fconst fptr)
     --
     (call_instr_func_operand i fptr)
     (~ instr_assigns_to i _)]
-[(lift ?(do-lift i rst) (call lhs {lift-operand fptr} {lift-call-args-helper i 0} rst))
+[(lift ?(do-lift i rst) (call lhs {lift-operand fptr} {lift-call-args-helper i 0} i rst))
     <--
     (internal-fconst fptr)
     --
     (call_instr_func_operand i fptr)
     (instr_assigns_to i lhs)]
 
-[(lift ?(do-lift i rst) (call-external "void" {lift-operand fptr} {lift-call-args-helper i 0} rst))
+[(lift ?(do-lift i rst) (call-external "void" {lift-operand fptr} {lift-call-args-helper i 0} i rst))
     <--
     (external-fconst fptr)
     --
     (call_instr_func_operand i fptr)
     (~ instr_assigns_to i _)]
-[(lift ?(do-lift i rst) (call-external lhs {lift-operand fptr} {lift-call-args-helper i 0} rst))
+[(lift ?(do-lift i rst) (call-external lhs {lift-operand fptr} {lift-call-args-helper i 0} i rst))
     <--
     (external-fconst fptr)
     --
     (call_instr_func_operand i fptr)
     (instr_assigns_to i lhs)]
 
-[(lift ?(do-lift i rst) (call-indirect "void" {lift-operand fptr} {lift-call-args-helper i 0} rst))
+[(lift ?(do-lift i rst) (call-indirect "void" {lift-operand fptr} {lift-call-args-helper i 0} i rst))
     <--
     (indirect-fop fptr)
     --
     (call_instr_func_operand i fptr)
     (~ instr_assigns_to i _)]
-[(lift ?(do-lift i rst) (call-indirect lhs {lift-operand fptr} {lift-call-args-helper i 0} rst))
+[(lift ?(do-lift i rst) (call-indirect lhs {lift-operand fptr} {lift-call-args-helper i 0} i rst))
     <--
     (indirect-fop fptr)
     --

@@ -1,5 +1,6 @@
 #include "../parallel_RA_inc.h"
 #include <iostream>
+#include <mpi.h>
 
 
 bool RAM::local_compute(int* offset)
@@ -13,6 +14,10 @@ bool RAM::local_compute(int* offset)
 
     for (std::vector<parallel_RA*>::iterator it = RA_list.begin() ; it != RA_list.end(); ++it)
     {
+        #ifdef PROFILE 
+        double before_time = MPI_Wtime();
+        
+        #endif
         if ((*it)->get_RA_type() == COPY)
         {
             parallel_copy* current_ra = (parallel_copy*) *it;
@@ -287,6 +292,12 @@ bool RAM::local_compute(int* offset)
             }
             total_join_tuples = total_join_tuples + join_tuples;
         }
+        #ifdef PROFILE 
+
+        double after_time = MPI_Wtime();
+        ra_op_detail[counter] += after_time - before_time;
+        
+        #endif
         counter++;
     }
 
@@ -304,7 +315,17 @@ bool RAM::local_compute(int* offset)
     if (join_completed == true)
         synchronizer = 1;
 
+    #ifdef PROFILE
+    auto before_sync = MPI_Wtime();
+    #endif
+
     MPI_Allreduce(&synchronizer, &global_synchronizer, 1, MPI_INT, MPI_BAND, mcomm.get_comm());
+    #ifdef PROFILE
+    auto after_sync = MPI_Wtime();
+    runtime_detail[5] += after_sync - before_sync;
+    if (mcomm.get_rank() == 0)
+        std::cout << " (sync " << after_sync - before_sync << ")";
+    #endif
     if (global_synchronizer == 1)
     {
         counter = 0;

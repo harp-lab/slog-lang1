@@ -81,9 +81,16 @@ void RAM::fixed_point_loop(std::string name, int batch_size, std::vector<u32>& h
             break;
     }
     if (mcomm.get_rank() == 0) {
+        #ifdef PROFILE
+        runtime_detail[0] += local_join_time;
+        runtime_detail[1] += comm_time;
+        runtime_detail[2] += newt_insert_time;
+        runtime_detail[3] += full_insert_time;
+        runtime_detail[4] += intra_time;
         std::cout << " >> Join: " << local_join_time << " , Comm: " << comm_time << " , Newt: " << newt_insert_time
                   << " , Full: " << full_insert_time << " , Intra: " << intra_time
                   <<" (" << intra_detail[0] << "," << intra_detail[1] << "," << intra_detail[2] << ")";
+        #endif
     }
     delete[] offset;
 
