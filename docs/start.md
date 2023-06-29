@@ -10,6 +10,8 @@ that are
 3. Designed from the ground-up to automatically balance their workload across available
 threads, using MPI to address the available data-parallelism directly. 
 
+The Slog language project is led by [The HARP lab](https://github.com/harp-lab) which is led by Dr. Thomas Gilray & Dr. Sidharth Kumar @ The University of Alabama at Birmingham and Dr. Kristopher Micinski @ Syracruse University. We have written a paper introducing our motivations for Slog to the world [here](https://arxiv.org/abs/2211.11573)
+
 ## Slog's Design Philosophy
 1. <strong>First-Class Facts</strong>: Slog extends Datalog by allowing structurally recursive, first-class facts. This minor semantic change enables both enhanced expressivity and anticipates compilation to parallel relational algebra.
 
@@ -19,3 +21,8 @@ threads, using MPI to address the available data-parallelism directly.
 
 4. <strong>Expressiveness</strong>: Slog's domain-specific language extensions support the tool designer to structure projects effectively and give sufficient expressiveness to the users.
 
+## Applications of Slog
+Slog's approach to data-parallel structured deduction makes it an ideal language for complex data analysis, logic programming, static analysis and much more. 
+
+## Getting started
+- Link install .md here
