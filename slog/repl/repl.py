@@ -69,10 +69,10 @@ HELP_RUNSLOG = '''
 
 CMD = ['help', 'run', 'connect', 'dump', 'showdb', 'relations',
        'load', 'compile', 'tag', 'switch', 'fact-depth',
-       'fact-cardi', 'clear', 'fresh']
+       'fact-cardi', 'clear', 'fresh', 'find']
 
 # in run slog CLI, you can only do fact dumping, we need better pagenation
-CMD_RUNSLOG = ['help',  'dump', 'relations']
+CMD_RUNSLOG = ['help',  'dump', 'relations', 'find']
 
 kb = KeyBindings()
 
@@ -84,9 +84,20 @@ def _(event):
 def _(event):
     event.current_buffer.validate_and_handle()
 
+class colors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
 def invalid_alert(message):
     """ print alert for command exectution """
-    print(f"Invalid command: {message}")
+    print(f"{colors.FAIL}Invalid command: {colors.ENDC}{message}")
 
 def prompt_continuation(width, line_number, is_soft_wrap):
     return '.' * width
@@ -103,7 +114,7 @@ def exec_command(client: SlogClient, raw_input: str):
     # check if it a query
     if (raw_input.startswith('(') and raw_input.endswith(')')) or \
        (raw_input.startswith('[') and raw_input.endswith(']')):
-        client.slog_add_rule(raw_input, client.cur_db, ConsoleWriter())
+        client.slog_add_rule(raw_input[1:], client.cur_db, ConsoleWriter())
         return
     if raw_input.startswith('?(') and raw_input.endswith(')'):
         client.pretty_print_slog_query(raw_input, ConsoleWriter())
@@ -154,6 +165,15 @@ def exec_command(client: SlogClient, raw_input: str):
                 invalid_alert(f'{cmd} expect a string at postion 2 as arg')
         else:
             invalid_alert(f'{cmd} expect 1/2 arg, but get {len(args)}')
+    elif cmd == 'find':
+        if len(args) == 0:
+            invalid_alert(f'{cmd} expects a string at position 1 as arg')
+        elif args[0].startswith('"') and args[0].endswith('"'):
+            print(args[0][1:-1])
+            client.find(args[0][1:-1], ConsoleWriter())
+        else:
+            client.find(" ".join(args))
+            # invalid_alert(f'{cmd} ran into some random error')
     elif cmd == 'fact-depth':
         if len(args) == 1 and args[0].isnumeric():
             client.unroll_depth = int(args[0])
