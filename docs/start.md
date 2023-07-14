@@ -25,4 +25,6 @@ The Slog language project is led by [The HARP lab](https://github.com/harp-lab) 
 Slog's approach to data-parallel structured deduction makes it an ideal language for complex data analysis, logic programming, static analysis and much more. 
 
 ## Getting started
-- Link install .md here
+* [Install Slog](install.md)
+* [Your first program](first.md)
+* [Run Slog](run.md)

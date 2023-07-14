@@ -65,6 +65,7 @@ HELP_RUNSLOG = '''
     help                print help info
     dump <rel>          dump all facts inside a relation
     relations           print all relation meta info in current database
+    find                find facts containing a specific piece of text
 '''
 
 CMD = ['help', 'run', 'connect', 'dump', 'showdb', 'relations',

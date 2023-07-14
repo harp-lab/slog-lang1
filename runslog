@@ -270,11 +270,12 @@ def run_local(file, out_path, factloc, cores, verbose, slog_root=None, compile_b
             print("Output dir exists, overwrite it? (temporary result under `$SLOG_HOME/out`)")
             while True:
                 confirm_flag = input("(Y/n): ")
-                if confirm_flag.strip() == 'Y':
+                confirm_flag = confirm_flag.strip() # not quite sure why we are stripping here tbh
+                if confirm_flag in ["y", "Y"]:
                     shutil.rmtree(out_path)
                     shutil.copytree(outloc, out_path)
                     break
-                elif confirm_flag.strip() == 'n':
+                elif confirm_flag == 'n':
                     break
     #7: Open the repl if needed
     shutil.copy(os.path.join(inputloc, '$strings.csv'),
