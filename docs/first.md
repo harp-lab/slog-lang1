@@ -1,6 +1,6 @@
 # Your first program
 
-If you are familiar with Datalog languages and already know Souffle, you can get a quick start [here](compare.md)
+If you are familiar with Datalog languages and already know Souffle, you may find the comparison between Souffle and Slog to be more userful [here](compare.md)
 Otherwise, we will walk you through the building blocks of a slog program. 
 
 ## Facts
@@ -20,3 +20,12 @@ Facts can also hold strings such as
 ```bash
 (foo "string" "another string")
 ```
+## Rules
+In slog, you do not need to define a rule prior to using it; The compiler automatically does it for you. Slog also allows rules with the same name to be defined multiple times in-order to get polyvariants of a rule. 
+Take the following rule for example:
+```bash
+[(foo x) 
+  <-- 
+ (bar x)]
+```
+This rule contains a `head and body clause`. The 

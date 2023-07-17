@@ -669,4 +669,4 @@ class SlogClient:
         #                            tag_map, self.tuple_printed_id_map)
         pp_str = self.slog_tuple_parser.pretty_str_printed_id(printed_id)
         writer.write(pp_str)
-        return self.slog_tuple_parser.printed_id_map[printed_id]
+        return self.slog_tuple_parser.printed_id_map[printed_id]    

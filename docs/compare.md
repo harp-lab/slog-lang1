@@ -104,7 +104,7 @@ But it must be pointed out that slog is a language focused on parallel performan
     (cond1 a 1)]
 ```
 
-Slog using `openmpi` as backend for paralyzation, in current implementation, only *all-to-all* communication is used between each process(also called `rank` in MPI). This means, when a join happens, all tuples in one of the relations will be broadcast to an all2all buffer which can be read by every rank.
+Slog using `openmpi` as backend for parallelization, in current implementation, only *all-to-all* communication is used between each process(also called `rank` in MPI). This means, when a join happens, all tuples in one of the relations will be broadcast to an all2all buffer which can be read by every rank.
 
 
 ### Indices
