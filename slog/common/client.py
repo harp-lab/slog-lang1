@@ -324,10 +324,11 @@ class SlogClient:
                     if s_line.strip() == '':
                         continue
                     sv = s_line.split('\t')[1]
-                    if string_hash(sv.strip()) in self.intern_string_dict.keys():
-                        if sv.strip() != self.intern_string_dict[string_hash(sv.strip())]:
-                            print(f"Hash collision {sv.strip()} {self.intern_string_dict[string_hash(sv.strip())]}")
-                    self.intern_string_dict[string_hash(sv.strip())] = sv.strip()
+                    sw_without_quote = f'"{sv.strip()}"'
+                    if string_hash(sw_without_quote) in self.intern_string_dict.keys():
+                        if sv.strip() != self.intern_string_dict[string_hash(sw_without_quote)]:
+                            print(f"Hash collision {sv.strip()} {self.intern_string_dict[string_hash(sw_without_quote)]}")
+                    self.intern_string_dict[string_hash(sw_without_quote)] = sw_without_quote
             return
         req = slog_pb2.StringRequest()
         req.database_id = db_id

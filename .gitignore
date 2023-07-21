@@ -25,6 +25,7 @@ temp-out/
 test-input
 souffle-out
 compiler/test/
+nonsense/
 
 # evaluation
 *.scm
