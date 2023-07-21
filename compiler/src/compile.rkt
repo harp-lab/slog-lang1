@@ -576,7 +576,7 @@
 
 (define (literal->backend-input-val lit)
   (match lit
-    [(? string?) `(str ,lit)]
+    [(? string?) `(str ,(format "\"~a\"" lit))]
     [else `(num ,lit)]))
 
 (define (compute-reordering-cpp to-xs from-xs)
@@ -751,7 +751,7 @@
             (define arg-pos-in-bvars1 (index-of requested-indices (list-ref available-indices i)))
             (define arg (list-ref bvars1 arg-pos-in-bvars1))
             (match arg
-              [(? string?) `(str ,arg)]
+              [(? string?) `(str ,(format "\"~a\"" arg))]
               [(? number?) `(num ,arg)]
               [else 
                (define arg-pos-in-bvars0 (index-of bvars0 arg))
@@ -1090,4 +1090,4 @@
 (define (lit->backend-input-datum lit)
   (match lit
     [(? number?) `(num ,lit)]
-    [(? string?) `(str ,lit)]))
+    [(? string?) `(str ,(format "\"~a\"" lit))]))
