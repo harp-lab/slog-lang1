@@ -216,15 +216,16 @@ def run_local(file, out_path, factloc, cores, verbose, slog_root=None, compile_b
         if verbose:
             print("Running slog executable.")
         try:
+            mpirun_bin_path = f"{os.getenv('MPI_BIN_HOME', '/opt/mpich/bin')}/mpirun"
             start = time.time()
             if not debug_flag:
-                cmd = ["/opt/mpich/bin/mpirun", "-n", f"{cores}", backend_slog_bin,
+                cmd = [mpirun_bin_path, "-n", f"{cores}", backend_slog_bin,
                     slogc_path, inputloc, outloc]
                 print(cmd)
                 out = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
             else:
                 out = subprocess.check_output(
-                    ["mpirun", "-n", f"{cores}", "valgrind", "--leak-check=yes", "--show-reachable=yes",
+                    [mpirun_bin_path, "-n", f"{cores}", "valgrind", "--leak-check=yes", "--show-reachable=yes",
                     backend_slog_bin, slogc_path, outloc, inputloc],
                     stderr=subprocess.STDOUT)
             end = time.time()
