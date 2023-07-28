@@ -2,20 +2,18 @@
 
 """
 Runs a slog file on server or locally.
-USAGE: `./runslog -s <server-address IP> <slogfile> <out-dir> -f <factdir>`
-        `./runslog -j4 -s <server-address IP> <slogfile> <out-dir> -f onerel.facts`
-        ./runslog <slogfile> <out-dir> --cores=8
+USAGE: `./runslog -s <server-address IP> -i <slogfile> -o <out-dir> -f <factdir>`
+       `./runslog -j4 -s <server-address IP> -i <slogfile> -o <out-dir> -f onerel.facts`
+       `./runslog -i <slogfile> -o <out-dir> --cores=8`
        `./runslog --help`
+       `./runslog -e <out-dir>
+
 fact directory is optional.
 However, the output will be stored on the server, and `dumpslog` needs to be used
 to get the output... dumpslog does not exist at the moment.
 """
 
-import argparse
-import os
-import shutil
-import subprocess
-import time
+import argparse, os, shutil, subprocess, time, sys
 
 from yaspin import yaspin
 
@@ -149,9 +147,10 @@ def run_local(file, out_path, factloc, cores, verbose, slog_root=None, compile_b
     backend_dir = os.path.join(slog_root, "backend")
     backend_build_dir = os.path.join(backend_dir, "build")
     tsv_bin_path = os.path.join(backend_build_dir, "tsv_to_bin")
-    # make inputs absolute paths, so we can chdir more carelessly
+    # make inputs absolute pathdums, so we can chdir more carelessly
     file = os.path.realpath(file)
     outloc = os.path.realpath("out")
+    # outloc = out_path
     factloc = os.path.realpath(factloc) if factloc else None
     inputloc = os.path.join(outloc, "input-data")
     checkpointloc = os.path.join(outloc, "checkpoints")
@@ -270,11 +269,12 @@ def run_local(file, out_path, factloc, cores, verbose, slog_root=None, compile_b
             print("Output dir exists, overwrite it? (temporary result under `$SLOG_HOME/out`)")
             while True:
                 confirm_flag = input("(Y/n): ")
-                if confirm_flag.strip() == 'Y':
+                confirm_flag = confirm_flag.strip()
+                if confirm_flag in ["y", "Y"]:
                     shutil.rmtree(out_path)
                     shutil.copytree(outloc, out_path)
                     break
-                elif confirm_flag.strip() == 'n':
+                else:
                     break
     #7: Open the repl if needed
     shutil.copy(os.path.join(inputloc, '$strings.csv'),
@@ -315,10 +315,30 @@ def run_server(file, outloc, factloc, server, cores, verbose):
         spinner.write(f"Final DB:\n{cur_db}")
         spinner.text = "FINISHED!"
 
+def enterrepl(base_folder):
+    source_file = os.path.join(base_folder, "input-data", "$strings.csv")
+    destination_folder = os.path.join(base_folder, "checkpoints", "checkpoint-final")
+    destination_file = os.path.join(destination_folder, "$strings.csv")
+    os.makedirs(destination_folder, exist_ok=True)
+
+    if os.path.exists(source_file):
+        shutil.copy(source_file, destination_file)
+    else:
+        open(destination_file, 'a').close()
+    
+    base_folder = base_folder + "/checkpoints/checkpoint-final/"
+    repl = Repl(local_db_path=base_folder)
+
+    try:
+        while True:
+            repl.loop()
+    except KeyboardInterrupt:
+        repl.exit()
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("slogfile", help="The file to be compiled and ran.")
-    parser.add_argument("out_dir",
+    parser.add_argument('-i', "--slogfile", help="The file to be compiled and ran.")
+    parser.add_argument('-o', "--out_dir",
                         help="Where output information should be put. "
                         "This includes compiled files, build files, input data, and output data."
                         "FOR NOW THIS MUST BE A DIR NEXT TO THIS SCRIPT!!")
@@ -344,10 +364,17 @@ if __name__ == '__main__':
                         help="compile only without running it")
     parser.add_argument('-ov', "--overwrite_out", action="store_true",
                         help="overwrite, if output dir already exists.")
+    parser.add_argument('-e', "--enterrepl",
+                        help="enter the REPL on an already existing slog out directory.")
     args = parser.parse_args()
 
-    slogfile = os.path.realpath(args.slogfile)
-    os.makedirs(args.out_dir, exist_ok=True)
+    if args.enterrepl:
+        enterrepl(args.enterrepl)
+        
+    if args.out_dir and args.slogfile:
+        slogfile = os.path.realpath(args.slogfile)
+        os.makedirs(args.out_dir, exist_ok=True)
+
     if args.server:
         run_server(slogfile, args.out_dir, args.facts, args.server + ":5108", args.verbose,
                    args.cores)
