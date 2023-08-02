@@ -4,7 +4,7 @@
 Runs a slog file on server or locally.
 USAGE: `./runslog -s <server-address IP> <slogfile> <out-dir> -f <factdir>`
        `./runslog -j4 -s <server-address IP> <slogfile> <out-dir> -f onerel.facts`
-       `./runslog -i <slogfile> -o <out-dir> --cores=8`
+       `./runslog <slogfile> <out-dir> --cores=8`
        `./runslog --help`
        `./runslog -e <out-dir>
 
