@@ -2,8 +2,8 @@
 
 """
 Runs a slog file on server or locally.
-USAGE: `./runslog -s <server-address IP> -i <slogfile> -o <out-dir> -f <factdir>`
-       `./runslog -j4 -s <server-address IP> -i <slogfile> -o <out-dir> -f onerel.facts`
+USAGE: `./runslog -s <server-address IP> <slogfile> <out-dir> -f <factdir>`
+       `./runslog -j4 -s <server-address IP> <slogfile> <out-dir> -f onerel.facts`
        `./runslog -i <slogfile> -o <out-dir> --cores=8`
        `./runslog --help`
        `./runslog -e <out-dir>
@@ -337,8 +337,8 @@ def enterrepl(base_folder):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-i', "--slogfile", help="The file to be compiled and ran.")
-    parser.add_argument('-o', "--out_dir",
+    parser.add_argument("slogfile", nargs='?', help="The file to be compiled and ran.")
+    parser.add_argument("out_dir", nargs='?',
                         help="Where output information should be put. "
                         "This includes compiled files, build files, input data, and output data."
                         "FOR NOW THIS MUST BE A DIR NEXT TO THIS SCRIPT!!")
@@ -375,12 +375,14 @@ if __name__ == '__main__':
         slogfile = os.path.realpath(args.slogfile)
         os.makedirs(args.out_dir, exist_ok=True)
 
-    if args.server:
-        run_server(slogfile, args.out_dir, args.facts, args.server + ":5108", args.verbose,
-                   args.cores)
+        if args.server:
+            run_server(slogfile, args.out_dir, args.facts, args.server + ":5108", args.verbose,
+                    args.cores)
+        else:
+            run_local(slogfile, args.out_dir, args.facts, args.cores, args.verbose, args.root,
+                    compile_backend=args.compile_backend, debug_flag=args.debug,
+                    profile_flag=args.profile, repl_flag=args.repl,
+                    compile_only=args.compile_only,
+                    overwrite_out=args.overwrite_out)
     else:
-        run_local(slogfile, args.out_dir, args.facts, args.cores, args.verbose, args.root,
-                  compile_backend=args.compile_backend, debug_flag=args.debug,
-                  profile_flag=args.profile, repl_flag=args.repl,
-                  compile_only=args.compile_only,
-                  overwrite_out=args.overwrite_out)
+        parser.print_help()
