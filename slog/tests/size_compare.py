@@ -33,7 +33,7 @@ class SizeCompareTest(Test):
         try:
             exec_out = subprocess.check_output(
                 [RUNSLOG_PATH, "-ov", "-v", "-j", str(self.cores),
-                "-f", factpath, " -i ", slogpath, " -o ", out_dir],
+                "-f", factpath, "-i", slogpath, "-o", out_dir],
                  stderr=subprocess.STDOUT)
             print(exec_out.decode())
         except subprocess.CalledProcessError as e:
