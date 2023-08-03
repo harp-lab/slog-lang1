@@ -286,10 +286,10 @@ class Repl:
         else:
             return HTML('Disconnected. Use `connect <host>`')
 
-    def exit(self):
-        """ exit REPL """
-        print('See you again')
-        sys.exit(0)
+    # def exit(self):
+    #     """ exit REPL """
+    #     print('See you again')
+    #     sys.exit(0)
 
     def loop(self):
         """  REPL main entrance """
@@ -318,7 +318,7 @@ class Repl:
                     completer_map['load'] = StringPathCompeleter()
                     completer_map['compile'] = StringPathCompeleter()
                     completer_map['switch'] = FuzzyWordCompleter(possible_db_hash + possible_db_tag)
-                    completer_map['exit'] = repl.exit()
+                    # completer_map['exit'] = repl.exit()
                     relname_par_completer = WordCompleter([f"({n}" for n in relation_names])
                     for rname in relation_names:
                         completer_map[f'?({rname}'] = relname_par_completer
