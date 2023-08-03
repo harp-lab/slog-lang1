@@ -286,8 +286,10 @@ def run_local(file, out_path, factloc, cores, verbose, slog_root=None, compile_b
         brouhaha_dump(args.out_dir)
                 
     if repl_flag:
-        repl = Repl(local_db_path=f'{checkpointloc}/checkpoint-final')
-        repl.loop()
+        base_folder = f'{checkpointloc}/checkpoint-final'
+        repl = Repl(local_db_path=base_folder)
+        # repl.loop()
+        repl.brouhaha_dump_fact(base_folder)
 
 def run_server(file, outloc, factloc, server, cores, verbose):
     """
@@ -395,7 +397,7 @@ if __name__ == '__main__':
     parser.add_argument('-e', "--enterrepl",
                         help="enter the REPL on an already existing slog out directory.")
     parser.add_argument('-b', "--brouhaha",
-                        help="Outputs facts into a txt file in the slog out dir")
+                        help="asdas")
     args = parser.parse_args()
 
     if args.enterrepl:
