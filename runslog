@@ -4,7 +4,7 @@
 Runs a slog file on server or locally.
 USAGE: `./runslog -s <server-address IP> <slogfile> <out-dir> -f <factdir>`
        `./runslog -j4 -s <server-address IP> <slogfile> <out-dir> -f onerel.facts`
-       `./runslog <slogfile> <out-dir> --cores=8`
+       `./runslog -i <slogfile> -o <out-dir> --cores=8`
        `./runslog --help`
        `./runslog -e <out-dir>
 
@@ -18,7 +18,9 @@ import argparse, os, shutil, subprocess, time, sys
 from yaspin import yaspin
 
 from slog.common.client import SlogClient
+from slog.common.client import ConsoleWriter
 from slog.repl.repl import Repl
+from prompt_toolkit.completion import NestedCompleter, FuzzyWordCompleter, WordCompleter
 
 def ingest_facts(factloc, inputloc, tsv_bin_path, cores):
     # -- go through every .table file in the input data
@@ -126,7 +128,7 @@ def ensure_backend_built(compile_backend, tsv_bin_path, backend_build_dir, backe
 
 def run_local(file, out_path, factloc, cores, verbose, slog_root=None, compile_backend=False,
               debug_flag=False, profile_flag=False, repl_flag=False, compile_only=False,
-              overwrite_out=False):
+              overwrite_out=False, brouhaha_flag=False):
     """
     Calls local utilities to compile and run a slog file locally.
     slog_root is the location of the slog repository.
@@ -279,6 +281,10 @@ def run_local(file, out_path, factloc, cores, verbose, slog_root=None, compile_b
     #7: Open the repl if needed
     shutil.copy(os.path.join(inputloc, '$strings.csv'),
                 f'{checkpointloc}/checkpoint-final/$strings.csv')
+    
+    if brouhaha_flag:
+        brouhaha_dump(args.out_dir)
+                
     if repl_flag:
         repl = Repl(local_db_path=f'{checkpointloc}/checkpoint-final')
         repl.loop()
@@ -315,6 +321,27 @@ def run_server(file, outloc, factloc, server, cores, verbose):
         spinner.write(f"Final DB:\n{cur_db}")
         spinner.text = "FINISHED!"
 
+def brouhaha_dump(base_folder):
+    source_file = os.path.join(base_folder, "input-data", "$strings.csv")
+    destination_folder = os.path.join(base_folder, "checkpoints", "checkpoint-final")
+    destination_file = os.path.join(destination_folder, "$strings.csv")
+    os.makedirs(destination_folder, exist_ok=True)
+
+    if os.path.exists(source_file):
+        shutil.copy(source_file, destination_file)
+    else:
+        open(destination_file, 'a').close()
+    
+    base_folder = base_folder + "/checkpoints/checkpoint-final/"
+    repl = Repl(local_db_path=base_folder)
+    repl.brouhaha_dump_fact(base_folder)
+    # try:
+    #     while True:
+    #         repl.loop()
+    # except KeyboardInterrupt:
+    #     repl.exit()
+    # return
+
 def enterrepl(base_folder):
     source_file = os.path.join(base_folder, "input-data", "$strings.csv")
     destination_folder = os.path.join(base_folder, "checkpoints", "checkpoint-final")
@@ -329,11 +356,12 @@ def enterrepl(base_folder):
     base_folder = base_folder + "/checkpoints/checkpoint-final/"
     repl = Repl(local_db_path=base_folder)
 
-    try:
-        while True:
-            repl.loop()
-    except KeyboardInterrupt:
-        repl.exit()
+    # try:
+    #     while True:
+    #         repl.loop()
+    # except KeyboardInterrupt:
+    #     repl.exit()
+    # return
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -366,6 +394,8 @@ if __name__ == '__main__':
                         help="overwrite, if output dir already exists.")
     parser.add_argument('-e', "--enterrepl",
                         help="enter the REPL on an already existing slog out directory.")
+    parser.add_argument('-b', "--brouhaha",
+                        help="Outputs facts into a txt file in the slog out dir")
     args = parser.parse_args()
 
     if args.enterrepl:
@@ -383,6 +413,6 @@ if __name__ == '__main__':
                     compile_backend=args.compile_backend, debug_flag=args.debug,
                     profile_flag=args.profile, repl_flag=args.repl,
                     compile_only=args.compile_only,
-                    overwrite_out=args.overwrite_out)
-    else:
-        parser.print_help()
+                    overwrite_out=args.overwrite_out, brouhaha_flag=args.brouhaha)
+    # else:
+    #     parser.print_help()

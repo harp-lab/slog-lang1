@@ -291,6 +291,14 @@ class Repl:
     #     print('See you again')
     #     sys.exit(0)
 
+    def brouhaha_dump_fact(self, base_dir):
+        relation_names = [r[0] for r in self.client.relations if not r[0].startswith('$')]
+        with open(f"{base_dir}/facts.txt", 'w') as outFile:
+            for x in relation_names:
+                temp = self.client.dump_relation_by_name(x, ConsoleWriter())
+                outFile.write('\n'.join(temp)) 
+        repl.exit()
+                
     def loop(self):
         """  REPL main entrance """
         while True:
@@ -298,7 +306,7 @@ class Repl:
                 front = self.get_front()
                 # ignore internal relation in autocomplete
                 relation_names = [r[0] for r in self.client.relations if not r[0].startswith('$')]
-                # completer = WordCompleter(relation_names)
+                completer = WordCompleter(relation_names)
                 if not self.local_db_path:
                     self.client.update_dbs()
                 completer_map = {cmd: None for cmd in CMD}
