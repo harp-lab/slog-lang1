@@ -289,7 +289,7 @@ def run_local(file, out_path, factloc, cores, verbose, slog_root=None, compile_b
         base_folder = f'{checkpointloc}/checkpoint-final'
         repl = Repl(local_db_path=base_folder)
         # repl.loop()
-        repl.brouhaha_dump_fact(base_folder)
+        repl.brouhaha_dump_fact(outloc)
 
 def run_server(file, outloc, factloc, server, cores, verbose):
     """
