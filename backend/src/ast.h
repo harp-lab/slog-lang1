@@ -127,6 +127,7 @@ public:
     int arity;
     std::vector<int> selection;
     relation_type type = relation_type::NORMAL;
+    // uint32_t default_sub_bucket = 1;
 
     std::weak_ptr<slogc_prog> parent;
 

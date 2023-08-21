@@ -740,7 +740,6 @@
 [(eval (ret x rst) k c) --> (do-aeval x c)]
 
 [(= s (eval (ret x rst) k c))
- --
  (aeval x c _)
  --
  (= k (local-k lhs rst-caller prev-ctx prev-kaddr))

@@ -29,14 +29,53 @@ bool parallel_join_negate::local_negation(
     {
         for (u32 bucket_id = 0; bucket_id < buckets; bucket_id++)
         {
-            input1[bucket_id].as_all_to_allv_right_outer_join_buffer(
-                join_negation_target_table->get_full() + mcomm.get_rank(),
-                input0_buffer, input0_buffer_size, input0_buffer_width, offset,
-                join_buffer,
-                counter, buckets, output_sub_bucket_count,
-                output_sub_bucket_rank, reorder_map_array, join_column_count,
-                output->get_arity(),
-                output->get_join_column_count(), output->get_is_canonical());
+            if (input1[bucket_id].size() == 0) {
+                continue;
+            }
+            // input1[bucket_id].as_all_to_allv_right_outer_join_buffer(
+            //     join_negation_target_table->get_full() + mcomm.get_rank(),
+            //     input0_buffer, input0_buffer_size, input0_buffer_width, offset,
+            //     join_buffer,
+            //     counter, buckets, output_sub_bucket_count,
+            //     output_sub_bucket_rank, reorder_map_array, join_column_count,
+            //     output->get_arity(),
+            //     output->get_join_column_count(), output->get_is_canonical());
+            // should I reconstruct the btree here? is there better data structure here?
+            bool canonical = output->get_is_canonical();
+            int head_rel_hash_col_count = output->get_join_column_count();
+            int out_arity = output->get_arity();
+            shmap_relation negated_target(join_column_count, false);
+            for (int k1 = *offset; k1 < input0_buffer_size; k1 = k1 + input0_buffer_width)
+            {
+                negated_target.insert_tuple_from_array(input0_buffer+k1, join_column_count);
+            }
+
+            for (const shmap_relation::t_tuple &cur_path : input1[bucket_id])
+            {
+                shmap_relation::t_tuple joined_cur_path(cur_path.begin(), cur_path.begin() + join_column_count);
+                if (!negated_target.contains(joined_cur_path))
+                {
+                    u64 reordered_cur_path[join_buffer.width[counter]];
+                    for (u32 j =0; j < reorder_map_array.size(); j++)
+                        reordered_cur_path[j] = cur_path[reorder_map_array[j]];
+
+                    uint64_t bucket_id = tuple_hash(reordered_cur_path, head_rel_hash_col_count) % buckets;
+                    uint64_t sub_bucket_id=0;
+                    if (canonical == false && out_arity != 0 && out_arity >= head_rel_hash_col_count)
+                        sub_bucket_id = tuple_hash(reordered_cur_path + head_rel_hash_col_count, out_arity-head_rel_hash_col_count) % output_sub_bucket_count[bucket_id];
+
+                    int index = output_sub_bucket_rank[bucket_id][sub_bucket_id];
+                    join_buffer.local_compute_output_size_rel[counter] = join_buffer.local_compute_output_size_rel[counter] + join_buffer.width[counter];
+                    join_buffer.local_compute_output_size_total = join_buffer.local_compute_output_size_total + join_buffer.width[counter];
+                    join_buffer.local_compute_output_size_flat[index * join_buffer.ra_count + counter] = join_buffer.local_compute_output_size_flat[index * join_buffer.ra_count + counter] + join_buffer.width[counter];
+                    join_buffer.local_compute_output_count_flat[index * join_buffer.ra_count + counter] ++;
+
+                    join_buffer.local_compute_output_size[counter][index] = join_buffer.local_compute_output_size[counter][index] + join_buffer.width[counter];
+                    join_buffer.cumulative_tuple_process_map[index] = join_buffer.cumulative_tuple_process_map[index] + join_buffer.width[counter];
+                    join_buffer.local_compute_output[counter][index].vector_buffer_append((const unsigned char*)reordered_cur_path, sizeof(u64)*join_buffer.width[counter]);
+                }
+            }
+            negated_target.purge();
         }
     }
     return true;
@@ -59,7 +98,29 @@ void parallel_join_negate::local_copy(
     {
         if (input_bucket_map[i] == 1)
         {
-            input[i].as_all_to_allv_copy_buffer(copy_buffer, {}, reorder_map, ra_counter, buckets, output_sub_bucket_count, output_sub_bucket_rank, arity, join_column_count, output->get_join_column_count(), output->get_is_canonical());
+            if (input[i].size() == 0) {
+                continue;
+            }
+            bool canonical = output->get_is_canonical();
+            int head_rel_hash_col_count = output->get_join_column_count();
+            for (const shmap_relation::t_tuple &cur_path : input[i]) {
+                u64 reordered_cur_path[copy_buffer.width[ra_counter]];
+                for (u32 j =0; j < reorder_map.size(); j++)
+                    reordered_cur_path[j] = cur_path[reorder_map[j]];
+
+                uint64_t bucket_id = tuple_hash(reordered_cur_path, head_rel_hash_col_count) % buckets;
+                uint64_t sub_bucket_id=0;
+                if (canonical == false && arity != 0 && arity >= head_rel_hash_col_count)
+                    sub_bucket_id = tuple_hash(reordered_cur_path + head_rel_hash_col_count, arity-head_rel_hash_col_count) % output_sub_bucket_count[bucket_id];
+                int index = output_sub_bucket_rank[bucket_id][sub_bucket_id];
+                copy_buffer.local_compute_output_size_rel[ra_counter] = copy_buffer.local_compute_output_size_rel[ra_counter] + copy_buffer.width[ra_counter];
+                copy_buffer.local_compute_output_size_total = copy_buffer.local_compute_output_size_total + copy_buffer.width[ra_counter];
+                copy_buffer.local_compute_output_size_flat[index * copy_buffer.ra_count + ra_counter] = copy_buffer.local_compute_output_size_flat[index * copy_buffer.ra_count + ra_counter] + copy_buffer.width[ra_counter];
+                copy_buffer.local_compute_output_count_flat[index * copy_buffer.ra_count + ra_counter] ++;
+                copy_buffer.local_compute_output_size[ra_counter][index] = copy_buffer.local_compute_output_size[ra_counter][index] + copy_buffer.width[ra_counter];
+                copy_buffer.cumulative_tuple_process_map[index] = copy_buffer.cumulative_tuple_process_map[index] + copy_buffer.width[ra_counter];
+                copy_buffer.local_compute_output[ra_counter][index].vector_buffer_append((const unsigned char*)reordered_cur_path, sizeof(u64)*copy_buffer.width[ra_counter]); 
+            }
         }
     }
 }

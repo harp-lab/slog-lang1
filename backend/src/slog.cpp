@@ -622,6 +622,7 @@ public:
                                    fname, std::string(input_dir) + "/" + fname,
                                    FULL);
         }
+        new_rel->set_default_sub_bucket_per_bucket_count(2);
         lie->add_relation(new_rel);
         rel_map[node->name] = new_rel;
     }
@@ -852,7 +853,7 @@ int main(int argc, char *argv[]) {
     lie->enable_IO();
     lie->set_output_dir(output_dir); // Write to this directory
     lie->set_comm(mcomm);
-    lie->set_batch_size(10);
+    lie->set_batch_size(1);
 
     auto before_time = MPI_Wtime();
     lie->execute();
