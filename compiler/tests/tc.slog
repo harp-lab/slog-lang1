@@ -4,4 +4,5 @@
 
 [(path x z) <-- (path x y) (edge y z)]
 
-
+(edge 1 2)
+(edge 2 3)
