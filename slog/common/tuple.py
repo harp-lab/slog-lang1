@@ -121,7 +121,10 @@ class SlogTupleParaser:
                     else:
                         res.append(self.tuple_to_str(val, cur_max_depth-1))
             elif isinstance(col, SlogStr):
-                res.append(self.intern_string_dict[col.sid])
+                try:
+                    res.append(self.intern_string_dict[col.sid])
+                except:
+                    res.append(str(col.sid))
             else:
                 res.append(str(col))
         return f"({rel_name} {' '.join(res)})"
