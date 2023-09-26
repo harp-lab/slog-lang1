@@ -266,7 +266,7 @@
            ([lp prov-tor clause-under-or clause-under-or* rp]
             (wrap-prov $1-start-pos $5-end-pos (lambda () `(,$2 ,@(cons $3 $4)))))
            ([notlp prov-id iclause* rp]
-            (wrap-prov $1-start-pos $4-end-pos (lambda () `(,(wrap-prov $1-start-pos $4-end-pos (lambda () '~)) ,$2 ,@$3))))]
+            (wrap-prov $1-start-pos $4-end-pos (lambda () `(not (,$2 ,@$3)))))]
 
           [clause-under-or
             ([lp prov-and clause clause* rp] 

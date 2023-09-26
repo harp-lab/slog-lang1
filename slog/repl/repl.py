@@ -66,15 +66,14 @@ HELP_RUNSLOG = '''
     help                print help info
     dump <rel>          dump all facts inside a relation
     relations           print all relation meta info in current database
-    find                find facts containing a specific piece of text
 '''
 
 CMD = ['help', 'run', 'connect', 'dump', 'showdb', 'relations',
        'load', 'compile', 'tag', 'switch', 'fact-depth',
-       'fact-cardi', 'clear', 'fresh', 'find', 'exit']
+       'fact-cardi', 'clear', 'fresh', 'limit']
 
 # in run slog CLI, you can only do fact dumping, we need better pagenation
-CMD_RUNSLOG = ['help',  'dump', 'relations', 'find', 'exit']
+CMD_RUNSLOG = ['help',  'dump', 'relations']
 
 kb = KeyBindings()
 
@@ -86,20 +85,9 @@ def _(event):
 def _(event):
     event.current_buffer.validate_and_handle()
 
-class colors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
-
 def invalid_alert(message):
     """ print alert for command exectution """
-    print(f"{colors.FAIL}Invalid command: {colors.ENDC}{message}")
+    print(f"Invalid command: {message}")
 
 def prompt_continuation(width, line_number, is_soft_wrap):
     return '.' * width
@@ -172,16 +160,6 @@ def exec_command(client: SlogClient, raw_input: str):
             client.dump_limit = int(args[0])
         else:
             invalid_alert(f'{cmd} expect 1 arg, but get {len(args)}')
-
-    elif cmd == 'find':
-        if len(args) == 0:
-            invalid_alert(f'{cmd} expects a string at position 1 as arg')
-        elif args[0].startswith('"') and args[0].endswith('"'):
-            print(args[0][1:-1])
-            client.find(args[0][1:-1], ConsoleWriter())
-        else:
-            client.find(" ".join(args))
-            # invalid_alert(f'{cmd} ran into some random error')
     elif cmd == 'fact-depth':
         if len(args) == 1 and args[0].isnumeric():
             client.unroll_depth = int(args[0])
@@ -240,8 +218,6 @@ def exec_command(client: SlogClient, raw_input: str):
             client.switchto_db(args[0])
         else:
             invalid_alert(f'{cmd} expected 1 argument, got {len(args)}.')
-    elif cmd == 'exit':
-        client.exit()
     else:
         invalid_alert(f'{cmd} is not a valid command, type `help to see help`')
 
@@ -293,20 +269,11 @@ class Repl:
         else:
             return HTML('Disconnected. Use `connect <host>`')
 
-    # def exit(self):
-    #     """ exit REPL """
-    #     print('See you again')
-    #     sys.exit(0)
+    def exit(self):
+        """ exit REPL """
+        print('Goodbye.')
+        sys.exit(0)
 
-    def brouhaha_dump_fact(self, base_dir):
-        relation_names = [r[0] for r in self.client.relations if not r[0].startswith('$')]
-        with open(f"{base_dir}/facts.txt", 'w') as outFile:
-            for x in relation_names:
-                temp = self.client.dump_relation_by_name(x, ConsoleWriter())
-                outFile.write('\n'.join(temp)) 
-                outFile.write('\n') 
-        repl.exit()
-                
     def loop(self):
         """  REPL main entrance """
         while True:
@@ -314,7 +281,7 @@ class Repl:
                 front = self.get_front()
                 # ignore internal relation in autocomplete
                 relation_names = [r[0] for r in self.client.relations if not r[0].startswith('$')]
-                completer = WordCompleter(relation_names)
+                # completer = WordCompleter(relation_names)
                 if not self.local_db_path:
                     self.client.update_dbs()
                 completer_map = {cmd: None for cmd in CMD}
@@ -334,7 +301,6 @@ class Repl:
                     completer_map['load'] = StringPathCompeleter()
                     completer_map['compile'] = StringPathCompeleter()
                     completer_map['switch'] = FuzzyWordCompleter(possible_db_hash + possible_db_tag)
-                    # completer_map['exit'] = repl.exit()
                     relname_par_completer = WordCompleter([f"({n}" for n in relation_names])
                     for rname in relation_names:
                         completer_map[f'?({rname}'] = relname_par_completer
@@ -352,7 +318,6 @@ class Repl:
                     continue
                 prev_time = time.time()
                 exec_command(self.client, text)
-            
                 after_time = time.time()
                 print("\033[93mCommand cost {:10.2f} sec.\033[4m".format(after_time - prev_time)) 
             except EOFError:
