@@ -58,13 +58,13 @@ class ConsoleWriter(Writer):
     Simple class to print when given a write command
     """
     def write(self, out):
-        print(out)
+        print(out + "\n")
 
     def ok(self, out):
-        print(out)
+        print(out + "\n")
 
     def fail(self, out):
-        print(out)
+        print(out + "\n")
 
 class FileWriter(Writer):
     def __init__(self, f):
@@ -315,6 +315,8 @@ class SlogClient:
                      " during running")
         self.update_dbs()
         return out_db
+    
+    
 
     def _update_intern_strings(self, db_id):
         """ update cached string.csv data """
@@ -428,32 +430,102 @@ class SlogClient:
             if rel[2] == tag:
                 return rel
 
-    def _recusive_fetch_tuples(self, tag, tuples_map:dict, db_id):
+    def _recusive_fetch_tuples(self, tag, tuples_map:dict, db_id, search_text=None):
         """ recursively fecth all tuples of a given relation name """
         if tag in tuples_map.keys():
             return tuples_map
         tuples_map[tag] = []
+        if self.local_db_path:
+            # local mode
+            target_file = None
+            for table_file in os.listdir(self.local_db_path):
+                if not (table_file.endswith('.table') or table_file.endswith('.table_full')):
+                    continue 
+                if int(table_file.split('.')[0]) == tag:
+                    target_file = table_file
+                    break
+            arity = int(target_file.split('.')[-2])
+            # changes
+            with open(os.path.join(self.local_db_path, target_file), 'rb') as bin_file:
+                bin_bytes = bin_file.read()
+                u64_buf = []
+                for i in range(0, len(bin_bytes), 8):
+                    raw_u64 = int.from_bytes(bin_bytes[i:i+8], 'little', signed=False)
+                    u64_buf.append(raw_u64)
+                    if len(u64_buf) == arity + 1:
+                        if search_text is None or search_text in u64_buf:
+                            tuples_map[tag].append(u64_buf[-1])
+                            for u64 in u64_buf[:-1]:
+                                tuples_map[tag].append(u64)
+                        u64_buf = []
+            return 
+
+            # with open(os.path.join(self.local_db_path, target_file), 'rb') as bin_file:
+            #     bin_bytes = bin_file.read()
+            #     u64_buf = []
+            #     for i in range(0, len(bin_bytes), 8):
+            #         raw_u64 = int.from_bytes(bin_bytes[i:i+8], 'little', signed=False)
+            #         u64_buf.append(raw_u64)
+            #         if len(u64_buf) == arity + 1:
+            #             tuples_map[tag].append(u64_buf[-1])
+            #             for u64 in u64_buf[:-1]:
+            #                 tuples_map[tag].append(u64)
+            #             u64_buf = []
+            # return
         req = slog_pb2.RelationRequest()
         req.database_id = db_id
         req.tag = tag
+
+        # changes
+        # for response in self._stub.GetTuples(req):
+        #     for u64 in response.data:
+        #         val_tag = u64 >> 46
+        #         if val_tag > 254:
+        #             # relation
+        #             if val_tag not in tuples_map.keys():
+        #                 tuples_map = self._recusive_fetch_tuples(val_tag, tuples_map, db_id)
+        #         tuples_map[tag].append(u64)
+        # return tuples_map
         for response in self._stub.GetTuples(req):
             for u64 in response.data:
                 val_tag = u64 >> 46
                 if val_tag > 254:
                     # relation
                     if val_tag not in tuples_map.keys():
-                        tuples_map = self._recusive_fetch_tuples(val_tag, tuples_map, db_id)
-                tuples_map[tag].append(u64)
+                        tuples_map = self._recusive_fetch_tuples(val_tag, tuples_map, db_id, search_text)
+                if search_text is None or search_text in u64:
+                    tuples_map[tag].append(u64)
         return tuples_map
 
+    # @lru_cache(maxsize=None)
+    # def _dump_tuples(self, name, db_id):
+    #     """ real dump function, this can help use using cahce """
+    #     tuples_map = {}
+    #     for rel in self.lookup_rels(name):
+    #         tag = rel[2]
+    #         self._recusive_fetch_tuples(tag, tuples_map, db_id)
+    #     return tuples_map
+
     @lru_cache(maxsize=None)
-    def _dump_tuples(self, name, db_id):
-        """ real dump function, this can help use using cahce """
+    def _dump_tuples(self, name, db_id, search_text=None):
+        """ real dump function, this can help use using cache """
         tuples_map = {}
         for rel in self.lookup_rels(name):
             tag = rel[2]
-            self._recusive_fetch_tuples(tag, tuples_map, db_id)
+            self._recusive_fetch_tuples(tag, tuples_map, db_id, search_text)
         return tuples_map
+
+    def dump_rel_by_name_brouhaha(self, nameList, writer:Writer=Writer()):
+        # for name in nameList:
+        #     x = self.dump_relation_by_name(name)
+        #     for y in x:
+        #         writer.write(y + "\n")
+        with open("out.out", 'w', encoding='utf-8') as outFile:
+            for name in nameList:
+                x = self.dump_relation_by_name(name)
+                for y in x:
+                    outFile.write(y+ "\n")
+        # pass
 
     def dump_relation_by_name(self, name, writer:Writer=Writer()):
         """ recursive print all tuples of a relation """
@@ -464,23 +536,62 @@ class SlogClient:
         # there is no way to get what is possible nested relation, 
         # so have to parse whole database first
         tuples_map = {}
-        if not self.local_db_path:
-            for rel in self.relations:
-                self._recusive_fetch_tuples(rel[2], tuples_map, self.cur_db)
+#         if not self.local_db_path:
+#             for rel in self.relations:
+#                 self._recusive_fetch_tuples(rel[2], tuples_map, self.cur_db)
+#         # tuples_map = self._dump_tuples(name, self.cur_db)
+#         tag_map = {r[2] : (r[0], r[1]) for r in self.relations}        
+        for rel in self.relations:
+            self._recusive_fetch_tuples(rel[2], tuples_map, self.cur_db)
+
+        
+        # tuples_map = {}
+        # for rel in self.relations:
+        #     self._recusive_fetch_tuples(rel[2], tuples_map, self.cur_db)
         # tuples_map = self._dump_tuples(name, self.cur_db)
-        tag_map = {r[2] : (r[0], r[1]) for r in self.relations}        
+
+        tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
+        # print(tag_map)
         tuple_parser = SlogTupleParaser(tuples_map, self.group_cardinality, self.unroll_depth,
                                         tag_map, self.intern_string_dict, name, rels[0][2])
         if self.local_db_path:
             tuple_parser.local_db_path = self.local_db_path
         slog_tuples = tuple_parser.parse_query_result(self.dump_limit)
         self.slog_tuple_parser = tuple_parser
-        for pp_str in tuple_parser.pretty_str_tuples(rels):
-            writer.write(pp_str)
+        pp_strs = tuple_parser.pretty_str_tuples(rels)
+
+        # with open("out.out", 'w', encoding='utf-8') as outFile:
+        #     for name in namelist:
+        #         self.dump_rel_by_name_brouhaha(name, ConsoleWriter())
+
+
+        # for pp_str in pp_strs:
+            # writer.write(pp_str)
+        # with open(f"out.out", 'w+', encoding='utf-8') as outFile:
+        #     for pp_str in pp_strs:
+        #         outFile.write(str(pp_str) + "\n")
         for rel in rels:
             r_tuple_size = len(tuples_map[rel[2]]) / (rel[1] + 1)
-            writer.write(f"Relation name {name}, tag {rel[2]} has {int(r_tuple_size)} tuples")
+            # writer.write(f"Relation name {name}, tag {rel[2]} has {int(r_tuple_size)} tuples")
+        return pp_strs
+    
+    def find(self, to_find, writer:Writer=Writer()):
+        """ search all tuples in the database for the text """
+        tuples_map = {}
+        for rel in self.relations:
+            self._recusive_fetch_tuples(rel[2], tuples_map, self.cur_db, to_find)
+        tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
+        tuple_parser = SlogTupleParaser(tuples_map, self.group_cardinality, self.unroll_depth, tag_map, self.intern_string_dict)
+        slog_tuples = tuple_parser.parse_query_result()
+        self.slog_tuple_parser = tuple_parser
+        pp_strs = tuple_parser.pretty_str_tuples(self.relations)
+        for pp_str in pp_strs:
+            writer.write(pp_str)
+        for rel in self.relations:
+            r_tuple_size = len(tuples_map[rel[2]]) / (rel[1] + 1)
+            # writer.write(f"Relation tag {rel[2]} has {int(r_tuple_size)} tuples")
         return slog_tuples
+
 
     def tag_db(self, db_id, tag_name):
         """ tag a database with some name """
@@ -595,4 +706,8 @@ class SlogClient:
         #                            tag_map, self.tuple_printed_id_map)
         pp_str = self.slog_tuple_parser.pretty_str_printed_id(printed_id)
         writer.write(pp_str)
-        return self.slog_tuple_parser.printed_id_map[printed_id]
+        return self.slog_tuple_parser.printed_id_map[printed_id]    
+
+    def exit(self):
+        print("See you again")
+        sys.exit(0)
