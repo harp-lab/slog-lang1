@@ -117,7 +117,7 @@ class SlogTupleParaser:
                         nested_id = col[3]
                         res.append(f'"{self.tag_map[nested_tag]} has no fact with id {nested_id} !"')
                     elif cur_max_depth == 0:
-                        res.append(f"({self.tag_map[nested_tag][0]} #{printed_id})")
+                        res.append(f"({self.tag_map[nested_tag][0]} #{val.rel_name}_{val.tuple_id[2]})")
                     else:
                         res.append(self.tuple_to_str(val, cur_max_depth-1))
             elif isinstance(col, SlogStr):
@@ -160,7 +160,8 @@ class SlogTupleParaser:
             if val.tuple_id[0] in rel_tag_list and val.tuple_id in unfolded_ids:
                 pp_str = self.tuple_to_str(val, self.max_depth)
                 # res.append(f"#{p_id}\t{pp_str}")
-                yield f"#{p_id}\t{pp_str}"
+                # yield f"#{self.reversed_id_map[val.data_col[0][1:][0]]}\t{pp_str}"
+                yield f"#{val.rel_name}_{val.tuple_id[2]}\t{pp_str}"
         # return res
 
     def pretty_str_printed_id(self, printed_id):
@@ -238,8 +239,8 @@ class SlogTupleParaser:
                     rel_to_parse += [r for r in required_rels
                                      if (r not in rel_to_parse) and (r not in rel_parsed)]
                     parsed_tuples.append(slog_tuple)
-            if rel_to_parse != []:
-                print(f"{next_rel_tag} >>>>>>>> {rel_to_parse}")
+            # if rel_to_parse != []:
+            #     print(f"{next_rel_tag} >>>>>>>> {rel_to_parse}")
             rel_parsed.append(next_rel_tag)
             rel_to_parse = rel_to_parse[1:]
 

@@ -259,49 +259,52 @@ def run_local(file, out_path, factloc, cores, verbose, slog_root=None, compile_b
                     break
     #7: Open the repl if needed
     shutil.copy(os.path.join(inputloc, '$strings.csv'),
-#                 f'{outloc}/checkpoint-final/$strings.csv')
-#     # copy unused input file into checkpoint
-#     checkpointloc = f'{outloc}/checkpoint-final'
-#     checkpointe_tables = {}
-#     for tablefile in os.listdir(checkpointloc):
-#         if not tablefile.endswith('.table'):
-#             continue
-#         without_ext = tablefile[:tablefile.rfind('.')]
-#         tagendloc = without_ext.find('.')
-#         aritystartloc = without_ext.rfind('.')
-#         tag = without_ext[:tagendloc]
-#         arity = int(without_ext[aritystartloc+1:])
-#         relname = without_ext[tagendloc+1:aritystartloc]
-#         checkpointe_tables[(relname, arity)] = (tag, tablefile)
-#     current_max_tag = max([int(t[0]) for t in checkpointe_tables.values()])
-#     input_table = {}
-#     for tablefile in os.listdir(inputloc):
-#         if not tablefile.endswith('.table'):
-#             continue
-#         without_ext = tablefile[:tablefile.rfind('.')]
-#         tagendloc = without_ext.find('.')
-#         aritystartloc = without_ext.rfind('.')
-#         tag = without_ext[:tagendloc]
-#         arity = int(without_ext[aritystartloc+1:])
-#         relname = without_ext[tagendloc+1:aritystartloc]
-#         if (relname, arity) not in checkpointe_tables and (not is_temp_rel_name(relname)):
-#             # tag = current_max_tag
-#             # current_max_tag = current_max_tag + 1
-#             shutil.copyfile(f"{inputloc}/{tablefile}", f"{checkpointloc}/{tag}.{relname}.{arity}.table")
-#         input_table[(relname, arity)] = (tag, tablefile)
+                f'{outloc}/checkpoint-final/$strings.csv')
+    # copy unused input file into checkpoint
+    checkpointloc = f'{outloc}/checkpoint-final'
+    checkpointe_tables = {}
+    for tablefile in os.listdir(checkpointloc):
+        if not tablefile.endswith('.table'):
+            continue
+        without_ext = tablefile[:tablefile.rfind('.')]
+        tagendloc = without_ext.find('.')
+        aritystartloc = without_ext.rfind('.')
+        tag = without_ext[:tagendloc]
+        arity = int(without_ext[aritystartloc+1:])
+        relname = without_ext[tagendloc+1:aritystartloc]
+        checkpointe_tables[(relname, arity)] = (tag, tablefile)
+    current_max_tag = max([int(t[0]) for t in checkpointe_tables.values()])
+    input_table = {}
+    for tablefile in os.listdir(inputloc):
+        if not tablefile.endswith('.table'):
+            continue
+        without_ext = tablefile[:tablefile.rfind('.')]
+        tagendloc = without_ext.find('.')
+        aritystartloc = without_ext.rfind('.')
+        tag = without_ext[:tagendloc]
+        arity = int(without_ext[aritystartloc+1:])
+        relname = without_ext[tagendloc+1:aritystartloc]
+        if (relname, arity) not in checkpointe_tables and (not is_temp_rel_name(relname)):
+            # tag = current_max_tag
+            # current_max_tag = current_max_tag + 1
+            shutil.copyfile(f"{inputloc}/{tablefile}", f"{checkpointloc}/{tag}.{relname}.{arity}.table")
+        input_table[(relname, arity)] = (tag, tablefile)
 #     if repl_flag:
 #         repl = Repl(local_db_path=f'{outloc}/checkpoint-final')
 #         repl.loop()
 #                 f'{checkpointloc}/checkpoint-final/$strings.csv')
     
     if brouhaha_flag:
-        brouhaha_dump(args.out_dir)
-                
-    if repl_flag:
-        base_folder = f'{checkpointloc}/checkpoint-final'
+        # brouhaha_dump(args.out_dir)
+        base_folder = f'{outloc}/checkpoint-final'
         repl = Repl(local_db_path=base_folder)
         # repl.loop()
         repl.brouhaha_dump_fact(out_path)
+                
+    if repl_flag:
+        base_folder = f'{outloc}/checkpoint-final'
+        repl = Repl(local_db_path=base_folder)
+        repl.loop()
 
 def run_server(file, outloc, factloc, server, cores, verbose):
     """
@@ -349,33 +352,22 @@ def brouhaha_dump(base_folder):
     base_folder = base_folder + "/checkpoints/checkpoint-final/"
     repl = Repl(local_db_path=base_folder)
     repl.brouhaha_dump_fact(base_folder)
-    # try:
-    #     while True:
-    #         repl.loop()
-    # except KeyboardInterrupt:
-    #     repl.exit()
-    # return
 
-def enterrepl(base_folder):
-    source_file = os.path.join(base_folder, "input-data", "$strings.csv")
-    destination_folder = os.path.join(base_folder, "checkpoints", "checkpoint-final")
-    destination_file = os.path.join(destination_folder, "$strings.csv")
-    os.makedirs(destination_folder, exist_ok=True)
 
-    if os.path.exists(source_file):
-        shutil.copy(source_file, destination_file)
-    else:
-        open(destination_file, 'a').close()
+# def enterrepl(base_folder):
+#     source_file = os.path.join(base_folder, "input-data", "$strings.csv")
+#     destination_folder = os.path.join(base_folder, "checkpoints", "checkpoint-final")
+#     destination_file = os.path.join(destination_folder, "$strings.csv")
+#     os.makedirs(destination_folder, exist_ok=True)
+
+#     if os.path.exists(source_file):
+#         shutil.copy(source_file, destination_file)
+#     else:
+#         open(destination_file, 'a').close()
     
-    base_folder = base_folder + "/checkpoints/checkpoint-final/"
-    repl = Repl(local_db_path=base_folder)
+#     base_folder = base_folder + "/checkpoints/checkpoint-final/"
+#     repl = Repl(local_db_path=base_folder)
 
-    # try:
-    #     while True:
-    #         repl.loop()
-    # except KeyboardInterrupt:
-    #     repl.exit()
-    # return
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -406,17 +398,17 @@ if __name__ == '__main__':
                         help="JIT compile only without running it")
     parser.add_argument('-ov', "--overwrite_out", action="store_true",
                         help="overwrite, if output dir already exists.")
-    parser.add_argument('-e', "--enterrepl",
-                        help="enter the REPL on an already existing slog out directory.")
-    parser.add_argument('-b', "--brouhaha",
+    parser.add_argument('-lb', "--local_db", action="store_true",
+                        help="overwrite, if output dir already exists.")
+    parser.add_argument('-b', "--brouhaha", action='store_true',
                         help="asdas")
     args = parser.parse_args()
 
-    if args.enterrepl:
-        enterrepl(args.enterrepl)
-        
-    if args.out_dir and args.slogfile:
-        slogfile = os.path.realpath(args.slogfile)
+    slogfile = os.path.realpath(args.slogfile)
+    if args.local_db:
+        repl = Repl(local_db_path=f'{args.out_dir}/checkpoint-final')
+        repl.loop()
+    else:
         os.makedirs(args.out_dir, exist_ok=True)
 
         if args.server:
@@ -428,5 +420,3 @@ if __name__ == '__main__':
                     profile_flag=args.profile, repl_flag=args.repl,
                     compile_only=args.compile_only,
                     overwrite_out=args.overwrite_out, brouhaha_flag=args.brouhaha)
-    # else:
-    #     parser.print_help()

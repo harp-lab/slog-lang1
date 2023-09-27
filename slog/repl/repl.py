@@ -293,10 +293,10 @@ class Repl:
         else:
             return HTML('Disconnected. Use `connect <host>`')
 
-    # def exit(self):
-    #     """ exit REPL """
-    #     print('See you again')
-    #     sys.exit(0)
+    def exit(self):
+        """ exit REPL """
+        print('See you again')
+        sys.exit(0)
 
     def brouhaha_dump_fact(self, base_dir):
         relation_names = [r[0] for r in self.client.relations if not r[0].startswith('$')]
@@ -305,7 +305,7 @@ class Repl:
                 temp = self.client.dump_relation_by_name(x, ConsoleWriter())
                 outFile.write('\n'.join(temp)) 
                 outFile.write('\n') 
-        repl.exit()
+        self.exit()
                 
     def loop(self):
         """  REPL main entrance """
