@@ -118,7 +118,7 @@ docker run -it --rm --shm-size=32g slog bash
 ```
 4. run test program
 ```
-./runslog -v -R -j 8 -f /workspace/dataset/linux ./analysis/cspa.slog out
+./runslog -v -R -j 8 -f ./linux ./analysis/cspa.slog out
 ```
 5. in the generated REPL, use `relations` command to check size of computed relations
 
