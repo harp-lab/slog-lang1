@@ -104,4 +104,21 @@ Using Docker desktop application:
 		  - Restart your terminal and try Docker again
 
 
-         
+## CSPA test
+CSPA test program is located under `analysis/cspa.slog`
+1. dowload dataset from google drive to root dir of slog. https://drive.google.com/file/d/1meoqulLRXMqLsb9S66NqUqP5mFUuDpzv/view?usp=sharing
+2. unzip it
+```
+unzip ./linux.zip
+```
+3. build docker image and enter test container
+```
+docker build -t slog .
+docker run -it --rm --shm-size=32g slog bash
+```
+4. run test program
+```
+./runslog -v -R -j 8 -f /workspace/dataset/linux ./analysis/cspa.slog out
+```
+5. in the generated REPL, use `relations` command to check size of computed relations
+
