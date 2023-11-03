@@ -18,6 +18,7 @@ VAL_MASK = ~ TAG_MASK
 INT_TAG = 0
 STRING_TAG = 2
 SYMBOL_TAG = 3
+randid = 1
 
 class SlogStr:
     def __init__(self, sid) -> None:
@@ -36,6 +37,7 @@ class SlogTuple:
         self.data_col = col[1:]
         self.tag = col[0][0]
         self.arity = len(col) - 1
+        
 
     def __eq__(self, o: object) -> bool:
         return self.tuple_id == o.tuple_id
@@ -55,12 +57,14 @@ class SlogTupleParaser:
         self.reversed_id_map = {}
         self.count_map = {}
         self.query_res = query_res
+        print(f"\n\nQuery Res: {query_res}\n\n")
         self.cardinality = cardinality
         self.max_depth = max_depth
         self.tag_map = tag_map
         self.intern_string_dict = intern_string_dict
         self.limit = limit
         self.local_db_path = local_db_path
+        # self.randid = 1 #adding this to fix the key error issue
 
     def parse_tuple_row(self, u64_list, rel_name) -> SlogTuple:
         """ parse a row of u64 tuple into a python object """
@@ -112,7 +116,10 @@ class SlogTupleParaser:
                 if col[0] == 'NESTED':
                     nested_tag = col[1]
                     val = None
-                    printed_id, val = self.reversed_id_map[col[1:]]
+                    try:
+                        printed_id, val = self.reversed_id_map[col[1:]] # This ERRORS out
+                    except:
+                        print(f"\n\n\n query res: {self.query_res} \ncardinality {self.cardinality}, \nmax_depth {self.max_depth},\nintern_string_dict: {self.intern_string_dict},\nrel_name: {self.rel_name}, \nrel_tag: {self.rel_tag} \nnested_tag {nested_tag} \ncol: {slog_tuple.data_col}")
                     if val is None:
                         nested_id = col[3]
                         res.append(f'"{self.tag_map[nested_tag]} has no fact with id {nested_id} !"')
@@ -121,10 +128,11 @@ class SlogTupleParaser:
                     else:
                         res.append(self.tuple_to_str(val, cur_max_depth-1))
             elif isinstance(col, SlogStr):
-                try:
-                    res.append(self.intern_string_dict[col.sid])
-                except:
-                    res.append(str(col.sid))
+                res.append(self.intern_string_dict[col.sid])
+                # try:
+                #     res.append(self.intern_string_dict[col.sid])
+                # except:
+                #     res.append(str(col.sid))
             else:
                 res.append(str(col))
         return f"({rel_name} {' '.join(res)})"
@@ -156,12 +164,19 @@ class SlogTupleParaser:
         for t_id, count in self.count_map.items():
             if count == 0 or count >= self.cardinality:
                 unfolded_ids.append(t_id)
+        
+        
         for p_id, val in self.printed_id_map.items():
+            global randid
+            randid += 1
             if val.tuple_id[0] in rel_tag_list and val.tuple_id in unfolded_ids:
                 pp_str = self.tuple_to_str(val, self.max_depth)
                 # res.append(f"#{p_id}\t{pp_str}")
                 # yield f"#{self.reversed_id_map[val.data_col[0][1:][0]]}\t{pp_str}"
-                yield f"#{val.rel_name}_{val.tuple_id[2]}\t{pp_str}"
+                # yield f"#{val.rel_name}_{val.tuple_id[2]}\t{pp_str}" # WORKING LINE
+                # yield f"#{p_id}\t{pp_str}"
+                yield f"#{randid}_{p_id}\t{pp_str}"
+                # yield f"#{val.rel_name}\t{pp_str}"
         # return res
 
     def pretty_str_printed_id(self, printed_id):
@@ -212,10 +227,14 @@ class SlogTupleParaser:
                 for table_file in os.listdir(self.local_db_path):
                     if not (table_file.endswith('.table') or table_file.endswith('.table_full')):
                         continue 
+                    # 467.appk.4.table
+                    # if table_file == "467.appk.4.table":
+                        
                     if int(table_file.split('.')[0]) == next_rel_tag:
-                        target_file = table_file
+                        target_file = table_file # 467.appk.4.table
                         break
                 arity = int(target_file.split('.')[-2])
+                # 4
                 with open(os.path.join(self.local_db_path, target_file), 'rb') as bin_file:
                     bin_bytes = bin_file.read()
                     u64_buf = []
@@ -227,6 +246,7 @@ class SlogTupleParaser:
                             for u64 in u64_buf[:-1]:
                                 self.query_res[next_rel_tag].append(u64)
                             u64_buf = []
+            
             tuples = self.query_res[next_rel_tag]
             rel_name = self.tag_map[next_rel_tag][0]
             rel_arity = self.tag_map[next_rel_tag][1]
