@@ -45,7 +45,7 @@ class SlogTuple:
     def __str__(self) -> str:
         return str(self.col)
 
-class SlogTupleParaser:
+class SlogTupleParser:
     """
     A parser will parse a slog query result u64 tuple set into well-formated string.
     """
