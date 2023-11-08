@@ -165,8 +165,8 @@ class SlogTupleParser:
                     res.append(str(col.sid))
             else:
                 res.append(str(col))
-        print(f"The size of keys (end of loop): {len(self.reversed_id_map.keys())}")
-        print(f"The end of loop thread size: {self.get_thread_locked_size()}")
+        # print(f"The size of keys (end of loop): {len(self.reversed_id_map.keys())}")
+        # print(f"The end of loop thread size: {self.get_thread_locked_size()}")
         return f"({rel_name} {' '.join(res)})"
 
     # def count_tuples(self, slog_tuple: SlogTuple, cur_max_depth, top_level=True):
@@ -314,7 +314,7 @@ class SlogTupleParser:
                 self.add_to_map(new_tuple.tuple_id, (cur_printed_id, new_tuple))
                 # backup_reverse_map[new_tuple.tuple_id] = (cur_printed_id, new_tuple)
         # print(self.printed_id_map)
-        print(f"The size of keys: {self.get_thread_locked_size()}")
+        # print(f"The size of keys: {self.get_thread_locked_size()}")
         return parsed_tuples
 
 
