@@ -16,7 +16,7 @@ from slog.daemon.util import string_hash
 
 from slog.common import rel_name_from_file, make_stub, PING_INTERVAL
 from slog.common.elaborator import Elaborator
-from slog.common.tuple import SlogTupleParaser
+from slog.common.tuple import SlogTupleParser
 from slog.daemon.const import FTP_DEFAULT_PWD, FTP_DEFAULT_USER, STATUS_PENDING, STATUS_FAILED, STATUS_RESOLVED, STATUS_NOSUCHPROMISE
 from slog.daemon.util import get_relation_info
 import slog.protobufs.slog_pb2 as slog_pb2
@@ -87,7 +87,7 @@ class SlogClient:
     Client to a slog server.
     """
     def __init__(self, server="localhost", rpc_port=5108, ftp_port=2121, local_db_path=None):
-        self.dump_limit = 100
+        self.dump_limit = 500
         self._channel = None
         self._stub = None
         self.server_addr = server
@@ -495,7 +495,7 @@ class SlogClient:
 
         tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
         # print(tag_map)
-        tuple_parser = SlogTupleParaser(tuples_map, self.group_cardinality, self.unroll_depth,
+        tuple_parser = SlogTupleParser(tuples_map, self.group_cardinality, self.unroll_depth,
                                         tag_map, self.intern_string_dict, name, rels[0][2])
         if self.local_db_path:
             tuple_parser.local_db_path = self.local_db_path
@@ -579,7 +579,7 @@ class SlogClient:
         tuples_map = self._dump_tuples(query_name, self.cur_db)
         tag_map = {r[2] : (r[0], r[1]) for r in self.relations}
         query_res_rel_tags = self.lookup_rels(query_name)
-        tuple_parser = SlogTupleParaser(tuples_map, self.group_cardinality, self.unroll_depth,
+        tuple_parser = SlogTupleParser(tuples_map, self.group_cardinality, self.unroll_depth,
                                         tag_map, self.intern_string_dict)
         slog_tuples = tuple_parser.parse_query_result()
         # id_print_name_map = {}

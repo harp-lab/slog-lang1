@@ -1,0 +1,17 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "run slog",
+            "type": "python",
+            "request": "launch",
+            "program": "./runslog",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": ["-b","-ov","../brouhaha/tests/double_inner/output/double_inner.slog", "../brouhaha/tests/double_inner/output/41d69598502da77a25140e900d739d33f1b159070e680b0e737aa3a6/"]
+        }
+    ]
+}

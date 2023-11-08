@@ -304,6 +304,7 @@ class Repl:
             for x in relation_names:
                 temp = self.client.dump_relation_by_name(x, ConsoleWriter())
                 outFile.write('\n'.join(temp)) 
+
                 outFile.write('\n') 
         self.exit()
                 
