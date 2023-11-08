@@ -141,8 +141,8 @@ class SlogTupleParser:
                     #     print(f"Key {col[1:]} not found in reversed_id_map. Current keys: {list(self.reversed_id_map.keys())}")
 
                     try:
-                        # printed_id, val = self.reversed_id_map[col[1:]] # This ERRORS out
-                        printed_id, val = self.get_from_map(col[1:])
+                        printed_id, val = self.reversed_id_map[col[1:]] # This ERRORS out
+                        # printed_id, val = self.get_from_map(col[1:])
                         # print(f"Printed id: {printed_id} and val: {val}")
                     except:
                         # printed_id, val = backup_reverse_map[col[1:]]
@@ -304,14 +304,12 @@ class SlogTupleParser:
         # generate a reversed map
         # reversed_id_map = dict([reversed(i.tuple_id) for i in self.printed_id_map.items()])
         for new_tuple in parsed_tuples:
-            if new_tuple.tuple_id == (791,0,0):
-                # self.reversed_id_map[new_tuple.tuple_id] = (cur_printed_id, new_tuple)
-                print("")
             # p_id = find_printed_id_by_val(printed_id_map, new_tuple)
             if new_tuple.tuple_id not in self.reversed_id_map:
                 cur_printed_id += 1
                 self.printed_id_map[cur_printed_id] = new_tuple
-                self.add_to_map(new_tuple.tuple_id, (cur_printed_id, new_tuple))
+                # self.add_to_map(new_tuple.tuple_id, (cur_printed_id, new_tuple))
+                self.reversed_id_map[new_tuple.tuple_id] = (cur_printed_id, new_tuple)
                 # backup_reverse_map[new_tuple.tuple_id] = (cur_printed_id, new_tuple)
         # print(self.printed_id_map)
         # print(f"The size of keys: {self.get_thread_locked_size()}")
