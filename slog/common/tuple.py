@@ -7,7 +7,6 @@ Yihao Sun
 import multiprocessing as mp
 import os
 from functools import partial
-import threading
 
 TAG_MASK =      0xFFFFC00000000000
 BUCKET_MASK =   0x00003FFFF0000000
@@ -20,9 +19,6 @@ INT_TAG = 0
 STRING_TAG = 2
 SYMBOL_TAG = 3
 randid = 1
-backup_reverse_map = {
-
-}
 
 class SlogStr:
     def __init__(self, sid) -> None:
@@ -49,7 +45,7 @@ class SlogTuple:
     def __str__(self) -> str:
         return str(self.col)
 
-class SlogTupleParser:
+class SlogTupleParaser:
     """
     A parser will parse a slog query result u64 tuple set into well-formated string.
     """
@@ -59,27 +55,16 @@ class SlogTupleParser:
         self.rel_tag = rel_tag
         self.printed_id_map = {}
         self.reversed_id_map = {}
-        self.reversed_id_map_lock = threading.Lock()
         self.count_map = {}
         self.query_res = query_res
+        print(f"\n\nQuery Res: {query_res}\n\n")
         self.cardinality = cardinality
         self.max_depth = max_depth
         self.tag_map = tag_map
         self.intern_string_dict = intern_string_dict
         self.limit = limit
         self.local_db_path = local_db_path
-
-    def add_to_map(self, key, value):
-        with self.reversed_id_map_lock:
-            self.reversed_id_map[key] = value
-
-    def get_from_map(self, key):
-        with self.reversed_id_map_lock:
-            return self.reversed_id_map.get(key)
-    
-    def get_thread_locked_size(self):
-        with self.reversed_id_map_lock:
-            return len(self.reversed_id_map)
+        # self.randid = 1 #adding this to fix the key error issue
 
     def parse_tuple_row(self, u64_list, rel_name) -> SlogTuple:
         """ parse a row of u64 tuple into a python object """
@@ -131,25 +116,10 @@ class SlogTupleParser:
                 if col[0] == 'NESTED':
                     nested_tag = col[1]
                     val = None
-
-                    # Inside the tuple_to_str method, before line 120
-                    # print("Current reversed_id_map keys:", self.reversed_id_map.keys())
-                    # print("Attempting to access key:", col[1:])
-
-                    # # This will confirm whether the key exists in the map or not.
-                    # if col[1:] not in self.reversed_id_map:
-                    #     print(f"Key {col[1:]} not found in reversed_id_map. Current keys: {list(self.reversed_id_map.keys())}")
-
                     try:
                         printed_id, val = self.reversed_id_map[col[1:]] # This ERRORS out
-                        # printed_id, val = self.get_from_map(col[1:])
-                        # print(f"Printed id: {printed_id} and val: {val}")
                     except:
-                        # printed_id, val = backup_reverse_map[col[1:]]
-                        print(f"Reverse: {self.reversed_id_map}")        
-                        # print(f"\n\n\n query res: {self.query_res} \ncardinality {self.cardinality}, \nmax_depth {self.max_depth},\nintern_string_dict: {self.intern_string_dict},\nrel_name: {self.rel_name}, \nrel_tag: {self.rel_tag} \nnested_tag {nested_tag} \ncol: {slog_tuple.data_col}")
-                        # print(f"\n\nThe rel_tag {self.rel_tag} and id: {col[1]} and col1: {col}")
-                        print("FAIL")
+                        print(f"\n\n\n query res: {self.query_res} \ncardinality {self.cardinality}, \nmax_depth {self.max_depth},\nintern_string_dict: {self.intern_string_dict},\nrel_name: {self.rel_name}, \nrel_tag: {self.rel_tag} \nnested_tag {nested_tag} \ncol: {slog_tuple.data_col}")
                     if val is None:
                         nested_id = col[3]
                         res.append(f'"{self.tag_map[nested_tag]} has no fact with id {nested_id} !"')
@@ -159,14 +129,12 @@ class SlogTupleParser:
                         res.append(self.tuple_to_str(val, cur_max_depth-1))
             elif isinstance(col, SlogStr):
                 res.append(self.intern_string_dict[col.sid])
-                try:
-                    res.append(self.intern_string_dict[col.sid])
-                except:
-                    res.append(str(col.sid))
+                # try:
+                #     res.append(self.intern_string_dict[col.sid])
+                # except:
+                #     res.append(str(col.sid))
             else:
                 res.append(str(col))
-        # print(f"The size of keys (end of loop): {len(self.reversed_id_map.keys())}")
-        # print(f"The end of loop thread size: {self.get_thread_locked_size()}")
         return f"({rel_name} {' '.join(res)})"
 
     # def count_tuples(self, slog_tuple: SlogTuple, cur_max_depth, top_level=True):
@@ -205,9 +173,9 @@ class SlogTupleParser:
                 pp_str = self.tuple_to_str(val, self.max_depth)
                 # res.append(f"#{p_id}\t{pp_str}")
                 # yield f"#{self.reversed_id_map[val.data_col[0][1:][0]]}\t{pp_str}"
-                yield f"#{val.rel_name}_{val.tuple_id[2]}\t{pp_str}" # SOWMITH LINE
+                # yield f"#{val.rel_name}_{val.tuple_id[2]}\t{pp_str}" # WORKING LINE
                 # yield f"#{p_id}\t{pp_str}"
-                # yield f"#{randid}_{p_id}\t{pp_str}"
+                yield f"#{randid}_{p_id}\t{pp_str}"
                 # yield f"#{val.rel_name}\t{pp_str}"
         # return res
 
@@ -308,24 +276,6 @@ class SlogTupleParser:
             if new_tuple.tuple_id not in self.reversed_id_map:
                 cur_printed_id += 1
                 self.printed_id_map[cur_printed_id] = new_tuple
-                # self.add_to_map(new_tuple.tuple_id, (cur_printed_id, new_tuple))
                 self.reversed_id_map[new_tuple.tuple_id] = (cur_printed_id, new_tuple)
-                # backup_reverse_map[new_tuple.tuple_id] = (cur_printed_id, new_tuple)
         # print(self.printed_id_map)
-        # print(f"The size of keys: {self.get_thread_locked_size()}")
         return parsed_tuples
-
-
-
-"""
-File "/slog/slog/common/tuple.py", line 120, in tuple_to_str
-    printed_id, val = self.reversed_id_map[col[1:]] # This ERRORS out
-  File "/slog/slog/common/tuple.py", line 177, in pretty_str_tuples
-    pp_str = self.tuple_to_str(val, self.max_depth)
-  File "/slog/slog/repl/repl.py", line 306, in brouhaha_dump_fact
-    outFile.write('\n'.join(temp))
-  File "/slog/runslog", line 302, in run_local
-    repl.brouhaha_dump_fact(out_path)
-  File "/slog/runslog", line 418, in <module>
-    run_local(slogfile, args.out_dir, args.facts, args.cores, args.verbose, args.root,
-KeyError: (791, 0, 0)"""
