@@ -57,7 +57,7 @@ class SlogTupleParser:
         self.reversed_id_map = {}
         self.count_map = {}
         self.query_res = query_res
-        print(f"\n\nQuery Res: {query_res}\n\n")
+        # print(f"\n\nQuery Res: {query_res}\n\n")
         self.cardinality = cardinality
         self.max_depth = max_depth
         self.tag_map = tag_map
