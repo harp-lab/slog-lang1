@@ -31,3 +31,5 @@ nonsense/
 *.scm
 syntax-edb
 cfa-expt-*
+.DS_Store
+
