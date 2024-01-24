@@ -76,5 +76,5 @@ public:
 
 
     /// JOIN, COPY, ACOPY
-    u32 get_RA_type()   {return RA_type;}
+    int get_RA_type()   {return RA_type;}
 };

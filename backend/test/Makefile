@@ -14,7 +14,6 @@ object:	../src/buffer/*.cpp ../src/comm/*.cpp ../src/IO/*.cpp ../src/lie/*.cpp .
 	mpic++ -std=c++17 -O3 ../src/RA/parallel_copy_generate.cpp -c
 	mpic++ -std=c++17 -O3 ../src/RAM/RA_tasks.cpp -c
 	mpic++ -std=c++17 -O3 ../src/relation/balanced_hash_relation.cpp -c
-	mpic++ -std=c++17 -O3 ../src/relation/google_btree_relation.cpp -c
 	mpic++ -std=c++17 -O3 ../src/relation/shmap_relation_exp.cpp -c
 	mpic++ -std=c++17 -O3 ../src/relation/relation_load_balancer.cpp -c
 	mpic++ -std=c++17 -O3 -o TC ../tests/transitive_closure.cpp *.o

@@ -6,6 +6,7 @@
 
 
 #include "../parallel_RA_inc.h"
+#include <cstddef>
 #include <iostream>
 
 RAM::~RAM()
@@ -71,4 +72,12 @@ bool RAM::contains_relation(int tag) {
         }
     }
     return false;
+}
+
+void RAM::print_ra_runtime_detail() {
+    for (size_t i = 0; i < ra_op_detail.size(); i ++) {
+        std::cout << "RA OP " << i << " >>>> " << ra_op_detail[i] << std::endl;
+    }
+    std::cout << "TOTAL STAT >>>>>>>> Join: " << runtime_detail[0] << " (Sync: " << runtime_detail[5]  << ") " <<  "  , Comm: " << runtime_detail[1] << " , Newt: " << runtime_detail[2]
+                << " , Full: " << runtime_detail[3] << " , Intra: " << runtime_detail[4] << std::endl;
 }

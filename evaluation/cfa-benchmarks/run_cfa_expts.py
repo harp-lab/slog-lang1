@@ -77,11 +77,12 @@ def run_slog(mork,n,m,procs,exptid):
     print("(RUN Expt -- Slog {} {} {} {} {})".format(mork,n,m,procs,exptid))
     file = ""
     if mork == "m":
-        file = "evaluation/cfa-benchmarks/mcfa-{}.slog".format(m)
+        file = f"evaluation/cfa-benchmarks/mcfa-{m}.slog"
     else:
-        file = "evaluation/cfa-benchmarks/kcfa-{}.slog".format(m)
-    run("cd ../..; ./runslog -ov -v -j {} -f evaluation/cfa-benchmarks/results/{}/syntax-edb  -cb {} {} >{}.log; mv {}.log evaluation/cfa-benchmarks/results/{}".format(procs,exptid,file,exptid,exptid,exptid,exptid))
-    analyze_slog("results/{}/{}.log".format(exptid,exptid),mork,n,m,procs)
+        file = f"evaluation/cfa-benchmarks/kcfa-{m}.slog"
+    # run("cd ../..; ./runslog -ov -v -co -f evaluation/cfa-benchmarks/results/{}/syntax-edb  -cb {} {} >{}.log; mv {}.log evaluation/cfa-benchmarks/results/{}".format(exptid,file,exptid,exptid,exptid,exptid))
+    run("cd ../..; ./runslog -ov -v -co -f evaluation/cfa-benchmarks/results/{}/syntax-edb {} {}".format(exptid,file,exptid))
+    # analyze_slog("results/{}/{}.log".format(exptid,exptid),mork,n,m,procs)
 
 # Souffle run / analyze
 
@@ -150,15 +151,19 @@ def combos(morks,ns,ms,procs,whichs):
                     for which in whichs:
                         main([mork,n,m,proc_ct,which], exptid())
 
-# Entrypoint    
-if (len(sys.argv) == 6):
-    main()
-elif (len(sys.argv) == 3 and sys.argv[2] == "souffle"):
-    analyze_souffle(sys.argv[1],"k",6,3,8)
-elif (len(sys.argv) == 3 and sys.argv[2] == "slog"):
-    analyze_slog(sys.argv[1])
-elif (len(sys.argv) == 2 and sys.argv[1] == "runall"):
-    # Repeat n times
-    n = 1
-    for i in range(1,n+1):
-        combos(["m"],[100,200],[5],[2,4,8,16,32,64],["slog"])
+
+if __name__ == "__main__":
+    # Entrypoint    
+    if (len(sys.argv) == 6):
+        main()
+    elif (len(sys.argv) == 3 and sys.argv[2] == "souffle"):
+        analyze_souffle(sys.argv[1],"k",6,3,8)
+    elif (len(sys.argv) == 3 and sys.argv[2] == "slog"):
+        analyze_slog(sys.argv[1])
+    elif (len(sys.argv) == 2 and sys.argv[1] == "runall"):
+        # Repeat n times
+        n = 1
+        for i in range(1,n+1):
+            combos(["m"],[100,200],[5],[2,4,8,16,32,64],["slog"])
+    else:
+        usage()

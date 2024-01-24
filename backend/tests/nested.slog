@@ -1,0 +1,17 @@
+
+(foo [(type1 1)] 333)
+(bar2 1)
+(foo [(type2 2)] 333)
+(bar1 2)
+
+[(foo [(type1 x) rst ...] others)
+ --
+ (bar1 x)
+ -->
+    (foobar [rst ...] others)]
+
+[(foo [(type2 x) rst ...] others)
+ --
+ (bar2 x)
+ -->
+    (foobar [rst ...] others)]

@@ -7,18 +7,39 @@
 
 #pragma once
 #include "../ds.h"
+#include "../parallel_RA_inc.h"
+#include <functional>
+#include <memory>
+
+
+class copy_gen_functor {
+public:
+    std::shared_ptr<slogc_ra_external_function> func_def_ptr;
+    builtin_impl_t builtin_impl;
+
+
+    copy_gen_functor(std::shared_ptr<slogc_ra_external_function> func_def_ptr, builtin_impl_t impl) :
+        func_def_ptr(func_def_ptr), builtin_impl(impl) {}
+
+    copy_gen_functor() {};
+
+    int operator()(const u64* const, u64* const);
+};
 
 class parallel_copy_generate: public parallel_RA
 {
 
 private:
+
     relation* copy_generate_input0_table;
     int copy_generate_input0_graph_type;
+    bool use_new_api = false;
 
     relation* copy_generate_output_table;
 
     //std::vector<int> copy_generate_reorder_index_array;
     int(*lambda)(const u64* const, u64* const);
+    copy_gen_functor lambda_f;
 
 public:
     parallel_copy_generate()
@@ -29,6 +50,14 @@ public:
     parallel_copy_generate(relation* dest, relation* src, int src_version, int(*func)(const u64* const, u64* const))
         : copy_generate_input0_table(src), copy_generate_input0_graph_type(src_version), copy_generate_output_table(dest), lambda(func)
     {
+        RA_type = COPY_GENERATE;
+    }
+
+    parallel_copy_generate(relation* dest, relation* src, int src_version, copy_gen_functor cf)
+        : copy_generate_input0_table(src), copy_generate_input0_graph_type(src_version), copy_generate_output_table(dest)
+    {
+        use_new_api = true;
+        lambda_f = cf;
         RA_type = COPY_GENERATE;
     }
 

@@ -23,7 +23,7 @@ bool parallel_join::local_join(int threshold, int* offset,
 {
     join_buffer.width[counter] = reorder_map_array.size();
 
-    shmap_relation deduplicate;
+    shmap_relation deduplicate(join_column_count, false);
     u32* output_sub_bucket_count = output->get_sub_bucket_per_bucket_count();
     u32** output_sub_bucket_rank = output->get_sub_bucket_rank();
 

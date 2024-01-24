@@ -150,6 +150,7 @@
 (define code-loc (if (equal? output-code-loc 'none) o-dir output-code-loc))
 (define extn (if (slog-souffle-mode) "dl" "cpp"))
 (define o-path (format "~a/~a.~a" code-loc basename extn))
+(define ir-path (format "~a/~a.~a" code-loc basename "slogc"))
 (define cmake-path (format "~a/CMakeLists.txt" code-loc))
 (define parallel-ra-h-loc (path->string (build-path base-dir "../backend/src/parallel_RA_inc.h")))
 
@@ -164,6 +165,8 @@
                      (begin (create-initial-database program default-input-dir) default-input-dir) 
                      (begin (create-initial-database program input-database) input-database))]
           [builtins-cpp-file (file->string (path->string (build-path base-dir "src/builtins.cpp")))])
+     (define b-ir (slog-compile-backend-input program i-dir o-dir))
+     (with-output-to-file ir-path (lambda () (pretty-display b-ir)))
      (match-define (cons global-definitions cpp) (slog-compile-cpp program i-dir o-dir))
      (when (not (directory-exists? o-dir)) (make-directory o-dir))
      (with-output-to-file o-path
@@ -180,5 +183,6 @@
              (lambda () (read-string 99999))))
          (display (format template basename basename basename basename basename basename)))
        #:exists 'replace)
-     (display (format "[wrote C++ driver and data to \"~a\"]\n" o-path)))]
+     (display (format "[wrote C++ driver and data to \"~a\"]\n" o-path)))
+     ]
   [else (slog-debug program facts-dir)])

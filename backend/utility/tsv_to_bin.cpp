@@ -21,7 +21,6 @@
 #include <sstream>
 #include <unordered_map>
 #include <vector>
-#include <filesystem>
 #include <functional>
 #include <unordered_set>
 
@@ -47,6 +46,7 @@ using namespace std;
 
 // globals
 unordered_set<string> strings_set;
+unordered_set<u64> tuple_hash_set;
 long current_tuple_id = 0;
 unsigned arity;
 unsigned index_length = 0;
@@ -76,7 +76,7 @@ u64 hash_tuple(u64 *fact, unsigned num)
 	return hash;
 }
 
-u32 string_hash(const std::string& str) {
+u32 string_hash32(const std::string& str) {
     const u32 base = 2166136261u;
     const u32 prime = 16777619u;
 
@@ -88,6 +88,21 @@ u32 string_hash(const std::string& str) {
         hash *= prime;
     }
     return hash;
+}
+
+u64 string_hash(const std::string& str) {
+    const u64 base = 14695981039346656037ULL;
+    const u64 prime = 1099511628211ULL;
+    const u64 c46 = 35184372088832ULL;
+
+    u64 hash = base;
+    for (char c: str)
+    {
+        if ((u64)c == 0) continue;
+        hash ^= (u64)c;
+        hash *= prime;
+    }
+    return hash % c46;
 }
 
 // parse a column ordering (C string) into a vector
@@ -199,7 +214,7 @@ void write_interned_pools()
 	// }
 	for (const auto &str_data : strings_set)
 	{
-		u32 str_id = string_hash(str_data);
+		u64 str_id = string_hash(str_data);
 		string s = to_string(str_id) + "\t" + str_data + "\n";
 		write(strings, s.c_str(), s.length());
 	}
@@ -274,7 +289,7 @@ void file_to_slog(char *input_file, char *output_file,
 				// if not number all goes to string
 				u64 u64_v = STRING_TAG;
 				u64_v <<= TUPLE_MASK_LENGTH + BUCKET_MASK_LENGTH;
-				u32 new_id = string_hash(col);
+				u64 new_id = string_hash(col);
 				strings_set.insert(col);
 				u64_v |= new_id;
 				// cout << "string at " << col_count << " : " << col << endl;
@@ -283,14 +298,18 @@ void file_to_slog(char *input_file, char *output_file,
 			col_count++;
 		}
 
-		u64 tid = rel_tag;
-		tid <<= (TUPLE_MASK_LENGTH + BUCKET_MASK_LENGTH);
-		tid |= ((hash_tuple(tuple_buffer, arity) % buckets)) << TUPLE_MASK_LENGTH;
-		tid |= current_tuple_id++;
-		// cout << "id at " << col_count << " : " << tid << endl;
-		tuple_buffer[col_count] = tid;
-		// write data
-		write(fp_out, tuple_buffer, 8 * (arity + 1));
+		u64 t_hash = hash_tuple(tuple_buffer, arity);
+		if (tuple_hash_set.find(t_hash) == tuple_hash_set.end()){
+			tuple_hash_set.insert(t_hash);
+			u64 tid = rel_tag;
+			tid <<= (TUPLE_MASK_LENGTH + BUCKET_MASK_LENGTH);
+			tid |= (t_hash % buckets) << TUPLE_MASK_LENGTH;
+			tid |= current_tuple_id++;
+			// cout << "id at " << col_count << " : " << tid << endl;
+			tuple_buffer[col_count] = tid;
+			// write data
+			write(fp_out, tuple_buffer, 8 * (arity + 1));
+		}
 		lineno++;
 	}
 	write_interned_pools();
@@ -374,9 +393,9 @@ int main(int argc, char **argv)
 	rel_tag = (unsigned)i;
 
 	// if output file exists check file size
-	if (filesystem::exists(output_file))
+	if (fs::exists(output_file))
 	{
-		current_tuple_id = filesystem::file_size(output_file) / ((arity + 1) * 8);
+		current_tuple_id = fs::file_size(output_file) / ((arity + 1) * 8);
 	}
 	else
 	{

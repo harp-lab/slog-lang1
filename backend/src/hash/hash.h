@@ -29,8 +29,7 @@ inline u64 tuple_hash(const u64* start_ptr, u64 prefix_len)
     return hash;
 }
 
-// change this to compile time?
-inline u32 string_hash(const std::string& str) {
+inline u32 string_hash32(const std::string& str) {
     const u32 base = 2166136261u;
     const u32 prime = 16777619u;
 
@@ -43,3 +42,19 @@ inline u32 string_hash(const std::string& str) {
     }
     return hash;
 }
+
+inline u64 string_hash(const std::string& str) {
+    const u64 base = 14695981039346656037ULL;
+    const u64 prime = 1099511628211ULL;
+    const u64 c46 = 35184372088832ULL;
+
+    u64 hash = base;
+    for (char c: str)
+    {
+        if ((u64)c == 0) continue;
+        hash ^= (u64)c;
+        hash *= prime;
+    }
+    return hash % c46;
+}
+

@@ -128,9 +128,9 @@ void parallel_io::parallel_read_input_relation_from_file_to_local_buffer(u32 ari
     //std::cout << "222222 Filename " << file_name << std::endl;
     uintmax_t size_data_file = 0;
     // if input file not exists, we assume input relation is empty size
-    if(std::filesystem::exists(file_name))
+    if(fs::exists(file_name))
     {
-        size_data_file = std::filesystem::file_size(file_name);
+        size_data_file = fs::file_size(file_name);
         if (size_data_file % (8 * (arity + 1)) != 0)
         {
             std::cout << "Input file :" << file_name << " "
@@ -149,16 +149,11 @@ void parallel_io::parallel_read_input_relation_from_file_to_local_buffer(u32 ari
     global_row_count = size_data_file / (8 * (arity + 1));
     col_count = arity + 1;
 
-
-    /* Broadcast the total number of rows and column to all processes */
-    MPI_Bcast(&global_row_count, 1, MPI_INT, 0, lcomm);
-    MPI_Bcast(&col_count, 1, MPI_INT, 0, lcomm);
-
 #if 1
 
     /* Read all data in parallel */
     uint64_t read_offset;
-    read_offset = (int)ceil((float)global_row_count / nprocs) * rank;
+    read_offset = (uint64_t)ceil((float)global_row_count / nprocs) * rank;
 
     if (read_offset > (uint64_t)global_row_count)
     {
@@ -172,7 +167,7 @@ void parallel_io::parallel_read_input_relation_from_file_to_local_buffer(u32 ari
 			entry_count = global_row_count - read_offset;
         }
 		else {
-			entry_count = (int) ceil((float)global_row_count / nprocs);
+			entry_count = (u64) ceil((float)global_row_count / nprocs);
         }
     }
 
@@ -261,7 +256,6 @@ void parallel_io::buffer_data_to_hash_buffer_col(u32 arity, u32 join_column_coun
         process_data_vector_size = process_data_vector_size + (col_count);
     }
 
-
     /* Transmit the packaged data process_data_vector to all processes */
     all_to_all_comm(process_data_vector, process_data_vector_size, process_size, &hash_buffer_size, &hash_buffer, comm);
 
@@ -269,7 +263,8 @@ void parallel_io::buffer_data_to_hash_buffer_col(u32 arity, u32 join_column_coun
     //MPI_Allreduce(&hash_buffer_size, &g_hash_buffer_size, 1, MPI_INT, MPI_SUM, comm);
     //if (rank == 0)
     //    std::cout << "After Comm " << fname << " " << g_hash_buffer_size/((arity+1)) << std::endl;
-
+    // for (int i = 0; i < nprocs; i++)
+    //     process_data_vector[i].vector_buffer_free();
     /* Free the data buffer after all to all */
     free (process_data_vector);
 

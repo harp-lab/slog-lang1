@@ -21,7 +21,7 @@ std::map<std::string, std::unordered_set<std::string>> rel_index_map;
 // load all relation inside input database
 void load_input_relation(std::string db_dir)
 {
-  for (const auto & entry : std::filesystem::directory_iterator(db_dir))
+  for (const auto & entry : std::fs::directory_iterator(db_dir))
   {
     // check if ends with table
     std::string filename_ss = entry.path().filename().string();
@@ -91,6 +91,7 @@ int main(int argc, char **argv)
   
   // Enable IO
   lie->enable_data_IO();
+  // lie->enable_share_io();
   lie->enable_IO();
   // lie->enable_share_io();
   lie->set_output_dir(slog_output_dir); // Write to this directory
@@ -109,9 +110,12 @@ int main(int argc, char **argv)
     }
     std::cout << std::endl;
   }
+
   // lie->print_all_relation_size(); // Continuously print relation sizes
 
   delete lie;
+
   mcomm.destroy();
+
   return 0;
 }

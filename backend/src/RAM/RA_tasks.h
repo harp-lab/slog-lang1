@@ -10,14 +10,17 @@
 
 
 
+#include <array>
+#include <map>
 #include <vector>
 class RAM
 {
+    using ram_id_type = int;
 
 private:
 
-    int ram_id;
-    bool init_status=false;
+    ram_id_type ram_id;
+    // bool init_status=false;
 
     int iteration_count = -1;                               /// Number of iterations in a fixed point
 
@@ -52,12 +55,15 @@ private:
 
     u32 loop_count_tracker;
 
+    bool profile_flag = false;
+
 public:
 
     ~RAM();
-    RAM (bool ic, int ram_id);
+    RAM (bool ic, ram_id_type ram_id);
 
-
+    std::vector<double> ra_op_detail;
+    std::array<double, 6> runtime_detail;
 
     /// Set local task-level communicator
     void set_comm(mpi_comm& mcomm);
@@ -86,7 +92,9 @@ public:
 
 
     /// add rule to the SCC
-    void add_rule(parallel_RA* pj) {RA_list.push_back(pj);}
+    void add_rule(parallel_RA* pj) { RA_list.push_back(pj); ra_op_detail.push_back(0); }
+
+    std::vector<parallel_RA*> get_ra_list() { return RA_list; }
 
 
     /// Load balancing related
@@ -120,7 +128,7 @@ public:
 
 
     /// Intra bucket comm for sub-buckets
-    u64 intra_bucket_comm_execute();
+    u64 intra_bucket_comm_execute(std::vector<double>& time_vector);
 
 
     /// Buffer to hold new tuples
@@ -132,7 +140,7 @@ public:
 
 
     /// Join/compy/acopy
-    u32 local_compute(int* offset);
+    bool local_compute(int* offset);
 
     void local_comm();
 
@@ -160,6 +168,8 @@ public:
 
     /// Start running this SCC (task) for "batck_size" iterations
     void fixed_point_loop(std::string name, int batch_size, std::vector<u32>& history, std::map<u64, u64>& intern_map);
+
+    void print_ra_runtime_detail();
 };
 
 #endif

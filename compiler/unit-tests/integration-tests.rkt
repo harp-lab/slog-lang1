@@ -264,7 +264,9 @@
      '(file "consts-repeated-vars.slog")
      '(file "consts-repeated-vars.slog.tests"))
 
-    (slog-behavior-test-case
+    ;; The new expected behavior is a compile error.
+    ;; We don't support expected compile errors in test cases.
+    #;(slog-behavior-test-case
      "aggregators with extended indices"
      "(foo 1 2) (foo 1 3)
       (bar 1 2) (bar 1 3)

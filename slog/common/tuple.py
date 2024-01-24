@@ -4,6 +4,9 @@ Data format convert untility function
 Yihao Sun
 '''
 
+import multiprocessing as mp
+import os
+from functools import partial
 
 TAG_MASK =      0xFFFFC00000000000
 BUCKET_MASK =   0x00003FFFF0000000
@@ -16,6 +19,9 @@ INT_TAG = 0
 STRING_TAG = 2
 SYMBOL_TAG = 3
 
+class SlogStr:
+    def __init__(self, sid) -> None:
+        self.sid = sid
 
 class SlogTuple:
     """
@@ -42,7 +48,9 @@ class SlogTupleParaser:
     A parser will parse a slog query result u64 tuple set into well-formated string.
     """
 
-    def __init__(self, query_res, cardinality, max_depth, tag_map, intern_string_dict):
+    def __init__(self, query_res, cardinality, max_depth, tag_map, intern_string_dict, rel_name, rel_tag, limit=100, local_db_path=""):
+        self.rel_name = rel_name
+        self.rel_tag = rel_tag
         self.printed_id_map = {}
         self.reversed_id_map = {}
         self.count_map = {}
@@ -51,8 +59,10 @@ class SlogTupleParaser:
         self.max_depth = max_depth
         self.tag_map = tag_map
         self.intern_string_dict = intern_string_dict
+        self.limit = limit
+        self.local_db_path = local_db_path
 
-    def parse_tuple_row(self, u64_list, rel_name, intern_string_dict) -> SlogTuple:
+    def parse_tuple_row(self, u64_list, rel_name) -> SlogTuple:
         """ parse a row of u64 tuple into a python object """
         parsed_row = []
         # index col
@@ -61,6 +71,7 @@ class SlogTupleParaser:
         tuple_id = u64_list[0] & (~TUPLE_ID_MASK)
         t_id = (rel_tag, bucket_id, tuple_id)
         parsed_row.append(t_id)
+        require_rels = []
         if t_id in self.count_map:
             self.count_map[t_id] += 1
         else:
@@ -72,14 +83,17 @@ class SlogTupleParaser:
                 if attr_val >= SIGN_FILP_CONST:
                     attr_val = SIGN_FILP_CONST - attr_val
             elif val_tag == STRING_TAG:
-                attr_val = intern_string_dict[u64 & U32_MASK]
+                # attr_val = intern_string_dict[u64 & U32_MASK]
+                attr_val = SlogStr(u64 & VAL_MASK)
             else:
                 # relation
                 bucket_id = (u64 & BUCKET_MASK) >> 28
                 tuple_id = u64 & (~TUPLE_ID_MASK)
                 attr_val = ('NESTED', val_tag, bucket_id, tuple_id)
+                if val_tag not in require_rels:
+                    require_rels.append(val_tag)
             parsed_row.append(attr_val)
-        return SlogTuple(rel_name, parsed_row)
+        return SlogTuple(rel_name, parsed_row), require_rels
 
 
     def tuple_to_str(self, slog_tuple: SlogTuple, cur_max_depth):
@@ -106,6 +120,8 @@ class SlogTupleParaser:
                         res.append(f"({self.tag_map[nested_tag][0]} #{printed_id})")
                     else:
                         res.append(self.tuple_to_str(val, cur_max_depth-1))
+            elif isinstance(col, SlogStr):
+                res.append(self.intern_string_dict[col.sid])
             else:
                 res.append(str(col))
         return f"({rel_name} {' '.join(res)})"
@@ -130,7 +146,6 @@ class SlogTupleParaser:
 
     def pretty_str_tuples(self, print_rel_list):
         """ pretty stringfy a list of relation """
-        res = []
         rel_tag_list = [r[2] for r in print_rel_list]
         # for slog_tuple in slog_tuples:
         #     self.count_tuples(slog_tuple, self.max_depth, self.printed_id_map)
@@ -141,15 +156,16 @@ class SlogTupleParaser:
         for p_id, val in self.printed_id_map.items():
             if val.tuple_id[0] in rel_tag_list and val.tuple_id in unfolded_ids:
                 pp_str = self.tuple_to_str(val, self.max_depth)
-                res.append(f"#{p_id}\t{pp_str}")
-        return res
+                # res.append(f"#{p_id}\t{pp_str}")
+                yield f"#{p_id}\t{pp_str}"
+        # return res
 
     def pretty_str_printed_id(self, printed_id):
         """ pretty print an slog tuple with given printed_id """
         pp_str = self.tuple_to_str(self.printed_id_map[printed_id], self.max_depth)
         return f"#{printed_id}\t{pp_str}"
 
-    def parse_query_result(self):
+    def parse_query_result(self, limit=100):
         """
         parse a query result (u64) into python slog tuples object
         query_res is a mapping of relation tag to list of u64 tuples.
@@ -166,21 +182,64 @@ class SlogTupleParaser:
         in printed map only index > 0 index will be printed
         This function will update printed_id_map
         """
+        self.limit = limit
         parsed_tuples = []
-
+        rel_to_parse = [self.rel_tag]
+        rel_parsed = []
         # parse all u64 tuples to python list first
-        for rel_tag, tuples in self.query_res.items():
-            if tuples == []:
-                continue
-            rel_name = self.tag_map[rel_tag][0]
-            rel_arity = self.tag_map[rel_tag][1]
-            buf = []
-            for u64 in tuples:
-                buf.append(u64)
+        # for rel_tag, tuples in self.query_res.items():
+        #     if tuples == []:
+        #         continue
+        #     rel_name = self.tag_map[rel_tag][0]
+        #     rel_arity = self.tag_map[rel_tag][1]
+        #     for i in range(0, len(tuples), rel_arity+1):
+        #         buf = tuples[i:i+rel_arity+1]
+        #         if len(buf) == rel_arity + 1:
+        #             slog_tuple = self.parse_tuple_row(buf, rel_name)
+        #             parsed_tuples.append(slog_tuple)
+        while len(rel_to_parse) != 0:
+            # if rel_to_parse == self.rel_tag:
+            next_rel_tag = rel_to_parse[0]
+            tuples = []
+            if next_rel_tag not in self.query_res:
+                # local mode try to fectch from disk
+                self.query_res[next_rel_tag] = []
+                target_file = None
+                for table_file in os.listdir(self.local_db_path):
+                    if not (table_file.endswith('.table') or table_file.endswith('.table_full')):
+                        continue 
+                    if int(table_file.split('.')[0]) == next_rel_tag:
+                        target_file = table_file
+                        break
+                arity = int(target_file.split('.')[-2])
+                with open(os.path.join(self.local_db_path, target_file), 'rb') as bin_file:
+                    bin_bytes = bin_file.read()
+                    u64_buf = []
+                    for i in range(0, len(bin_bytes), 8):
+                        raw_u64 = int.from_bytes(bin_bytes[i:i+8], 'little', signed=False)
+                        u64_buf.append(raw_u64)
+                        if len(u64_buf) == arity + 1:
+                            self.query_res[next_rel_tag].append(u64_buf[-1])
+                            for u64 in u64_buf[:-1]:
+                                self.query_res[next_rel_tag].append(u64)
+                            u64_buf = []
+            tuples = self.query_res[next_rel_tag]
+            rel_name = self.tag_map[next_rel_tag][0]
+            rel_arity = self.tag_map[next_rel_tag][1]
+            for i in range(0, len(tuples), rel_arity+1):
+                if (next_rel_tag == self.rel_tag) and (i > self.limit):
+                    break
+                buf = tuples[i:i+rel_arity+1]
                 if len(buf) == rel_arity + 1:
-                    slog_tuple = self.parse_tuple_row(buf, rel_name, self.intern_string_dict)
+                    slog_tuple, required_rels = self.parse_tuple_row(buf, rel_name)
+                    rel_to_parse += [r for r in required_rels
+                                     if (r not in rel_to_parse) and (r not in rel_parsed)]
                     parsed_tuples.append(slog_tuple)
-                    buf = []
+            if rel_to_parse != []:
+                print(f"{next_rel_tag} >>>>>>>> {rel_to_parse}")
+            rel_parsed.append(next_rel_tag)
+            rel_to_parse = rel_to_parse[1:]
+
         if self.printed_id_map == {}:
             cur_printed_id = 0
         else:
@@ -194,4 +253,5 @@ class SlogTupleParaser:
                 cur_printed_id += 1
                 self.printed_id_map[cur_printed_id] = new_tuple
                 self.reversed_id_map[new_tuple.tuple_id] = (cur_printed_id, new_tuple)
+        # print(self.printed_id_map)
         return parsed_tuples

@@ -763,3 +763,77 @@
   (match x
     [`(prov ,item ,pos) (pred item)]
     [else #f]))
+
+
+(define (backend-input-ir-relation-decl? e)
+  (match e
+    [`(relation-decl ,name ,jcc ,canonical ,arity) #t]
+    [else #f]))
+
+(define (backend-input-ir-scc-order? e)
+  (match e
+    [`((,from ,to) ...) #t]
+    [else #f]))
+
+(define (backend-input-ir-scc-rel? e)
+  (match e
+    [`(scc-rel ,name ,dynamic? ,deletable?) #t]
+    [else #f]))
+
+(define (backend-input-ir-external-function? e)
+  (match e
+    [`(external-function
+       ,cpp-func-name
+       ,hvar-len
+       (,(? backend-input-ir-reorder-arg? old-bi-args) ...)
+       ,output-indices-len
+       ((,result-indices ,index-in-input-tuple) ...)
+       ((,head-tuple-indices ,(? backend-input-ir-reorder-arg? head-tuple-vals)) ...)) #t]
+    [else #f]))
+
+(define (backend-input-ir-ra-operation? e)
+  (match e
+    [`(RA fact ,rel-name (,(? backend-input-ir-val? vals) ...)) #t]
+    [`(RA acopy ,output-rel-name ,input-rel-name ,rel-version (,(? number? reorder) ...) ) #t]
+    [`(RA copy ,output-rel-name ,input-rel-name ,rel-version (,(? number? reorder) ...) ) #t]
+    [`(RA join ,output-rel-name
+          ,input1-rel-name ,input1-version
+          ,input2-rel-name ,input2-version
+          (,(? number? reorder) ...)) #t]
+    [`(RA copy-generate ,output-rel-name ,input-rel-name, input-version
+          ,(? backend-input-ir-external-function?)) #t]
+    [`(RA aggregation ,output-rel-name ,input1-rel-name ,input2-rel-name
+          ,input-version ,local-cpp-func ,agg-type ,reduce-cpp-func ,global-cpp-func
+          ,reorder) #t]
+    [else #f]))
+
+
+(define (backend-input-ir-val? e)
+  (match e
+    [`(num ,n) #t]
+    [`(str ,s) #t]
+    [else #f]))
+
+(define (backend-input-ir-reorder-arg? e)
+  (match e
+    [`(num ,n) #t]
+    [`(str ,s) #t]
+    [`(data ,d) #t]
+    [else #f]))
+
+(define (backend-input-ir-scc-decl? e)
+  (match e
+    [`(scc-decl ,scc-name ,scc-id
+                ,fixpoint?
+                (,(? backend-input-ir-scc-rel?) ...)
+                (,(? backend-input-ir-ra-operation?) ...))
+     #t]
+    [else #f]))
+
+(define (backend-input-ir? e)
+  (match e
+    [`(slog-prog
+       (,(? backend-input-ir-relation-decl? rel-decl) ...)
+       (,(? backend-input-ir-scc-decl?) ...)
+       (,(? backend-input-ir-scc-order?) ...)) #t]
+    [else #f]))

@@ -4,6 +4,9 @@
  */
 
 #include "../parallel_RA_inc.h"
+#include <cstring>
+#include <iostream>
+#include <mpi.h>
 
 
 
@@ -173,74 +176,88 @@ void intra_bucket_comm(u32 buckets,
                        int* input_distinct_sub_bucket_rank_count, int** input_distinct_sub_bucket_rank, u32* input_bucket_map,
                        int* output_distinct_sub_bucket_rank_count, int** output_distinct_sub_bucket_rank, u32* output_bucket_map,
                        u64 *total_buffer_size, u64 **recvbuf,
-                       MPI_Comm mcomm)
+                       MPI_Comm mcomm, bool sub_bucket_flag, std::vector<double>& time_vector)
 {
+    double before_size_exchange = MPI_Wtime();
+    
     // buffer to hold relation data to be sent out
     vector_buffer *input_buffer = new vector_buffer[buckets];
     int *input_buffer_size = new int[buckets];
 
     //std::cout << "Buckets " << buckets << std::endl;
 
-    u32** meta_buffer_size = new u32*[buckets];
-    memset(meta_buffer_size, 0, sizeof(u32*) * buckets);
-
     *total_buffer_size = 0;
     u32* bucket_offset = new u32[buckets];
 
-    int rank;
-    MPI_Comm_rank(mcomm, &rank);
 
-    u64 total_send_buffer_size = 0;
-    for (u32 i = 0; i < buckets; i++)
-    {
-        // Buffer to store relation data
-        input_buffer[i].vector_buffer_create_empty();
-
-        // Puts btree data into a vector
-        std::vector<u64> prefix = {};
-        rel[i].as_vector_buffer_recursive(&(input_buffer[i]), prefix);
-
-        // size of data to be sent
-        input_buffer_size[i] = (&input_buffer[i])->size / sizeof(u64);
-        total_send_buffer_size = total_send_buffer_size + input_buffer_size[i];
-
-        meta_buffer_size[i] = new u32[input_distinct_sub_bucket_rank_count[i]];
-        memset(meta_buffer_size[i], 0, sizeof(u32) * input_distinct_sub_bucket_rank_count[i]);
-
-        u32 req_counter1 = 0;
-        MPI_Request *req1 = new MPI_Request[output_distinct_sub_bucket_rank_count[i] + input_distinct_sub_bucket_rank_count[i]];
-        MPI_Status *stat1 = new MPI_Status[output_distinct_sub_bucket_rank_count[i] + input_distinct_sub_bucket_rank_count[i]];
-
-        if (input_bucket_map[i] == 1)
+    int** meta_buffer_size = new int*[buckets];
+    memset(meta_buffer_size, 0, sizeof(int*) * buckets);
+    if (sub_bucket_flag) {  
+        for (u32 i = 0; i < buckets; i++)
         {
-            for (int r = 0; r < output_distinct_sub_bucket_rank_count[i]; r++)
+            meta_buffer_size[i] = new int[input_distinct_sub_bucket_rank_count[i]];
+            memset(meta_buffer_size[i], 0, sizeof(u32) * input_distinct_sub_bucket_rank_count[i]);
+
+            u32 req_counter1 = 0;
+            MPI_Request *req1 = new MPI_Request[output_distinct_sub_bucket_rank_count[i] + input_distinct_sub_bucket_rank_count[i]];
+            MPI_Status *stat1 = new MPI_Status[output_distinct_sub_bucket_rank_count[i] + input_distinct_sub_bucket_rank_count[i]];
+
+            double before_mpi_op = MPI_Wtime();
+            bucket_offset[i] = *total_buffer_size;
+
+            if (input_bucket_map[i] == 1)
             {
-                int buffer_size = input_buffer_size[i];
-                MPI_Isend(&buffer_size, 1, MPI_INT, output_distinct_sub_bucket_rank[i][r], 123, mcomm, &req1[req_counter1]);
-                req_counter1++;
+                // Buffer to store relation data
+                input_buffer[i].vector_buffer_create_empty();
+                // Puts btree data into a vector
+                rel[i].as_vector_buffer_recursive(&(input_buffer[i]), {});
+                // size of data to be sent
+                input_buffer_size[i] = (&input_buffer[i])->size / sizeof(u64);
+                for (int r = 0; r < output_distinct_sub_bucket_rank_count[i]; r++)
+                {
+                    int buffer_size = input_buffer_size[i];
+                    MPI_Isend(&buffer_size, 1, MPI_INT, output_distinct_sub_bucket_rank[i][r], 123, mcomm, &req1[req_counter1]);
+                    req_counter1++;
+                }
+                for (int r = 0; r < input_distinct_sub_bucket_rank_count[i]; r++)
+                {
+                    MPI_Irecv(meta_buffer_size[i] + r, 1, MPI_INT, input_distinct_sub_bucket_rank[i][r], 123, mcomm, &req1[req_counter1]);
+                    *total_buffer_size = *total_buffer_size + meta_buffer_size[i][r];
+                    req_counter1++;
+                }
             }
-        }
+            double after_mpi_op = MPI_Wtime();
+            time_vector[2] += after_mpi_op - before_mpi_op;
+            MPI_Waitall(req_counter1, req1, stat1);      
 
-        if (output_bucket_map[i] == 1)
-        {
-            for (int r = 0; r < input_distinct_sub_bucket_rank_count[i]; r++)
-            {
-                MPI_Irecv(meta_buffer_size[i] + r, 1, MPI_INT, input_distinct_sub_bucket_rank[i][r], 123, mcomm, &req1[req_counter1]);
-                req_counter1++;
+            delete[] req1;
+            delete[] stat1;
+        }
+    } else {
+        for (u32 i = 0; i < buckets; i++) {
+            meta_buffer_size[i] = new int[input_distinct_sub_bucket_rank_count[i]];
+            memset(meta_buffer_size[i], 0, sizeof(u32) * input_distinct_sub_bucket_rank_count[i]);
+            bucket_offset[i] = *total_buffer_size;
+            // Buffer to store relation data
+            input_buffer[i].vector_buffer_create_empty();
+            input_buffer_size[i] = 0;
+            if (input_bucket_map[i] == 1) {
+                
+                // Puts btree data into a vector
+                rel[i].as_vector_buffer_recursive(&(input_buffer[i]), {});
+                // size of data to be sent
+                input_buffer_size[i] = (&input_buffer[i])->size / sizeof(u64); 
+                // for (int r = 0; r < output_distinct_sub_bucket_rank_count[i]; r++) {
+                //     output_distinct_sub_bucket_rank[i][r] = input_buffer_size[i];
+                // }
+                meta_buffer_size[i][0] = input_buffer_size[i];
             }
+            *total_buffer_size = *total_buffer_size + meta_buffer_size[i][0];
         }
-
-        MPI_Waitall(req_counter1, req1, stat1);
-
-
-        bucket_offset[i] = *total_buffer_size;
-        for (int r = 0; r < input_distinct_sub_bucket_rank_count[i]; r++)
-            *total_buffer_size = *total_buffer_size + meta_buffer_size[i][r];
-
-        delete[] req1;
-        delete[] stat1;
     }
+    double after_size_exchange = MPI_Wtime();
 
+    time_vector[0] += after_size_exchange - before_size_exchange;
 
 #if 0
 
@@ -261,53 +278,64 @@ void intra_bucket_comm(u32 buckets,
     /// Actual data Exchange
 
     // Allocate buffer
+    double before_data_exchange = MPI_Wtime();
     *recvbuf = new u64[*total_buffer_size];
 
-    // Non-blocking point-to-point data exchange
-    for (u32 i = 0; i < buckets; i++)
-    {
-        u32 req_counter2 = 0;
-        MPI_Request *req2 = new MPI_Request[output_distinct_sub_bucket_rank_count[i] + input_distinct_sub_bucket_rank_count[i]];
-        MPI_Status *stat2 = new MPI_Status[output_distinct_sub_bucket_rank_count[i] + input_distinct_sub_bucket_rank_count[i]];
-
-        // data
-        if (input_bucket_map[i] == 1)
+    if (sub_bucket_flag) {
+        // Non-blocking point-to-point data exchange
+        for (u32 i = 0; i < buckets; i++)
         {
-            for (int r = 0; r < output_distinct_sub_bucket_rank_count[i]; r++)
+            u32 req_counter2 = 0;
+            MPI_Request *req2 = new MPI_Request[output_distinct_sub_bucket_rank_count[i] + input_distinct_sub_bucket_rank_count[i]];
+            MPI_Status *stat2 = new MPI_Status[output_distinct_sub_bucket_rank_count[i] + input_distinct_sub_bucket_rank_count[i]];
+
+            u32 offset = 0;
+            // data
+            if (input_bucket_map[i] == 1)
             {
-                if (input_buffer_size[i] != 0)
+                for (int r = 0; r < output_distinct_sub_bucket_rank_count[i]; r++)
                 {
-                    MPI_Isend(input_buffer[i].buffer, input_buffer_size[i], MPI_UNSIGNED_LONG_LONG, output_distinct_sub_bucket_rank[i][r], 123, mcomm, &req2[req_counter2]);
-                    req_counter2++;
+                    if (input_buffer_size[i] != 0)
+                    {
+                        MPI_Isend(input_buffer[i].buffer, input_buffer_size[i], MPI_UNSIGNED_LONG_LONG, output_distinct_sub_bucket_rank[i][r], 123, mcomm, &req2[req_counter2]);
+                        req_counter2++;
+                    }
+                }
+                for (int r = 0; r < input_distinct_sub_bucket_rank_count[i]; r++)
+                {
+                    if (meta_buffer_size[i][r] != 0)
+                    {
+                        MPI_Irecv((*recvbuf) + offset + bucket_offset[i], meta_buffer_size[i][r], MPI_UNSIGNED_LONG_LONG, input_distinct_sub_bucket_rank[i][r], 123, mcomm, &req2[req_counter2]);
+                        offset = offset + meta_buffer_size[i][r];
+                        req_counter2++;
+                    }
                 }
             }
-        }
 
-        u32 offset = 0;
-        if (output_bucket_map[i] == 1)
-        {
-            for (int r = 0; r < input_distinct_sub_bucket_rank_count[i]; r++)
-            {
-                if (meta_buffer_size[i][r] != 0)
-                {
-                    MPI_Irecv((*recvbuf) + offset + bucket_offset[i], meta_buffer_size[i][r], MPI_UNSIGNED_LONG_LONG, input_distinct_sub_bucket_rank[i][r], 123, mcomm, &req2[req_counter2]);
-                    offset = offset + meta_buffer_size[i][r];
-                    req_counter2++;
-                }
+            MPI_Waitall(req_counter2, req2, stat2);
+            input_buffer[i].vector_buffer_free();
+
+            delete[] req2;
+            delete[] stat2;
+            delete[] meta_buffer_size[i];
+        }
+    } else {
+        for (u32 i = 0; i < buckets; i++) {
+            if (input_bucket_map[i] == 1 && input_buffer_size[i] != 0){
+                std::memcpy((*recvbuf) + bucket_offset[i], input_buffer[i].buffer, input_buffer_size[i] * sizeof(u64));
             }
+            input_buffer[i].vector_buffer_free();
+            delete[] meta_buffer_size[i];
         }
-
-        MPI_Waitall(req_counter2, req2, stat2);
-        input_buffer[i].vector_buffer_free();
-
-        delete[] req2;
-        delete[] stat2;
-        delete[] meta_buffer_size[i];
     }
+
     delete[] meta_buffer_size;
     delete[] input_buffer;
     delete[] input_buffer_size;
     delete[] bucket_offset;
+    
+    double after_data_exchange = MPI_Wtime();
+    time_vector[1] += after_data_exchange - before_data_exchange;
 
     return;
 }

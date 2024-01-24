@@ -14,7 +14,7 @@
 
 enum {LEFT=0, RIGHT};
 enum {DELTA=0, FULL, FULL_AND_DELTA};
-enum {COPY=0, COPY_FILTER, COPY_GENERATE, ACOPY, JOIN, FACT, NEGATION};
+enum {COPY=0, COPY_FILTER, COPY_GENERATE, ACOPY, JOIN, FACT, NEGATION, AGGREGATION};
 enum {STATIC=0, DYNAMIC};
 
 class relation
@@ -65,9 +65,9 @@ private:
     mpi_comm mcomm;                             /// comm related
     parallel_io file_io;                        /// to handle parallel IO
 
-    bool offset_io;
+    // bool offset_io;
     bool share_io;
-    bool restart_flag;
+    // bool restart_flag;
     //bool fact_load=false;
     //std::vector<u64> init_val;
 
@@ -100,9 +100,9 @@ public:
         //fact_load = false;
     }
 
-    void set_restart_flag(bool restart)    {restart_flag = restart;}
+    // void set_restart_flag(bool restart)    {restart_flag = restart;}
 
-    void set_offset_io(bool offset)   {offset_io = offset;}
+    // void set_offset_io(bool offset)   {offset_io = offset;}
 
     void set_share_io(bool share)   {share_io = share;}
 
@@ -145,6 +145,7 @@ public:
     u64 get_full_element_count();
     u32 get_global_full_element_count();
 
+    u64 get_full_btree_size();
 
     u32 get_new_element_count();
 

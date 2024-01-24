@@ -39,7 +39,7 @@ private:
 
     bool enable_io;
 
-    bool share_io;                                        /// whether using MPI collective IO to write file
+    bool share_io = false;                                        /// whether using MPI collective IO to write file
 
     std::string output_dir;
 
@@ -90,7 +90,7 @@ public:
 
     /// Adds a new relation to the LIE
     void add_relation(relation* rel);
-
+    std::vector<relation*> get_relation() { return lie_relations; };
 
     /// Adds a new SCC to the LIE
     void add_scc(RAM* ra);

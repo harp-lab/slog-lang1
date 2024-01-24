@@ -1,8 +1,9 @@
 #include "../parallel_RA_inc.h"
 #include <iostream>
+#include <mpi.h>
 
 
-u32 RAM::local_compute(int* offset)
+bool RAM::local_compute(int* offset)
 {
     bool join_completed = true;
     u32 join_tuples = 0;
@@ -13,6 +14,10 @@ u32 RAM::local_compute(int* offset)
 
     for (std::vector<parallel_RA*>::iterator it = RA_list.begin() ; it != RA_list.end(); ++it)
     {
+        #ifdef PROFILE 
+        double before_time = MPI_Wtime();
+        
+        #endif
         if ((*it)->get_RA_type() == COPY)
         {
             parallel_copy* current_ra = (parallel_copy*) *it;
@@ -103,6 +108,21 @@ u32 RAM::local_compute(int* offset)
                                                 compute_buffer, counter);
             }
         }
+
+        else if ((*it)->get_RA_type() == AGGREGATION)
+        {
+            // parallel_copy_aggregate* current_ra = (parallel_copy_aggregate*) *it;
+            parallel_join_aggregate* current_ra = (parallel_join_aggregate*) *it;
+            current_ra->local_aggregate(
+                get_bucket_count(),
+                &(offset[counter]),
+                intra_bucket_buf_output_size[counter],
+                intra_bucket_buf_output[counter],
+                compute_buffer,
+                counter);
+        }
+
+
 
         else if ((*it)->get_RA_type() == NEGATION)
         {
@@ -211,51 +231,57 @@ u32 RAM::local_compute(int* offset)
             current_ra->get_join_projection_index(&reorder_map_array);
             relation* input0 = current_ra->get_join_input0();
             relation* input1 = current_ra->get_join_input1();
-            relation* output = current_ra->get_join_output();
-            assert(output->get_arity() == reorder_map_array.size());
             int join_column_count = input0->get_join_column_count();
 
-            if (current_ra->get_join_input0_graph_type() == DELTA && current_ra->get_join_input1_graph_type() == DELTA)
-            {
+            shmap_relation* input0_trees = input0->get_full();
+            u64 input0_size = input0->get_full_element_count();
+            shmap_relation* input1_trees = input1->get_full();
+            u64 input1_size = input1->get_full_element_count();
+            if (current_ra->get_join_input0_graph_type() == DELTA) {
+                input0_trees = input0->get_delta();
+                input0_size = input0->get_delta_element_count();
+            }
+            if (current_ra->get_join_input1_graph_type() == DELTA) {
+                input1_trees = input1->get_delta();
+                input1_size = input1->get_delta_element_count();
+            }
+            int join_direction = LEFT;
+            // int local_join_direction_count = input0_size < input1_size ? 0 : 1;   // true if size of input0 > input1
+            // int global_join_direction_count = local_join_direction_count;
+
+            // MPI_Allreduce(&local_join_direction_count, &global_join_direction_count, 1, MPI_INT, MPI_SUM, mcomm.get_comm());
+            // if (global_join_direction_count > mcomm.get_nprocs() / 2) {
+            //     join_direction = RIGHT;
+            // }
+            if (current_ra->get_join_input0_graph_type() == DELTA && current_ra->get_join_input1_graph_type() == DELTA) {
+                join_direction = LEFT;
+            } else if (current_ra->get_join_input0_graph_type() == DELTA && current_ra->get_join_input1_graph_type() == FULL) {
+                join_direction = LEFT;
+            } else if (current_ra->get_join_input0_graph_type() == FULL && current_ra->get_join_input1_graph_type() == FULL) {
+                join_direction = RIGHT;
+            } else if (current_ra->get_join_input0_graph_type() == FULL && current_ra->get_join_input1_graph_type() == DELTA) {
+                join_direction = RIGHT;
+            }
+
+            if (join_direction == LEFT) {
                 join_completed = join_completed & current_ra->local_join(threshold, &(offset[counter]),
                                                                          LEFT,
                                                                          get_bucket_count(),
                                                                          intra_bucket_buf_output_size[counter], input0->get_arity()+1, intra_bucket_buf_output[counter],
-                                                                         input1->get_delta(), input1->get_delta_element_count(), input1->get_arity()+1,
+                                                                         input1_trees, input1_size, input1->get_arity()+1,
                                                                          reorder_map_array,
                                                                          output_relation,
                                                                          compute_buffer,
                                                                          counter,
                                                                          join_column_count,
                                                                          &join_tuples_duplicates,
-                                                                         &join_tuples);
-                total_join_tuples = total_join_tuples + join_tuples;
-            }
-            else if (current_ra->get_join_input0_graph_type() == DELTA && current_ra->get_join_input1_graph_type() == FULL)
-            {
-
-                join_completed = join_completed & current_ra->local_join(threshold, &(offset[counter]),
-                                                                         LEFT,
-                                                                         get_bucket_count(),
-                                                                         intra_bucket_buf_output_size[counter], input0->get_arity()+1, intra_bucket_buf_output[counter],
-                                                                         input1->get_full(), input1->get_full_element_count(), input1->get_arity()+1,
-                                                                         reorder_map_array,
-                                                                         output_relation,
-                                                                         compute_buffer,
-                                                                         counter,
-                                                                         join_column_count,
-                                                                         &join_tuples_duplicates,
-                                                                         &join_tuples);
-                total_join_tuples = total_join_tuples + join_tuples;
-            }
-            else if (current_ra->get_join_input0_graph_type() == FULL && current_ra->get_join_input1_graph_type() == DELTA)
-            {
-
+                                                                         &join_tuples);       
+            } else {
                 join_completed = join_completed & current_ra->local_join(threshold, &(offset[counter]),
                                                                          RIGHT,
                                                                          get_bucket_count(),
                                                                          intra_bucket_buf_output_size[counter], input1->get_arity()+1, intra_bucket_buf_output[counter],
-                                                                         input0->get_full(), input0->get_full_element_count(), input0->get_arity()+1,
+                                                                         input0_trees, input0_size, input0->get_arity()+1,
                                                                          reorder_map_array,
                                                                          output_relation,
                                                                          compute_buffer,
@@ -263,25 +289,15 @@ u32 RAM::local_compute(int* offset)
                                                                          join_column_count,
                                                                          &join_tuples_duplicates,
                                                                          &join_tuples);
-                total_join_tuples = total_join_tuples + join_tuples;
             }
-            else if (current_ra->get_join_input0_graph_type() == FULL && current_ra->get_join_input1_graph_type() == FULL)
-            {
-                join_completed = join_completed & current_ra->local_join(threshold, &(offset[counter]),
-                                                                         RIGHT,
-                                                                         get_bucket_count(),
-                                                                         intra_bucket_buf_output_size[counter], input1->get_arity()+1, intra_bucket_buf_output[counter],
-                                                                         input0->get_full(), input0->get_full_element_count(), input0->get_arity()+1,
-                                                                         reorder_map_array,
-                                                                         output_relation,
-                                                                         compute_buffer,
-                                                                         counter,
-                                                                         join_column_count,
-                                                                         &join_tuples_duplicates,
-                                                                         &join_tuples);
-                total_join_tuples = total_join_tuples + join_tuples;
-            }
+            total_join_tuples = total_join_tuples + join_tuples;
         }
+        #ifdef PROFILE 
+
+        double after_time = MPI_Wtime();
+        ra_op_detail[counter] += after_time - before_time;
+        
+        #endif
         counter++;
     }
 
@@ -299,16 +315,38 @@ u32 RAM::local_compute(int* offset)
     if (join_completed == true)
         synchronizer = 1;
 
+    #ifdef PROFILE
+    auto before_sync = MPI_Wtime();
+    #endif
+
     MPI_Allreduce(&synchronizer, &global_synchronizer, 1, MPI_INT, MPI_BAND, mcomm.get_comm());
+    #ifdef PROFILE
+    auto after_sync = MPI_Wtime();
+    runtime_detail[5] += after_sync - before_sync;
+    if (mcomm.get_rank() == 0)
+        std::cout << " (sync " << after_sync - before_sync << ")";
+    #endif
     if (global_synchronizer == 1)
     {
         counter = 0;
         for (std::vector<parallel_RA*>::iterator it = RA_list.begin() ; it != RA_list.end(); ++it)
         {
             parallel_RA* current_ra = *it;
-            if (current_ra->get_RA_type() == JOIN || current_ra->get_RA_type() == NEGATION)
+            if (current_ra->get_RA_type() == JOIN)
             {
                 delete[] intra_bucket_buf_output[counter];
+            }
+
+            if (current_ra->get_RA_type() == NEGATION)
+            {
+                // parallel_join_negate* _ra = (parallel_join_negate*)current_ra;
+                delete[] intra_bucket_buf_output[counter];
+            }
+            if (current_ra->get_RA_type() == AGGREGATION) {
+                parallel_join_aggregate* _ra = (parallel_join_aggregate*)current_ra;
+                if (*(_ra->join_aggregate_target_table->get_sub_bucket_per_bucket_count()) != 1) {
+                    delete[] intra_bucket_buf_output[counter];
+                }
             }
 
             offset[counter] = 0;
