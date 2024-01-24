@@ -171,6 +171,16 @@ def run_local(file, out_path, factloc, cores, verbose, slog_root=None, compile_b
     os.makedirs(inputloc, exist_ok=True)
     os.makedirs(checkpointloc, exist_ok=True)
 
+    # preprocess slog file into outloc using mzpp
+    try:
+        preprocessed_file = os.path.join(outloc, os.path.basename(file))
+        output = subprocess.check_output(["mzpp", "-o", preprocessed_file, file],
+                                stderr=subprocess.STDOUT)
+        file = preprocessed_file
+    except subprocess.CalledProcessError as e:
+        print(f"Preprocessing failed! Code: `{e.returncode}`, Error:\n{e.output.decode()}")
+        return
+
     if verbose:
         print("JIT Compiling .slog to .slogc")
 
