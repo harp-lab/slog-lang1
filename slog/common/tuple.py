@@ -173,9 +173,9 @@ class SlogTupleParser:
                 pp_str = self.tuple_to_str(val, self.max_depth)
                 # res.append(f"#{p_id}\t{pp_str}")
                 # yield f"#{self.reversed_id_map[val.data_col[0][1:][0]]}\t{pp_str}"
-                # yield f"#{val.rel_name}_{val.tuple_id[2]}\t{pp_str}" # WORKING LINE
+                yield f"#{val.rel_name}_{val.tuple_id[2]}\t{pp_str}" # WORKING LINE
                 # yield f"#{p_id}\t{pp_str}"
-                yield f"#{randid}_{p_id}\t{pp_str}"
+                # yield f"#{randid}_{p_id}\t{pp_str}"
                 # yield f"#{val.rel_name}\t{pp_str}"
         # return res
 
