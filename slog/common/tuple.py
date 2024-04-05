@@ -165,10 +165,13 @@ class SlogTupleParser:
             if count == 0 or count >= self.cardinality:
                 unfolded_ids.append(t_id)
         
-        
-        for p_id, val in self.printed_id_map.items():
-            global randid
-            randid += 1
+        # to write the facts in facts.txt in sorted order
+        sorted_items = sorted(self.printed_id_map.items(), key=lambda item: int(item[1].tuple_id[2]))
+            
+        # for p_id, val in self.printed_id_map.items():
+        for p_id, val in sorted_items:
+            # global randid
+            # randid += 1
             if val.tuple_id[0] in rel_tag_list and val.tuple_id in unfolded_ids:
                 pp_str = self.tuple_to_str(val, self.max_depth)
                 # res.append(f"#{p_id}\t{pp_str}")
