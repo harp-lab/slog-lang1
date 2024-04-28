@@ -9,54 +9,29 @@ data-parallel deductive programming.
 
 - `compiler/`         -- Compiler from Slog source code to a parallel RA plan
 - `backend/`          -- MPI-based parallel relational algebra plan (RA) runtime
-- `slog/`             -- Python code for interacting with Slog:
-- `slog/protobufs/`   -- Wire-level protocol
-- `slog/daemon/`      -- Server for managing, queuing, and storing Slog jobs
-- `slog/repl/`        -- Interactive CLI for Slog
+- `runslog`           -- Script to build and run slog program with given input data
 
 ## Building and Executing
 
-![cli](./cli.gif)
+### Prepare
+- input slog program file: "<filename>.slog"
+- an input database dir "<in_dir_name>", all relation stored as "<dir_name>/<rel_name>.csv"
+- an output database dir "<out_dir_name>"
 
-## Using Docker
+### Build From Scratch
+Please check the command used in Dockerfile.
 
-First, build the Docker image and start up the server:
 
+### Using Docker
 ```sh
-docker build --tag slog .
-docker run --name=slog --entrypoint=/slog/slog-server --rm --detach slog
+docker build -t <image_name> .
+# mount current dir  into workspace, please make sure input facts and slog program
+# are presented.
+docker run --rm -it -v $(pwd):/workspace stargazermiao/slog bash
+# please specify the core number
+./runslog -v -R -j <cores> -f <in_dir_name>  <filename>.slog <out_dir_name>
 ```
 
-You may want to run with `--network=host` to expose all the Slog ports to your
-host.
-
-### Using the REPL from inside the container
-
-In a separate terminal:
-```sh
-docker exec --interactive --tty slog bash
-./slog-repl
-```
-
-### Running scripts from outside the container
-
-First, install the Python dependencies:
-
-```sh
-pip install -r requirements.txt
-```
-
-Then:
-
-```sh
-./runslog 127.0.0.1 tests/tc.slog
-```
-
-If you ran without `--network=host`, you can find the container's IP like so:
-
-```sh
-docker container inspect slog --format '{{.NetworkSettings.IPAddress}}'
-```
 
 ## Another way to setup slog
 
