@@ -1,0 +1,33 @@
+
+; a type is a relation
+
+; inductive type
+; 0 is a program has type nat
+(has-type ?(zero 0)
+    (nat (zero 0)))
+; if n is a program has type nat, then suc n is a program has type nat
+; (if (suc n) is a program in current database)
+[(has-type ?(suc n)
+    (nat (suc n))) <-- (nat n)]
+
+; check if 1 has type nat
+(suc (zero 0))
+(1-has-type-nat ?(nat (suc (zero 0))))
+
+; plus is an Π type,
+; if n has type nat, m has type nat, then plus n m has type nat
+[(has-type ?(plus n m)
+    (nat (plus n m))) <-- (nat n) (nat m)]
+
+; check if 0 + 0 has type nat
+(plus (zero 0) (zero 0))
+(0-plus-0-has-type-nat ?(nat (plus (zero 0) (zero 0))))
+
+; base rule for +
+(plus-0 ?(plus (zero 0) n) n)
+; inductive rule for +
+(plus-suc ?(plus (suc n) m)
+    (suc (plus n m)))
+
+
+

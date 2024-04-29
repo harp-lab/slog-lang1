@@ -1,0 +1,34 @@
+(
+ slog-prog
+ ((relation-decl rel__path__2__2 path 1 #f 2 (2))
+  (relation-decl rel__edge__2__1 edge 1 #f 2 (1))
+  (relation-decl rel__edge__2__1__2 edge 2 #t 2 (1 2))
+  (relation-decl rel__path__2__1__2 path 2 #t 2 (1 2)))
+ ((scc-decl
+   scc0
+   0
+   #f
+   ((scc-rel rel__edge__2__1 #t #f) (scc-rel rel__edge__2__1__2 #t #f))
+   ((acopy rel__edge__2__1 rel__edge__2__1__2 DELTA (0 2 1))))
+  (scc-decl
+   scc1
+   1
+   #f
+   ((scc-rel rel__edge__2__1__2 #f #f) (scc-rel rel__path__2__1__2 #t #f))
+   ((copy rel__path__2__1__2 rel__edge__2__1__2 FULL (0 1))))
+  (scc-decl
+   scc2
+   2
+   #t
+   ((scc-rel rel__path__2__2 #t #f)
+    (scc-rel rel__edge__2__1 #f #f)
+    (scc-rel rel__path__2__1__2 #t #f))
+   ((acopy rel__path__2__2 rel__path__2__1__2 DELTA (1 2 0))
+    (join
+     rel__path__2__1__2
+     rel__edge__2__1
+     FULL
+     rel__path__2__2
+     DELTA
+     (4 2)))))
+ ((0 2) (1 2)))

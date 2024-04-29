@@ -1,0 +1,122 @@
+;; Per Martin-Lof's intuitionistic type theory
+;;
+;; Largely adapted from Frank Pfenning's notes
+
+;; proofs are represented as
+;; (ctor consequent antecedents ... )
+;; where consequent is a proposition
+;; antecedents are propositions
+
+;;
+;; Administrativa
+;;
+
+;; Helper relation--lookup consequent
+(consequent ?(I-True (tru) _) (tru)) 
+(consequent ?(I-And C _ _) C)
+(consequent ?(E-And-L C _) C)
+(consequent ?(E-And-R C _) C)
+(consequent ?(E-Or C _ _ _) C)
+
+;; Assumptions must be in the environment
+(yes ?(check (assuming P (assumption P)) P) P)
+
+;; Propagate assumptions down
+[(yes !(check (I-And A-And-B (assuming P A) (assuming P B)) Q))
+ -->
+ (yes ?(check (assuming P (I-And A-And-B A B)) Q))]
+
+[(yes !(check (E-And-L C (assuming P A)) Q))
+ -->
+ (yes ?(check (assuming P (E-And-L C A)) Q))]
+
+[(yes !(check (E-And-R C (assuming P B)) Q))
+ -->
+ (yes ?(check (assuming P (E-And-R C B)) Q))]
+
+[(yes !(check (assuming P A-or-B) Q))
+ (yes !(check (assuming P pf-A-C) Q))
+ (yes !(check (assuming P pf-B-C) Q))
+ -->
+ (yes ?(check (assuming P (E-Or C A-or-B pf-A-C pf-B-C)) Q))]
+
+;;
+;; Inference Rules for ITT
+;;
+
+;; check is a decision procedure for well-formed proofs
+;; check -> pf -> type -> prop
+
+;; A true  B true
+;; -------------- I-And
+;;   A /\ B true
+[(yes !(check pf-A A))
+ (yes !(check pf-B B))
+ -->
+ (yes ?(check (I-And (land A B) pf-A pf-B) (land A B)))]
+
+;; A /\ B true
+;; ----------- E-And-L
+;;  A true
+[(= (land A B) {consequent pf-A-B})
+ (yes !(check pf-A-B (land A B)))
+ --> 
+ (yes ?(check (E-And-L A pf-A-B) A))] 
+
+;; A /\ B true
+;; ----------- E-And-R
+;;  B true
+[(= (land A B) {consequent pf-A-B})
+ (yes !(check pf-A-B (land A B)))
+ --> 
+ (yes ?(check (E-And-R B pf-A-B) B))]
+
+;;    A true
+;; -------------- I-Or-L
+;;   A \/ B true
+[(yes !(check pf-A A))
+ -->
+ (yes ?(check (I-Or-L (lor A B) pf-A) (lor A B)))]
+
+;;    B true
+;; -------------- I-Or-R
+;;   A \/ B true
+[(yes !(check pf-B B))
+ -->
+ (yes ?(check (I-Or-L (lor A B) pf-B) (lor A B)))] 
+
+;;              ------ u ------ w
+;;              A true   B true
+;;               ...      ...
+;; A \/ B true  C true   C true
+;; ---------------------------- E-Or
+;;            C true
+[(= (lor A B) {consequent pf-A-or-B})
+ (yes !(check (assuming A pf-left) C))
+ (yes !(check (assuming B pf-right) C))
+ -->
+ (yes ?(check (E-Or C pf-A-or-B pf-left pf-right) C))]
+
+;;   ------ u
+;;   A true
+;;    ...
+;;   B true
+;; ----------- I-Impl
+;; A -> B true
+[(yes !(check (assuming A pf-B) B))
+ -->
+ (yes ?(check (I-Impl (Impl A B) pf-B) (Impl A B)))]
+
+[(= (land A B) {consequent pf-A-B})
+ (yes !(check pf-A-B (land A B)))
+ --> 
+ (yes ?(check (E-And-R B pf-A-B) B))]
+
+;; ------------ I-True
+;;     True
+(yes ?(check (I-True (tru) (truth)) (tru)))
+
+(check
+ (I-Impl (Impl (land (A) (B)) (A))
+         (E-And-L (A) (assumption (land (A) (B)))))
+ (A))

@@ -1,0 +1,136 @@
+; let's write map in slog!
+
+; we need a global relation map which is similar to list
+; it has declartion: (map key value map-id)
+
+; base case: empty map
+(foo1 (empty-map 0))
+
+; recursive case: map with one more key-value pair
+(foo2 (map 2 4 (map 1 2 (empty-map 0))))
+
+; NOTE: map relation should always attached as subfact of a rule
+; its similar to the case that when using racket, a defined map
+; should be assigned to a variable
+
+; a map can be referenced by rule map-ref
+(map-ref ?(map k v res) k v)
+[(map-ref res k1 v1) --> (map-ref ?(map k v res) k1 v1)]
+
+[(check-value-of-1-foo2 {map-ref m 1}) <-- (foo2 m)]
+[(check-value-of-2-foo2 {map-ref m 2}) <-- (foo2 m)]
+
+; one important place to use map is representing type context
+; we use Simply Typed Lamba Calculus (STLC) as example
+
+; rename map as type context
+('mt~)
+('in~ ?(ctx x T res) x T)
+[('in~ res x1 T1) --> ('in~ ?(ctx x T res) x1 T1)]
+
+; before start, lets write AST of STLC term in slog
+
+; 1. syntax of STLC term
+; Simple types is a set of type contains atomic types and function types constructred
+; by arrow type constructor and other simple types
+; as TAPL book says, we start by using Bool as atomic typ
+; SimplyType = AtomicType | ('longrightarrow~ SimplyType SimplyType)
+; AtomicType = Bool
+; let's write examples term of Simply Type
+(ast-example-type-1
+    (Bool))
+(ast-example-type-3
+    ('longrightarrow~ (Bool) ('longrightarrow~ (Bool) (Bool))))
+; term of STLC:
+; variable: x
+(ast-example-term-variable
+    (var "x"))
+; abstraction: \x:T.x
+(ast-example-term-abstraction
+    ('lambda~ "x" (Bool) (var "x")))
+; application: x y
+(ast-example-term-application
+    (apply (var "x") (var "y")))
+; constant: true false
+(ast-example-term-constant-true
+    (true))
+(ast-example-term-constant-false
+    (false))
+; if-then-else: if x then y else z
+(ast-example-term-if-then-else
+    (if (var "x") (var "y") (var "z")))
+
+; 2. Typing rules of STLC
+
+; Next, we introduce the use of intuitionistic logic to represent typing rules.
+; A type judgement is represented as a triple (t, T, 'Gamma~) using the relation ('vdash~ t T 'Gamma~).
+; means under context 'Gamma~, term t has type T
+; NOTE: unlike TAPL book, I put context at last argument of \vdash operator
+; The "check" relation is used to associate a type judgement with a valid proof, 
+; which is represented as a tree of inference rules.
+; Each proof node is represented as a fact in the slog file.
+
+; T-Abs
+; 'Gamma~, x:T1 |- t2:T2
+; ---------------------
+; 'Gamma~ |- \x:T1.t2 : T1 -> T2
+[(pass !(check proof-t2 ('vdash~ t2 T2 (ctx x T1 'Gamma~))))
+ -->
+ (pass ?(check (T-Abs proof-t2)
+               ('vdash~ ('lambda~ x T1 t2) ('longrightarrow~ T1 T2) 'Gamma~)))]
+; NOTE: use ! ? in slog to fire fact on-demand or lazily
+
+; T-Var
+; x:T in 'Gamma~
+; ----------------
+; 'Gamma~ |- x:T
+[('in~ 'Gamma~ x T)
+ -->
+ (pass ?(check (T-Var)
+               ('vdash~ (var x) T 'Gamma~)))]
+
+; T-App
+; 'Gamma~ |- t1:T1 -> T2
+; 'Gamma~ |- t2:T1
+; -------------------
+; 'Gamma~ |- t1 t1 : T2
+[(pass !(check proof-t1 ('vdash~ t1 ('longrightarrow~ T1 T2) 'Gamma~)))
+ (pass !(check proof-t2 ('vdash~ t2 T1 'Gamma~)))
+ -->
+ (pass ?(check (T-App T1 proof-t1 proof-t2)
+               ('vdash~ (apply t1 t2) T2 'Gamma~)))]
+
+; [(check (T-App T1 proof-t1 proof-t2) ('vdash~ (apply t1 t2) T2 'Gamma~))
+;  -->
+;  (check proof-t1 ('vdash~ t1 ('longrightarrow~ T1 T2) 'Gamma~))]
+
+; T-True
+; -------------------
+; 'Gamma~ |- true:Bool
+(pass ?(check (T-True) ('vdash~ (true) (Bool) 'Gamma~)))
+
+; T-False
+; -------------------
+; 'Gamma~ |- false:Bool
+(pass ?(check (T-False) ('vdash~ (false) (Bool) 'Gamma~)))
+
+; okay! let's check term on TAPL
+; (\x:Bool.x) true under empty context 
+(judegement-1 ('vdash~ (apply ('lambda~ "x" (Bool) (var "x")) (true)) (Bool) ('mt~)))
+
+; here is the proof
+(proof "proof-1"
+    (T-App (Bool) (T-Abs (T-Var)) (T-True)))
+
+(check {proof "proof-1"} {judegement-1})
+[(correct "should-be-correct") <-- (pass (check {proof "proof-1"} {judegement-1}))]
+
+
+; {"ugly": "'longrightarrow~", "pretty": "⟶"},
+; {"ugly": "'rightarrow~", "pretty": "→"},
+; {"ugly": "'Rightarrow~", "pretty": "⇒"},
+; {"ugly": "'lambda~", "pretty": "λ"},
+; {"ugly": "'Gamma~", "pretty": "Γ"},
+; {"ugly": "'vdash~", "pretty": "⊢"},
+; {"ugly": "'mt~", "pretty": "Ø"},
+; {"ugly": "'in~", "pretty": "∈"}

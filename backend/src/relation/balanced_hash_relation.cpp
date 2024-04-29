@@ -9,7 +9,7 @@
 #include "balanced_hash_relation.h"
 #include <cassert>
 #include <cstddef>
-#include <filesystem>
+#include <experimental/filesystem>
 #include <iostream>
 #include <vector>
 
@@ -501,17 +501,17 @@ void relation::load_data_from_file_with_offset()
 
 void relation::load_data_from_file()
 {
-    if (!std::filesystem::exists(this->get_filename()))
+    if (!std::experimental::filesystem::exists(this->get_filename()))
     {
         // if file not exists don't IO
         return;
     }
-    if (std::filesystem::file_size(this->get_filename()) == 0) {
+    if (std::experimental::filesystem::file_size(this->get_filename()) == 0) {
         return;
     }
     std::cout << "relation with tag :" << this->get_intern_tag() << " "
               << " filename :" << this->get_filename() << " "
-              << " file size: " << std::filesystem::file_size(this->get_filename())
+              << " file size: " << std::experimental::filesystem::file_size(this->get_filename())
             //   << "c++ object " << this
               << " start normal IO" << std::endl;
     /// reading from file
@@ -635,7 +635,7 @@ void relation::initialize_relation(mpi_comm& mcomm, std::map<u64, u64>& intern_m
 
     /*
     // if no input file stop reading, just return
-    if ((!this->is_canonical) || (!std::filesystem::exists(this->filename)))
+    if ((!this->is_canonical) || (!std::experimental::filesystem::exists(this->filename)))
     {
         // std::cout << "relation :" << this->get_filename()  << "not exists!";
         return;

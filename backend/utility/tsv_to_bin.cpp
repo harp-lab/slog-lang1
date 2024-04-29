@@ -21,7 +21,7 @@
 #include <sstream>
 #include <unordered_map>
 #include <vector>
-#include <filesystem>
+#include <experimental/filesystem>
 #include <functional>
 #include <unordered_set>
 
@@ -374,9 +374,9 @@ int main(int argc, char **argv)
 	rel_tag = (unsigned)i;
 
 	// if output file exists check file size
-	if (filesystem::exists(output_file))
+	if (std::experimental::filesystem::exists(output_file))
 	{
-		current_tuple_id = filesystem::file_size(output_file) / ((arity + 1) * 8);
+		current_tuple_id = std::experimental::filesystem::file_size(output_file) / ((arity + 1) * 8);
 	}
 	else
 	{

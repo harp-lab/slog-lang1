@@ -1,0 +1,9 @@
+<< (define bar "BAR") >>
+
+foo1
+
+foo2 << bar newline* bar >> baz
+
+foo3
+
+<< (include "./itt.slog") >>
