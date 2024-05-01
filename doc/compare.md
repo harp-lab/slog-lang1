@@ -1,5 +1,5 @@
 # Comparison of Slog and Soufflé
-
+[This document needs editing]
 This is a document giving an overview of slog language and comparing with state-of-art datalog dialect, [soufflé](https://soufflé-lang.github.io/docs.html). Assuming you already know basic usage of soufflé language, if not please reference a related part in soufflé's document.
 
 Written by @StarGazerM
