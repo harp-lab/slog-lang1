@@ -1,8 +1,7 @@
 # Comparison of Slog and Soufflé
-[This document needs editing]
-This is a document giving an overview of slog language and comparing with state-of-art datalog dialect, [soufflé](https://soufflé-lang.github.io/docs.html). Assuming you already know basic usage of soufflé language, if not please reference a related part in soufflé's document.
+If you are already familiar with Souffle and want to get started with Slog, or just want to see how `slog` is different from `souffle`, this article is for you. This article gives an overview of slog language and comparing it with state-of-art datalog dialect, [soufflé](https://soufflé-lang.github.io/docs.html). 
 
-Written by @StarGazerM
+Written by [Sun Yihao](https://github.com/StarGazerM) 
 
 ## Fact
 
@@ -38,7 +37,7 @@ bar(x) :-
     foo(x, _).
 ```
 
-In slog, you don't need to define a rule before using it, the compiler will automatically do it for you, and please notice that in soufflé one rule name only corresponds to one name. If you already declare bar have 1 arity than you can't declare another bar has 2 arity. However in slog, users can use a name multiple times to get  polyvariants of a rule.
+In slog, you don't need to define a relation before using it, the compiler will automatically do it for you:
 
 **slog**
 ```
@@ -110,10 +109,9 @@ Slog using `openmpi` as backend for paralyzation, in current implementation, onl
 ### Indices
 
 
-In datalog, indices order and selection is very crucial to join performance. Before talking about indices I want to mention some details about joining first.
+In datalog, indices order and selection is very crucial to join performance. Before talking about indices I want to mention some details about joins first.
 
-Both soufflé and slog use btree as intern data structure to store tuples. for a relation like `foo(a, b, c)`
- As we all know, btree is a sorted data structure, each node in btree is a range of tuples with some order. In soufflé, each tuple will be represented as a 3-array, and the order of tuples will be determined by
+Both soufflé and slog use btree as internal data structure to store tuples. for a relation like `foo(a, b, c)`. And btree is a sorted data structure, each node in btree is a range of tuples with some order. In soufflé, each tuple will be represented as a 3-array, and the order of tuples will be determined by
 
  ```
  foo1 < foo2 <=> a1 < a2 ? True : b1 < b2 ? True c1 < c2
@@ -149,7 +147,7 @@ for a_bar, _ in rel_bar:
 This needs a whole iteration on the relation bar, which is inefficient as it looks like.
 In soufflé you must be very careful about this, and in k-arity join, the rule scheduling will be complicated and hard, soufflé does have an optimized index selection algorithm, please refer to the paper in soufflé website.
 
-Indice mechanism in slog is a bit more complex. In slog, each relation will have a few different indices. The indices defined by the user are called `Canonical Index`, the slog compiler will also create some non-canonical indices during organization pass which always put the joined column first and drop all unused columns. For example, previous code will become something semantically similar to:
+Indice mechanism in slog is a bit more involved. In slog, each relation will have a few different indices. The indices defined by the user are called `Canonical Index`, the slog compiler will also create some non-canonical indices during organization pass which always put the joined column first and drop all unused columns. For example, previous code will become something semantically similar to:
 
 ```
 ; res_1_2__2 means relation res has 2 arity and using an index selection 1 2
@@ -177,7 +175,7 @@ Each non-canonical index is a copy of (part of) its original relation, and data 
 
 In the above code, we didn't assign the partition for this rule, so in the slog compiler this rule will join non deterministically. One possible partition is, join `prr` and `bar` first then join with `foo`. This partition will cause an intermediate relation `(join-bar-prr c d x b)` which is the cartesian product of relation `bar` and `prr`, if size of these relation grows, this intermediate relation will become a huge performance overhead. Another possible partition is join `foo` and `bar` first, this time the intermediate relation will be `(join-foo-bar a b)` which contain less data then previous join in many cases because it has less columns. But the later join order is not always better, if the relation `foo` size is huge and `bar` is very small, this partition maybe cause more intermediate memory cost.
 
-In one word, a programmer must select the partition of slog rule very carefully with respect to both how intermediate relation looks like and the size of relation. Since effective automatic clause partition is very hard, slog provides a keyword `--`. Programmers can use this to manually specify clause partitions in the following way.
+Put simply, a programmer must select the partition of slog rule very carefully with respect to both how intermediate relation looks like and the size of relation. Since effective automatic clause partition is very hard, slog provides a keyword `--`. Programmers can use this to manually specify clause partitions in the following way.
 
 **slog**
 ```

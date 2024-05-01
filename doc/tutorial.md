@@ -6,7 +6,7 @@ To Learn more about how slog works internally and a more substantial explanation
 In here, We will look at some examples and Arithmetic functor's & Aggregators at a surface level to get you started writing programs in slog.
 
 This article assumes you have [Set Up Slog](./setup_slog.md), and have gone through [A Simple Example](./TC.md).
-
+<!---
 -----------------------------------------------------------------------
 ### Meta:
 - [x] Talk about Nested Facts, Free-Variable in slog-wiki does that.
@@ -15,14 +15,16 @@ This article assumes you have [Set Up Slog](./setup_slog.md), and have gone thro
 - [x] can have multiple heads in the head
 - [x] What is {}, How does it work?
 - [x] How to talk about \_ what is this, and how is it used
-- [ ] What is -- and how does that work, this is for manually specifying order of joins. [here](https://github.com/harp-lab/slog/blob/docs/docs/compare.md#body-clause-partition)
-- [ ] Are floats supported in the language???
-- [ ] No support for relations of multiple arity like `(bar 1 2)` `(bar 1 2 3)` is not allowed
+- [x] What is -- and how does that work, this is for manually specifying order of joins. [here](https://github.com/harp-lab/slog/blob/docs/docs/compare.md#body-clause-partition)
+- [x] Are floats supported in the language? -> Nope
+- [x] No support for relations of multiple arity like `(bar 1 2)` `(bar 1 2 3)` is not allowed
 - [ ] ~ outside the paren or inside the paren, do they mean the same thing???, which syntax is correct?
 - [x] Talk about how lists work, look at yihao's sssp and list.slog
----------------------------------------------------------------------------
+--->
+
 We will introduce features and syntax through different examples,
 
+---------------------------------------------------------------------------
 ### Free Vars
 Finding free vars in a lambda expression using slog, for example take this lambda expression, here `z` is a free-var:
 ```lambda-cal
@@ -50,6 +52,8 @@ Finding free vars in a lambda expression using slog, for example take this lambd
 ```
 - The above two rules, introduce two new features, `or` and `=/=`. `or` is used for dis-junction in the body. `=/=` is used to express `not equal to` operator.
 
+-------------------------------------
+
 ### Same Generation
 - This example is taken from [Souffle's tutorial](https://souffle-lang.github.io/tutorial#same-generation-example), and follows the same pattern.
 - Gives a tree, directed acyclic graph, Same generation is to find nodes that are the same level in the tree.
@@ -73,7 +77,7 @@ Finding free vars in a lambda expression using slog, for example take this lambd
 [(person x) <-- (parent _ x)]
 ```
 - In the above rules \_ matches with any value and doesn't assign it to any variable for use in the head.[help]
-
+-----------------------------------------
 ### Extending TC
 #### SCC
 - We can extend on our [TC](./TC.md) example and extend it to compute, which nodes are strongly connected.
@@ -99,7 +103,7 @@ Finding free vars in a lambda expression using slog, for example take this lambd
 [(acylic)  <-- ~(cyclic _)]
 ```
 - If none of the nodes are cyclic, the graph is acyclic
-
+-------------------------------
 ### Arithmetic Functors
 - In this example, we try and use arithmetic functor's in slog.
 - Slog supports `+, -, *, /`, simplest examples would be just directly use them.
@@ -134,7 +138,7 @@ Finding free vars in a lambda expression using slog, for example take this lambd
 ```
 - The first rule is recursive, computes and stores every step of factorial as a tuple in fact relation. The `(fact 5 1)`, triggers the first rule.
 - The second rule, just pulls out the final factorial value from the fact relation.
-
+----------------------------------------
 ### Aggregators
 - Slog supports `count, minimum, maximum, sum` , Aggregators are same as you know from the SQL.
 #### Count
@@ -203,6 +207,7 @@ Finding free vars in a lambda expression using slog, for example take this lambd
 ```
 - First we accumulate the distances to all nodes from src across different paths.
 - Final rule, we use minimum aggregator to find the shortest distance between the `x` or `src` and each node.
+---------------------------------------
 ### Lists and usage
 - Ability to *support nested facts*  means slog support linked lists.
 ```slog
@@ -295,30 +300,26 @@ Finding free vars in a lambda expression using slog, for example take this lambd
 #### SSSP - Path
 - In these example, we will use the goodness of lists to extend our SSSP example, which gives the min-dist to all the nodes from a source node, to also give us the paths that are min-dist.
 ```slog
-(a-edge 1 2 1) (a-edge 2 3 2) (a-edge 2 4 1)
-(a-edge 3 5 2) (a-edge 4 5 1) (a-edge 5 6 2)
-
-(member ?(do-member x (nil)) (false))
-(member ?(do-member x (list x rst)) (true))
-[(member ?(do-member x (list hd rst)) (true)) <-- (=/= hd x) (member !(do-member x rst) (true))]
-[(member ?(do-member x (list hd rst)) (false)) <-- (=/= hd x) (member !(do-member x rst) (false))]
-[(do-member 2 l) <-- (input-list l)]
-
-[(node a) (node b) <-- (a-edge a b _)]
+;; Single source shortest path
+;; cyclic
+(edge 1 2 1) (edge 3 2 2) (edge 2 4 1)
+(edge 5 3 2) (edge 4 5 1) (edge 5 6 2)
 (source-node 1)
 
-[(path from to (list to (list from (nil ))) w) <-- (a-edge from to w)]
-[(print-path from to (list to (list from (nil ))) w) <-- (a-edge from to w)]
-[(path from mid pt acc-w)
- (a-edge mid to w)
- (member !(do-member to pt) (false))
-    -->
-    (path from to (list to pt) {+ acc-w w})]
-[(shortest-dist from to {minimum path from to _}) <-- (path from to _ _) (source-node from)]
-[(shortest-dist from to dist) (path from to pt dist) --> (shortest-path from to pt dist)]
-
+[(edge from to w) --> (path from to (list to (list from (nil ))) w)]
+[(path from mid pt acc-w) (edge mid to w) (member !(do-member to pt) (false))
+    --> (path from to (list to pt) {+ acc-w w})]
+[(path from to _ _) (source-node from) 
+	--> (shortest-dist from to {minimum path from to _})]
+[(shortest-dist from to dist) (path from to pt dist) 
+	--> (shortest-path from to pt dist)]
 ```
-- Explanation [todo] 
+- This is an interesting program to look at and understand, this uses most of the features the other examples have introduced till this point.
+- The example needs the rules from [member](#member) example, we are emitting them here for brevity.
+- We have a graph and source node in the EDB (Extensional Database) i.e., input, We have to produce the shortest path from source-node to rest of the reachable nodes in the graph.
+- Prior SSSP example, calculated min dist from source node to other nodes but didn't keep the path to take for the min dist, Here we are trying to get the path.
+- The only difference here from the previous example is, along with the min dist, we add the new hop to a list of nodes in that path. And before doing that, we do a membership check for that node, to make sure we don't infinitely loop in case of cyclic graphs.
+- Remove the membership check, for a cyclic graph the program goes into a infinite loop, for an acyclic graph, membership check isn't necessary.
 
 ### Sources 
 - Some Examples are picked from sources written by [Sun Yihao](https://github.com/StarGazerM), [Akshar Patel](https://github.com/akshar2020)

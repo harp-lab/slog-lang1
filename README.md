@@ -25,6 +25,7 @@ The Following guide can help you quickly get started with Slog:
 - [A Simple Example: Transitive Closure](./doc/TC.md)
 - [Tutorial](./doc/tutorial.md) 
 - [REPL and runslog](./doc/repl_and_runslog.md) 
+- [Comparison with Souffle](./doc/compare.md)
 - Components and Internals (Todo)
 
 If you have issues or find any mistakes, please raise an issue.
