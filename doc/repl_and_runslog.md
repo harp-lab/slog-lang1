@@ -3,7 +3,7 @@ runslog and REPL are the two main points of interaction for a user with Slog.
 
 ## ./runslog
 - runslog is a python script that sits in the slog root, that let's the user run slog, and drop into the REPL and other flags to enable different functionalities.
-- Running .`/runslog -h`, will show the options available and what each option means.
+- Running .`/runslog -h`, displays options available.
 ```text
 ./runslog
 usage: runslog [OPTION] [slogfile] [out_dir]
@@ -44,12 +44,12 @@ Options:
 ```
 
 ## REPL
-- The -R options puts you in the REPL to introspect on facts in the database.
-- And it lets you do exactly that, just `dump <rel-name>`, it dumps the facts and you can look through them.
+- The -R options drops in the REPL to introspect on facts in the database.
+- Running `dump <rel-name>`, dumps the facts in the relation.
 ![REPL2.png](./images/REPL2.png)
 - `relations` lists all the relations in the database including the internal intermediate ones.
 ![REPL3.png](./images/REPL3.png)
-- In Slog, we cannot directly print to the terminal. Instead, we might consider building up an output relation, for example `print-out`, which we will populate with any output we want to see. A sample program might look like this:
+- In doesn't support directly printing to the terminal. Instead, one might consider building up an output relation, for example `print-out`, which can be populated with any output, then dumped once in REPL. A sample program might look like this:
 ```slog
 ; hello.slog
 (welcome-msg 0 "hello-world")
@@ -60,5 +60,5 @@ Options:
 [(print-out msg) <-- (print-welcome msg-id) (welcome-msg msg-id msg)]
 (print-welcome 1)
 ```
-- Here, This is similar to what we would want from a printf-style debugging, and can be useful in undestanding what each rule is doing in a program.
-- Note, Here we are not using spaces in the strings, because the current parser does not support spaces in strings.
+- Here, This is similar to a printf-style debugging, and can be useful in undestanding what each rule is doing in a program.
+- Note, Here there are no spaces in the strings, because the current parser does not support spaces in strings.

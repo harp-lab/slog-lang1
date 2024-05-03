@@ -1,62 +1,48 @@
 ## Tutorial
 
 
-To Learn more about how slog works internally and a more substantial explanation, please refer to [Slog Paper on arXiv](https://arxiv.org/abs/2211.11573)
+To Learn more about how slog works internally and for a more substantial explanation, please refer to [Slog Paper on arXiv](https://arxiv.org/abs/2211.11573)
 
-In here, We will look at some examples and Arithmetic functor's & Aggregators at a surface level to get you started writing programs in slog.
+In here, We will look at some examples involving basic syntax, arithmetic functor's and aggregators at a surface level to get you started writing programs in slog.
 
 This article assumes you have [Set Up Slog](./setup_slog.md), and have gone through [A Simple Example](./TC.md).
-<!---
------------------------------------------------------------------------
-### Meta:
-- [x] Talk about Nested Facts, Free-Variable in slog-wiki does that.
-- [ ] Mention that spaces in string break the parser
-- [x] explicit dis-junction in the body using or
-- [x] can have multiple heads in the head
-- [x] What is {}, How does it work?
-- [x] How to talk about \_ what is this, and how is it used
-- [x] What is -- and how does that work, this is for manually specifying order of joins. [here](https://github.com/harp-lab/slog/blob/docs/docs/compare.md#body-clause-partition)
-- [x] Are floats supported in the language? -> Nope
-- [x] No support for relations of multiple arity like `(bar 1 2)` `(bar 1 2 3)` is not allowed
-- [ ] ~ outside the paren or inside the paren, do they mean the same thing???, which syntax is correct?
-- [x] Talk about how lists work, look at yihao's sssp and list.slog
---->
 
 We will introduce features and syntax through different examples,
 
 ---------------------------------------------------------------------------
 ### Free Vars
-Finding free vars in a lambda expression using slog, for example take this lambda expression, here `z` is a free-var:
+Finding free vars in a lambda expression using slog, for example :
 ```lambda-cal
 (lam (y) (lam (x) (y (z x))))
 ```
-- To write this out as a slog fact, we can make use of nested facts, and write this as
+- First, we need to represent the λ expression in slog, we can as below using nested facts:
 ```slog
 (lam "y" (lam "x" (app (ref "y") (app (ref "z") (ref "x")))))
 ```
-- If you run slog with just the fact above,  you will notice that there are three different relations, `lam`, `app` and `ref` generated from this fact. Slog's support for first class facts helps us model hierarchy more naturally [help].
+- If you run slog with just the fact above,  you will notice that there are three different relations, `lam`, `app` and `ref` generated from this fact. Slog's support for first class facts helped us model λ expression more naturally.
 - The program to get the free-var in the expression has the following three rules:
 ```slog
 [(free x (ref x)) <-- (ref x)]
 ```
-- For every `ref` tuple, create a `free`, in isolation every ref fact has a free-var.
-- we can write the above rule as:
+- For every `ref` tuple, create a `free` tuple, in isolation every ref fact has a free-var.
+- we can also write the above rule as:
 ```slog
 (free x ?(ref x))
 ```
-- `?` is syntactic sugar, and the above rule gets desugared to the prior rule, and next two rules use this convenience to make rules simpler.
+- `?` is syntactic sugar, and the above rule gets desugared to the prior rule, and next two rules use this convenience to make rules easier to write.
 ```slog
 [(free x ?(lam y eb)) <-- (free x eb) (=/= x y)]
 
 [(free x ?(app ef ea)) <-- (or (free x ef) (free x ea))]
 ```
 - The above two rules, introduce two new features, `or` and `=/=`. `or` is used for dis-junction in the body. `=/=` is used to express `not equal to` operator.
+- Running the program with the fact and the above rules, will give you the free vars i.e., `z` in this case.
 
 -------------------------------------
 
 ### Same Generation
 - This example is taken from [Souffle's tutorial](https://souffle-lang.github.io/tutorial#same-generation-example), and follows the same pattern.
-- Gives a tree, directed acyclic graph, Same generation is to find nodes that are the same level in the tree.
+- Given a tree; directed acyclic graph, Same generation is to find nodes that are on the same level in the tree.
 ```slog
 (parent "d" "b") 
 (parent "e" "b") 
@@ -71,17 +57,18 @@ Finding free vars in a lambda expression using slog, for example take this lambd
 
 [(samegen x y) <-- (parent x p) (samegen p q) (parent y q)]
 ```
-- Here the first rule, has multiple heads, which can be written as
+- Here the first rule, has multiple heads, which is a way to express conjunction in the head. It can also be written as: 
 ```
 [(person x) <-- (parent x _)]
 [(person x) <-- (parent _ x)]
 ```
-- In the above rules \_ matches with any value and doesn't assign it to any variable for use in the head.[help]
+- In the above rules \_ matches with any value, is a wildcard, Souffle has the same syntax.
 -----------------------------------------
 ### Extending TC
 #### SCC
-- We can extend on our [TC](./TC.md) example and extend it to compute, which nodes are strongly connected.
+- Extending on our [TC](./TC.md) example to compute which nodes are strongly connected.
 ```slog
+; TC
 [(path x y) <-- (edge x y)]
 [(path x y) <-- (edge x z) (path z y)]
 
@@ -91,7 +78,6 @@ Finding free vars in a lambda expression using slog, for example take this lambd
 - Here `scc` holds all the edges that are strongly connected, an example graph and its scc is shown below
 ![scc](./images/scc.png)
 - Here, the nodes `1,2,3,4` are strongly connected.
-- How to group nodes in a scc, if there are two scc regions in a graph. [todo]
 #### Cyclic?
 - Check whether a node is part of a cycle, add this rules to the TC
 ```slog
@@ -103,12 +89,13 @@ Finding free vars in a lambda expression using slog, for example take this lambd
 [(acylic)  <-- ~(cyclic _)]
 ```
 - If none of the nodes are cyclic, the graph is acyclic
+- Slog supports Negation, `~` is used to express negation.
 -------------------------------
 ### Arithmetic Functors
-- In this example, we try and use arithmetic functor's in slog.
-- Slog supports `+, -, *, /`, simplest examples would be just directly use them.
+- The following examples show how arithmetic operations can be done in slog.
+- Slog supports `+, -, *, /`, simplest examples would be to just directly use them.
 ```slog
-(plus {+ 1 1}) ;does the computation eagerly and adds the fact (plus 2) to the database
+(plus {+ 1 1}) ; Expression in curly braces is evaluated first, and fact is generated
 [(plus {+ acc 1}) <-- (plus acc) (< acc 5)]
 
 (minus {- 0 1})
@@ -120,16 +107,16 @@ Finding free vars in a lambda expression using slog, for example take this lambd
 (divide {/ 128 1})
 [(divide {/ acc 2}) <-- (divide acc)]
 ```
-- The arithmetic ops in curly braces are done eagerly.
+- The arithmetic ops in curly braces are the first operation performed.
 - They can also be written without curly braces, using more traditional syntax.
 ```slog
 [(+ 1 1 val) --> (plus val)]
 [(plus acc) (< acc 5) (+ acc 1 val) --> (plus val)]
 ```
 - All the arith ops in the main example can be written in this form.
-- You can also see the use of comparison operators, Slog supports `<, >, <=, >=, =, =/=`
+- Please note the usage of comparison operators, Slog supports `<, >, <=, >=, =, =/=`
 #### Factorial
-- Here is factorial written in slog, try it as an exercise before proceeding.
+- Here is factorial(n) written in slog, try it as an exercise before proceeding.
 ```slog
 [(fact {- n 1} {* acc n}) <-- (fact n acc) (> n 0)]
 (fact 5 1)
@@ -140,7 +127,7 @@ Finding free vars in a lambda expression using slog, for example take this lambd
 - The second rule, just pulls out the final factorial value from the fact relation.
 ----------------------------------------
 ### Aggregators
-- Slog supports `count, minimum, maximum, sum` , Aggregators are same as you know from the SQL.
+- Slog supports `count, minimum, maximum, sum` ,Slog aggregators are similar to aggregators in SQl; they are used to aggregate values across a relation. 
 #### Count
 ```slog
 ;; Count
@@ -152,7 +139,7 @@ Finding free vars in a lambda expression using slog, for example take this lambd
 ;; For each node, count the number of edges outgoing from it and accumulate in degree
 [(node x) (count edge x _ degree) --> (node-degree x degree)]
 
-;; below rule, does the same above two rules combined
+;; below rule, does the same as above two rules combined
 ;; matches on outgoing node in edge and uses that in count to get degree
 [(edge x _) (count edge x _ degree) --> (node-degree-edge x degree)]
 
@@ -160,7 +147,6 @@ Finding free vars in a lambda expression using slog, for example take this lambd
 [(count edge _ _ degree) --> (edge-count degree)]
 
 ```
-- The last three rules, show how count can be used. Think of something else to count and use these as examples.
 
 #### Sum
 ```slog
@@ -172,11 +158,11 @@ Finding free vars in a lambda expression using slog, for example take this lambd
 [(b-foo x _) (sum b-foo x S) --> (b-foo-sum-2 x S)]
 [(b-foo x _) (> x 1) (sum b-foo x S) --> (b-foo-sum-3 x S)]
 ```
-- Here we have a `b-foo`, with two columns.
+- Here `b-foo` relation has two columns.
 - First rule, sums all the values in the second column.
 - Second rule, sums all the second column values for each first column value.
 - Third rule, sums all the second columns values for each first column value, where first column value is greater than 1.
-- Syntax is fairly similar to count.
+- Syntax is similar to count.
 #### Maximum and Minimum
 ```slog
 ;; maximum && minimum
@@ -186,7 +172,7 @@ Finding free vars in a lambda expression using slog, for example take this lambd
 [(c-foo x _) (maximum c-foo x max_col2) --> (c-foo-max x max_col2)]
 [(c-foo x _) (minimum c-foo x min_col2) --> (c-foo-min x min_col2)]
 ```
-- Again the syntax is similar to above aggregators.
+- Again, the syntax is similar to sum and count.
 - Here we have `c-foo` relation with two columns, we want the maximum/minimum for the second column, for each distinct first column value.
 #### SSSP - Min dist
 - Using the aggregators, we can calculate Single Source Shortest Path distance for a node in the graph.
@@ -206,19 +192,19 @@ Finding free vars in a lambda expression using slog, for example take this lambd
 [(path x _) (minimum path x min_dist) --> (sssp x min_dist)]
 ```
 - First we accumulate the distances to all nodes from src across different paths.
-- Final rule, we use minimum aggregator to find the shortest distance between the `x` or `src` and each node.
+- Final rule, we use minimum aggregator to find the shortest distance between the source and each node.
 ---------------------------------------
 ### Lists and usage
-- Ability to *support nested facts*  means slog support linked lists.
+- The free vars example introduced the concept of nested facts, which is a powerful feature in slog. It can be used to represent lists.
 ```slog
 (lst 1 (lst 2 (lst 3 (lst 4 (nil )))))
 ```
 - The above is a valid fact in slog and is basically a singly linked list.
-- Once we have list, we need to be able to do some operations on the list, The following examples will show how you can write `length`, `member`, `append`, `reverse`, `split` etc.
-- In these operations example, we will also introduce `!` form, which lets us eagerly generate facts from a rule, before evaluating the surrounding fact, much like a function call.
-- Getting a basic understanding of how `!` and nested facts work satisfies the goal of these examples.
+- Once we have list, we need to be able to do some operations on the list, The following examples will show how you can write `length`, `member`, `append`, `reverse` etc.
+- In these operations example, we will also introduce `!` form, which lets us recursively generate facts from a rule, before evaluating the surrounding fact, much like a function call.
+- Please pay attention to the use of `{}` ,`!` and nested facts in the examples.
 #### Length
-- Think about, how we can do this, We can to look at outer list, unwrap one element, increase the length by one, and keep doing this till we see a `(nil )` fact.
+- The basic idea is to take the outer list, unwrap each element, increase the length by one, and repeat this till we see a `(nil )` fact.
 - Here is the slog program to calculate the length of a slog-list.
 ```slog
 (input-list (list 1 (list 2 (list 3 (nil)))))
@@ -230,9 +216,9 @@ Finding free vars in a lambda expression using slog, for example take this lambd
 
 [(print-length-res res)
     <-- (length !(do-length {input-list}) res)]
-
 ```
-- To make this easier to understand let's desugar the `?` form and point the arrows from body to head and reorder the rules to match the explanation.
+- The above rules can be writtten more explicitly removing the syntactic form `?`, changing the direction of arrow in the rules and reordering the rules. 
+- Note, Slog doesn't enforce a order of head and body in a rule, can `head <-- body` or `body --> head`, they are equivalent. And the order of rules in the program doesn't affect the output.
 ```slog
 ;  list operation
 (input-list (list 1 (list 2 (list 3 (nil)))))
@@ -246,20 +232,19 @@ Finding free vars in a lambda expression using slog, for example take this lambd
 [(do-length (nil)) 
     --> (length (do-length (nil)) 0)]
 ```
-- The first line is the list creation, the list is in a relation named input-list, it has three elements `'(1 2 3)`, `(nil)` acts as a marker for end of the list.
+- The first line is the input-list fact, the list is in a relation named input-list, it has three elements `'(1 2 3)`, `(nil)` acts as a marker for end of the list.
 - First Rule:
-	- Body has a `length`, fact that has `do-length` with exclamation, which has `input-list` in curly braces, and `res` at the end.
-	- At this point, the DB doesn't have any `length` facts, but how `!` works is, before it's surrounding rule is executed, `do-length` gets added to the DB, and it triggers some rules, once those rules are done, `do-length` will "return", then it's surrounding rule is evaluated.
-	- It is like a function call, when `do-length` returns, there will be length facts in the database, and the surrounding rule goes through.
-	- One more item here, Curly braces wrapping the relation name `input-list`, Curly braces leads to eager execution, in this case, `input-list` is replaced with tuples inside the relation, in our case only one list, there can be more lists in the input-list relation.
+	- Body has a `length`, fact that has `do-length` marked with `!` -- `bang` from hereon -- which has `input-list` in curly braces, and `res` at the end.
+	- At this point, the DB doesn't have any `length` facts, but how bang works is, before the surrounding rule is executed, `do-length` fact gets added to the DB, and it triggers some - In this case, second rule gets triggered - rules, once those rules are done, `do-length` will "return", then it's surrounding rule is evaluated.
+	- It can thought of as a function call, when `do-length` returns, there will be length facts in the database, and the surrounding rule goes through.
+	- One more item here, Curly braces wrapping the relation name `input-list`, expression inside `{}` gets executed first, in this case, `input-list` is replaced with tuples inside the relation, in this case only one list, there can be more lists in the input-list relation.
 	- Like `(input-list (list 4 (list 5 (list 6 (list 7 (nil))))))`, and do length would be triggered on both lists.
 - Second Rule:
-	- Now, that `(do-length (list 1 (list 2 (list 3 (nil)))))` is in the database, it triggers the second rule.
-	- In the body of the second rule, we see something similar to what is in the first rule, except `do-length` is being "called" for rest of the list, and when it return head has `{+ len-rst 1}`, which emits length fact with increased length.
-	- This cycle happens, till `(do-length (nil))`, in which case third rules gets triggered emitting the first `length` fact with `len-rst` as zero.
-	- This length fact, now satisfies the rule triggered by `(do-length (list 1 (nil)))`, which emits the second length fact `(length (do-length (list 1 (nil))))`, which satisfies the "second" rule triggered by `(do-length (list 2 (list 1 (nil))))`. This is like recursive call returning to its caller and so on.
-- Hope that is helpful, Run the program, dump facts in REPL and play around.
-- That example introduces `!` form, and working with nested facts. For the next list-operations, we will list the slog code, and basic explanation.
+	- Once `(do-length (list 1 (list 2 (list 3 (nil)))))` is in the database, second rule is triggered.
+	- In the body of the second rule, we see something similar to first rule, except `do-length` is being "called" for rest - cdr - of the list, and when it returns head has `{+ len-rst 1}`, which emits length fact with increased length.
+	- This recurses till `(do-length (nil))` is reached, in which case third rules gets triggered emitting the first `length` fact with `len-rst` as zero.
+    - Length fact, as it goes up the recursion, satisfies the surrounding rule it was triggered by, and that rules emits a length fact with increased length.
+- That example introduces `!` form, and working with nested facts. 
 
 #### Member
 ```slog
@@ -298,7 +283,7 @@ Finding free vars in a lambda expression using slog, for example take this lambd
 ```
 - This uses append, Takes each element from the head and adds into a list, giving the reverse of a list.
 #### SSSP - Path
-- In these example, we will use the goodness of lists to extend our SSSP example, which gives the min-dist to all the nodes from a source node, to also give us the paths that are min-dist.
+- In these example, lists are used to extend our SSSP example - computes min-dist to all the nodes from a source node - to calculate the paths to take for min-dist.
 ```slog
 ;; Single source shortest path
 ;; cyclic
@@ -315,11 +300,8 @@ Finding free vars in a lambda expression using slog, for example take this lambd
 	--> (shortest-path from to pt dist)]
 ```
 - This is an interesting program to look at and understand, this uses most of the features the other examples have introduced till this point.
-- The example needs the rules from [member](#member) example, we are emitting them here for brevity.
-- We have a graph and source node in the EDB (Extensional Database) i.e., input, We have to produce the shortest path from source-node to rest of the reachable nodes in the graph.
-- Prior SSSP example, calculated min dist from source node to other nodes but didn't keep the path to take for the min dist, Here we are trying to get the path.
-- The only difference here from the previous example is, along with the min dist, we add the new hop to a list of nodes in that path. And before doing that, we do a membership check for that node, to make sure we don't infinitely loop in case of cyclic graphs.
-- Remove the membership check, for a cyclic graph the program goes into a infinite loop, for an acyclic graph, membership check isn't necessary.
+- The example needs the rules from [member](#member) example, they are emitted for brevity.
+- The only difference here from the previous SSSP example is, for every hop, along with min-dist calculation, the `to` node is added to a list of nodes in that path given it isn't already present in the path, this membership check is neccessary to avoid infinite loops in cyclic graphs.  
 
 ### Sources 
 - Some Examples are picked from sources written by [Sun Yihao](https://github.com/StarGazerM), [Akshar Patel](https://github.com/akshar2020)
