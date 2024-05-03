@@ -101,8 +101,8 @@ class SlogClient:
                 sys.exit(1)
         self.lasterr = None
         self.relations = []
-        self.unroll_depth = 5
-        self.group_cardinality = 5
+        self.unroll_depth = 5000 # modified from 5 to 5000
+        self.group_cardinality = 5000 # modified from 5 to 5000
         self.cur_db = ''
         self._cur_program_hashes = None
         self.intern_string_dict = {}
