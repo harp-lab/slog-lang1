@@ -4,6 +4,8 @@
 Slog is a language, compiler, and runtime system for implementing
 data-parallel deductive programming.
 
+The best way to understand Slog is to read [our preprint](https://arxiv.org/abs/2211.11573).
+
 ## Components
 
 - `compiler/`         -- Compiler from Slog source code to a parallel RA plan
