@@ -27,13 +27,16 @@ enum class slogc_token_type { none,
                               right_paren,
                               symbol,
                               boolean,
-                              number };
+                              number,
+                              string };
 enum class slogc_char_type { left_paren,
                              right_paren,
                              space,
+                             double_quote,
                              other };
 enum class parse_state { init,
-                         symbol };
+                         symbol,
+                         string };
 enum class slogc_relation_version { DELTA,
                                     FULL };
 

@@ -43,6 +43,8 @@ slogc_char_type get_char_type(char ch) {
         return slogc_char_type::left_paren;
     case ')':
         return slogc_char_type::right_paren;
+    case '"':
+        return slogc_char_type::double_quote;
     }
     if (isspace(static_cast<unsigned char>(ch)))
         return slogc_char_type::space;
@@ -79,6 +81,16 @@ bool get_token(std::istream &in, slogc_token &tok) {
                 break;
             }
             str += ch;
+        } else if (state == parse_state::string) {
+            if (ctype == slogc_char_type::double_quote) {
+                str += ch;
+                break;
+            }
+            str += ch;
+        } else if (ctype == slogc_char_type::double_quote) {
+            state = parse_state::string;
+            type = slogc_token_type::string;
+            str = ch;
         } else if (ctype == slogc_char_type::other) {
             state = parse_state::symbol;
             type = slogc_token_type::symbol;
@@ -96,6 +108,8 @@ bool get_token(std::istream &in, slogc_token &tok) {
     if (type == slogc_token_type::symbol) {
         if (!parse_number(str, tok))
             tok.data = str;
+    } else if (type == slogc_token_type::string){
+        tok.data = str;
     }
     return true;
 }
