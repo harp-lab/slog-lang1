@@ -61,4 +61,3 @@ Options:
 (print-welcome 1)
 ```
 - Here, This is similar to a printf-style debugging, and can be useful in undestanding what each rule is doing in a program.
-- Note, Here there are no spaces in the strings, because the current parser does not support spaces in strings.
