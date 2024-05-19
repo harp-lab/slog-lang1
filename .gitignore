@@ -32,4 +32,8 @@ nonsense/
 syntax-edb
 cfa-expt-*
 .DS_Store
+*~*
+*#*
+
+
 

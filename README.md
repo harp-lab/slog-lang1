@@ -1,4 +1,4 @@
-### Slog: Data-Parallel Deductive Programming
+### Slog v1: Data-Parallel Deductive Programming
 
 
 Slog is a language, compiler, and runtime system for implementing

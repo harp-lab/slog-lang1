@@ -29,17 +29,17 @@ In the example,
 - This is the structure of the dir we are using,
 ```tree
 TC/
-|-- input
+|-- input/
 |   `-- edge.csv
-|-- output
-`-- src
+|-- output/
+`-- src/
     `-- tc.slog
 
 3 directories, 2 files
 ```
-- For this example, slog can be run from the `/slog` using
+- For this example, slog can be run from the `/slog` directory using
 ```bash
-./runslog -R --facts /TC/input/ /TC/src/tc.slog /TC/output/
+./runslog -R --facts TC/input/ TC/src/tc.slog TC/output/
 ```
 - `./runslog -h` shows the options available, or jump to [REPL and runslog](./repl_and_runslog.md) for more details about runslog.
 - Once the execution is done,it drops into the REPL, and running `dump path` displays the facts in path relation.
