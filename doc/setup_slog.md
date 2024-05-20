@@ -13,7 +13,7 @@ docker run --name=slog --detach slog
 ``` 
 - To mount a local working directory into the container, change the command to 
 ```bash
-docker run --name=slog --detach slog -v <local_dir>:/workspace slog
+docker run --name=slog --detach -v <local_dir>:/workspace slog
 ```
 - This starts the container and keeps it running the back ground.
 - Drop into the container shell by running, 
