@@ -6,3 +6,11 @@
 (foo 2 "bar")
 
 [(foobar x y) <-- (foo x y) (bar y)]
+
+; ------------------------------------
+; Strings with spaces
+(strs 1 "well string")
+(strs 2 "well another string)")
+(strs 3 "yet another ! ? string")
+
+[(strs _ str_val) --> (just_str str_val)]

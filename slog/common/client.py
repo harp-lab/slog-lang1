@@ -324,7 +324,7 @@ class SlogClient:
                     if s_line.strip() == '':
                         continue
                     sv = s_line.split('\t')[1]
-                    sw_without_quote = f'"{sv.strip()}"'
+                    sw_without_quote = f'{sv.strip()}'
                     if string_hash(sw_without_quote) in self.intern_string_dict.keys():
                         if sv.strip() != self.intern_string_dict[string_hash(sw_without_quote)]:
                             print(f"Hash collision {sv.strip()} {self.intern_string_dict[string_hash(sw_without_quote)]}")
