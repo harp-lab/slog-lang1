@@ -23,9 +23,11 @@ Here's how you do Transitive Closure in Slog
 The Following guide can help you quickly get started with Slog:
 
 ## Getting Started
-The below video follows the first two articles -- setting up slog and running TC -- and the first example from the Tutorial article, [![Slog Set-Up and Running Examples](http://i3.ytimg.com/vi/S_cVmsByvHs/hqdefault.jpg)](https://www.youtube.com/watch?v=S_cVmsByvHs)
-- [Set Up Slog](./doc/setup_slog.md) 
-- [A Simple Example: Transitive Closure](./doc/TC.md)
+The following video (click the image below) demonstrates the first 2-3 articles below: setting up slog, running transitive closure, and showing the first example from the tutorial article. 
+
+[![Setting-up and running Slog examples](http://i3.ytimg.com/vi/S_cVmsByvHs/hqdefault.jpg)](https://www.youtube.com/watch?v=S_cVmsByvHs)
+- [Set up Slog](./doc/setup_slog.md) 
+- [A simple example: transitive closure](./doc/TC.md)
 - [Tutorial](./doc/tutorial.md) 
 - [REPL and runslog](./doc/repl_and_runslog.md) 
 - [Comparison with Souffle](./doc/compare.md)
