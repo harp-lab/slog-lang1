@@ -537,7 +537,7 @@
       (match key
         [`(interned string ,n)
          (set! x (max x n))
-         (displayln (format "~a\t~a" n (hash-ref intern-map key)) out)]
+         (displayln (format "~a\t\"~a\"" n (hash-ref intern-map key)) out)]
         [_ (void)]))
     (close-output-port out)
     x)
