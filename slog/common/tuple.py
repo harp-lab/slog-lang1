@@ -119,7 +119,7 @@ class SlogTupleParser:
                     try:
                         printed_id, val = self.reversed_id_map[col[1:]] # This ERRORS out
                     except:
-                        print(f"\n\n\n query res: {self.query_res} \ncardinality {self.cardinality}, \nmax_depth {self.max_depth},\nintern_string_dict: {self.intern_string_dict},\nrel_name: {self.rel_name}, \nrel_tag: {self.rel_tag} \nnested_tag {nested_tag} \ncol: {slog_tuple.data_col}")
+                        print(f"\n\ncardinality {self.cardinality}, \nmax_depth {self.max_depth},\nrel_name: {self.rel_name}, \nrel_tag: {self.rel_tag} \nnested_tag {nested_tag} \ncol: {slog_tuple.data_col}")
                     if val is None:
                         nested_id = col[3]
                         res.append(f'"{self.tag_map[nested_tag]} has no fact with id {nested_id} !"')

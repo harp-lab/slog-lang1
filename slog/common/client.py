@@ -87,7 +87,7 @@ class SlogClient:
     Client to a slog server.
     """
     def __init__(self, server="localhost", rpc_port=5108, ftp_port=2121, local_db_path=None):
-        self.dump_limit = 500
+        self.dump_limit = 500000 # someday maybe we'll haveto set it to inifinity
         self._channel = None
         self._stub = None
         self.server_addr = server
